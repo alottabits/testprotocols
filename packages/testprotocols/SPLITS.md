@@ -17,6 +17,48 @@ Format per entry:
 
 ---
 
+## 2026-05-02 — `netem: NetemController` removed from `SdwanRouterDevice`
+
+**Signal:** During Phase 5 cutover (sdwan-digital-twin example) the must-fix
+review noted that `LinuxSdwanRouter` does not provide a `netem` capability
+namespace. Inspection of the testbed showed netem is applied via separate
+`LinuxTrafficController` devices sitting between the SDWAN router and its
+WAN peers, not on the router itself.
+
+**Decision:** Remove `netem: NetemController` from the `SdwanRouterDevice`
+archetype. NetemController stays on `TrafficControllerDevice` where it
+actually lives.
+
+**Rationale:**
+- The source palco-templates `linux_sdwan_router` registration listed
+  `NetemController` as a template, but no driver implemented it on the
+  router itself. The verbatim Task 8 conversion preserved the over-broad
+  shape; the cutover surfaced that no consumer actually expected the
+  router to shape its own traffic.
+- Real-world testbeds put netem on intermediate traffic shapers (sitting
+  between the device-under-test and its peers), not on the device itself.
+  Asking an SDWAN router to also be its own traffic shaper conflates
+  separate concerns.
+- Tests requiring impaired WAN conditions still get them — via the
+  `TrafficControllerDevice` archetype on `wan1_tc` / `wan2_tc` — which
+  is exactly how the sdwan-digital-twin scenarios are written today.
+
+**Methods affected:** none on the router itself (the netem attribute
+was never wired up). Removing the requirement aligns the contract with
+the de-facto driver shape.
+
+**Migration impact at this point:**
+- testprotocols `SdwanRouterDevice` shape narrowed from 7 attributes to 6.
+- Per-archetype test in `test_device_types.py` updated.
+- Plugin's `LinuxSdwanRouter` no longer needs to wrap or stub-out a
+  netem capability that has no LinuxDevice methods to delegate to.
+- Future tests that DO want a router with built-in impairment can
+  define a plugin-local `<X>SdwanRouterDevice(SdwanRouterDevice,
+  Protocol): netem: NetemController` extension and ship a driver that
+  implements it.
+
+---
+
 ## 2026-05-02 — MAC ACL methods moved `WifiStations` → `WifiBss`
 
 **Signal:** During Task 9 (manual review and acceptance gate of the ABC →

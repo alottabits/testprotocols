@@ -142,11 +142,15 @@ def test_wan_server_registered() -> None:
 
 
 def test_sdwan_router_aggregates_expected_capabilities() -> None:
-    """SdwanRouterDevice declares attributes for every aggregated capability."""
+    """SdwanRouterDevice declares attributes for every aggregated capability.
+
+    Note: netem is intentionally not on this archetype — traffic impairment
+    is the TrafficControllerDevice's job (separate device on the WAN path),
+    not the SDWAN router's own. See packages/testprotocols/SPLITS.md.
+    """
     expected = {
         "routing",
         "sdwan_policy",
-        "netem",
         "ip_interface",
         "pcap",
         "nat",
@@ -154,6 +158,7 @@ def test_sdwan_router_aggregates_expected_capabilities() -> None:
     }
     actual = set(SdwanRouterDevice.__protocol_attrs__)
     assert expected <= actual, f"missing: {expected - actual}"
+    assert "netem" not in actual, "netem should not be on SdwanRouterDevice"
 
 
 def test_cpe_aggregates_expected_capabilities() -> None:
