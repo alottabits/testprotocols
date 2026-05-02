@@ -1,0 +1,362 @@
+"""Tests for the device-archetype registry.
+
+The registry maps inventory ``device_type`` strings to ``@runtime_checkable``
+Protocol classes. Each archetype Protocol declares the aggregate of capability
+attributes a conforming driver must provide. These tests verify both the
+inventory-string -> Protocol binding and the per-archetype capability set
+(via ``__protocol_attrs__``).
+"""
+
+from __future__ import annotations
+
+from testprotocols.devices import DeviceTypeSpec, all_device_types, get_device_type
+from testprotocols.devices.client import (
+    LanClientDevice,
+    QoeClientDevice,
+    WlanClientDevice,
+)
+from testprotocols.devices.cpe import CpeDevice
+from testprotocols.devices.infra import AcsDevice, ProvisionerDevice, TftpDevice
+from testprotocols.devices.sdwan import SdwanRouterDevice
+from testprotocols.devices.traffic import (
+    IperfTrafficGeneratorDevice,
+    TrafficControllerDevice,
+)
+from testprotocols.devices.voice import SipPhoneDevice, SipServerDevice
+from testprotocols.devices.wan import WanServerDevice
+
+# ---------------------------------------------------------------------------
+# Registry plumbing
+# ---------------------------------------------------------------------------
+
+
+def test_get_unknown_returns_none() -> None:
+    assert get_device_type("nonexistent") is None
+
+
+def test_all_device_types_registered() -> None:
+    expected = {
+        "linux_lan_client",
+        "linux_wlan_client",
+        "linux_qoe_client",
+        "linux_cpe",
+        "linux_acs",
+        "linux_provisioner",
+        "linux_tftp",
+        "linux_sdwan_router",
+        "linux_traffic_controller",
+        "iperf_traffic_generator",
+        "linux_sip_phone",
+        "linux_sip_server",
+        "linux_wan_server",
+    }
+    assert expected == set(all_device_types().keys())
+
+
+# ---------------------------------------------------------------------------
+# Per-archetype: inventory string -> Protocol class binding
+# ---------------------------------------------------------------------------
+
+
+def test_sdwan_router_registered() -> None:
+    spec = get_device_type("linux_sdwan_router")
+    assert isinstance(spec, DeviceTypeSpec)
+    assert spec.protocol is SdwanRouterDevice
+
+
+def test_cpe_registered() -> None:
+    spec = get_device_type("linux_cpe")
+    assert isinstance(spec, DeviceTypeSpec)
+    assert spec.protocol is CpeDevice
+
+
+def test_lan_client_registered() -> None:
+    spec = get_device_type("linux_lan_client")
+    assert isinstance(spec, DeviceTypeSpec)
+    assert spec.protocol is LanClientDevice
+
+
+def test_wlan_client_registered() -> None:
+    spec = get_device_type("linux_wlan_client")
+    assert isinstance(spec, DeviceTypeSpec)
+    assert spec.protocol is WlanClientDevice
+
+
+def test_qoe_client_registered() -> None:
+    spec = get_device_type("linux_qoe_client")
+    assert isinstance(spec, DeviceTypeSpec)
+    assert spec.protocol is QoeClientDevice
+
+
+def test_acs_registered() -> None:
+    spec = get_device_type("linux_acs")
+    assert isinstance(spec, DeviceTypeSpec)
+    assert spec.protocol is AcsDevice
+
+
+def test_provisioner_registered() -> None:
+    spec = get_device_type("linux_provisioner")
+    assert isinstance(spec, DeviceTypeSpec)
+    assert spec.protocol is ProvisionerDevice
+
+
+def test_tftp_registered() -> None:
+    spec = get_device_type("linux_tftp")
+    assert isinstance(spec, DeviceTypeSpec)
+    assert spec.protocol is TftpDevice
+
+
+def test_traffic_controller_registered() -> None:
+    spec = get_device_type("linux_traffic_controller")
+    assert isinstance(spec, DeviceTypeSpec)
+    assert spec.protocol is TrafficControllerDevice
+
+
+def test_iperf_traffic_generator_registered() -> None:
+    spec = get_device_type("iperf_traffic_generator")
+    assert isinstance(spec, DeviceTypeSpec)
+    assert spec.protocol is IperfTrafficGeneratorDevice
+
+
+def test_sip_phone_device_registered() -> None:
+    spec = get_device_type("linux_sip_phone")
+    assert isinstance(spec, DeviceTypeSpec)
+    assert spec.protocol is SipPhoneDevice
+
+
+def test_sip_server_device_registered() -> None:
+    spec = get_device_type("linux_sip_server")
+    assert isinstance(spec, DeviceTypeSpec)
+    assert spec.protocol is SipServerDevice
+
+
+def test_wan_server_registered() -> None:
+    spec = get_device_type("linux_wan_server")
+    assert isinstance(spec, DeviceTypeSpec)
+    assert spec.protocol is WanServerDevice
+
+
+# ---------------------------------------------------------------------------
+# Per-archetype: aggregate capability checks via __protocol_attrs__
+# ---------------------------------------------------------------------------
+
+
+def test_sdwan_router_aggregates_expected_capabilities() -> None:
+    """SdwanRouterDevice declares attributes for every aggregated capability."""
+    expected = {
+        "routing",
+        "sdwan_policy",
+        "netem",
+        "ip_interface",
+        "pcap",
+        "nat",
+        "conntrack",
+    }
+    actual = set(SdwanRouterDevice.__protocol_attrs__)
+    assert expected <= actual, f"missing: {expected - actual}"
+
+
+def test_cpe_aggregates_expected_capabilities() -> None:
+    expected = {
+        "tr069_client",
+        "device_management",
+        "device_lifecycle",
+        "hw_console",
+        "wifi_radio",
+        "wifi_bss",
+        "wifi_stations",
+        "wifi_rf",
+        "wifi_transitions",
+        "wifi_onboarding",
+        "ip_interface",
+        "ip_routing",
+        "packet_filter",
+        "nat",
+        "port_forwarding",
+        "conntrack",
+        "firewall_zones",
+        "ntp_client",
+    }
+    actual = set(CpeDevice.__protocol_attrs__)
+    assert expected <= actual, f"missing: {expected - actual}"
+
+
+def test_lan_client_aggregates_expected_capabilities() -> None:
+    expected = {
+        "ip_interface",
+        "ip_routing",
+        "dhcp_client",
+        "http_client",
+        "http_server",
+        "dns_client",
+        "iperf_client",
+        "iperf_server",
+        "pcap",
+        "upnp_client",
+        "multicast_client",
+        "ntp_client",
+        "nmap_scanner",
+        "file_transfer",
+        "packet_filter",
+        "arp_client",
+        "vlan_client",
+    }
+    actual = set(LanClientDevice.__protocol_attrs__)
+    assert expected <= actual, f"missing: {expected - actual}"
+
+
+def test_wlan_client_aggregates_expected_capabilities() -> None:
+    expected = {
+        "wifi_client",
+        "ip_interface",
+        "ip_routing",
+        "dhcp_client",
+        "http_client",
+        "iperf_client",
+        "iperf_server",
+        "pcap",
+        "upnp_client",
+        "multicast_client",
+        "ntp_client",
+        "nmap_scanner",
+        "file_transfer",
+    }
+    actual = set(WlanClientDevice.__protocol_attrs__)
+    assert expected <= actual, f"missing: {expected - actual}"
+
+
+def test_qoe_client_aggregates_expected_capabilities() -> None:
+    expected = {"qoe_browser", "ip_interface", "dhcp_client"}
+    actual = set(QoeClientDevice.__protocol_attrs__)
+    assert expected <= actual, f"missing: {expected - actual}"
+
+
+def test_acs_aggregates_expected_capabilities() -> None:
+    expected = {
+        "tr069_server",
+        "tr069_gui",
+        "pcap",
+        "file_transfer",
+        "packet_filter",
+    }
+    actual = set(AcsDevice.__protocol_attrs__)
+    assert expected <= actual, f"missing: {expected - actual}"
+
+
+def test_provisioner_aggregates_expected_capabilities() -> None:
+    expected = {"dhcp_server", "pcap", "file_transfer", "packet_filter"}
+    actual = set(ProvisionerDevice.__protocol_attrs__)
+    assert expected <= actual, f"missing: {expected - actual}"
+
+
+def test_tftp_aggregates_expected_capabilities() -> None:
+    expected = {"tftp_server"}
+    actual = set(TftpDevice.__protocol_attrs__)
+    assert expected <= actual, f"missing: {expected - actual}"
+
+
+def test_traffic_controller_aggregates_expected_capabilities() -> None:
+    expected = {"netem", "ip_interface"}
+    actual = set(TrafficControllerDevice.__protocol_attrs__)
+    assert expected <= actual, f"missing: {expected - actual}"
+
+
+def test_iperf_traffic_generator_aggregates_expected_capabilities() -> None:
+    expected = {"iperf_generator", "ip_interface"}
+    actual = set(IperfTrafficGeneratorDevice.__protocol_attrs__)
+    assert expected <= actual, f"missing: {expected - actual}"
+
+
+def test_sip_phone_device_aggregates_expected_capabilities() -> None:
+    expected = {"sip_phone", "ip_interface", "dhcp_client"}
+    actual = set(SipPhoneDevice.__protocol_attrs__)
+    assert expected <= actual, f"missing: {expected - actual}"
+
+
+def test_sip_server_device_aggregates_expected_capabilities() -> None:
+    expected = {"sip_server", "pcap", "file_transfer"}
+    actual = set(SipServerDevice.__protocol_attrs__)
+    assert expected <= actual, f"missing: {expected - actual}"
+
+
+def test_wan_server_aggregates_expected_capabilities() -> None:
+    expected = {
+        "ip_interface",
+        "ip_routing",
+        "dhcp_client",
+        "http_client",
+        "http_server",
+        "dns_client",
+        "iperf_client",
+        "iperf_server",
+        "pcap",
+        "ntp_client",
+        "nmap_scanner",
+        "file_transfer",
+        "snmp_client",
+        "packet_filter",
+        "nat",
+        "conntrack",
+    }
+    actual = set(WanServerDevice.__protocol_attrs__)
+    assert expected <= actual, f"missing: {expected - actual}"
+
+
+# ---------------------------------------------------------------------------
+# Firewall composition matrix
+# ---------------------------------------------------------------------------
+
+
+def test_acs_firewall_facets() -> None:
+    """ACS aggregates packet_filter only — no NAT / port-forwarding / conntrack / zones."""
+    attrs = set(AcsDevice.__protocol_attrs__)
+    assert "packet_filter" in attrs
+    for absent in ("nat", "port_forwarding", "conntrack", "firewall_zones"):
+        assert absent not in attrs, f"AcsDevice unexpectedly aggregates {absent}"
+
+
+def test_provisioner_firewall_facets() -> None:
+    """Provisioner aggregates packet_filter."""
+    attrs = set(ProvisionerDevice.__protocol_attrs__)
+    assert "packet_filter" in attrs
+
+
+def test_lan_client_firewall_facets() -> None:
+    """LanClientDevice aggregates packet_filter only."""
+    attrs = set(LanClientDevice.__protocol_attrs__)
+    assert "packet_filter" in attrs
+    for absent in ("nat", "port_forwarding", "conntrack", "firewall_zones"):
+        assert absent not in attrs, f"LanClientDevice unexpectedly aggregates {absent}"
+
+
+def test_wan_server_firewall_facets() -> None:
+    """WanServerDevice aggregates packet_filter, nat, conntrack — no port-forwarding / zones."""
+    attrs = set(WanServerDevice.__protocol_attrs__)
+    for present in ("packet_filter", "nat", "conntrack"):
+        assert present in attrs
+    for absent in ("port_forwarding", "firewall_zones"):
+        assert absent not in attrs, f"WanServerDevice unexpectedly aggregates {absent}"
+
+
+def test_cpe_full_firewall_surface() -> None:
+    """CpeDevice aggregates the complete firewall surface."""
+    attrs = set(CpeDevice.__protocol_attrs__)
+    for present in ("packet_filter", "nat", "port_forwarding", "conntrack", "firewall_zones"):
+        assert present in attrs
+
+
+def test_devices_without_firewall() -> None:
+    """These archetypes must not pull in any of the firewall capabilities."""
+    firewall_attrs = ("packet_filter", "nat", "port_forwarding", "conntrack", "firewall_zones")
+    for archetype in (
+        TftpDevice,
+        WlanClientDevice,
+        QoeClientDevice,
+        SipPhoneDevice,
+        SipServerDevice,
+        TrafficControllerDevice,
+        IperfTrafficGeneratorDevice,
+    ):
+        attrs = set(archetype.__protocol_attrs__)
+        for absent in firewall_attrs:
+            assert absent not in attrs, f"{archetype.__name__} unexpectedly aggregates {absent}"
