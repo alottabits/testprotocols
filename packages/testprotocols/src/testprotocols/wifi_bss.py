@@ -1,8 +1,9 @@
 """WiFi / WifiBss template.
 
 Defines the abstract contract for per-SSID / per-VAP configuration on a
-WiFi-capable device: lifecycle, security, broadcast suppression, VLAN
-binding, max-clients, DTIM, and captive-portal admin.
+WiFi-capable device: lifecycle, security, MAC ACL authorization,
+broadcast suppression, VLAN binding, max-clients, DTIM, and captive-portal
+admin.
 
 A BSS is identified by a stable logical *name* the test supplies at
 creation time (matching the RadiusClient.add_server pattern). The SSID
@@ -20,7 +21,7 @@ from __future__ import annotations
 
 from typing import Protocol, runtime_checkable
 
-from testprotocols.models.wifi import WifiBssConfig
+from testprotocols.models.wifi import WifiAcl, WifiBssConfig
 
 
 @runtime_checkable
@@ -117,6 +118,49 @@ class WifiBss(Protocol):
         Same value space and required-argument rules as ``create_bss``.
         Reconfiguration disconnects currently associated clients on most
         drivers; tests should expect re-association.
+        """
+        ...
+
+    # --- MAC ACL — per-BSS authorization scheme ---
+
+    def set_acl_mode(self, name: str, mode: str) -> None:
+        """Set the per-BSS MAC ACL mode.
+
+        *mode* is one of:
+        - ``"disabled"`` — no MAC filtering; the BSS's ACL list is ignored
+        - ``"allow"`` — allow-list (whitelist); only MACs in the ACL may associate
+        - ``"deny"`` — deny-list (blacklist); MACs in the ACL are blocked
+
+        Raises KeyError if *name* is not registered.
+        """
+        ...
+
+    def add_acl_entry(self, name: str, mac: str) -> None:
+        """Add *mac* to the BSS's ACL list. No-op if already present.
+
+        Effective filtering depends on the current ACL mode.
+        Raises KeyError if *name* is not registered.
+        """
+        ...
+
+    def remove_acl_entry(self, name: str, mac: str) -> None:
+        """Remove *mac* from the BSS's ACL list. No-op if absent.
+
+        Raises KeyError if *name* is not registered.
+        """
+        ...
+
+    def clear_acl(self, name: str) -> None:
+        """Remove all entries from the BSS's ACL list. Mode is unchanged.
+
+        Raises KeyError if *name* is not registered.
+        """
+        ...
+
+    def get_acl(self, name: str) -> WifiAcl:
+        """Return the BSS's MAC ACL state (mode + entries).
+
+        Raises KeyError if *name* is not registered.
         """
         ...
 
