@@ -108,3 +108,36 @@ class PacketFilter(Protocol):
         Drivers without per-rule counter support raise NotImplementedError.
         """
         ...
+
+
+@runtime_checkable
+class PacketFilterWhiteBox(PacketFilter, Protocol):
+    """White-box extension of PacketFilter for raw kernel-level introspection.
+
+    Linux drivers that can shell into the box satisfy this extension by
+    capturing the underlying iptables / nftables ruleset. Vendor-RTOS or
+    locked-down devices typically satisfy only the base ``PacketFilter``
+    Protocol; tests requiring kernel-level rule verification should pin
+    against ``PacketFilterWhiteBox`` and accept the collection-skip on
+    drivers that don't satisfy it (per the ``@white_box`` scenario tag rule).
+    """
+
+    def get_kernel_iptables_dump(self) -> str:
+        """Return the raw ``iptables-save`` output (legacy iptables backend).
+
+        For drivers running on a Linux kernel with the legacy iptables
+        backend. Format is the standard iptables-save serialisation. Tests
+        parse this to verify rules landed at the kernel level rather than
+        only in the driver's intermediate state.
+        """
+        ...
+
+    def get_nftables_ruleset(self) -> str:
+        """Return the raw ``nft list ruleset`` output (nftables backend).
+
+        For drivers running on a Linux kernel with the nftables backend.
+        Format is the standard nftables ruleset serialisation. Returns
+        the entire ruleset across all tables and families; tests grep
+        for the rules they care about.
+        """
+        ...

@@ -211,3 +211,49 @@ class WifiMesh(Protocol):
         in the mesh, or if *target_agent_mac* is not a known agent.
         """
         ...
+
+
+@runtime_checkable
+class WifiMeshWhiteBox(WifiMesh, Protocol):
+    """White-box extension of WifiMesh for raw 1905.1 / EasyMesh introspection.
+
+    Drivers running an open-source EasyMesh stack (prplMesh, hostapd-based
+    controllers, etc.) and able to shell into the controller / agent satisfy
+    this extension. Closed-source vendor controllers typically satisfy only
+    the base ``WifiMesh`` Protocol; tests requiring raw 1905 / EasyMesh state
+    verification should pin against ``WifiMeshWhiteBox`` and accept the
+    collection-skip on drivers that don't satisfy it (per the ``@white_box``
+    scenario tag rule).
+    """
+
+    def get_raw_ieee1905_state(self) -> str:
+        """Return the IEEE 1905.1 AL-entity state of this device verbatim.
+
+        Format is driver-dependent — typically the output of the
+        controller / agent's CLI dump command (e.g. ``prplmeshcli al-entity-info``,
+        vendor equivalents). Tests parse for AL MAC, neighbour AL MACs,
+        topology-discovery counters, and link metrics.
+        """
+        ...
+
+    def get_raw_easymesh_tlvs(self, message_type: str | None = None) -> str:
+        """Return raw EasyMesh TLVs observed on the 1905 control plane.
+
+        With *message_type* None, returns all recently-observed TLVs (driver
+        chooses the window — typically the controller's transient cache).
+        With *message_type* set (e.g. ``"AP-Capability-Report"``,
+        ``"Topology-Notification"``), returns only TLVs from messages of
+        that type. Format is driver-dependent (often hex-encoded TLV with
+        a parsed annotation per line).
+        """
+        ...
+
+    def get_controller_logs(self, since_seconds: float = 60.0) -> str:
+        """Return recent controller-side log output covering EasyMesh activity.
+
+        *since_seconds* bounds the lookback window. Format is the controller's
+        native log format (typically a timestamped text stream). Tests grep
+        for specific event signatures: agent onboarding messages, channel-
+        selection decisions, steering events, link-metric updates.
+        """
+        ...

@@ -119,3 +119,28 @@ class Conntrack(Protocol):
     def get_max_connections(self) -> int:
         """Return the current conntrack table size limit."""
         ...
+
+
+@runtime_checkable
+class ConntrackWhiteBox(Conntrack, Protocol):
+    """White-box extension of Conntrack for raw kernel-table introspection.
+
+    Linux drivers that can shell into the box satisfy this extension by
+    capturing ``conntrack -L`` (the netfilter conntrack utility) output.
+    Vendor-RTOS or locked-down devices typically satisfy only the base
+    ``Conntrack`` Protocol; tests requiring raw connection-tuple
+    verification should pin against ``ConntrackWhiteBox`` and accept
+    the collection-skip on drivers that don't satisfy it (per the
+    ``@white_box`` scenario tag rule).
+    """
+
+    def get_raw_conntrack_dump(self) -> str:
+        """Return the raw ``conntrack -L`` output for the current namespace.
+
+        Format is the standard ``conntrack -L`` serialisation (one line per
+        flow, with proto / src / dst / sport / dport / state / mark fields).
+        Tests parse this to verify flow tuples landed at the kernel level
+        rather than only in the driver's intermediate state — useful for
+        debugging NAT-translation discrepancies and stuck-flow diagnostics.
+        """
+        ...

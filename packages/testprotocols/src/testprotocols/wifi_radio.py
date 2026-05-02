@@ -2,13 +2,17 @@
 
 Defines the abstract contract for per-radio PHY control on a WiFi-capable
 device (2.4 / 5 / 6 GHz radios). Covers admin state, channel / bandwidth /
-tx power / mode configuration, regulatory-domain control, DFS-state read,
-and a radar-event injection hook for DFS testing.
+tx power / mode configuration, regulatory-domain control, and DFS-state
+read.
 
 The template is per-device with band-keyed methods (matching the
 existing palco pattern in IpInterface and WifiClient). A device with
 multiple radios on the same band (e.g. dual-5GHz) is not modelled in
 this release; band-string keying assumes one radio per band per device.
+
+White-box extensions (radar-event injection, raw PHY dump) live on the
+``WifiRadioWhiteBox`` extension Protocol below — see LEVELS.md for the
+mandatory-vs-white-box rationale.
 """
 
 from __future__ import annotations
@@ -115,12 +119,35 @@ class WifiRadio(Protocol):
         """
         ...
 
+
+@runtime_checkable
+class WifiRadioWhiteBox(WifiRadio, Protocol):
+    """White-box extension of WifiRadio for deep PHY introspection and event injection.
+
+    Drivers backed by ``mac80211_hwsim`` (OpenWrt with the simulator radio),
+    vendor PHY-test stacks, or simulated environments satisfy this extension.
+    Real APs typically satisfy only the base ``WifiRadio`` Protocol; tests
+    that need radar-event injection or raw PHY introspection should pin
+    against ``WifiRadioWhiteBox`` and accept that they collection-skip on
+    drivers that don't satisfy it (per the ``@white_box`` scenario tag rule).
+    """
+
     def inject_radar_event(self, band: str, channel: int | None = None) -> None:
         """Inject a synthetic radar detection event on *band*.
 
         Test hook for DFS automation testing. *channel* defaults to the
-        radio's current channel. Drivers without hardware/simulation
-        support (i.e. all real APs) raise NotImplementedError; the
-        OpenWrt + ``mac80211_hwsim`` driver is the canonical implementer.
+        radio's current channel. The OpenWrt + ``mac80211_hwsim`` driver
+        is the canonical implementer; drivers without hardware/simulation
+        support do not satisfy ``WifiRadioWhiteBox`` at all (rather than
+        raising at call time).
+        """
+        ...
+
+    def get_raw_phy_dump(self) -> str:
+        """Dump raw nl80211 / vendor PHY state.
+
+        Returns the underlying driver's PHY description verbatim (e.g.
+        ``iw phy`` output on Linux). Caller parses; format is driver-dependent
+        and intended for diagnostics, not for steady-state contract checks.
         """
         ...
