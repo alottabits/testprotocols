@@ -6,7 +6,7 @@ interface status, path metrics, link health, and routing table management.
 
 from __future__ import annotations
 
-from typing import Protocol, runtime_checkable
+from typing import Any, Protocol, runtime_checkable
 
 from testprotocols.models.wan_edge import (
     LinkHealthReport,
@@ -36,7 +36,7 @@ class Router(Protocol):
         """Return a comprehensive health report for the named WAN link."""
         ...
 
-    def get_telemetry(self) -> dict:
+    def get_telemetry(self) -> dict[str, Any]:
         """Return a dict of current device telemetry data."""
         ...
 

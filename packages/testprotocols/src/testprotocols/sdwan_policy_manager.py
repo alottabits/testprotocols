@@ -6,7 +6,7 @@ policies, firewall rules, and application flow visibility.
 
 from __future__ import annotations
 
-from typing import Protocol, runtime_checkable
+from typing import Any, Protocol, runtime_checkable
 
 from testprotocols.models.firewall import FirewallRule
 from testprotocols.models.wan_edge import AppFlow, SLAPolicy
@@ -16,7 +16,7 @@ from testprotocols.models.wan_edge import AppFlow, SLAPolicy
 class SdwanPolicyManager(Protocol):
     """Abstract contract for SD-WAN policy management operations."""
 
-    def apply_policy(self, policy: dict) -> None:
+    def apply_policy(self, policy: dict[str, Any]) -> None:
         """Apply a generic SD-WAN policy specified as a dict."""
         ...
 

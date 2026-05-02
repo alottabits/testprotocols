@@ -1,4 +1,5 @@
 """Multicast group record types and type aliases."""
+
 from __future__ import annotations
 
 from enum import Enum

@@ -5,7 +5,7 @@ Defines the abstract contract for network scanning operations using nmap.
 
 from __future__ import annotations
 
-from typing import Protocol, runtime_checkable
+from typing import Any, Protocol, runtime_checkable
 
 
 @runtime_checkable
@@ -22,6 +22,6 @@ class NmapScanner(Protocol):
         min_rate: int | None = None,
         opts: str | None = None,
         timeout: int = 30,
-    ) -> dict:
+    ) -> dict[str, Any]:
         """Run an nmap scan against *ipaddr* and return the parsed results."""
         ...

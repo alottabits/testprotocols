@@ -1,7 +1,8 @@
 """Shared data models for palco-templates."""
+
 from __future__ import annotations
 
-from testprotocols.models.dhcp import DHCPV6TraceData, DHCPTraceData
+from testprotocols.models.dhcp import DHCPTraceData, DHCPV6TraceData
 from testprotocols.models.firewall import (
     Connection,
     ConntrackStats,
@@ -55,49 +56,47 @@ from testprotocols.models.wifi import (
 )
 
 __all__ = [
-    # dhcp
-    "DHCPTraceData",
-    "DHCPV6TraceData",
+    # wan_edge
+    "AppFlow",
     # firewall
     "Connection",
     "ConntrackStats",
+    # dhcp
+    "DHCPTraceData",
+    "DHCPV6TraceData",
     "FirewallRule",
-    "NatRule",
-    "PortMapping",
-    "Zone",
-    "ZonePolicy",
-    # impairment
-    "ImpairmentProfile",
-    # multicast
-    "McastGroup",
-    "McastSource",
-    "MulticastGroupRecord",
-    "MulticastGroupRecordType",
     # networking
     "HTTPResult",
     "ICMPPacketData",
     "IPAddresses",
-    # packets
-    "RIPv2PacketData",
+    # impairment
+    "ImpairmentProfile",
+    "LinkHealthReport",
+    "LinkStatus",
+    # multicast
+    "McastGroup",
+    "McastSource",
     # qoe
     "MeasurementSpec",
+    "MulticastGroupRecord",
+    "MulticastGroupRecordType",
+    "NatRule",
+    "PathMetrics",
+    "PortMapping",
     "QoEResult",
+    # packets
+    "RIPv2PacketData",
     # radius
     "RadiusAccountingRecord",
     "RadiusServerConfig",
     "RadiusSession",
     "RadiusUser",
-    # traffic
-    "TrafficResult",
-    "TrafficSpec",
-    # wan_edge
-    "AppFlow",
-    "LinkHealthReport",
-    "LinkStatus",
-    "PathMetrics",
     "RouteEntry",
     "SLAPolicy",
+    # traffic
+    "TrafficResult",
     "TrafficShapingRule",
+    "TrafficSpec",
     "VPNPeerStatus",
     # wifi
     "WifiAcl",
@@ -113,4 +112,6 @@ __all__ = [
     "WifiRadioStats",
     "WifiStation",
     "WifiTransitionConfig",
+    "Zone",
+    "ZonePolicy",
 ]

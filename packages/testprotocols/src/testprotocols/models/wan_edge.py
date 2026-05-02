@@ -1,7 +1,9 @@
 """WAN edge device data models for links, routes, SLA, flows, VPN, and shaping."""
+
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
+from typing import Any
 
 
 @dataclass
@@ -82,10 +84,13 @@ class VPNPeerStatus:
 
 @dataclass
 class TrafficShapingRule:
-    """Holds a traffic shaping rule with match criteria and optional DSCP, bandwidth, or priority."""
+    """Holds a traffic shaping rule.
+
+    Includes match criteria and optional DSCP, bandwidth, or priority.
+    """
 
     name: str
-    match: dict
+    match: dict[str, Any]
     dscp_tag: int | None = None
     bandwidth_limit_kbps: int | None = None
     priority: str | None = None

@@ -6,7 +6,7 @@ state of a managed device, including uptime, memory, processes, and logs.
 
 from __future__ import annotations
 
-from typing import Protocol, runtime_checkable
+from typing import Any, Protocol, runtime_checkable
 
 
 @runtime_checkable
@@ -29,7 +29,7 @@ class DeviceManagement(Protocol):
         """Return memory utilization in bytes, keyed by metric name."""
         ...
 
-    def get_running_processes(self, ps_options: str = "-A") -> list:
+    def get_running_processes(self, ps_options: str = "-A") -> list[Any]:
         """Return the list of running processes using the given ps options."""
         ...
 
@@ -37,7 +37,7 @@ class DeviceManagement(Protocol):
         """Return the board system log as a string, waiting up to *timeout* seconds."""
         ...
 
-    def read_event_logs(self) -> list[dict]:
+    def read_event_logs(self) -> list[dict[str, Any]]:
         """Return structured event log entries from the device."""
         ...
 

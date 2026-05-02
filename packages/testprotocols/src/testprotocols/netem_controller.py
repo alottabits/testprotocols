@@ -6,7 +6,7 @@ control on device interfaces.
 
 from __future__ import annotations
 
-from typing import Protocol, runtime_checkable
+from typing import Any, Protocol, runtime_checkable
 
 from testprotocols.models.impairment import ImpairmentProfile
 
@@ -15,11 +15,13 @@ from testprotocols.models.impairment import ImpairmentProfile
 class NetemController(Protocol):
     """Abstract contract for netem-based network impairment control."""
 
-    def set_impairment_profile(self, profile: ImpairmentProfile | dict) -> None:
+    def set_impairment_profile(self, profile: ImpairmentProfile | dict[str, Any]) -> None:
         """Apply *profile* as the default impairment on all managed interfaces."""
         ...
 
-    def set_interface_profile(self, interface: str, profile: ImpairmentProfile | dict) -> None:
+    def set_interface_profile(
+        self, interface: str, profile: ImpairmentProfile | dict[str, Any]
+    ) -> None:
         """Apply *profile* as the impairment on a specific *interface*."""
         ...
 

@@ -6,7 +6,7 @@ operations, including all standard CWMP RPC methods.
 
 from __future__ import annotations
 
-from typing import Protocol, runtime_checkable
+from typing import Any, Protocol, runtime_checkable
 
 
 @runtime_checkable
@@ -18,13 +18,13 @@ class Tr069Server(Protocol):
         param: str | list[str],
         timeout: int | None = None,
         cpe_id: str | None = None,
-    ) -> list[dict]:
+    ) -> list[dict[str, Any]]:
         """GetParameterValues RPC."""
         ...
 
     def SPV(
         self,
-        param_value: dict | list[dict],
+        param_value: dict[str, Any] | list[dict[str, Any]],
         timeout: int | None = None,
         cpe_id: str | None = None,
     ) -> int:
@@ -35,22 +35,22 @@ class Tr069Server(Protocol):
         self,
         param: str,
         cpe_id: str | None = None,
-    ) -> list[dict]:
+    ) -> list[dict[str, Any]]:
         """GetParameterAttributes RPC."""
         ...
 
     def SPA(
         self,
-        param: list[dict] | dict,
+        param: list[dict[str, Any]] | dict[str, Any],
         notification_param: bool = True,
         access_param: bool = False,
-        access_list: list | None = None,
+        access_list: list[Any] | None = None,
         cpe_id: str | None = None,
-    ) -> list[dict]:
+    ) -> list[dict[str, Any]]:
         """SetParameterAttributes RPC."""
         ...
 
-    def FactoryReset(self, cpe_id: str | None = None) -> list[dict]:
+    def FactoryReset(self, cpe_id: str | None = None) -> list[dict[str, Any]]:
         """FactoryReset RPC."""
         ...
 
@@ -58,7 +58,7 @@ class Tr069Server(Protocol):
         self,
         CommandKey: str = "reboot",
         cpe_id: str | None = None,
-    ) -> list[dict]:
+    ) -> list[dict[str, Any]]:
         """Reboot RPC."""
         ...
 
@@ -67,7 +67,7 @@ class Tr069Server(Protocol):
         param: str,
         param_key: str = "",
         cpe_id: str | None = None,
-    ) -> list[dict]:
+    ) -> list[dict[str, Any]]:
         """AddObject RPC."""
         ...
 
@@ -76,7 +76,7 @@ class Tr069Server(Protocol):
         param: str,
         param_key: str = "",
         cpe_id: str | None = None,
-    ) -> list[dict]:
+    ) -> list[dict[str, Any]]:
         """DeleteObject RPC."""
         ...
 
@@ -86,7 +86,7 @@ class Tr069Server(Protocol):
         next_level: bool,
         timeout: int | None = None,
         cpe_id: str | None = None,
-    ) -> list[dict]:
+    ) -> list[dict[str, Any]]:
         """GetParameterNames RPC."""
         ...
 
@@ -95,11 +95,11 @@ class Tr069Server(Protocol):
         CommandKey: str = "Test",
         DelaySeconds: int = 20,
         cpe_id: str | None = None,
-    ) -> list[dict]:
+    ) -> list[dict[str, Any]]:
         """ScheduleInform RPC."""
         ...
 
-    def GetRPCMethods(self, cpe_id: str | None = None) -> list[dict]:
+    def GetRPCMethods(self, cpe_id: str | None = None) -> list[dict[str, Any]]:
         """GetRPCMethods RPC."""
         ...
 
@@ -116,7 +116,7 @@ class Tr069Server(Protocol):
         successurl: str = "",
         failureurl: str = "",
         cpe_id: str | None = None,
-    ) -> list[dict]:
+    ) -> list[dict[str, Any]]:
         """Download RPC."""
         ...
 

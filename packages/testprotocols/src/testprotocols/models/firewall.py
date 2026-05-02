@@ -5,6 +5,7 @@ Shared across the ``packet_filter``, ``nat``, ``port_forwarding``,
 Transport-agnostic: drivers translate these structures into iptables /
 nftables / pf / TR-069 / vendor CLI as appropriate.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -171,8 +172,8 @@ class Zone:
     """
 
     name: str
-    interfaces: list[str] = field(default_factory=list)
-    networks: list[str] = field(default_factory=list)
+    interfaces: list[str] = field(default_factory=list[str])
+    networks: list[str] = field(default_factory=list[str])
     default_input: str = "drop"
     default_forward: str = "drop"
     default_output: str = "accept"

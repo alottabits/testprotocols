@@ -1,4 +1,5 @@
 """DHCP and DHCPv6 packet trace data models."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass

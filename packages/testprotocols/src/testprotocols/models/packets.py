@@ -1,4 +1,5 @@
 """Protocol-specific packet data models."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -8,7 +9,10 @@ from ipaddress import IPv4Address, IPv4Interface, IPv6Interface
 
 @dataclass
 class RIPv2PacketData:
-    """Holds fields extracted from a RIPv2 packet including source, destination, and route entries."""
+    """Holds fields extracted from a RIPv2 packet.
+
+    Includes source, destination, and route entries.
+    """
 
     source: IPv4Address
     destination: IPv4Address

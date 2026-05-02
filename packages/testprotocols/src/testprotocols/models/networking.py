@@ -1,4 +1,5 @@
 """Networking data models for IP addresses and protocol results."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass

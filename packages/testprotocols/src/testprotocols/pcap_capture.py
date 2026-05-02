@@ -6,7 +6,7 @@ tcpdump and tshark.
 
 from __future__ import annotations
 
-from typing import Protocol, runtime_checkable
+from typing import Any, Protocol, runtime_checkable
 
 
 @runtime_checkable
@@ -18,7 +18,7 @@ class PcapCapture(Protocol):
         interface: str,
         port: str | None,
         output_file: str = "pkt_capture.pcap",
-        filters: dict | None = None,
+        filters: dict[str, Any] | None = None,
         additional_filters: str | None = "",
     ) -> str:
         """Start a tcpdump capture on *interface* and return the process identifier."""

@@ -87,7 +87,7 @@ class SipServer(Protocol):
         """
         ...
 
-    def get_rtpengine_stats(self) -> dict:
+    def get_rtpengine_stats(self) -> dict[str, Any]:
         """Return RTPEngine statistics as a dictionary."""
         ...
 
@@ -139,7 +139,7 @@ class SipServer(Protocol):
     # MWI — Message Waiting Indication (v0.2.0+)
     # ------------------------------------------------------------------
 
-    def get_mwi_status(self, user: str) -> dict:
+    def get_mwi_status(self, user: str) -> dict[str, Any]:
         """Return the current MWI status for *user*.
 
         Returns a dict with keys:
@@ -190,7 +190,7 @@ class SipServer(Protocol):
         """
         ...
 
-    def get_offline_messages(self, user: str) -> list[dict]:
+    def get_offline_messages(self, user: str) -> list[dict[str, Any]]:
         """Return the list of pending offline messages addressed to *user*.
 
         Each entry is a dict with keys:
