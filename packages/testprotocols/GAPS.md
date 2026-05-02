@@ -180,6 +180,34 @@ comment).
 
 ---
 
+## 2026-05-02 — `StreamingServerDevice` [priority: low — currently plugin-local]
+
+**Signal:** During Phase 5 cutover (sdwan-digital-twin example), the must-fix
+review noted that `StreamingServer` exists as a capability protocol but no
+`StreamingServerDevice` archetype was defined. Per the architecture's
+three-tier scope rule, plugin-local until a second consumer materialises.
+
+**Trigger to act:** Second consumer (a different example or testbed) needing
+a streaming server. At that point lift the plugin-local definition from
+`palco-bdd/examples/sdwan-digital-twin/palco_plugins/sdwan/sdwan_plugin/protocols/streaming.py`
+into `testprotocols/devices/infra.py` (or a new `streaming.py`) and align
+both consumers on the same shape.
+
+**Out of scope as a commons archetype because:** sdwan-digital-twin is the
+only consumer today. Plugin-local definition lets the example move forward
+without forcing a speculative shape into commons.
+
+**Current plugin-local shape (minimal):** `streaming_server: StreamingServer`
+— that's it. No `ip_interface` / `pcap` / `file_transfer` requirement at
+this tier. A second consumer may push for those; design when the evidence
+arrives.
+
+**Cross-references:** plugin-local definition at
+`palco-bdd/examples/sdwan-digital-twin/palco_plugins/sdwan/sdwan_plugin/protocols/streaming.py`;
+`testprotocols/streaming_server.py` (the underlying capability protocol).
+
+---
+
 ## Workflow
 
 When picking up a deferred capability:
