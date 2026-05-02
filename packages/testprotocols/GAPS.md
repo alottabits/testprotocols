@@ -1,0 +1,194 @@
+# Missing-capability log
+
+Tracks capability protocols that should exist but don't yet — adjacent to
+`SPLITS.md` (granularity changes within existing protocols) and `LEVELS.md`
+(white-box extension signals on existing protocols), this file logs whole
+*new* protocol shapes that have been signalled but deferred.
+
+The architecture rule is the same as elsewhere: protocols land on tracked
+evidence. For a brand-new capability, the bar is **a test that needs it** —
+ideally two consumers agreeing on the shape before the design freezes.
+
+Format per entry:
+
+```
+## YYYY-MM-DD — <CapabilityName> [priority: high / medium / low]
+
+**Signal:** <reviewer-or-consumer-quote-or-summary>
+**Trigger to act:** <what concrete event makes this stop being deferred>
+**Out of scope right now because:** <why we're not building it during the migration>
+**Design notes (when picked up):** <bulleted hints — not a binding spec>
+**Cross-references:** <related capabilities, models, or architecture sections>
+```
+
+---
+
+## 2026-05-02 — `L2Bridge` [priority: HIGH]
+
+**Signal:** During Task 9 review: *"I see vlan_client.py and ip_routing.py,
+but no protocol for configuring L2 bridges, assigning physical Ethernet
+ports to bridges, or managing STP/RSTP. This is a common requirement for
+CPEs."*
+
+**Trigger to act:** First commit on the planned CPE example (`examples/cpe-gateway/`,
+Domain #1 in palco-bdd README). A CPE without a bridge protocol is anomalous —
+LAN-side topology testing, port-isolation tests, and STP / loop-prevention
+validation all assume one. The CPE example's first BDD scenario that touches
+LAN-side bridging should drive the API shape.
+
+**Out of scope right now because:** Neither sip-telephony nor sdwan-digital-twin
+needs L2 bridging. The architecture rule "splits and merges happen on tracked
+evidence" applies in reverse for net-new capabilities — speculative shapes
+without a real consumer tend to need rework on first use.
+
+**Design notes (when picked up):**
+- Per-bridge: create / delete / list, set STP/RSTP/MSTP mode, set ageing time,
+  set forward-delay, set hello-time, set max-age.
+- Per-port-membership: add port to bridge, remove port from bridge, set port
+  priority, set port path-cost, set port edge / BPDU-guard / root-guard flags.
+- Read-side: `list_bridge_ports`, `get_stp_state` (root MAC, root port, blocked
+  ports, designated ports), `get_bridge_table` (FDB entries: MAC, port, vlan,
+  ageing time).
+- Implementation substrates differ widely: brctl (legacy), iproute2 / `ip link`
+  (modern Linux), `nft / table bridge` (nftables-based), vendor-CLI bridges,
+  TR-181 `Device.Bridging.*`. Drivers must abstract; design Protocol around
+  *intent* (port-in-bridge with this priority and these flags) not vendor command.
+- Coordinates with `vlan_client.py` for tagged ports; with `firewall_zones.py`
+  for zone membership; with `ip_interface.py` for the bridge-as-L3-interface
+  lifecycle (`br-lan` is both a bridge and an interface).
+- WhiteBox extension at design time: raw `bridge fdb show` / `bridge link show`
+  output for kernel-level FDB pinning.
+
+**Cross-references:** `vlan_client.py`, `ip_interface.py`, `ip_routing.py`,
+`firewall_zones.py`. CPE archetype protocol (`testprotocols/devices/cpe.py`)
+will need an `l2_bridge: L2Bridge` attribute once seeded.
+
+---
+
+## 2026-05-02 — `WifiMlo` (or `WifiBss` / `WifiStations` extension for MLO) [priority: low]
+
+**Signal:** During Task 9 review: *"The WifiStation data model has a
+capability_flags field that might include 'MLO'. However, there are no
+protocol methods to manage or observe Multi-Link operations (e.g.,
+querying which links/bands an MLO-capable station is actively using, or
+setting primary/secondary links)."*
+
+**Trigger to act:** First Wi-Fi 7 testbed in palco-bdd, OR a customer
+asking for MLO-related test coverage. Wi-Fi 7 stacks are still hardening
+across vendors as of 2026 H1; designing speculatively risks landing the
+wrong abstractions.
+
+**Out of scope right now because:** No current testbed runs Wi-Fi 7. The
+`capability_flags` field on `WifiStation` already lets observation code
+*notice* MLO presence without a Protocol; that's enough for the current
+black-box tests. Protocol methods become valuable once tests want to
+*assert* MLO behaviour (link selection, EMLSR/EMLMR/STR mode, primary-
+link failover).
+
+**Design notes (when picked up):**
+- Decision: separate `WifiMlo` Protocol vs. extension on `WifiBss` /
+  `WifiStations`. Most operations are observation-side (which links is
+  this STA using, what mode, what TID-to-link map), so a sibling Protocol
+  to `WifiStations` may be cleaner — leave `WifiBss` for AP-side config
+  not specific to MLO.
+- Observation: `get_mlo_status(mac) -> MloStationStatus` with fields
+  `(active_links: list[LinkInfo], mode: "EMLSR"|"EMLMR"|"STR", primary_link:
+  str, tid_to_link_map: dict[int, str], ...)`. `LinkInfo` has band, channel,
+  bandwidth, RSSI per link.
+- Configuration: AP-side enable/disable per band (`enable_mlo(bands: list[str])`),
+  client-side primary-link hint (vendor-specific; may not be portable).
+- `WifiStation.capability_flags` already carries MLO presence — keep that;
+  add MLO observation as separate Protocol so non-MLO drivers don't need
+  to satisfy the new interface.
+- WhiteBox extension at design time: raw 802.11be capability frames,
+  per-link beacon dumps.
+
+**Cross-references:** `wifi_stations.py`, `wifi_bss.py`, `wifi_radio.py`
+(per-radio MLO mode setting), `models/wifi.py::WifiStation.capability_flags`.
+
+---
+
+## 2026-05-02 — `WifiQos` (WMM / Access Categories) [priority: low]
+
+**Signal:** During Task 9 review: *"There is currently no representation
+of Wi-Fi Multimedia (WMM) Access Categories (Voice, Video, Best Effort,
+Background). You may want to add methods to WifiBss to configure DSCP-to-AC
+mappings, and add per-AC packet statistics to WifiStation or WifiRadioStats."*
+
+**Trigger to act:** First palco-bdd test that asserts QoS behaviour — voice-
+quality tests under contended Wi-Fi load, video-streaming AC prioritisation,
+or DSCP-marking-survives-bridge tests. The voice-telephony domain (Domain #3
+in README) is likely first: voice scenarios under contention need WMM
+prioritisation working correctly to pass.
+
+**Out of scope right now because:** sip-telephony's current scenarios run on
+an unloaded Kamailio testbed without contention; sdwan-digital-twin's QoE
+metrics measure end-to-end performance through netem, not Wi-Fi WMM. No
+current scenario fails for lack of QoS observation.
+
+**Design notes (when picked up):**
+- Naming: `WifiQos` is the obvious name; possibly `WifiWmm` to be specific
+  to 802.11e. `WifiQos` reads better and leaves room for non-WMM extensions
+  (Wi-Fi 7 multi-link QoS, vendor-specific schedulers).
+- Configuration on `WifiBss` (or new sibling `WifiQos` Protocol):
+  `set_wmm_enabled(name, enabled)`, `set_dscp_to_ac_map(name, map: dict[int, str])`
+  where AC is one of `"VO" | "VI" | "BE" | "BK"`.
+- Per-AC EDCA parameters (`set_edca_params(name, ac, cwmin, cwmax, aifsn,
+  txop_limit_us)`) typically vendor-divergent — start without these, add
+  on tracked evidence.
+- Per-AC stats on `WifiStation` (extend the dataclass) or on a new
+  `WifiRadioQosStats` model with fields `(ac, tx_packets, tx_bytes,
+  tx_retries, tx_dropped, rx_packets, rx_bytes)` per AC.
+- DSCP markings cross with firewall (`firewall_zones.py` has `set_zone_defaults`
+  but not DSCP rewrite); coordinate.
+- WhiteBox extension: raw hostapd `wmm_param_set` output, vendor EDCA tables.
+
+**Cross-references:** `wifi_bss.py`, `wifi_stations.py`, `models/wifi.py`,
+`firewall_zones.py` (DSCP marking is partially a firewall concern).
+
+---
+
+## 2026-05-02 — `WifiSpectrum` [priority: low — already deferred upstream]
+
+**Signal:** During Task 9 review: *"The WifiRf template explicitly defers
+FFT/CleanAir spectral scanning to a future WifiSpectrum template. This is
+a good decision given vendor divergence, but ensures you don't forget it
+if deep RF testing is a requirement."*
+
+**Trigger to act:** First palco-bdd scenario that needs spectral analysis —
+typically interference-investigation tests, hidden-network discovery tests,
+or radar-detection-correctness verification beyond the synthetic injection
+already covered by `WifiRadioWhiteBox.inject_radar_event`.
+
+**Out of scope right now because:** The deferral is already documented in
+`wifi_rf.py`'s module docstring as an upstream design decision in palco-templates.
+This entry exists only to ensure visibility once tests require it.
+
+**Design notes (when picked up):**
+- Heavy vendor divergence: Atheros / ath10k / ath11k spectral_scan, Intel
+  CleanAir, Broadcom-specific tooling, mac80211_hwsim simulated spectra.
+- Likely pure WhiteBox from day one — there's almost no portable contract
+  available across substrates.
+- Possible methods: `start_spectral_scan(band, duration_s)`, `read_spectral_scan_buffer()`,
+  `get_channel_utilization(band) -> dict`. Latter may merit graduating from
+  WhiteBox to base if all substrates can produce *some* channel-busy estimate.
+- Coordinate with `wifi_radio.py` (per-band radio control) and `wifi_rf.py`
+  (the existing template that points to this gap).
+
+**Cross-references:** `wifi_radio.py`, `wifi_rf.py` (module-docstring deferral
+comment).
+
+---
+
+## Workflow
+
+When picking up a deferred capability:
+
+1. Confirm the **trigger to act** has fired (consumer signal exists, not just
+   speculative want).
+2. Move the entry from this file's main section to a new "Implemented" section
+   at the bottom (or delete it; git history preserves the design notes).
+3. Implement: protocol module, dataclass models if needed, WhiteBox extension
+   if appropriate, tests asserting the protocol shape.
+4. Cross-reference any new device archetypes that should aggregate the new
+   capability (e.g. `CpeDevice` should grow `l2_bridge: L2Bridge` once seeded).
