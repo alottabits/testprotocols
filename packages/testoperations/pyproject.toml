@@ -1,0 +1,17 @@
+[project]
+name = "testoperations"
+version = "0.1.0"
+description = "Framework-agnostic, assertion-free composition functions over testprotocols capabilities."
+requires-python = ">=3.12"
+dependencies = ["testprotocols>=0.1.0"]
+readme = "README.md"
+
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+testoperations = ["py.typed"]
