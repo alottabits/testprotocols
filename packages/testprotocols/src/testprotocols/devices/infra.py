@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Protocol, runtime_checkable
 
 from testprotocols.devices import device_type
+from testprotocols.devices.base import BaseDeviceProtocol
 from testprotocols.dhcp_server import DhcpServer
 from testprotocols.file_transfer import FileTransfer
 from testprotocols.packet_filter import PacketFilter
@@ -15,7 +16,7 @@ from testprotocols.tr069_server import Tr069Server
 
 
 @runtime_checkable
-class AcsDevice(Protocol):
+class AcsDevice(BaseDeviceProtocol, Protocol):
     """ACS (Auto-Configuration Server) archetype — TR-069 server-side counterpart to CPE.
 
     Provides the TR-069 server protocol surface (CWMP) plus an operator GUI for
@@ -31,7 +32,7 @@ class AcsDevice(Protocol):
 
 
 @runtime_checkable
-class ProvisionerDevice(Protocol):
+class ProvisionerDevice(BaseDeviceProtocol, Protocol):
     """Provisioner archetype — DHCP-driven device provisioning service.
 
     Hands out IP leases (with vendor-specific options) to CPEs and clients on
@@ -46,7 +47,7 @@ class ProvisionerDevice(Protocol):
 
 
 @runtime_checkable
-class TftpDevice(Protocol):
+class TftpDevice(BaseDeviceProtocol, Protocol):
     """TFTP server archetype — file source for firmware downloads / config fetches.
 
     Minimal archetype used as a source for TR-069 ``Download`` operations and

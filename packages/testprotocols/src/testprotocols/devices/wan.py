@@ -6,6 +6,7 @@ from typing import Protocol, runtime_checkable
 
 from testprotocols.conntrack import Conntrack
 from testprotocols.devices import device_type
+from testprotocols.devices.base import BaseDeviceProtocol
 from testprotocols.dhcp_client import DhcpClient
 from testprotocols.dns_client import DnsClient
 from testprotocols.file_transfer import FileTransfer
@@ -24,7 +25,7 @@ from testprotocols.snmp_client import SnmpClient
 
 
 @runtime_checkable
-class WanServerDevice(Protocol):
+class WanServerDevice(BaseDeviceProtocol, Protocol):
     """WAN server archetype — far-side host for end-to-end traffic and protocol tests.
 
     Sits on the WAN side of the topology to act as the remote endpoint for

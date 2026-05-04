@@ -6,6 +6,7 @@ from typing import Protocol, runtime_checkable
 
 from testprotocols.conntrack import Conntrack
 from testprotocols.devices import device_type
+from testprotocols.devices.base import BaseDeviceProtocol
 from testprotocols.ip_interface import IpInterface
 from testprotocols.nat import Nat
 from testprotocols.pcap_capture import PcapCapture
@@ -14,7 +15,7 @@ from testprotocols.sdwan_policy_manager import SdwanPolicyManager
 
 
 @runtime_checkable
-class SdwanRouterDevice(Protocol):
+class SdwanRouterDevice(BaseDeviceProtocol, Protocol):
     """SD-WAN router archetype — branch / edge router with policy-based path selection.
 
     Combines a generic routing surface, SD-WAN policy management (path / app

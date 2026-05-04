@@ -9,7 +9,10 @@ inventory-string -> Protocol binding and the per-archetype capability set
 
 from __future__ import annotations
 
+import pytest
+
 from testprotocols.devices import DeviceTypeSpec, all_device_types, get_device_type
+from testprotocols.devices.base import BaseDeviceProtocol
 from testprotocols.devices.client import (
     LanClientDevice,
     QoeClientDevice,
@@ -24,6 +27,22 @@ from testprotocols.devices.traffic import (
 )
 from testprotocols.devices.voice import SipPhoneDevice, SipServerDevice
 from testprotocols.devices.wan import WanServerDevice
+
+_ALL_ARCHETYPES = (
+    AcsDevice,
+    CpeDevice,
+    IperfTrafficGeneratorDevice,
+    LanClientDevice,
+    ProvisionerDevice,
+    QoeClientDevice,
+    SdwanRouterDevice,
+    SipPhoneDevice,
+    SipServerDevice,
+    TftpDevice,
+    TrafficControllerDevice,
+    WanServerDevice,
+    WlanClientDevice,
+)
 
 # ---------------------------------------------------------------------------
 # Registry plumbing
@@ -273,7 +292,7 @@ def test_iperf_traffic_generator_aggregates_expected_capabilities() -> None:
 
 
 def test_sip_phone_device_aggregates_expected_capabilities() -> None:
-    expected = {"sip_phone", "ip_interface", "dhcp_client"}
+    expected = {"sip_phone", "ip_interface", "dhcp_client", "number"}
     actual = set(SipPhoneDevice.__protocol_attrs__)
     assert expected <= actual, f"missing: {expected - actual}"
 
@@ -365,3 +384,36 @@ def test_devices_without_firewall() -> None:
         attrs = set(archetype.__protocol_attrs__)
         for absent in firewall_attrs:
             assert absent not in attrs, f"{archetype.__name__} unexpectedly aggregates {absent}"
+
+
+# ---------------------------------------------------------------------------
+# Universal base — every archetype inherits identity (device_name + device_type)
+# from BaseDeviceProtocol so consumers (operations, step defs) can read identity
+# without reaching into framework-specific base classes.
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("archetype", _ALL_ARCHETYPES, ids=lambda a: a.__name__)
+def test_archetype_inherits_base_device_protocol(archetype: type) -> None:
+    """Every archetype declares BaseDeviceProtocol in its MRO.
+
+    ``issubclass`` is unsupported on Protocols with non-method members
+    (Python 3.12 raises ``TypeError`` from ``typing.__subclasscheck__``);
+    ``__mro__`` membership is the declarative-inheritance contract we
+    actually want to enforce: each archetype must list BaseDeviceProtocol
+    as a base, not merely satisfy it structurally.
+    """
+    assert BaseDeviceProtocol in archetype.__mro__, (
+        f"{archetype.__name__} must declare BaseDeviceProtocol as a base "
+        f"(carries device_name + device_type)"
+    )
+
+
+@pytest.mark.parametrize("archetype", _ALL_ARCHETYPES, ids=lambda a: a.__name__)
+def test_archetype_carries_universal_identity(archetype: type) -> None:
+    """Every archetype's protocol-attrs include device_name and device_type."""
+    attrs = set(archetype.__protocol_attrs__)
+    assert {"device_name", "device_type"} <= attrs, (
+        f"{archetype.__name__} missing universal-identity attrs: "
+        f"{ {'device_name', 'device_type'} - attrs}"
+    )

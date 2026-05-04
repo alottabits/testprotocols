@@ -6,6 +6,7 @@ from typing import Protocol, runtime_checkable
 
 from testprotocols.arp_client import ArpClient
 from testprotocols.devices import device_type
+from testprotocols.devices.base import BaseDeviceProtocol
 from testprotocols.dhcp_client import DhcpClient
 from testprotocols.dns_client import DnsClient
 from testprotocols.file_transfer import FileTransfer
@@ -27,7 +28,7 @@ from testprotocols.wifi_client import WifiClient
 
 
 @runtime_checkable
-class LanClientDevice(Protocol):
+class LanClientDevice(BaseDeviceProtocol, Protocol):
     """Wired LAN client archetype — a host on the customer LAN segment.
 
     Used as a traffic source/sink and protocol endpoint for testing CPE/router
@@ -57,7 +58,7 @@ class LanClientDevice(Protocol):
 
 
 @runtime_checkable
-class WlanClientDevice(Protocol):
+class WlanClientDevice(BaseDeviceProtocol, Protocol):
     """Wireless LAN client archetype — a Wi-Fi station for over-the-air testing.
 
     Used to drive Wi-Fi association, roaming, and traffic scenarios against a
@@ -81,7 +82,7 @@ class WlanClientDevice(Protocol):
 
 
 @runtime_checkable
-class QoeClientDevice(Protocol):
+class QoeClientDevice(BaseDeviceProtocol, Protocol):
     """QoE (Quality of Experience) client archetype — browser-driven measurement endpoint.
 
     Minimal client used to drive web-based QoE workloads (page load, video

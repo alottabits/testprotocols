@@ -5,13 +5,14 @@ from __future__ import annotations
 from typing import Protocol, runtime_checkable
 
 from testprotocols.devices import device_type
+from testprotocols.devices.base import BaseDeviceProtocol
 from testprotocols.ip_interface import IpInterface
 from testprotocols.iperf_generator import IperfGenerator
 from testprotocols.netem_controller import NetemController
 
 
 @runtime_checkable
-class TrafficControllerDevice(Protocol):
+class TrafficControllerDevice(BaseDeviceProtocol, Protocol):
     """Traffic controller archetype — inline impairment injector.
 
     Sits in the data path to apply latency, loss, jitter, and rate-limit
@@ -24,7 +25,7 @@ class TrafficControllerDevice(Protocol):
 
 
 @runtime_checkable
-class IperfTrafficGeneratorDevice(Protocol):
+class IperfTrafficGeneratorDevice(BaseDeviceProtocol, Protocol):
     """Iperf traffic generator archetype — multi-flow load source.
 
     Drives concurrent iperf flows (UDP / TCP, configurable rate / count) to

@@ -8,6 +8,7 @@ from testprotocols.conntrack import Conntrack
 from testprotocols.device_lifecycle import DeviceLifecycle
 from testprotocols.device_management import DeviceManagement
 from testprotocols.devices import device_type
+from testprotocols.devices.base import BaseDeviceProtocol
 from testprotocols.firewall_zones import FirewallZones
 from testprotocols.hw_console import HwConsole
 from testprotocols.ip_interface import IpInterface
@@ -26,7 +27,7 @@ from testprotocols.wifi_transitions import WifiTransitions
 
 
 @runtime_checkable
-class CpeDevice(Protocol):
+class CpeDevice(BaseDeviceProtocol, Protocol):
     """CPE device archetype — black-box surface for residential / SMB gateways.
 
     Aggregates the capability protocols any conforming CPE driver must provide:

@@ -2,6 +2,7 @@
 
 __version__ = "0.1.0"
 
+from testprotocols.devices.base import BaseDeviceProtocol
 from testprotocols.devices.client import (
     LanClientDevice,
     QoeClientDevice,
@@ -34,6 +35,7 @@ from testprotocols.tr069_server import Tr069Server
 
 __all__ = [
     "AcsDevice",
+    "BaseDeviceProtocol",
     "CpeDevice",
     "FirewallZones",
     "IpInterface",
