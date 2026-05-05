@@ -7,7 +7,7 @@ from typing import Protocol, runtime_checkable
 from testprotocols.conntrack import Conntrack
 from testprotocols.device_lifecycle import DeviceLifecycle
 from testprotocols.device_management import DeviceManagement
-from testprotocols.devices import device_type
+from testprotocols.devices import register_device_type
 from testprotocols.devices.base import BaseDeviceProtocol
 from testprotocols.firewall_zones import FirewallZones
 from testprotocols.hw_console import HwConsole
@@ -59,4 +59,4 @@ class CpeDevice(BaseDeviceProtocol, Protocol):
     ntp_client: NtpClient
 
 
-device_type("linux_cpe", CpeDevice)
+register_device_type("linux_cpe", CpeDevice)

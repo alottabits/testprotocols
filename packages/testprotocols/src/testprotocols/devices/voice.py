@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Protocol, runtime_checkable
 
-from testprotocols.devices import device_type
+from testprotocols.devices import register_device_type
 from testprotocols.devices.base import BaseDeviceProtocol
 from testprotocols.dhcp_client import DhcpClient
 from testprotocols.file_transfer import FileTransfer
@@ -48,5 +48,5 @@ class SipServerDevice(BaseDeviceProtocol, Protocol):
     file_transfer: FileTransfer
 
 
-device_type("linux_sip_phone", SipPhoneDevice)
-device_type("linux_sip_server", SipServerDevice)
+register_device_type("linux_sip_phone", SipPhoneDevice)
+register_device_type("linux_sip_server", SipServerDevice)

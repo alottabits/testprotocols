@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Protocol, runtime_checkable
 
-from testprotocols.devices import device_type
+from testprotocols.devices import register_device_type
 from testprotocols.devices.base import BaseDeviceProtocol
 from testprotocols.dhcp_server import DhcpServer
 from testprotocols.file_transfer import FileTransfer
@@ -57,6 +57,6 @@ class TftpDevice(BaseDeviceProtocol, Protocol):
     tftp_server: TftpServer
 
 
-device_type("linux_acs", AcsDevice)
-device_type("linux_provisioner", ProvisionerDevice)
-device_type("linux_tftp", TftpDevice)
+register_device_type("linux_acs", AcsDevice)
+register_device_type("linux_provisioner", ProvisionerDevice)
+register_device_type("linux_tftp", TftpDevice)

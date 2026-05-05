@@ -17,20 +17,16 @@ from testoperations.sip_phone import (
 class TestCallAPhone:
     def test_calls_off_hook_and_dial(self):
         caller = MagicMock()
-        callee = MagicMock()
-        callee.number = "2002"
-
-        call_a_phone(caller, callee)
+        
+        call_a_phone(caller, "2002")
 
         caller.off_hook.assert_called_once_with()
         caller.dial.assert_called_once_with("2002")
 
     def test_dials_callee_number(self):
         caller = MagicMock()
-        callee = MagicMock()
-        callee.number = "3003"
 
-        call_a_phone(caller, callee)
+        call_a_phone(caller, "3003")
         caller.dial.assert_called_once_with("3003")
 
 

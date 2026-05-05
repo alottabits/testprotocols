@@ -7,19 +7,16 @@ call the template method directly.
 
 from __future__ import annotations
 
-from testprotocols.devices.voice import SipPhoneDevice
 from testprotocols.sip_phone import SipPhone
 
 
-def call_a_phone(caller: SipPhone, callee: SipPhoneDevice) -> None:
-    """Initiate a call from *caller* to *callee*.
+def call_a_phone(caller: SipPhone, callee_number: str) -> None:
+    """Initiate a call from *caller* to *callee_number*.
 
     Takes the caller off-hook and dials the callee's SIP phone number.
-    *callee* is a :class:`SipPhoneDevice` archetype — its ``number`` attribute
-    carries the dial-string identifier of the destination phone.
     """
     caller.off_hook()
-    caller.dial(callee.number)
+    caller.dial(callee_number)
 
 
 def shutdown_phone(sip_phone: SipPhone) -> None:

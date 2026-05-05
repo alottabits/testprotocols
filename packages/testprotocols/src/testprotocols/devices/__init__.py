@@ -16,7 +16,7 @@ class DeviceTypeSpec:
     protocol: type
 
 
-def device_type(name: str, protocol: type) -> DeviceTypeSpec:
+def register_device_type(name: str, protocol: type) -> DeviceTypeSpec:
     """Register *protocol* as the contract for inventory devices typed *name*.
 
     Returns the spec; also stored in the module-level registry so

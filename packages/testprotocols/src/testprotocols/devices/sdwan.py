@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Protocol, runtime_checkable
 
 from testprotocols.conntrack import Conntrack
-from testprotocols.devices import device_type
+from testprotocols.devices import register_device_type
 from testprotocols.devices.base import BaseDeviceProtocol
 from testprotocols.ip_interface import IpInterface
 from testprotocols.nat import Nat
@@ -35,4 +35,4 @@ class SdwanRouterDevice(BaseDeviceProtocol, Protocol):
     conntrack: Conntrack
 
 
-device_type("linux_sdwan_router", SdwanRouterDevice)
+register_device_type("linux_sdwan_router", SdwanRouterDevice)

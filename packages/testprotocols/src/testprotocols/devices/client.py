@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Protocol, runtime_checkable
 
 from testprotocols.arp_client import ArpClient
-from testprotocols.devices import device_type
+from testprotocols.devices import register_device_type
 from testprotocols.devices.base import BaseDeviceProtocol
 from testprotocols.dhcp_client import DhcpClient
 from testprotocols.dns_client import DnsClient
@@ -94,6 +94,6 @@ class QoeClientDevice(BaseDeviceProtocol, Protocol):
     dhcp_client: DhcpClient
 
 
-device_type("linux_lan_client", LanClientDevice)
-device_type("linux_wlan_client", WlanClientDevice)
-device_type("linux_qoe_client", QoeClientDevice)
+register_device_type("linux_lan_client", LanClientDevice)
+register_device_type("linux_wlan_client", WlanClientDevice)
+register_device_type("linux_qoe_client", QoeClientDevice)

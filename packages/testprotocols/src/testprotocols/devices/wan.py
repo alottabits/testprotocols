@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Protocol, runtime_checkable
 
 from testprotocols.conntrack import Conntrack
-from testprotocols.devices import device_type
+from testprotocols.devices import register_device_type
 from testprotocols.devices.base import BaseDeviceProtocol
 from testprotocols.dhcp_client import DhcpClient
 from testprotocols.dns_client import DnsClient
@@ -53,4 +53,4 @@ class WanServerDevice(BaseDeviceProtocol, Protocol):
     conntrack: Conntrack
 
 
-device_type("linux_wan_server", WanServerDevice)
+register_device_type("linux_wan_server", WanServerDevice)

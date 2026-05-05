@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Protocol, runtime_checkable
 
-from testprotocols.devices import device_type
+from testprotocols.devices import register_device_type
 from testprotocols.devices.base import BaseDeviceProtocol
 from testprotocols.ip_interface import IpInterface
 from testprotocols.iperf_generator import IperfGenerator
@@ -37,5 +37,5 @@ class IperfTrafficGeneratorDevice(BaseDeviceProtocol, Protocol):
     ip_interface: IpInterface
 
 
-device_type("linux_traffic_controller", TrafficControllerDevice)
-device_type("iperf_traffic_generator", IperfTrafficGeneratorDevice)
+register_device_type("linux_traffic_controller", TrafficControllerDevice)
+register_device_type("iperf_traffic_generator", IperfTrafficGeneratorDevice)
