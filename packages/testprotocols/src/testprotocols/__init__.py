@@ -33,6 +33,7 @@ from testprotocols.dhcp_client import DhcpClient
 from testprotocols.dhcp_server import DhcpServer
 from testprotocols.dns_client import DnsClient
 from testprotocols.file_transfer import FileTransfer
+from testprotocols.firewall import Firewall, FirewallWhiteBox
 from testprotocols.firewall_zones import FirewallZones
 from testprotocols.http_client import HttpClient
 from testprotocols.http_server import HttpServer
@@ -50,7 +51,6 @@ from testprotocols.ntp_client import NtpClient
 from testprotocols.packet_filter import PacketFilter, PacketFilterWhiteBox
 from testprotocols.pcap_capture import PcapCapture
 from testprotocols.pdu_controller import PduController
-from testprotocols.port_forwarding import PortForwarding
 from testprotocols.qoe_browser import QoeBrowser
 from testprotocols.radius_client import RadiusClient
 from testprotocols.radius_server import RadiusServer
@@ -89,6 +89,8 @@ __all__ = [
     "DhcpServer",
     "DnsClient",
     "FileTransfer",
+    "Firewall",
+    "FirewallWhiteBox",
     "FirewallZones",
     "HttpClient",
     "HttpServer",
@@ -109,7 +111,6 @@ __all__ = [
     "PacketFilterWhiteBox",
     "PcapCapture",
     "PduController",
-    "PortForwarding",
     "ProvisionerDevice",
     "QoeBrowser",
     "QoeClientDevice",
