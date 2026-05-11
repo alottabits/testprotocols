@@ -194,9 +194,8 @@ def test_cpe_aggregates_expected_capabilities() -> None:
         "wifi_onboarding",
         "ip_interface",
         "ip_routing",
-        "packet_filter",
+        "firewall",
         "nat",
-        "port_forwarding",
         "conntrack",
         "firewall_zones",
         "ntp_client",
@@ -365,13 +364,18 @@ def test_wan_server_firewall_facets() -> None:
 def test_cpe_full_firewall_surface() -> None:
     """CpeDevice aggregates the complete firewall surface."""
     attrs = set(CpeDevice.__protocol_attrs__)
-    for present in ("packet_filter", "nat", "port_forwarding", "conntrack", "firewall_zones"):
+    for present in ("firewall", "nat", "conntrack", "firewall_zones"):
         assert present in attrs
+    # PortForwarding is no longer a separate attribute — it's bundled into firewall.
+    assert "port_forwarding" not in attrs
+    # PacketFilter is also not a separate attribute on CPE — the firewall attribute
+    # satisfies PacketFilter via Liskov substitution.
+    assert "packet_filter" not in attrs
 
 
 def test_devices_without_firewall() -> None:
     """These archetypes must not pull in any of the firewall capabilities."""
-    firewall_attrs = ("packet_filter", "nat", "port_forwarding", "conntrack", "firewall_zones")
+    firewall_attrs = ("packet_filter", "firewall", "nat", "port_forwarding", "conntrack", "firewall_zones")
     for archetype in (
         TftpDevice,
         WlanClientDevice,
