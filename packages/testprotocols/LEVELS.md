@@ -98,12 +98,47 @@ a standard method."*
 
 ---
 
+## 2026-05-11 — `FirewallWhiteBox` seeded
+
+**Signal:** Architecture / code divergence review (see SPLITS.md
+2026-05-11 entry for the `PortForwarding` → `Firewall` fold). When
+`Firewall` was created as a Protocol extension of `PacketFilter`, the
+WhiteBox tier seeded automatically: the same `iptables-save` and
+`nft list ruleset` dumps that back `PacketFilterWhiteBox` natively span
+both filter rules and DNAT / port-forward entries, so the white-box
+methods needed at the `Firewall` tier are identical to those at the
+`PacketFilter` tier.
+
+**Methods:**
+- `get_kernel_iptables_dump() -> str` — raw `iptables-save` output (legacy backend); spans filter chains, NAT chains, and DNAT / port-forward entries.
+- `get_nftables_ruleset() -> str` — raw `nft list ruleset` output (nftables backend); spans the full ruleset.
+
+**Black-box impact:** None — these are new methods on the new
+`FirewallWhiteBox` extension. The base `Firewall` Protocol mandates only
+rule administration + port-forwarding methods.
+
+**Rationale:** Same shape as `PacketFilterWhiteBox` — base describes
+intent, extension exposes raw kernel state for diagnostic pinning. The
+two WhiteBox extensions share their method set because Linux kernel
+dumps cover the union of both tiers in one stream.
+
+**Drivers expected to satisfy:** Linux-substrate drivers with shell
+access (OpenWrt, plain Debian / Ubuntu CPEs, prplOS).
+
+**Drivers expected NOT to satisfy:** Vendor-RTOS drivers without
+iptables/nftables, TR-069-only-managed devices (no shell access),
+docker stubs that mock the underlying packet filter without a real
+kernel netfilter behind them.
+
+---
+
 ## Open candidates (signals received, action deferred)
 
 *None yet.*
 
 The architecture doc (palco-bdd `palco-architecture.md` v2.0) initially listed
 `FirewallWhiteBox`, `RoutingWhiteBox`, `SipPhoneWhiteBox`, `SipServerWhiteBox`
-as seed extensions. Those were aspirational in the source palco-templates
-ABCs and were not implemented. Future signals from consumers will determine
-whether to seed them.
+as seed extensions. `FirewallWhiteBox` is seeded as of 2026-05-11 (see entry
+above). The remaining three — `RoutingWhiteBox`, `SipPhoneWhiteBox`,
+`SipServerWhiteBox` — remain aspirational; future consumer signals will
+determine whether to seed them.

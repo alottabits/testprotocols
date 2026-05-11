@@ -110,3 +110,77 @@ to reflect the new boundaries; the wifi_stations docstring includes a
 forward reference: *"Per-BSS MAC ACL administration (set_acl_mode,
 add_acl_entry, etc.) lives on the WifiBss template — see SPLITS.md
 for the rationale."*
+
+---
+
+## 2026-05-11 — `PortForwarding` folded into a new `Firewall(PacketFilter, Protocol)` bundle
+
+**Signal:** Architecture / code divergence review (palco-bdd
+`docs/architecture/palco-architecture.md` describes a single `Firewall`
+protocol bundling packet rules, port forwards, and zones, with `Nat` /
+`Conntrack` as separate siblings; the actual code inherited the verbatim
+five-way split from the source palco-templates ABCs — `PacketFilter`,
+`PortForwarding`, `FirewallZones`, `Nat`, `Conntrack`). Design review
+landed on a four-bundle / five-symbol shape: bundle packet rules + port
+forwards by coherent telco domain, keep zones / NAT / conntrack split
+on structural-shape grounds, and retain `PacketFilter` as the universal
+narrow base for non-gateway archetypes.
+
+**Decision:** Create `Firewall(PacketFilter, Protocol)` and
+`FirewallWhiteBox(Firewall, Protocol)`. Delete the standalone
+`PortForwarding` protocol. Migrate `CpeDevice` from `packet_filter` +
+`port_forwarding` attributes to a single `firewall: Firewall` attribute.
+Other archetypes (`ClientDevice`, `WanDevice`, `InfraDevice` variants,
+`AcsDevice`, `ProvisionerDevice`, `LanClientDevice`, `WanServerDevice`)
+keep their existing `packet_filter: PacketFilter` attribute — they are
+not gateways and do not provide port forwarding.
+
+**Rationale:**
+- UCI's `firewall` config and TR-181's `Device.Firewall.*` subtree both
+  treat packet rules and port forwards as one subsystem; an
+  `iptables-save` dump captures both in one stream. Admins reason about
+  them together. No realistic gateway driver implements one without the
+  other.
+- Zones, NAT, conntrack remain split because zone-aware vs flat-chain,
+  gateway vs host, stateful vs stateless are real structural shape
+  differences — the registration-gate `isinstance` check flags missing
+  capability at startup rather than at first call.
+- Non-gateway devices (clients, DHCP servers, ACS instances) have
+  iptables rules but no port forwarding. Keeping `PacketFilter` as the
+  narrow base preserves clean shape for endpoints; the gateway tier sits
+  one Liskov step above as `Firewall(PacketFilter, Protocol)`.
+- Protocol inheritance mirrors the existing
+  `class FirewallWhiteBox(Firewall, Protocol)` pattern: tier
+  relationships use Protocol inheritance, cross-domain mixins do not.
+
+**Methods affected (7 moved):**
+- `add_port_mapping` — `PortForwarding.add_port_mapping(mapping)` → `Firewall.add_port_mapping(mapping)`
+- `remove_port_mapping` — `PortForwarding.remove_port_mapping(name)` → `Firewall.remove_port_mapping(name)`
+- `list_port_mappings` — `PortForwarding.list_port_mappings()` → `Firewall.list_port_mappings()`
+- `get_port_mapping` — `PortForwarding.get_port_mapping(name)` → `Firewall.get_port_mapping(name)`
+- `set_port_mapping_enabled` — `PortForwarding.set_port_mapping_enabled(name, enabled)` → `Firewall.set_port_mapping_enabled(name, enabled)`
+- `set_dmz_host` — `PortForwarding.set_dmz_host(host)` → `Firewall.set_dmz_host(host)`
+- `get_dmz_host` — `PortForwarding.get_dmz_host()` → `Firewall.get_dmz_host()`
+
+No signature changes. The `PortMapping` data model in
+`models/firewall.py` is unchanged.
+
+**Migration impact at this point:**
+- `testprotocols`:
+  - `port_forwarding.py` deleted.
+  - `firewall.py` created.
+  - `__init__.py` exports updated.
+  - `devices/cpe.py` swapped `packet_filter` + `port_forwarding` for `firewall: Firewall`.
+  - `tests/test_firewall_templates.py` swapped `PortForwarding` row for `Firewall` row + added inheritance assertions.
+  - `tests/test_device_types.py` updated for new CpeDevice attribute set.
+  - Sibling-module docstring cross-references refreshed.
+- `palco-bdd`:
+  - Architecture doc edits per the design spec.
+  - No driver in any example currently imported `PortForwarding` — zero-cost migration on the consumer side.
+- `palco-commons`, `palco`, `pytest-palco`, `boardfarm`, `boardfarm-bdd`,
+  `palco-linux-bases`: no references — out of scope.
+
+**Design spec:**
+palco-bdd `docs/superpowers/specs/2026-05-11-firewall-protocol-bundling-design.md`.
+
+---
