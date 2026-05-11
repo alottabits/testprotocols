@@ -1,6 +1,6 @@
 """Firewall-domain data models.
 
-Shared across the ``packet_filter``, ``nat``, ``port_forwarding``,
+Shared across the ``packet_filter``, ``firewall``, ``nat``,
 ``conntrack``, ``firewall_zones``, and ``sdwan_policy_manager`` templates.
 Transport-agnostic: drivers translate these structures into iptables /
 nftables / pf / TR-069 / vendor CLI as appropriate.
@@ -15,9 +15,10 @@ from dataclasses import dataclass, field
 class FirewallRule:
     """Holds a stateless or stateful packet-filter rule with match criteria and action.
 
-    Used by the ``packet_filter`` template (per-chain rule lists) and by
-    ``sdwan_policy_manager.apply_firewall_rule`` (policy-bound application
-    classification rules). The IPv4 / IPv6 split is not a contract dimension
+    Used by the ``packet_filter`` and ``firewall`` templates (per-chain
+    rule lists) and by ``sdwan_policy_manager.apply_firewall_rule``
+    (policy-bound application classification rules). The IPv4 / IPv6
+    split is not a contract dimension
     — each rule's address family is inferred from its CIDR fields.
 
     *action* is one of ``"allow"``, ``"deny"``, ``"reject"``, ``"log"``.
@@ -187,8 +188,8 @@ class ZonePolicy:
 
     Models the per-zone-pair forwarding link in OpenWrt-style firewalls.
     More specific traffic between the same pair is still controlled by
-    ``FirewallRule`` records (in ``packet_filter``); this is the
-    fall-through.
+    ``FirewallRule`` records (in ``packet_filter`` or ``firewall``);
+    this is the fall-through.
 
     *action* is one of ``"accept"``, ``"drop"``, ``"reject"``.
     """

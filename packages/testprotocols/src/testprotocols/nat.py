@@ -7,9 +7,11 @@ DNAT, and 1:1 / static NAT. Rules are identified by a stable logical
 In scope: rule lifecycle (add / remove / list / get / flush), enable
 toggles, and per-rule packet/byte counters.
 
-Out of scope: high-level / named port-forwarding entries (see
-``port_forwarding``), packet-filter rules (see ``packet_filter``), and
-zone-level masquerade (a per-zone flag on ``firewall_zones``).
+Out of scope: high-level / named port-forwarding entries (see the
+port-mapping surface on ``firewall.Firewall``), packet-filter rules
+(see ``packet_filter`` or the rule-administration surface inherited
+by ``firewall.Firewall``), and zone-level masquerade (a per-zone flag
+on ``firewall_zones``).
 
 NAT and packet-filter rules are kept in separate templates because a
 device may legitimately compose one without the other (e.g. a transit

@@ -8,9 +8,10 @@ drop, and table-size limit configuration.
 In scope: aggregate stats, per-flow listing / lookup / drop, full-table
 flush, table-size limit configuration.
 
-Out of scope: rule installation (see ``packet_filter`` and ``nat``),
-helper-module loading (driver-internal concern), and per-flow accounting
-deltas over time (operations layer can subtract two snapshots).
+Out of scope: rule installation (see ``packet_filter`` / ``firewall``
+and ``nat``), helper-module loading (driver-internal concern), and
+per-flow accounting deltas over time (operations layer can subtract
+two snapshots).
 
 Devices that do not track connections (e.g. stateless bridges) should
 not compose this template.

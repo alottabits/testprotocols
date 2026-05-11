@@ -7,19 +7,21 @@ policy is expressed at the zone level rather than as flat chain rules.
 A zone groups one or more interfaces and / or CIDR networks under a
 shared default-input / default-forward / default-output action. Per-zone-
 pair forwarding policy controls fall-through traffic between zones; more
-specific rules go in the ``packet_filter`` template (which on a
-zone-aware device targets a zone instead of a chain — drivers map this
-internally).
+specific rules go in the ``packet_filter`` template (or the inherited
+rule-administration surface on ``firewall.Firewall`` for gateway
+devices) — on a zone-aware device they target a zone instead of a
+chain, which drivers map internally.
 
 In scope: zone CRUD, interface / network membership, zone defaults,
 masquerade and MSS-clamping toggles, and zone-pair forwarding policy.
 
-Out of scope: per-flow filtering (see ``packet_filter``), NAT rules
-(see ``nat``), and per-zone counters (deferred — not all drivers
-expose them).
+Out of scope: per-flow filtering (see ``packet_filter`` / ``firewall``),
+NAT rules (see ``nat``), and per-zone counters (deferred — not all
+drivers expose them).
 
 Devices on a flat-chain firewall (no zones) should not compose this
-template; ``packet_filter`` alone is sufficient for them.
+template; ``packet_filter`` (or ``firewall`` for gateways) alone is
+sufficient for them.
 """
 
 from __future__ import annotations

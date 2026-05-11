@@ -9,8 +9,9 @@ pf, or vendor CLI as appropriate.
 In scope: per-chain rule administration (add / remove / list / get /
 flush), chain default-policy control, and per-rule packet/byte counters.
 
-Out of scope: NAT (see ``nat``), high-level port forwarding (see
-``port_forwarding``), conntrack inspection (see ``conntrack``),
+Out of scope: NAT (see ``nat``), high-level port forwarding (see the
+``Firewall`` Protocol in ``firewall``, which extends ``PacketFilter``
+with port-mapping methods), conntrack inspection (see ``conntrack``),
 zone-based policy (see ``firewall_zones``), and L7 application-aware
 classification (see ``sdwan_policy_manager.apply_firewall_rule``).
 
