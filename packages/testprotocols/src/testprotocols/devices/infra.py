@@ -11,7 +11,6 @@ from testprotocols.file_transfer import FileTransfer
 from testprotocols.packet_filter import PacketFilter
 from testprotocols.pcap_capture import PcapCapture
 from testprotocols.tftp_server import TftpServer
-from testprotocols.tr069_gui import Tr069Gui
 from testprotocols.tr069_server import Tr069Server
 
 
@@ -19,13 +18,14 @@ from testprotocols.tr069_server import Tr069Server
 class AcsDevice(BaseDeviceProtocol, Protocol):
     """ACS (Auto-Configuration Server) archetype — TR-069 server-side counterpart to CPE.
 
-    Provides the TR-069 server protocol surface (CWMP) plus an operator GUI for
-    manipulating the ACS state during tests. Includes packet capture / filter
-    and file transfer for diagnostic workflows.
+    Provides the TR-069 server protocol surface (CWMP plus ACS-side inventory
+    and per-CPE connection status). Includes packet capture / filter and file
+    transfer for diagnostic workflows. Drivers may implement the server
+    surface over any transport (CWMP NBI, REST, GUI scrape); the choice is a
+    driver-internal concern.
     """
 
     tr069_server: Tr069Server
-    tr069_gui: Tr069Gui
     pcap: PcapCapture
     file_transfer: FileTransfer
     packet_filter: PacketFilter

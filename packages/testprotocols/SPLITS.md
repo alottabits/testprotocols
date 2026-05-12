@@ -184,3 +184,97 @@ No signature changes. The `PortMapping` data model in
 palco-bdd `docs/superpowers/specs/2026-05-11-firewall-protocol-bundling-design.md`.
 
 ---
+
+## 2026-05-12 — `Tr069Gui` deleted; ACS-side inventory/state folded into `Tr069Server`
+
+**Signal:** Usefulness review of `Tr069Gui` against `Tr069Server`. Of the 16
+methods on `Tr069Gui`, six were pure `_via_gui` duplicates of existing CWMP
+RPCs (`reboot_device_via_gui` ↔ `Reboot`, `get_device_parameter_via_gui` ↔
+`GPV`, `set_device_parameter_via_gui` ↔ `SPV`, `trigger_firmware_upgrade_via_gui`
+↔ `Download`, `factory_reset_via_gui` ↔ `FactoryReset`,
+`verify_firmware_version_via_gui` ↔ `GPV` + compare). `verify_device_online`
+was already covered by the operations-layer helper `is_cpe_online` in
+`testoperations/tr069_server.py:13` (probe-by-GPV plus a poll). The remaining
+methods (session control, ACS inventory, per-CPE connection state) were either
+genuinely ACS-side server state — not GUI-specific — or driver-internal
+concerns that no protocol consumer needs to type.
+
+**Decision:**
+1. Delete `Tr069Gui` entirely.
+2. Fold the genuinely-new ACS-side methods into `Tr069Server` under
+   capability-shaped names (no `_via_gui` suffix; no GUI vocabulary).
+3. Treat "GUI" as a driver-internal route — like CWMP NBI or REST. Tests
+   call `acs.tr069_server.list_cpes()`; the driver decides which transport
+   fulfils it. Session lifecycle (login/logout) is therefore a
+   driver-internal concern, not a protocol surface. `GuiSession` is *not*
+   added to `testprotocols` — YAGNI until ≥2 consumers reinvent it
+   independently.
+4. Drop `tr069_gui: Tr069Gui` from `AcsDevice` without replacement.
+
+**Rationale:**
+- CWMP has no concept of an ACS-side device registry — `search_device`,
+  `get_device_count`, `filter_devices`, `delete_device_via_gui` filled a
+  genuine gap, but conflating that gap with "GUI" obscured what the
+  methods actually do. They belong on the server protocol, named for
+  the capability, not the transport.
+- The BDD usage at `boardfarm-bdd/tests/step_defs/acs_gui_steps.py`
+  confirmed that `get_device_status` is ACS-side connection state plus
+  cached metadata (the offline scenario reads the same fields after the
+  CPE drops off), not CPE-side parameters. The new `CpeConnectionStatus`
+  dataclass models this with `online: bool`, `last_inform_time`, and
+  cached `manufacturer` / `model` / `serial_number` / `hardware_version` /
+  `software_version` — all `Optional` so an ACS that has never seen the
+  CPE can still return a valid object.
+- `last_inform_time` was originally a separate method on the GUI; folded
+  into `CpeConnectionStatus` since it shares the same ACS-side bookkeeping
+  bucket and the BDD details-page view always queries both pieces
+  together.
+- "CPE" follows TR-069 §2 (any CWMP-managed device). A one-line docstring
+  clarification at the top of `tr069_server.py` records this for readers
+  who might assume the term is narrower.
+
+**Methods affected:**
+
+Net-new on `Tr069Server` (3 additions):
+- `list_cpes(criteria=None) -> list[str]` — replaces `search_device`,
+  `get_device_count`, and `filter_devices` from `Tr069Gui` (count via
+  `len(...)`, existence via `cpe_id in ...`).
+- `delete_cpe_record(cpe_id) -> bool` — replaces `delete_device_via_gui`.
+  Dropped the GUI-only `confirm=True` flag.
+- `get_cpe_connection_status(cpe_id) -> CpeConnectionStatus` — replaces
+  `get_device_status` and `get_last_inform_time` (folded into the model).
+
+Deleted with no replacement (driver-internal or covered elsewhere):
+- `login`, `logout`, `is_logged_in` — driver-internal session lifecycle.
+- `reboot_device_via_gui`, `factory_reset_via_gui`,
+  `get_device_parameter_via_gui`, `set_device_parameter_via_gui`,
+  `trigger_firmware_upgrade_via_gui`, `verify_firmware_version_via_gui`
+  — already covered by `Reboot`, `FactoryReset`, `GPV`, `SPV`, `Download`,
+  `GPV` on `Tr069Server`. Use those via whichever route the driver chose.
+- `verify_device_online` — covered by `testoperations/tr069_server.py:13`
+  `is_cpe_online` plus a poll-loop at the operations layer.
+
+**Migration impact at this point:**
+- `testprotocols`:
+  - `tr069_gui.py` deleted.
+  - `models/tr069.py` created with `CpeConnectionStatus`.
+  - `models/__init__.py` exports `CpeConnectionStatus`.
+  - `tr069_server.py` gains 3 methods + a clarifying docstring on "CPE".
+  - `__init__.py` exports updated (drop `Tr069Gui`).
+  - `devices/infra.py` drops `tr069_gui: Tr069Gui` from `AcsDevice`.
+  - `tests/test_cpe_templates.py` removes the `Tr069Gui` row, adds the
+    three new methods to the `Tr069Server` expected-method set.
+  - `tests/test_device_types.py` updates `AcsDevice` expected attrs.
+  - `docs/python-protocol-adoption-architecture.md` collapses the
+    separate "TR-069 GUI" row into the `Tr069Server` notes.
+- `boardfarm-bdd`:
+  - Step definitions and feature scenarios under
+    `tests/features/ACS GUI Device Management.feature` reference the
+    removed protocol; out of scope for this commit, will be updated
+    when those drivers are migrated. Tests that exercise login
+    behaviour specifically (`UC-ACS-GUI-01-2a` Invalid Credentials) will
+    need the driver to expose `login` as a concrete method — not via a
+    typed `testprotocols` contract.
+- Other consumers: no production driver yet implements `Tr069Gui`.
+
+---

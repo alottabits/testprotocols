@@ -28,6 +28,7 @@ from testprotocols.models.radius import (
     RadiusSession,
     RadiusUser,
 )
+from testprotocols.models.tr069 import CpeConnectionStatus
 from testprotocols.models.traffic import TrafficResult, TrafficSpec
 from testprotocols.models.wan_edge import (
     AppFlow,
@@ -61,6 +62,8 @@ __all__ = [
     # firewall
     "Connection",
     "ConntrackStats",
+    # tr069
+    "CpeConnectionStatus",
     # dhcp
     "DHCPTraceData",
     "DHCPV6TraceData",

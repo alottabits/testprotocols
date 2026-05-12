@@ -257,7 +257,6 @@ def test_qoe_client_aggregates_expected_capabilities() -> None:
 def test_acs_aggregates_expected_capabilities() -> None:
     expected = {
         "tr069_server",
-        "tr069_gui",
         "pcap",
         "file_transfer",
         "packet_filter",

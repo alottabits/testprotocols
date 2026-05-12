@@ -62,7 +62,6 @@ from testprotocols.snmp_client import SnmpClient
 from testprotocols.streaming_server import StreamingServer
 from testprotocols.tftp_server import TftpServer
 from testprotocols.tr069_client import Tr069Client
-from testprotocols.tr069_gui import Tr069Gui
 from testprotocols.tr069_server import Tr069Server
 from testprotocols.upnp_client import UpnpClient
 from testprotocols.vlan_client import VlanClient
@@ -128,7 +127,6 @@ __all__ = [
     "TftpDevice",
     "TftpServer",
     "Tr069Client",
-    "Tr069Gui",
     "Tr069Server",
     "TrafficControllerDevice",
     "UpnpClient",

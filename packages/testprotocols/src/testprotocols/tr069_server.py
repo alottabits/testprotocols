@@ -1,12 +1,19 @@
 """TR-069 ACS server template.
 
 Defines the abstract contract for TR-069 ACS (Auto Configuration Server)
-operations, including all standard CWMP RPC methods.
+operations, including all standard CWMP RPC methods and ACS-side state
+(inventory, per-CPE connection status, Inform timing).
+
+"CPE" follows TR-069 §2: any CWMP-managed device — gateway, set-top box,
+VoIP ATA, femtocell, IoT endpoint — not specifically a residential
+gateway.
 """
 
 from __future__ import annotations
 
 from typing import Any, Protocol, runtime_checkable
+
+from testprotocols.models.tr069 import CpeConnectionStatus
 
 
 @runtime_checkable
@@ -126,4 +133,19 @@ class Tr069Server(Protocol):
         cpe_id: str,
     ) -> None:
         """Provision a CPE by executing a sequence of TR-069 API calls."""
+        ...
+
+    def list_cpes(
+        self,
+        criteria: dict[str, str] | None = None,
+    ) -> list[str]:
+        """Return CPE IDs known to the ACS, optionally filtered by criteria."""
+        ...
+
+    def delete_cpe_record(self, cpe_id: str) -> bool:
+        """Delete the CPE record from the ACS inventory. Return True on success."""
+        ...
+
+    def get_cpe_connection_status(self, cpe_id: str) -> CpeConnectionStatus:
+        """Return the ACS-side view of the CPE's connection state and cached metadata."""
         ...

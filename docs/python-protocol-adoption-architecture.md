@@ -302,8 +302,7 @@ ship.
 | SD-WAN policy              | `SdwanPolicy`                      | PBR + SLA + traffic shaping + L7 firewall extensions. Coherent because they're all "policy".           |
 | Impairment                 | `NetemController`                  | Single-purpose.                                                                                        |
 | Packet capture             | `PcapCapture`                      | Single-purpose observability.                                                                          |
-| TR-069 (CWMP)              | `Tr069Server` + `Tr069Client`      | Split by role — different actors (ACS NBI vs CPE CWMP), different transports.                          |
-| TR-069 GUI                 | `Tr069Gui`                         | GUI-only actions; sits alongside `Tr069Server` on the ACS, accessed via the [route convention](#l4c--route-convention-default--alternative-transports) when both transports exist. |
+| TR-069 (CWMP)              | `Tr069Server` + `Tr069Client`      | Split by role — different actors (ACS NBI vs CPE CWMP), different transports. `Tr069Server` covers CWMP RPCs plus ACS-side state (inventory, per-CPE connection status). Drivers may fulfil the server surface over any transport — CWMP NBI, REST, GUI scrape — as a driver-internal choice. |
 | SIP                        | `SipPhone` + `SipServer`           | Split by role.                                                                                         |
 | HTTP                       | `HttpClient` + `HttpServer`        | Split by role.                                                                                         |
 | Device lifecycle           | `DeviceLifecycle`                  | Boot / reboot / factory-reset / wait-for-online.                                                       |

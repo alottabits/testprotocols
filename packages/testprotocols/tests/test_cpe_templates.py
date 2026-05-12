@@ -1,7 +1,7 @@
 """Tests for TR-069 / CPE-management Protocol shapes.
 
-Covers: Tr069Client, Tr069Server, Tr069Gui, DeviceManagement,
-DeviceLifecycle, HwConsole.
+Covers: Tr069Client, Tr069Server, DeviceManagement, DeviceLifecycle,
+HwConsole.
 """
 
 from __future__ import annotations
@@ -33,28 +33,9 @@ PROTOCOLS = [
             "GetRPCMethods",
             "Download",
             "provision_cpe_via_tr069",
-        },
-    ),
-    (
-        "Tr069Gui",
-        "testprotocols.tr069_gui",
-        {
-            "login",
-            "logout",
-            "is_logged_in",
-            "search_device",
-            "get_device_count",
-            "filter_devices",
-            "get_device_status",
-            "verify_device_online",
-            "get_last_inform_time",
-            "reboot_device_via_gui",
-            "factory_reset_via_gui",
-            "delete_device_via_gui",
-            "get_device_parameter_via_gui",
-            "set_device_parameter_via_gui",
-            "trigger_firmware_upgrade_via_gui",
-            "verify_firmware_version_via_gui",
+            "list_cpes",
+            "delete_cpe_record",
+            "get_cpe_connection_status",
         },
     ),
     (
