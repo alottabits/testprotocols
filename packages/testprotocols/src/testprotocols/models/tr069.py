@@ -14,10 +14,20 @@ class CpeConnectionStatus:
     All fields remain populated when the CPE is offline (from the
     last successful Inform). ``last_inform_time`` is ``None`` only
     when the ACS has never received an Inform from this CPE.
+
+    ``last_boot_time`` is set to the timestamp of the most recent
+    Boot Inform (CWMP informEvent "1 BOOT") the ACS received from
+    this CPE. Use it to confirm a reboot has actually completed —
+    comparing successive ``last_boot_time`` values against a baseline
+    is the most reliable post-reboot re-registration signal because
+    the ACS keeps the previous CPE record indefinitely (a presence
+    check via list_cpes() would trivially pass against the stale
+    pre-reboot record).
     """
 
     online: bool
     last_inform_time: datetime | None = None
+    last_boot_time: datetime | None = None
     cached_manufacturer: str | None = None
     cached_model: str | None = None
     cached_serial_number: str | None = None
