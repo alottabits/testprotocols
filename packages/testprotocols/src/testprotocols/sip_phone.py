@@ -215,3 +215,16 @@ class SipPhone(Protocol):
         messages, and back to False once the UA has acknowledged them.
         """
         ...
+
+
+@runtime_checkable
+class SipPhoneWhiteBox(SipPhone, Protocol):
+    """Deep introspection capabilities for SIP phones."""
+
+    def has_rtp_udp_bindings(self) -> bool:
+        """Return True if the underlying OS has active UDP sockets in the RTP port range.
+
+        This is a diagnostic white-box check, typically used when testing in
+        --null-audio simulated environments where real media analysis is impossible.
+        """
+        ...

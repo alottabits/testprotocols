@@ -132,13 +132,23 @@ kernel netfilter behind them.
 
 ---
 
+## 2026-05-25 — `SipPhoneWhiteBox` seeded
+
+**Signal:** Review of the `sip-telephony` example testbed revealed that L2 step definitions were sending raw `pexpect` commands (`netstat -un | grep ...`) to the L4 device to verify RTP port bindings. This breaks portability and substrate encapsulation.
+**Methods:**
+- `has_rtp_udp_bindings() -> bool` — newly seeded in WhiteBox. Returns True if the underlying OS has active UDP sockets in the RTP port range.
+**Black-box impact:** Base `SipPhone` Protocol is unchanged. Tests operating in `--null-audio` environments can pin against the extension to verify signalling intent without requiring actual media flow analysis.
+**Rationale:** Checking OS-level socket tables is a diagnostic workaround for environments where true media verification is impossible. Physical SIP phones (e.g. Cisco, Yealink) do not expose their socket tables via a standard API, so this check inherently requires deep OS access (white-box).
+**Drivers expected to satisfy:** Linux-substrate softphones (e.g. `pjsua`) with shell access.
+**Drivers expected NOT to satisfy:** Physical hardware SIP phones (closed firmware).
+
+---
+
 ## Open candidates (signals received, action deferred)
 
 *None yet.*
 
 The architecture doc (palco-bdd `palco-architecture.md` v2.0) initially listed
 `FirewallWhiteBox`, `RoutingWhiteBox`, `SipPhoneWhiteBox`, `SipServerWhiteBox`
-as seed extensions. `FirewallWhiteBox` is seeded as of 2026-05-11 (see entry
-above). The remaining three — `RoutingWhiteBox`, `SipPhoneWhiteBox`,
-`SipServerWhiteBox` — remain aspirational; future consumer signals will
+as seed extensions. `FirewallWhiteBox` and `SipPhoneWhiteBox` are seeded. The remaining two — `RoutingWhiteBox` and `SipServerWhiteBox` — remain aspirational; future consumer signals will
 determine whether to seed them.
