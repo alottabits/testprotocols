@@ -649,6 +649,15 @@ convention. The rules:
    intentional, because portability has limits and "this scenario
    needs TR-069" is a meaningful precondition.
 
+#### What about single-transport devices?
+
+Even if a device only exposes a single transport (e.g., just a CLI), it must still implement the Route Convention (declaring `routes = ("cli",)` and aliasing the default route). 
+
+This uniform "overhead" guarantees three things:
+1. **Generic Parity Testing:** Test functions can blindly iterate `for route in device.routes:` across all devices without type-checking or branching logic.
+2. **Type-Safe Introspection:** It allows tests to pin the explicit route (e.g., `device.cli.firewall`) to demand a `<Capability>WhiteBox` contract, rather than settling for the black-box contract at the default root.
+3. **Future-Proofing:** Adding a second transport later requires zero refactoring of existing step definitions or default capability assignments.
+
 #### Type shape
 
 ```python
