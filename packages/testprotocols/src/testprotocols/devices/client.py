@@ -17,6 +17,7 @@ from testprotocols.ip_routing import IpRouting
 from testprotocols.iperf_client import IperfClient
 from testprotocols.iperf_server import IperfServer
 from testprotocols.multicast_client import MulticastClient
+from testprotocols.network_endpoint import NetworkEndpoint
 from testprotocols.network_probe import NetworkProbe
 from testprotocols.nmap_scanner import NmapScanner
 from testprotocols.ntp_client import NtpClient
@@ -57,15 +58,7 @@ class LanClientDevice(BaseDeviceProtocol, Protocol):
     arp_client: ArpClient
     vlan_client: VlanClient
     network_probe: NetworkProbe
-
-    def get_data_plane_ipv4_addr(self) -> str:
-        """Return the IPv4 address a peer would use to reach this LAN client on the data plane.
-
-        Encapsulates the driver-internal "which interface is the data
-        plane" question. Distinct from any management/console address
-        that exists only for test-orchestration access.
-        """
-        ...
+    data_plane_endpoint: NetworkEndpoint
 
 
 @runtime_checkable
