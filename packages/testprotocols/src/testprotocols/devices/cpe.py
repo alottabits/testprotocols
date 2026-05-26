@@ -15,6 +15,7 @@ from testprotocols.hw_console import HwConsole
 from testprotocols.ip_interface import IpInterface
 from testprotocols.ip_routing import IpRouting
 from testprotocols.nat import Nat
+from testprotocols.network_probe import NetworkProbe
 from testprotocols.ntp_client import NtpClient
 from testprotocols.tr069_client import Tr069Client
 from testprotocols.wifi_bss import WifiBss
@@ -56,6 +57,16 @@ class CpeDevice(BaseDeviceProtocol, Protocol):
     conntrack: Conntrack
     firewall_zones: FirewallZones
     ntp_client: NtpClient
+    network_probe: NetworkProbe
+
+    def get_wan_ipv4_addr(self) -> str:
+        """Return the current IPv4 address bound to the CPE's WAN-side interface.
+
+        Encapsulates "which interface is the WAN" — a driver-internal
+        concern (read from plugin config + resolved via the IpInterface
+        capability). Tests use this instead of reading raw device config.
+        """
+        ...
 
 
 register_device_type("linux_cpe", CpeDevice)

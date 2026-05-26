@@ -17,6 +17,7 @@ from testprotocols.ip_routing import IpRouting
 from testprotocols.iperf_client import IperfClient
 from testprotocols.iperf_server import IperfServer
 from testprotocols.nat import Nat
+from testprotocols.network_probe import NetworkProbe
 from testprotocols.nmap_scanner import NmapScanner
 from testprotocols.ntp_client import NtpClient
 from testprotocols.packet_filter import PacketFilter
@@ -51,6 +52,17 @@ class WanServerDevice(BaseDeviceProtocol, Protocol):
     packet_filter: PacketFilter
     nat: Nat
     conntrack: Conntrack
+    network_probe: NetworkProbe
+
+    def get_data_plane_ipv4_addr(self) -> str:
+        """Return the IPv4 address a peer would use to reach this device on the data plane.
+
+        Encapsulates the driver-internal "which interface is the data
+        plane" question, so tests can address the device without reading
+        raw inventory config. Distinct from any management/console
+        address that exists only for test-orchestration access.
+        """
+        ...
 
 
 register_device_type("linux_wan_server", WanServerDevice)
