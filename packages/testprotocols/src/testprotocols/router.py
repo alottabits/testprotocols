@@ -20,8 +20,12 @@ from testprotocols.models.wan_edge import (
 class Router(Protocol):
     """Abstract contract for WAN edge router operations."""
 
-    def get_active_wan_interface(self, flow_dst: str | None = None) -> str:
-        """Return the name of the active WAN interface, optionally for a given destination."""
+    def get_active_wan_interface(self, flow_dst: str | None = None) -> str | None:
+        """Return the name of the active WAN interface, or ``None`` if no uplink
+        is currently active (for a given ``flow_dst``, if there is no active path
+        to it). "No active uplink" is an expected operational state — e.g. while
+        a failover test has every uplink impaired — not an error; use
+        ``get_wan_interface_status`` for per-uplink detail."""
         ...
 
     def get_wan_interface_status(self) -> dict[str, LinkStatus]:
