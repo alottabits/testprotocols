@@ -4,6 +4,7 @@ __version__ = "0.1.0"
 
 from testprotocols.aftr_gateway import AftrGateway
 from testprotocols.arp_client import ArpClient
+from testprotocols.content_filtering import ContentFiltering
 from testprotocols.conntrack import Conntrack, ConntrackWhiteBox
 from testprotocols.device_lifecycle import DeviceLifecycle
 from testprotocols.device_management import DeviceManagement
@@ -43,6 +44,8 @@ from testprotocols.ip_routing import IpRouting
 from testprotocols.iperf_client import IperfClient
 from testprotocols.iperf_generator import IperfGenerator
 from testprotocols.iperf_server import IperfServer
+from testprotocols.l3_firewall import L3Firewall
+from testprotocols.l7_firewall import L7Firewall
 from testprotocols.multicast_client import MulticastClient
 from testprotocols.nat import Nat
 from testprotocols.netem_controller import NetemController
@@ -79,6 +82,7 @@ __all__ = [
     "AftrGateway",
     "ArpClient",
     "BaseDeviceProtocol",
+    "ContentFiltering",
     "Conntrack",
     "ConntrackWhiteBox",
     "CpeDevice",
@@ -100,6 +104,8 @@ __all__ = [
     "IperfGenerator",
     "IperfServer",
     "IperfTrafficGeneratorDevice",
+    "L3Firewall",
+    "L7Firewall",
     "LanClientDevice",
     "MulticastClient",
     "Nat",

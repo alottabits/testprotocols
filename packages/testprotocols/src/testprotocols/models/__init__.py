@@ -22,6 +22,15 @@ from testprotocols.models.multicast import (
 from testprotocols.models.networking import HTTPResult, ICMPPacketData, IPAddresses
 from testprotocols.models.packets import RIPv2PacketData
 from testprotocols.models.qoe import MeasurementSpec, QoEResult
+from testprotocols.models.sdwan_appliance import (
+    ApplicationCategory,
+    ContentCategory,
+    L3Rule,
+    L7MatchType,
+    L7Rule,
+    RuleAction,
+    RuleProtocol,
+)
 from testprotocols.models.radius import (
     RadiusAccountingRecord,
     RadiusServerConfig,
@@ -74,6 +83,14 @@ __all__ = [
     "IPAddresses",
     # impairment
     "ImpairmentProfile",
+    # sdwan_appliance
+    "ApplicationCategory",
+    "ContentCategory",
+    "L3Rule",
+    "L7MatchType",
+    "L7Rule",
+    "RuleAction",
+    "RuleProtocol",
     "LinkHealthReport",
     "LinkStatus",
     # multicast
