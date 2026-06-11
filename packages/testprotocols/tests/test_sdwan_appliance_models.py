@@ -19,6 +19,12 @@ from testprotocols.models.sdwan_appliance import (
     L7Rule,
     RuleAction,
     RuleProtocol,
+    ShapingPriority,
+    ShapingRule,
+    SyslogRole,
+    SyslogServer,
+    UplinkState,
+    UplinkStatus,
 )
 
 
@@ -79,3 +85,31 @@ def test_l7_match_type_and_rule() -> None:
     assert rule.action == "deny"
     assert rule.match_type == "application_category"
     assert rule.value == "social_networking"
+
+
+def test_shaping_rule_uses_normalized_vocabulary() -> None:
+    assert issubclass(ShapingPriority, StrEnum)
+    rule = ShapingRule(
+        name="cap-video",
+        match_type=L7MatchType.APPLICATION_CATEGORY,
+        value=ApplicationCategory.VIDEO_STREAMING,
+        bandwidth_limit_kbps=5000,
+        dscp_tag=34,
+        priority=ShapingPriority.LOW,
+    )
+    assert rule.priority == "low"
+    assert ShapingRule(name="x", match_type=L7MatchType.HOST, value="1.2.3.4").priority is ShapingPriority.NORMAL
+
+
+def test_uplink_state_and_status() -> None:
+    assert issubclass(UplinkState, StrEnum)
+    assert {s.value for s in UplinkState} == {"up", "down", "standby", "not_connected"}
+    up = UplinkStatus(name="wan1", state=UplinkState.UP, ip="203.0.113.5")
+    assert up.state == "up"
+
+
+def test_syslog_role_and_server() -> None:
+    assert issubclass(SyslogRole, StrEnum)
+    srv = SyslogServer(host="10.0.0.1", roles=[SyslogRole.EVENT_LOG, SyslogRole.SECURITY])
+    assert srv.port == 514
+    assert SyslogRole.FLOWS in {r for r in SyslogRole}

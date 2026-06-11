@@ -42,6 +42,46 @@ PROTOCOLS = [
             "get_url_rules",
         },
     ),
+    (
+        "TrafficShaping",
+        "testprotocols.traffic_shaping",
+        {
+            "set_uplink_bandwidth",
+            "get_uplink_bandwidth",
+            "set_global_client_bandwidth",
+            "get_global_client_bandwidth",
+            "set_shaping_rules",
+            "get_shaping_rules",
+        },
+    ),
+    (
+        "ApplianceNat",
+        "testprotocols.appliance_nat",
+        {
+            "set_one_to_one_rules",
+            "get_one_to_one_rules",
+            "set_one_to_many_rules",
+            "get_one_to_many_rules",
+            "set_port_forwarding_rules",
+            "get_port_forwarding_rules",
+        },
+    ),
+    (
+        "ApplianceUplinks",
+        "testprotocols.appliance_uplinks",
+        {
+            "get_uplinks",
+            "get_uplink",
+        },
+    ),
+    (
+        "SyslogConfig",
+        "testprotocols.syslog_config",
+        {
+            "set_syslog_servers",
+            "get_syslog_servers",
+        },
+    ),
 ]
 
 

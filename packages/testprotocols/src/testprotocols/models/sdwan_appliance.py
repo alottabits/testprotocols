@@ -15,7 +15,7 @@ payload, or vendor-specific vocabulary ever appears in this module.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import StrEnum
 
 
@@ -157,3 +157,122 @@ class ApplicationCategory(StrEnum):
     VOIP_AND_VIDEO_CONFERENCING = "voip_and_video_conferencing"
     VPN_AND_PROXY = "vpn_and_proxy"
     WEB_FILE_TRANSFER = "web_file_transfer"
+
+
+# --- Traffic shaping ---
+
+
+class ShapingPriority(StrEnum):
+    """Relative scheduling priority a shaping rule assigns to matched traffic."""
+
+    LOW = "low"
+    NORMAL = "normal"
+    HIGH = "high"
+
+
+@dataclass
+class ShapingRule:
+    """A traffic-shaping rule — match a traffic class, then limit / mark / prioritize.
+
+    ``match_type`` / ``value`` reuse the L7 match vocabulary (by application,
+    application category, host, port, or IP range). ``bandwidth_limit_kbps``
+    caps the class (``None`` = uncapped); ``dscp_tag`` applies a DSCP marking
+    (``None`` = leave unmarked); ``priority`` sets relative scheduling.
+    """
+
+    name: str
+    match_type: L7MatchType
+    value: str
+    bandwidth_limit_kbps: int | None = None
+    dscp_tag: int | None = None
+    priority: ShapingPriority = ShapingPriority.NORMAL
+
+
+# --- NAT (1:1 / 1:Many / port-forwarding) ---
+
+
+@dataclass
+class NatInboundAllow:
+    """An inbound allowance attached to a 1:1 NAT mapping."""
+
+    protocol: RuleProtocol = RuleProtocol.ANY
+    ports: str = "any"
+    allowed_remote_cidrs: list[str] = field(default_factory=lambda: ["any"])
+
+
+@dataclass
+class PortForwardRule:
+    """A port-forwarding (DNAT) rule — public port → internal host:port."""
+
+    name: str
+    protocol: RuleProtocol
+    public_port: str
+    lan_ip: str
+    local_port: str
+    uplink: str = "any"
+    allowed_remote_cidrs: list[str] = field(default_factory=lambda: ["any"])
+
+
+@dataclass
+class OneToOneNatRule:
+    """A 1:1 NAT mapping between a public IP and an internal IP."""
+
+    name: str
+    public_ip: str
+    lan_ip: str
+    uplink: str = "any"
+    allowed_inbound: list[NatInboundAllow] = field(default_factory=list)
+
+
+@dataclass
+class OneToManyNatRule:
+    """A 1:many (PAT) mapping — one public IP, many port-based forwards."""
+
+    public_ip: str
+    uplink: str = "any"
+    port_forwards: list[PortForwardRule] = field(default_factory=list)
+
+
+# --- WAN uplinks ---
+
+
+class UplinkState(StrEnum):
+    """Operational state of a WAN uplink."""
+
+    UP = "up"
+    DOWN = "down"
+    STANDBY = "standby"
+    NOT_CONNECTED = "not_connected"
+
+
+@dataclass
+class UplinkStatus:
+    """Current status of a single WAN uplink (read-only observation)."""
+
+    name: str
+    state: UplinkState
+    ip: str = ""
+    gateway: str = ""
+    public_ip: str = ""
+    primary_dns: str = ""
+
+
+# --- Syslog destinations ---
+
+
+class SyslogRole(StrEnum):
+    """Category of log a syslog destination receives."""
+
+    EVENT_LOG = "event_log"
+    FLOWS = "flows"
+    SECURITY = "security"
+    URLS = "urls"
+
+
+@dataclass
+class SyslogServer:
+    """A syslog destination and the log roles it receives."""
+
+    host: str
+    port: int = 514
+    roles: list[SyslogRole] = field(default_factory=list)

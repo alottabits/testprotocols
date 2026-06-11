@@ -3,6 +3,8 @@
 __version__ = "0.1.0"
 
 from testprotocols.aftr_gateway import AftrGateway
+from testprotocols.appliance_nat import ApplianceNat
+from testprotocols.appliance_uplinks import ApplianceUplinks
 from testprotocols.arp_client import ArpClient
 from testprotocols.content_filtering import ContentFiltering
 from testprotocols.conntrack import Conntrack, ConntrackWhiteBox
@@ -63,9 +65,11 @@ from testprotocols.sip_phone import SipPhone
 from testprotocols.sip_server import SipServer
 from testprotocols.snmp_client import SnmpClient
 from testprotocols.streaming_server import StreamingServer
+from testprotocols.syslog_config import SyslogConfig
 from testprotocols.tftp_server import TftpServer
 from testprotocols.tr069_client import Tr069Client
 from testprotocols.tr069_server import Tr069Server
+from testprotocols.traffic_shaping import TrafficShaping
 from testprotocols.upnp_client import UpnpClient
 from testprotocols.vlan_client import VlanClient
 from testprotocols.wifi_bss import WifiBss
@@ -80,6 +84,8 @@ from testprotocols.wifi_transitions import WifiTransitions
 __all__ = [
     "AcsDevice",
     "AftrGateway",
+    "ApplianceNat",
+    "ApplianceUplinks",
     "ArpClient",
     "BaseDeviceProtocol",
     "ContentFiltering",
@@ -130,11 +136,13 @@ __all__ = [
     "SipServerDevice",
     "SnmpClient",
     "StreamingServer",
+    "SyslogConfig",
     "TftpDevice",
     "TftpServer",
     "Tr069Client",
     "Tr069Server",
     "TrafficControllerDevice",
+    "TrafficShaping",
     "UpnpClient",
     "VlanClient",
     "WanServerDevice",
