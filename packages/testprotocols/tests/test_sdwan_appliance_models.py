@@ -19,12 +19,24 @@ from testprotocols.models.sdwan_appliance import (
     L7Rule,
     RuleAction,
     RuleProtocol,
+    DhcpLease,
+    DhcpMode,
+    DhcpOption,
+    DhcpOptionType,
+    IntrusionConfig,
+    IntrusionMode,
+    IntrusionSensitivity,
+    MalwareMode,
+    SecurityAction,
+    SecurityEvent,
     ShapingPriority,
     ShapingRule,
     SyslogRole,
     SyslogServer,
+    ThreatCategory,
     UplinkState,
     UplinkStatus,
+    VlanConfig,
 )
 
 
@@ -113,3 +125,38 @@ def test_syslog_role_and_server() -> None:
     srv = SyslogServer(host="10.0.0.1", roles=[SyslogRole.EVENT_LOG, SyslogRole.SECURITY])
     assert srv.port == 514
     assert SyslogRole.FLOWS in {r for r in SyslogRole}
+
+
+def test_threat_prevention_vocabularies() -> None:
+    for enum_cls in (IntrusionMode, IntrusionSensitivity, MalwareMode, SecurityAction, ThreatCategory):
+        assert issubclass(enum_cls, StrEnum)
+    assert {m.value for m in IntrusionMode} == {"disabled", "detection", "prevention"}
+    assert {s.value for s in IntrusionSensitivity} == {"low", "medium", "high"}
+    cfg = IntrusionConfig(mode=IntrusionMode.PREVENTION, sensitivity=IntrusionSensitivity.HIGH)
+    assert cfg.mode == "prevention"
+    evt = SecurityEvent(
+        ts="2026-06-11T10:00:00Z",
+        src_ip="10.0.0.5",
+        dst_ip="1.2.3.4",
+        protocol=RuleProtocol.TCP,
+        action=SecurityAction.BLOCKED,
+        category=ThreatCategory.MALWARE,
+    )
+    assert evt.action == "blocked"
+    assert evt.category == "malware"
+
+
+def test_vlan_and_dhcp_models() -> None:
+    assert issubclass(DhcpMode, StrEnum)
+    assert issubclass(DhcpOptionType, StrEnum)
+    vlan = VlanConfig(
+        vlan_id=100,
+        name="data",
+        subnet="10.0.100.0/24",
+        appliance_ip="10.0.100.1",
+        dhcp_options=[DhcpOption(code=42, type=DhcpOptionType.IP, value="10.0.100.2")],
+    )
+    assert vlan.dhcp_mode is DhcpMode.SERVER  # default
+    assert vlan.dhcp_lease_seconds == 86400
+    lease = DhcpLease(mac="00:11:22:33:44:55", ip="10.0.100.50", hostname="host1", vlan_id=100)
+    assert lease.ip == "10.0.100.50"

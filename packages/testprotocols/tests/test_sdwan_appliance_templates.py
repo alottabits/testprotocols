@@ -82,6 +82,27 @@ PROTOCOLS = [
             "get_syslog_servers",
         },
     ),
+    (
+        "ThreatPrevention",
+        "testprotocols.threat_prevention",
+        {
+            "set_intrusion",
+            "get_intrusion",
+            "set_malware",
+            "get_malware",
+            "get_security_events",
+        },
+    ),
+    (
+        "ApplianceVlans",
+        "testprotocols.appliance_vlans",
+        {
+            "list_vlans",
+            "get_vlan",
+            "set_vlan",
+            "get_dhcp_leases",
+        },
+    ),
 ]
 
 

@@ -276,3 +276,152 @@ class SyslogServer:
     host: str
     port: int = 514
     roles: list[SyslogRole] = field(default_factory=list)
+
+
+# --- Threat prevention (IDS / IPS + malware) ---
+
+
+class IntrusionMode(StrEnum):
+    """IDS/IPS operating mode."""
+
+    DISABLED = "disabled"
+    DETECTION = "detection"
+    PREVENTION = "prevention"
+
+
+class IntrusionSensitivity(StrEnum):
+    """Normalized IPS ruleset sensitivity (vendor ruleset names map onto this)."""
+
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
+
+
+class MalwareMode(StrEnum):
+    """Anti-malware operating mode."""
+
+    DISABLED = "disabled"
+    ENABLED = "enabled"
+
+
+class SecurityAction(StrEnum):
+    """What the appliance did about a security event."""
+
+    ALLOWED = "allowed"
+    BLOCKED = "blocked"
+    DETECTED = "detected"
+
+
+class ThreatCategory(StrEnum):
+    """Normalized class of a security event."""
+
+    MALWARE = "malware"
+    INTRUSION = "intrusion"
+    EXPLOIT = "exploit"
+    SCAN = "scan"
+    BOTNET = "botnet"
+    PHISHING = "phishing"
+    POLICY_VIOLATION = "policy_violation"
+
+
+@dataclass
+class IntrusionConfig:
+    """IDS/IPS configuration state."""
+
+    mode: IntrusionMode
+    sensitivity: IntrusionSensitivity | None = None
+
+
+@dataclass
+class MalwareConfig:
+    """Anti-malware configuration state."""
+
+    mode: MalwareMode
+
+
+@dataclass
+class SecurityEvent:
+    """A normalized security event (the deferred-API-augmentation surface).
+
+    Carries only normalized fields for portable assertions — vendor signature
+    ids and raw payloads are deliberately not modelled. ``ts`` is an ISO-8601
+    UTC timestamp string.
+    """
+
+    ts: str
+    src_ip: str
+    dst_ip: str
+    protocol: RuleProtocol
+    action: SecurityAction
+    category: ThreatCategory
+    description: str = ""
+
+
+# --- LAN VLANs + DHCP ---
+
+
+class DhcpMode(StrEnum):
+    """How the appliance handles DHCP on a VLAN."""
+
+    SERVER = "server"
+    RELAY = "relay"
+    DISABLED = "disabled"
+
+
+class DhcpOptionType(StrEnum):
+    """Value type of a DHCP option."""
+
+    TEXT = "text"
+    IP = "ip"
+    INTEGER = "integer"
+    HEX = "hex"
+
+
+@dataclass
+class DhcpOption:
+    """A custom DHCP option served on a VLAN."""
+
+    code: int
+    type: DhcpOptionType
+    value: str
+
+
+@dataclass
+class DhcpReservation:
+    """A fixed IP assignment for a known MAC."""
+
+    mac: str
+    ip: str
+    name: str = ""
+
+
+@dataclass
+class VlanConfig:
+    """A LAN VLAN and its DHCP configuration.
+
+    ``dhcp_lease_seconds`` normalizes lease time to seconds (vendors express it
+    variously). ``dns_servers`` empty means "use the appliance / upstream
+    default". Reserved ranges are ``(start_ip, end_ip)`` pairs excluded from
+    the dynamic pool.
+    """
+
+    vlan_id: int
+    name: str
+    subnet: str
+    appliance_ip: str
+    dhcp_mode: DhcpMode = DhcpMode.SERVER
+    dhcp_lease_seconds: int = 86400
+    dns_servers: list[str] = field(default_factory=list)
+    dhcp_options: list[DhcpOption] = field(default_factory=list)
+    reservations: list[DhcpReservation] = field(default_factory=list)
+    reserved_ranges: list[tuple[str, str]] = field(default_factory=list)
+
+
+@dataclass
+class DhcpLease:
+    """An observed DHCP lease (read-only)."""
+
+    mac: str
+    ip: str
+    hostname: str = ""
+    vlan_id: int = 0

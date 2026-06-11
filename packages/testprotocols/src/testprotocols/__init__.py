@@ -5,6 +5,7 @@ __version__ = "0.1.0"
 from testprotocols.aftr_gateway import AftrGateway
 from testprotocols.appliance_nat import ApplianceNat
 from testprotocols.appliance_uplinks import ApplianceUplinks
+from testprotocols.appliance_vlans import ApplianceVlans
 from testprotocols.arp_client import ArpClient
 from testprotocols.content_filtering import ContentFiltering
 from testprotocols.conntrack import Conntrack, ConntrackWhiteBox
@@ -67,6 +68,7 @@ from testprotocols.snmp_client import SnmpClient
 from testprotocols.streaming_server import StreamingServer
 from testprotocols.syslog_config import SyslogConfig
 from testprotocols.tftp_server import TftpServer
+from testprotocols.threat_prevention import ThreatPrevention
 from testprotocols.tr069_client import Tr069Client
 from testprotocols.tr069_server import Tr069Server
 from testprotocols.traffic_shaping import TrafficShaping
@@ -86,6 +88,7 @@ __all__ = [
     "AftrGateway",
     "ApplianceNat",
     "ApplianceUplinks",
+    "ApplianceVlans",
     "ArpClient",
     "BaseDeviceProtocol",
     "ContentFiltering",
@@ -139,6 +142,7 @@ __all__ = [
     "SyslogConfig",
     "TftpDevice",
     "TftpServer",
+    "ThreatPrevention",
     "Tr069Client",
     "Tr069Server",
     "TrafficControllerDevice",
