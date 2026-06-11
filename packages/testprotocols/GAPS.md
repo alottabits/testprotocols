@@ -277,8 +277,67 @@ breakage.
 string-valued (serialization-clean), update consumers/tests; one capability per change
 with its own SPLITS/LEVELS note as needed.
 
-**Cross-references:** `models/wan_edge.py`, `models/sdwan_appliance.py` (the pattern to
-follow), `packet_filter.py` (`chain` / `policy` strings).
+**Review findings (2026-06-11 — blast-radius assessment, no action taken yet):**
+
+*Why this is low-risk at runtime:* `StrEnum` **is** `str` (subclass), so members
+compare / hash / format / `isinstance`-check as their string value. The sole current
+consumer (`vitro-bdd`) keeps working unchanged for `==` comparisons, str-keyed dict
+lookups (vendor-mapping tables), `.upper()`, `in (...)` membership, `isinstance(x, str)`,
+and `json.dumps`. `kpn-sdwan` only touches the SD-WAN appliance surface (already
+`StrEnum`) → **zero impact** there.
+
+*Where it actually breaks — static typing + vocabulary mismatches, not runtime:*
+- A dataclass does **not** coerce: a field typed `FooEnum` that receives a bare runtime
+  `str` is flagged by `mypy --strict` (vitro-bdd runs mypy). Breakage is at **constructor
+  call sites** and **reverse-mapping reads** (`dict.get(...) -> str`), each needing the
+  producer to wrap the value as `FooEnum(raw)` — which *adds* validation but introduces a
+  new `ValueError`-on-unmapped-value failure mode.
+- **Gating design decision:** (A) match the appliance pattern (annotation + mypy only;
+  validation only holds where producers build enums) **vs** (B) add `__post_init__`
+  coercion (`self.x = FooEnum(self.x)`) — guarantees validation at every construction and
+  makes the vitro migration nearly free (it can keep passing strings), at the cost of a
+  few lines per dataclass and divergence from `models/sdwan_appliance.py`. **Decide this
+  before writing code — it gates everything.**
+
+*Vocabulary reconciliations to settle (the real work):*
+- `FirewallRule.action` doc says `allow/deny/reject/log`, but vitro `frr_router.py` emits
+  an **undocumented `"alert"`** (mapped to LOG). A strict enum must include `ALERT` or
+  vitro must change to `LOG`.
+- **Do not unify the action vocabularies:** `FirewallRule.action`
+  (`allow/deny/reject/log`), `Zone`/`ZonePolicy.action` (`accept/drop/reject`), and
+  appliance `RuleAction` (`allow/deny`) are three distinct sets — keep separate enums.
+- **Protocol vocabularies also differ:** `FirewallRule` (`tcp/udp/icmp/any`), `PortMapping`
+  (`tcp/udp/tcp-udp`), appliance `RuleProtocol` (`+icmp6`), `TrafficSpec` (`tcp/udp`) — no
+  single shared enum fits all (`tcp-udp`, `icmp6` are the odd ones).
+- `Connection.state` is **explicitly open-ended** ("…or driver-specific values") — **not
+  enum-safe**; leave as `str`. Same for vendor-divergent / undocumented fields
+  (`WifiBssConfig.security_mode`, `VPNPeerStatus.reachability`, `QoEResult.protocol`,
+  `MeasurementSpec.completion`) — defer until a test needs them.
+
+*Candidate inventory (tiered):*
+- **Firewall domain — do first (highest vitro usage):** `FirewallRule.action`
+  (`FirewallAction`), `FirewallRule.protocol`, `NatRule.mode` (`NatMode`),
+  `NatRule.protocol`, `PortMapping.protocol`, `Zone`/`ZonePolicy.action` (`ZoneAction`).
+- **`WifiBand` — best value/effort:** one enum (`2.4GHz/5GHz/6GHz`) reused across 6+ wifi
+  models (`WifiBssConfig.band`, `WifiStation.band`, `WifiNeighbor.band`,
+  `WifiChannelUtilization.band`, `WifiRadioStats.band`, `WifiMeshLink.band`); no consumer
+  impact.
+- **Then:** `LinkStatus.state` / `LinkHealthReport.state` (`LinkState`, ≠ appliance
+  `UplinkState`), `TrafficShapingRule.priority` (reuse `ShapingPriority`),
+  `TrafficSpec.protocol`, `WifiBssConfig.mfp`, `WifiAcl.mode`, `WifiMesh*.role`,
+  `RadiusAccountingRecord.record_type`.
+- **Leave alone:** `Connection.state`; `MulticastGroupRecordType` (already an int `Enum` —
+  correctly not a `StrEnum`).
+
+*Suggested sequencing:* settle (A)-vs-(B) → firewall domain (migrate `testprotocols` +
+the ~6 vitro files in one branch, mypy-strict green on both) → `WifiBand` → the rest,
+incrementally, on evidence.
+
+**Cross-references:** `models/wan_edge.py`, `models/firewall.py`, `models/wifi.py`,
+`models/traffic.py`, `models/radius.py`, `models/sdwan_appliance.py` (the pattern to
+follow), `packet_filter.py` (`chain` / `policy` strings). Consumer blast-radius:
+`vitro-bdd` examples `cpe-gateway` + `sdwan-digital-twin` (firewall steps, uci /
+linux_firewall / frr_router impls, unit tests).
 
 ---
 
