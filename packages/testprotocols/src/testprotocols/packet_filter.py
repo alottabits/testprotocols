@@ -13,7 +13,7 @@ Out of scope: NAT (see ``nat``), high-level port forwarding (see the
 ``Firewall`` Protocol in ``firewall``, which extends ``PacketFilter``
 with port-mapping methods), conntrack inspection (see ``conntrack``),
 zone-based policy (see ``firewall_zones``), and L7 application-aware
-classification (see ``sdwan_policy_manager.apply_firewall_rule``).
+classification (see ``l7_firewall`` for managed appliances).
 
 The IPv4 / IPv6 split is not a contract dimension — each rule's address
 family is inferred from its CIDR fields. Drivers that maintain separate

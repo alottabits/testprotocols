@@ -208,6 +208,80 @@ arrives.
 
 ---
 
+## 2026-06-11 — `Application` (individual-application registry) [priority: low]
+
+**Signal:** The managed-appliance L7 firewall (`l7_firewall.L7Firewall`) matches by
+`ApplicationCategory` (a seeded normalized taxonomy) but not by *individual
+application*. `L7Rule.value` for `match_type=APPLICATION` is a vendor-mapped string
+meanwhile.
+
+**Trigger to act:** First test that must allow/deny/steer a *named* application
+rather than a category.
+
+**Out of scope right now because:** No consumer needs individual-app granularity yet;
+categories cover the evidenced cases. An individual-application catalog is large and
+more vendor-divergent than categories — seed on real evidence to avoid churn.
+
+**Design notes (when picked up):** a normalized `Application` StrEnum (commons owns the
+keys; plugins map to vendor app-ids), grown on evidence; `L7Rule.value` for
+`APPLICATION` then carries an `Application` member.
+
+**Cross-references:** `models/sdwan_appliance.py` (`ApplicationCategory`, `L7MatchType`,
+`L7Rule`), `l7_firewall.py`.
+
+---
+
+## 2026-06-11 — `SdwanPolicyManager` typed path-steering surface [priority: medium]
+
+**Signal:** SD-WAN path/app steering (uplink selection, performance classes) is
+currently only expressible via the generic `apply_policy(dict)` escape hatch. Typed
+methods (`set_uplink_selection` / `get_uplink_selection` /
+`configure_performance_class`) with `UplinkSelectionRule` / `PerformanceClass` models
+would give the same static safety as the rest of the appliance surface.
+
+**Trigger to act:** The path-steering / route-decision tests (Phase 2).
+
+**Out of scope right now because:** No current test exercises typed steering, and
+**adding required methods to `SdwanPolicyManager` would break existing impls** (the
+digital twin's `FrrSdwanRouter`) until migrated — adding to a Protocol is not
+conformance-safe the way removing is. Defer until the Phase-2 tests drive the exact
+shape and the twin can be migrated in step.
+
+**Design notes (when picked up):** `UplinkSelectionRule` (traffic match + preferred
+uplink / best-for-VPN), `PerformanceClass` (latency/jitter/loss thresholds — reuse the
+`SLAPolicy` shape). Add to `SdwanPolicyManager`; migrate the twin in the same change.
+
+**Cross-references:** `sdwan_policy_manager.py`, `devices/sdwan.py`
+(`SdwanApplianceDevice.sdwan_policy`).
+
+---
+
+## 2026-06-11 — migrate legacy bare-`str` value fields to typed vocabularies [priority: low]
+
+**Signal:** The SD-WAN appliance models (`models/sdwan_appliance.py`) express their
+normalized value vocabularies as `StrEnum`s (static + runtime checking). The
+pre-existing models — e.g. `models/wan_edge.py`'s `LinkStatus.state`,
+`TrafficShapingRule.priority` / `match`, and similar bare-`str`-with-comment fields
+across the older capabilities — are *under-typed*, a verbatim artifact of the
+ABC→Protocol migration. A typed vocabulary catches an invalid / unmapped vendor value
+statically; bare `str` does not.
+
+**Trigger to act:** Touching a given legacy capability for other reasons, or a consumer
+hitting a vendor-value mismatch the type system would have caught.
+
+**Out of scope right now because:** Broad and cross-cutting; best done incrementally
+per-capability on evidence, not as one sweep. Pre-1.0, so migratable without external
+breakage.
+
+**Design notes (when picked up):** introduce `StrEnum`s for the value sets, keep them
+string-valued (serialization-clean), update consumers/tests; one capability per change
+with its own SPLITS/LEVELS note as needed.
+
+**Cross-references:** `models/wan_edge.py`, `models/sdwan_appliance.py` (the pattern to
+follow), `packet_filter.py` (`chain` / `policy` strings).
+
+---
+
 ## Workflow
 
 When picking up a deferred capability:

@@ -16,9 +16,7 @@ class FirewallRule:
     """Holds a stateless or stateful packet-filter rule with match criteria and action.
 
     Used by the ``packet_filter`` and ``firewall`` templates (per-chain
-    rule lists) and by ``sdwan_policy_manager.apply_firewall_rule``
-    (policy-bound application classification rules). The IPv4 / IPv6
-    split is not a contract dimension
+    rule lists). The IPv4 / IPv6 split is not a contract dimension
     — each rule's address family is inferred from its CIDR fields.
 
     *action* is one of ``"allow"``, ``"deny"``, ``"reject"``, ``"log"``.

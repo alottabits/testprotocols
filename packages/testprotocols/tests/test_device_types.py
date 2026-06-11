@@ -20,7 +20,7 @@ from testprotocols.devices.client import (
 )
 from testprotocols.devices.cpe import CpeDevice
 from testprotocols.devices.infra import AcsDevice, ProvisionerDevice, TftpDevice
-from testprotocols.devices.sdwan import SdwanRouterDevice
+from testprotocols.devices.sdwan import SdwanApplianceDevice, SdwanRouterDevice
 from testprotocols.devices.traffic import (
     IperfTrafficGeneratorDevice,
     TrafficControllerDevice,
@@ -35,6 +35,7 @@ _ALL_ARCHETYPES = (
     LanClientDevice,
     ProvisionerDevice,
     QoeClientDevice,
+    SdwanApplianceDevice,
     SdwanRouterDevice,
     SipPhoneDevice,
     SipServerDevice,
@@ -63,6 +64,7 @@ def test_all_device_types_registered() -> None:
         "linux_provisioner",
         "linux_tftp",
         "linux_sdwan_router",
+        "sdwan_appliance",
         "linux_traffic_controller",
         "iperf_traffic_generator",
         "linux_sip_phone",
@@ -81,6 +83,12 @@ def test_sdwan_router_registered() -> None:
     spec = get_device_type("linux_sdwan_router")
     assert isinstance(spec, DeviceTypeSpec)
     assert spec.protocol is SdwanRouterDevice
+
+
+def test_sdwan_appliance_registered() -> None:
+    spec = get_device_type("sdwan_appliance")
+    assert isinstance(spec, DeviceTypeSpec)
+    assert spec.protocol is SdwanApplianceDevice
 
 
 def test_cpe_registered() -> None:
@@ -178,6 +186,30 @@ def test_sdwan_router_aggregates_expected_capabilities() -> None:
     actual = set(SdwanRouterDevice.__protocol_attrs__)
     assert expected <= actual, f"missing: {expected - actual}"
     assert "netem" not in actual, "netem should not be on SdwanRouterDevice"
+
+
+def test_sdwan_appliance_aggregates_expected_capabilities() -> None:
+    """The managed-appliance archetype composes the appliance capability set —
+    and deliberately excludes the Linux-host substrate capabilities, which stay
+    on SdwanRouterDevice (the digital twin). See SPLITS.md."""
+    expected = {
+        "routing",
+        "sdwan_policy",
+        "traffic_shaping",
+        "l3_firewall",
+        "l7_firewall",
+        "content_filtering",
+        "appliance_nat",
+        "security",
+        "uplinks",
+        "lan",
+        "syslog",
+        "device_management",
+    }
+    actual = set(SdwanApplianceDevice.__protocol_attrs__)
+    assert expected <= actual, f"missing: {expected - actual}"
+    for twin_ism in ("conntrack", "pcap", "ip_interface", "nat"):
+        assert twin_ism not in actual, f"{twin_ism} must not be on the appliance archetype"
 
 
 def test_cpe_aggregates_expected_capabilities() -> None:

@@ -278,3 +278,48 @@ Deleted with no replacement (driver-internal or covered elsewhere):
 - Other consumers: no production driver yet implements `Tr069Gui`.
 
 ---
+
+## 2026-06-11 — firewall-rule methods removed from `SdwanPolicyManager`
+
+**Signal:** Designing the vendor-neutral managed-appliance archetype
+(`SdwanApplianceDevice`) surfaced that `SdwanPolicyManager` bundled firewall-rule
+administration (`apply_firewall_rule` / `remove_firewall_rule` /
+`get_firewall_rules`) alongside SD-WAN path/SLA policy. Firewall is a separate
+coherent domain — a managed appliance models it as L3 and L7 policy surfaces, not
+as an attribute of its SD-WAN steering.
+
+**Decision:** move — remove the three firewall methods from `SdwanPolicyManager`.
+Firewall administration is owned by the new `l3_firewall.L3Firewall` (ordered L3
+policy) and `l7_firewall.L7Firewall` (application-aware) capabilities.
+`SdwanPolicyManager` retains generic policy, SLA policy, and application-flow
+visibility.
+
+**Rationale:**
+- Coherent-domain bundling: path/SLA steering and packet/application firewalling
+  are distinct subsystems a driver may implement independently.
+- The new `SdwanApplianceDevice` composes `l3_firewall` / `l7_firewall` as
+  first-class attributes; leaving firewall methods on `sdwan_policy` too would be
+  redundant and ambiguous.
+
+**Methods affected (3 removed):**
+- `apply_firewall_rule(rule)` → `L3Firewall.set_outbound_rules` / `L7Firewall.set_rules`.
+- `remove_firewall_rule(name)` → list-replace via the same setters.
+- `get_firewall_rules()` → `L3Firewall.get_outbound_rules` / `L7Firewall.get_rules`.
+The `FirewallRule` model import was dropped from `sdwan_policy_manager.py`.
+
+**Migration impact:**
+- `testprotocols`: `sdwan_policy_manager.py` slimmed; `tests/test_wan_edge_templates.py`
+  expected-method set updated + an absence assertion added; docstring cross-refs
+  in `packet_filter.py` and `models/firewall.py` repointed.
+- `SdwanRouterDevice` (the digital twin's `linux_sdwan_router`) is unaffected at
+  the **conformance** level — its `sdwan_policy` driver still *has* the methods, so
+  removing them from the Protocol cannot break it. The sdwan-digital-twin example
+  may need step-def migration only if it calls the removed methods *through the
+  typed `sdwan_policy` attribute* (mypy-only; runtime unaffected) — separate repo,
+  pre-1.0, out of scope here.
+
+**Related:** new `SdwanApplianceDevice` archetype (`devices/sdwan.py`, registered
+`sdwan_appliance`); the appliance capability family is logged in `GAPS.md`
+(2026-06-11 entries) for the deferred follow-ons.
+
+---

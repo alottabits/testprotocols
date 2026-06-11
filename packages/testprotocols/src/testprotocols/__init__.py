@@ -23,7 +23,7 @@ from testprotocols.devices.infra import (
     ProvisionerDevice,
     TftpDevice,
 )
-from testprotocols.devices.sdwan import SdwanRouterDevice
+from testprotocols.devices.sdwan import SdwanApplianceDevice, SdwanRouterDevice
 from testprotocols.devices.traffic import (
     IperfTrafficGeneratorDevice,
     TrafficControllerDevice,
@@ -131,6 +131,7 @@ __all__ = [
     "RadiusClient",
     "RadiusServer",
     "Router",
+    "SdwanApplianceDevice",
     "SdwanPolicyManager",
     "SdwanRouterDevice",
     "SipPhone",

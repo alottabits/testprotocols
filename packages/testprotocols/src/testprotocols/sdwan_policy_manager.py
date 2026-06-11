@@ -1,14 +1,18 @@
 """SD-WAN policy manager template.
 
-Defines the abstract contract for managing SD-WAN policies including SLA
-policies, firewall rules, and application flow visibility.
+Defines the abstract contract for SD-WAN path/policy management: generic
+policy application, SLA policies, and application-flow visibility.
+
+Firewall-rule administration is **not** here — it moved to the dedicated
+``l3_firewall`` / ``l7_firewall`` capabilities (coherent-domain split; see
+SPLITS.md). Path/app steering with typed rules (uplink selection, performance
+classes) is a planned addition tracked in GAPS.md.
 """
 
 from __future__ import annotations
 
 from typing import Any, Protocol, runtime_checkable
 
-from testprotocols.models.firewall import FirewallRule
 from testprotocols.models.wan_edge import AppFlow, SLAPolicy
 
 
@@ -32,22 +36,10 @@ class SdwanPolicyManager(Protocol):
         """Remove the SLA policy with the given name."""
         ...
 
-    def apply_firewall_rule(self, rule: FirewallRule) -> None:
-        """Apply a firewall rule to the SD-WAN device."""
-        ...
-
-    def remove_firewall_rule(self, name: str) -> None:
-        """Remove the firewall rule with the given name."""
-        ...
-
     def get_application_flows(
         self,
         since_s: int = 60,
         app_filter: str | None = None,
     ) -> list[AppFlow]:
         """Return application flows observed in the last *since_s* seconds."""
-        ...
-
-    def get_firewall_rules(self) -> list[FirewallRule]:
-        """Return the list of currently configured firewall rules."""
         ...

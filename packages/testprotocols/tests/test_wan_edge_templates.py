@@ -32,10 +32,7 @@ PROTOCOLS = [
             "remove_policy",
             "configure_sla_policy",
             "remove_sla_policy",
-            "apply_firewall_rule",
-            "remove_firewall_rule",
             "get_application_flows",
-            "get_firewall_rules",
         },
     ),
     (
@@ -59,3 +56,13 @@ def test_protocol_shape(class_name: str, module: str, expected_methods: set[str]
     cls = getattr(importlib.import_module(module), class_name)
     actual = set(cls.__protocol_attrs__)
     assert expected_methods <= actual, f"{class_name} missing: {expected_methods - actual}"
+
+
+def test_sdwan_policy_manager_excludes_firewall_methods() -> None:
+    """Firewall-rule administration moved off SdwanPolicyManager to the dedicated
+    l3_firewall / l7_firewall capabilities (coherent-domain split — see SPLITS.md)."""
+    from testprotocols.sdwan_policy_manager import SdwanPolicyManager
+
+    attrs = set(SdwanPolicyManager.__protocol_attrs__)
+    for moved in ("apply_firewall_rule", "remove_firewall_rule", "get_firewall_rules"):
+        assert moved not in attrs, f"{moved} should have moved off SdwanPolicyManager"
