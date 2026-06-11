@@ -9,7 +9,6 @@ from testprotocols.appliance_uplinks import ApplianceUplinks
 from testprotocols.appliance_vlans import ApplianceVlans
 from testprotocols.content_filtering import ContentFiltering
 from testprotocols.conntrack import Conntrack
-from testprotocols.device_management import DeviceManagement
 from testprotocols.devices import register_device_type
 from testprotocols.devices.base import BaseDeviceProtocol
 from testprotocols.ip_interface import IpInterface
@@ -77,7 +76,6 @@ class SdwanApplianceDevice(BaseDeviceProtocol, Protocol):
     uplinks: ApplianceUplinks
     lan: ApplianceVlans
     syslog: SyslogConfig
-    device_management: DeviceManagement
 
 
 register_device_type("sdwan_appliance", SdwanApplianceDevice)

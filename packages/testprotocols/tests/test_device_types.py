@@ -204,11 +204,12 @@ def test_sdwan_appliance_aggregates_expected_capabilities() -> None:
         "uplinks",
         "lan",
         "syslog",
-        "device_management",
     }
     actual = set(SdwanApplianceDevice.__protocol_attrs__)
     assert expected <= actual, f"missing: {expected - actual}"
-    for twin_ism in ("conntrack", "pcap", "ip_interface", "nat"):
+    # device_management is Linux-host-shaped (ps/memory/board-logs/file-content)
+    # and intentionally NOT on the managed-appliance archetype — see GAPS.md.
+    for twin_ism in ("conntrack", "pcap", "ip_interface", "nat", "device_management"):
         assert twin_ism not in actual, f"{twin_ism} must not be on the appliance archetype"
 
 

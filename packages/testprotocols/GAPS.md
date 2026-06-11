@@ -341,6 +341,34 @@ linux_firewall / frr_router impls, unit tests).
 
 ---
 
+## 2026-06-11 — appliance health / online capability [priority: medium]
+
+**Signal:** Composing `SdwanApplianceDevice` wanted an online/uptime check, but the
+existing `device_management.DeviceManagement` is **Linux-host-shaped** (ps options,
+memory, board logs, boot-time log, arbitrary file content) — a cloud-managed
+appliance can satisfy only a couple of its methods via its management API. Putting
+it on the appliance archetype would be the same substrate mismatch the appliance
+reshape removed (conntrack / pcap / ip_interface / nat), so it was **left off**.
+
+**Trigger to act:** First test that needs to assert an appliance is reachable /
+report uptime / reboot it through the typed contract.
+
+**Out of scope right now because:** No current test needs it; `ApplianceUplinks`
+status already implies reachability, and provisioning/health checks can use a
+driver-internal call meanwhile. Designing a health capability speculatively risks
+the wrong shape.
+
+**Design notes (when picked up):** a small `ApplianceHealth` (or similar) Protocol —
+`is_online() -> bool`, `get_uptime_seconds() -> float | None`, `reboot() -> None`,
+maybe `read_event_log(since_s) -> list[...]` — mapping to the vendor's device-status
+/ event endpoints. Add `health: ApplianceHealth` to `SdwanApplianceDevice` once
+seeded. Do **not** reuse the host-shaped `DeviceManagement`.
+
+**Cross-references:** `devices/sdwan.py` (`SdwanApplianceDevice`),
+`device_management.py` (the host-shaped one to NOT reuse), `appliance_uplinks.py`.
+
+---
+
 ## Workflow
 
 When picking up a deferred capability:
