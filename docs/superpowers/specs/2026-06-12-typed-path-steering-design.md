@@ -32,7 +32,7 @@ route-decision tests driving the exact shape — has fired.
 - **Adding required methods to `SdwanPolicyManager` is conformance-breaking**
   for its two existing implementations — the Linux digital twin
   (`LinuxSdwanPolicyImpl`, vitro-bdd `examples/sdwan-digital-twin`) and the
-  MX driver (kpn-sdwan `impls/sdwan_policy.py`). Both are migrated **in
+  MX driver (the MX-driver testbed repo, `impls/sdwan_policy.py`). Both are migrated **in
   step** (same working session); testprotocols must not be left published
   with un-migrated consumers across the three repos.
 - All python via each repo's `.venv-3.12`.
@@ -137,7 +137,7 @@ subsection.
    `get_uplink_selection` as a thin translation onto the impl's existing
    policy machinery (exact mechanics decided in that repo; unit tests
    added there; suite green with its own `.venv-3.12`).
-2. **MX driver** — kpn-sdwan `impls/sdwan_policy.py`: real implementation —
+2. **MX driver** — MX-driver testbed repo, `impls/sdwan_policy.py`: real implementation —
    `SteeringScope.INTERNET` → WAN traffic uplink preferences;
    `SteeringScope.OVERLAY` → VPN traffic uplink preferences with the
    performance class resolved to a custom-performance-class id
@@ -161,7 +161,7 @@ subsection.
 - **`docs/sdwan-appliance-protocol-design.md`**: short addition under the
   capability sections noting the typed steering surface and the 4/5
   performance-threshold caveat (cross-reference the v2 subsection).
-- **kpn-sdwan validation addendum**: §5.7 row flips to Implemented once the
+- **MX-driver repo validation addendum**: §5.7 row flips to Implemented once the
   MX migration lands.
 - **`SPLITS.md`**: no entry (addition, not a split).
 
@@ -174,5 +174,5 @@ product with fixed per-class SLAs). No new error types.
 ## Acceptance
 
 - testprotocols: full suite + mypy --strict + vendor grep green.
-- vitro-bdd twin and kpn-sdwan MX suites green with the new methods.
+- twin and MX-driver repo suites green with the new methods.
 - GAPS.md entry resolved; docs updated as listed.

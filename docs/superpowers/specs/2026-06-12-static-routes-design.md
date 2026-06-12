@@ -31,7 +31,7 @@ implementing a static-routing acceptance case — has fired.
 - **Adding a required archetype attribute is conformance-breaking** for both
   existing device implementations — the Linux digital twin
   (vitro-bdd `examples/sdwan-digital-twin`, `LinuxSdwanRouter`) and the MX
-  driver (kpn-sdwan `MerakiMx`). Both are migrated **in step** (same working
+  driver (the MX-driver testbed repo, `MerakiMx`). Both are migrated **in step** (same working
   session).
 - All python via each repo's `.venv-3.12`.
 
@@ -127,7 +127,7 @@ comment/description or a driver map.
    removes the old prefix/next-hop pair, then installs the new one). Wire
    `static_routes` onto `LinuxSdwanRouter` (cli route + device alias, same
    pattern as `wan_admin`). Unit tests with mocked vtysh.
-2. **MX driver** — kpn-sdwan: new `impls/static_routes.py` —
+2. **MX driver** — MX-driver testbed repo: new `impls/static_routes.py` —
    `add_static_route` resolves name→`staticRouteId` via
    `getNetworkApplianceStaticRoutes`; update in place when the name exists
    (`updateNetworkApplianceStaticRoute`), else
@@ -153,7 +153,7 @@ comment/description or a driver map.
 - **`docs/sdwan-appliance-protocol-design.md`**: `static_routes:` line in
   the archetype block, a short capability note, and a cross-vendor table
   row (5/5, including the fifth family).
-- **kpn-sdwan validation addendum**: §5.3 row flips to Implemented once the
+- **MX-driver repo validation addendum**: §5.3 row flips to Implemented once the
   MX migration lands.
 - **`SPLITS.md` / `LEVELS.md`**: no entries (addition; no white-box).
 
@@ -168,6 +168,6 @@ reviewed families). No new error types.
 
 - testprotocols: full suite + mypy --strict + vendor/customer-name greps
   green.
-- vitro-bdd twin and kpn-sdwan MX suites green with the new capability
+- twin and MX-driver repo suites green with the new capability
   wired and tested.
 - GAPS.md entry resolved; docs updated as listed.
