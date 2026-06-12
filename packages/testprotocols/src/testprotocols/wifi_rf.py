@@ -34,11 +34,11 @@ class WifiRf(Protocol):
 
         Blocks until scan results are available or *timeout* seconds elapse.
         Hides vendor divergence:
-        - Vendors that return immediately with a job handle (Cisco, RUCKUS, UniFi):
-          the driver polls the job until it completes.
-        - Vendors that return inline (OpenWrt): the driver returns directly.
-        - Vendors that post results to a separate diagnostic resource (Aruba):
-          the driver polls that resource.
+        - Vendors that return immediately with a job handle: the driver polls
+          the job until it completes.
+        - Vendors that return inline: the driver returns directly.
+        - Vendors that post results to a separate diagnostic resource: the
+          driver polls that resource.
 
         Raises TimeoutError if results are not available within *timeout*.
         """

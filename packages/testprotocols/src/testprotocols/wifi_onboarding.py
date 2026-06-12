@@ -6,9 +6,9 @@ trigger, device-PIN read, and DPP-based client enrollment.
 
 Vendor uniformity is low-medium: residential / RDK-B / prpl / OpenWrt
 stacks expose all of these as first-class operations; enterprise stacks
-(Cisco Catalyst, Aruba) commonly disable WPS entirely and offer DPP
-only sporadically. Drivers without support for a specific onboarding
-method raise NotImplementedError.
+commonly disable WPS entirely and offer DPP only sporadically. Drivers
+without support for a specific onboarding method raise
+NotImplementedError.
 
 Mesh agent onboarding (M1/M2 / DPP between APs) lives on WifiMesh;
 this template is exclusively for STA-side (client) onboarding.

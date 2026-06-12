@@ -283,8 +283,8 @@ with its own SPLITS/LEVELS note as needed.
 compare / hash / format / `isinstance`-check as their string value. The sole current
 consumer (`vitro-bdd`) keeps working unchanged for `==` comparisons, str-keyed dict
 lookups (vendor-mapping tables), `.upper()`, `in (...)` membership, `isinstance(x, str)`,
-and `json.dumps`. `kpn-sdwan` only touches the SD-WAN appliance surface (already
-`StrEnum`) → **zero impact** there.
+and `json.dumps`. The SD-WAN appliance testbed consumer only touches the
+appliance surface (already `StrEnum`) → **zero impact** there.
 
 *Where it actually breaks — static typing + vocabulary mismatches, not runtime:*
 - A dataclass does **not** coerce: a field typed `FooEnum` that receives a bare runtime

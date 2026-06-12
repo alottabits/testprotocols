@@ -5,7 +5,7 @@
 | Status  | Approved for implementation                                         |
 | Author  | rjvisser                                                            |
 | Date    | 2026-06-12                                                          |
-| Related | `docs/sdwan-appliance-protocol-design.md`, `docs/kpn-test-scope-validation.md` §5.1–§5.2, `GAPS.md`, `models/sdwan_appliance.py`, `l3_firewall.py`, `devices/sdwan.py` |
+| Related | `docs/sdwan-appliance-protocol-design.md`, the 2026-06-12 capability-validation assessment (kept outside this repo) §5.1–§5.2, `GAPS.md`, `models/sdwan_appliance.py`, `l3_firewall.py`, `devices/sdwan.py` |
 
 ## Purpose
 
