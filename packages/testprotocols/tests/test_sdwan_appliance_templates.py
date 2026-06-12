@@ -22,6 +22,8 @@ PROTOCOLS = [
             "get_outbound_rules",
             "set_inbound_rules",
             "get_inbound_rules",
+            "set_vpn_rules",
+            "get_vpn_rules",
         },
     ),
     (
