@@ -13,6 +13,10 @@ import pytest
 
 from testprotocols.models.sdwan_appliance import (
     ApplicationCategory,
+    BgpConfig,
+    BgpNeighbor,
+    BgpPeerStatus,
+    BgpSessionState,
     ContentCategory,
     FlowMatch,
     L3Rule,
@@ -245,3 +249,39 @@ def test_static_route_model() -> None:
         "172.16.5.0/24",
         "10.0.100.2",
     )
+
+
+def test_bgp_session_state_is_the_rfc_fsm_vocabulary() -> None:
+    assert issubclass(BgpSessionState, StrEnum)
+    assert {s.value for s in BgpSessionState} == {
+        "idle",
+        "connect",
+        "active",
+        "open_sent",
+        "open_confirm",
+        "established",
+        "unknown",
+    }
+    assert BgpSessionState("established") is BgpSessionState.ESTABLISHED
+    with pytest.raises(ValueError):
+        BgpSessionState("flapping")
+
+
+def test_bgp_config_models() -> None:
+    neighbor = BgpNeighbor(peer_ip="192.168.10.20", remote_as=65010)
+    config = BgpConfig(enabled=True, as_number=65000, neighbors=[neighbor])
+    assert config.advertised_networks == []
+    assert config.neighbors[0].remote_as == 65010
+    # default factories: instances independent
+    a = BgpConfig(enabled=False, as_number=1)
+    b = BgpConfig(enabled=False, as_number=2)
+    a.neighbors.append(neighbor)
+    assert b.neighbors == []
+
+
+def test_bgp_peer_status_model() -> None:
+    peer = BgpPeerStatus(
+        peer_ip="192.168.10.20", remote_as=65010, state=BgpSessionState.ESTABLISHED
+    )
+    assert peer.prefixes_received is None
+    assert peer.state == "established"

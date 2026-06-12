@@ -24,6 +24,10 @@ from testprotocols.models.packets import RIPv2PacketData
 from testprotocols.models.qoe import MeasurementSpec, QoEResult
 from testprotocols.models.sdwan_appliance import (
     ApplicationCategory,
+    BgpConfig,
+    BgpNeighbor,
+    BgpPeerStatus,
+    BgpSessionState,
     ContentCategory,
     DhcpLease,
     DhcpMode,
@@ -119,6 +123,10 @@ __all__ = [
     "ImpairmentProfile",
     # sdwan_appliance
     "ApplicationCategory",
+    "BgpConfig",
+    "BgpNeighbor",
+    "BgpPeerStatus",
+    "BgpSessionState",
     "ContentCategory",
     "DhcpLease",
     "DhcpMode",

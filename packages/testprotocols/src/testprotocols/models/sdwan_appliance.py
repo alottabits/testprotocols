@@ -573,3 +573,65 @@ class StaticRoute:
     name: str
     destination_cidr: str
     next_hop: str
+
+
+# --- BGP ---
+
+
+class BgpSessionState(StrEnum):
+    """BGP FSM state of a neighbor session.
+
+    The RFC 4271 state vocabulary — protocol-standard, not vendor-specific,
+    so the full set is seeded (the grow-on-evidence rule applies to vendor
+    taxonomies, not to standardized protocol states). ``UNKNOWN`` absorbs
+    vendor representations that do not map to an FSM state.
+    """
+
+    IDLE = "idle"
+    CONNECT = "connect"
+    ACTIVE = "active"
+    OPEN_SENT = "open_sent"
+    OPEN_CONFIRM = "open_confirm"
+    ESTABLISHED = "established"
+    UNKNOWN = "unknown"
+
+
+@dataclass
+class BgpNeighbor:
+    """A configured BGP neighbor (minimal — timers/auth/multihop grow on
+    evidence)."""
+
+    peer_ip: str
+    remote_as: int
+
+
+@dataclass
+class BgpConfig:
+    """Complete BGP configuration — read and replaced whole.
+
+    ``enabled`` / ``as_number`` / ``neighbors`` are semantically coupled,
+    and most reviewed management planes expose BGP as one object, so the
+    surface is whole-config replace (idempotent), not per-neighbor CRUD.
+    ``advertised_networks`` lists CIDRs announced to peers; products that
+    auto-advertise their overlay subnets and offer no per-network control
+    raise unsupported-capability when it is non-empty.
+    """
+
+    enabled: bool
+    as_number: int
+    neighbors: list[BgpNeighbor] = field(default_factory=list)
+    advertised_networks: list[str] = field(default_factory=list)
+
+
+@dataclass
+class BgpPeerStatus:
+    """Observed status of one BGP neighbor session (read-only).
+
+    ``prefixes_received`` is ``None`` when the product does not report a
+    count.
+    """
+
+    peer_ip: str
+    remote_as: int
+    state: BgpSessionState
+    prefixes_received: int | None = None
