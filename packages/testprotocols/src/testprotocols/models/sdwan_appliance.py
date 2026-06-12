@@ -505,3 +505,51 @@ class VpnPeerStatus:
     name: str
     state: VpnPeerState
     uplink: str = ""
+
+
+# --- Path steering (uplink selection) ---
+
+
+class SteeringScope(StrEnum):
+    """Traffic domain an uplink-selection rule steers.
+
+    Deliberately no ``ANY`` member — the test author states the intent, and
+    products with split steering surfaces need it to route the write.
+    """
+
+    INTERNET = "internet"
+    OVERLAY = "overlay"
+
+
+@dataclass
+class FlowMatch:
+    """5-tuple traffic match for steering rules (match only — no action).
+
+    Field semantics mirror ``L3Rule``'s match half: ``"any"`` when
+    unconstrained; ports may be a single port, a range (``"8000-8100"``),
+    or a comma list.
+    """
+
+    protocol: RuleProtocol = RuleProtocol.ANY
+    src_cidr: str = "any"
+    src_port: str = "any"
+    dst_cidr: str = "any"
+    dst_port: str = "any"
+
+
+@dataclass
+class UplinkSelectionRule:
+    """One ordered uplink-steering rule.
+
+    With ``performance_class`` set (the *name* of an ``SLAPolicy`` configured
+    via ``configure_sla_policy``), traffic matching ``match`` is steered to
+    ``preferred_uplink`` while the class is met and fails over when it is
+    breached. With ``performance_class=None`` the preference is static —
+    failover occurs only on uplink loss.
+    """
+
+    name: str
+    scope: SteeringScope
+    match: FlowMatch
+    preferred_uplink: str
+    performance_class: str | None = None

@@ -14,6 +14,7 @@ import pytest
 from testprotocols.models.sdwan_appliance import (
     ApplicationCategory,
     ContentCategory,
+    FlowMatch,
     L3Rule,
     L7MatchType,
     L7Rule,
@@ -32,9 +33,11 @@ from testprotocols.models.sdwan_appliance import (
     ShapingPriority,
     ShapingRule,
     SiteToSiteVpnConfig,
+    SteeringScope,
     SyslogRole,
     SyslogServer,
     ThreatCategory,
+    UplinkSelectionRule,
     UplinkState,
     UplinkStatus,
     VlanConfig,
@@ -202,3 +205,31 @@ def test_vpn_peer_status_model() -> None:
     peer = VpnPeerStatus(name="hub-1", state=VpnPeerState.REACHABLE)
     assert peer.uplink == ""
     assert peer.state == "reachable"  # StrEnum: serializes as the plain string
+
+
+def test_steering_scope_and_flow_match() -> None:
+    assert issubclass(SteeringScope, StrEnum)
+    assert SteeringScope("internet") is SteeringScope.INTERNET
+    assert SteeringScope.OVERLAY == "overlay"
+    with pytest.raises(ValueError):
+        SteeringScope("any")  # deliberately not seeded — intent must be explicit
+    m = FlowMatch()
+    assert (m.protocol, m.src_cidr, m.src_port, m.dst_cidr, m.dst_port) == (
+        RuleProtocol.ANY,
+        "any",
+        "any",
+        "any",
+        "any",
+    )
+
+
+def test_uplink_selection_rule_defaults() -> None:
+    rule = UplinkSelectionRule(
+        name="steer-dns",
+        scope=SteeringScope.INTERNET,
+        match=FlowMatch(dst_cidr="198.51.100.4/32"),
+        preferred_uplink="wan2",
+    )
+    assert rule.performance_class is None
+    assert rule.match.dst_cidr == "198.51.100.4/32"
+    assert rule.scope == "internet"  # StrEnum: serializes as the plain string
