@@ -354,22 +354,31 @@ configuration or BGP operational state.
 **Trigger to act:** First appliance driver or testbed implementing a BGP
 acceptance case.
 
-**Out of scope right now because:** same prioritization as the static-route
-entry; BGP additionally needs a config/read split decision (below) that
-deserves its own design pass.
+**Out of scope right now because:** it is the last and largest entry from
+the 2026-06-12 seeding round (the SiteToSiteVpn / typed-steering /
+static-route gaps from that round are all implemented — see the Implemented
+section) and needs a config/read split decision plus a BGP-neighbor model
+family that deserve their own design pass.
 
 **Design notes (when picked up):** model **config and operational read as
-separate methods** — configuration is available on all four reviewed
-families (Meraki Dashboard API `appliance/vpn/bgp`; Catalyst SD-WAN Manager
-BGP feature template; FortiOS `router/bgp`; Prisma SD-WAN element
-`bgppeers`), but at least one family publishes **no** BGP operational/
-learned-route read, so a driver must be able to support config while raising
-unsupported-capability on the status read. Read side elsewhere: FortiOS
-routing monitor, SD-WAN Manager `/device/bgp/*`, Prisma `bgppeers/status` +
-`reachableprefixes`.
+separate methods/surfaces** — configuration is available on all **five**
+reviewed families (Meraki Dashboard API `appliance/vpn/bgp`; Catalyst
+SD-WAN Manager BGP feature template / Service-profile BGP parcel; FortiOS
+`router/bgp`; Prisma SD-WAN element `bgppeers`; Arista/VeloCloud
+`deviceSettings` `device_settings_bgp` — neighbors/networks/filters), but
+the operational/learned-route read is **4/5**: Meraki publishes none, so
+its driver supports config while raising unsupported-capability on the
+status read. Read side elsewhere: FortiOS routing monitor, SD-WAN Manager
+`/device/bgp/*`, Prisma `bgppeers/status` + `reachableprefixes`,
+VeloCloud `monitoring/getEnterpriseBgpPeerStatus`. Placement: follow the
+`StaticRoutes` precedent — a sibling capability (e.g. `bgp: Bgp`), not
+methods on the read-only `Router`. Expect both existing implementations
+(twin: FRR `router bgp` via vtysh; MX: `vpn/bgp` write-only) to migrate in
+step, per the established pattern.
 
-**Cross-references:** `router.py`, `site_to_site_vpn.py` (overlay vs
-LAN-side routing boundary), `devices/sdwan.py`.
+**Cross-references:** `router.py` (stays read-only), `static_routes.py`
+(sibling-capability precedent), `site_to_site_vpn.py` (overlay vs LAN-side
+routing boundary), `devices/sdwan.py`.
 
 ---
 
