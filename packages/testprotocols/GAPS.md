@@ -231,31 +231,6 @@ keys; plugins map to vendor app-ids), grown on evidence; `L7Rule.value` for
 
 ---
 
-## 2026-06-11 — `SdwanPolicyManager` typed path-steering surface [priority: medium]
-
-**Signal:** SD-WAN path/app steering (uplink selection, performance classes) is
-currently only expressible via the generic `apply_policy(dict)` escape hatch. Typed
-methods (`set_uplink_selection` / `get_uplink_selection` /
-`configure_performance_class`) with `UplinkSelectionRule` / `PerformanceClass` models
-would give the same static safety as the rest of the appliance surface.
-
-**Trigger to act:** The path-steering / route-decision tests (Phase 2).
-
-**Out of scope right now because:** No current test exercises typed steering, and
-**adding required methods to `SdwanPolicyManager` would break existing impls** (the
-digital twin's `FrrSdwanRouter`) until migrated — adding to a Protocol is not
-conformance-safe the way removing is. Defer until the Phase-2 tests drive the exact
-shape and the twin can be migrated in step.
-
-**Design notes (when picked up):** `UplinkSelectionRule` (traffic match + preferred
-uplink / best-for-VPN), `PerformanceClass` (latency/jitter/loss thresholds — reuse the
-`SLAPolicy` shape). Add to `SdwanPolicyManager`; migrate the twin in the same change.
-
-**Cross-references:** `sdwan_policy_manager.py`, `devices/sdwan.py`
-(`SdwanApplianceDevice.sdwan_policy`).
-
----
-
 ## 2026-06-11 — migrate legacy bare-`str` value fields to typed vocabularies [priority: low]
 
 **Signal:** The SD-WAN appliance models (`models/sdwan_appliance.py`) express their
@@ -425,6 +400,18 @@ routing monitor, SD-WAN Manager `/device/bgp/*`, Prisma `bgppeers/status` +
 
 **Cross-references:** `router.py`, `site_to_site_vpn.py` (overlay vs
 LAN-side routing boundary), `devices/sdwan.py`.
+
+---
+
+## Implemented
+
+- **2026-06-12 — `SdwanPolicyManager` typed path-steering surface** (deferred
+  2026-06-11): trigger fired — operator acceptance steering/route-decision
+  tests drove the exact shape. Landed as `SteeringScope` / `FlowMatch` /
+  `UplinkSelectionRule` + `set_uplink_selection` / `get_uplink_selection`;
+  performance classes reuse `SLAPolicy` by name (no separate
+  `PerformanceClass`). Both existing implementations migrated in step.
+  Design record: `docs/superpowers/specs/2026-06-12-typed-path-steering-design.md`.
 
 ---
 

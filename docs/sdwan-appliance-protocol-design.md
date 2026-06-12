@@ -132,15 +132,21 @@ class SdwanPolicyManager(Protocol):
     def configure_sla_policy(self, policy: SLAPolicy) -> None: ...
     def remove_sla_policy(self, name: str) -> None: ...
     def get_application_flows(self, since_s: int = 60, app_filter: str | None = None) -> list[AppFlow]: ...
+    def set_uplink_selection(self, rules: list[UplinkSelectionRule]) -> None: ...   # typed steering (2026-06-12)
+    def get_uplink_selection(self) -> list[UplinkSelectionRule]: ...
 ```
 
 This split is recorded in `SPLITS.md` (2026-06-11). The twin's
 `SdwanRouterDevice` is unaffected at the conformance level — its driver still
-*has* the methods, so removing them from the Protocol cannot break it. A typed
-path-steering surface (`set_uplink_selection` / `configure_performance_class`)
-is deferred in `GAPS.md` because adding *required* methods to a Protocol is not
-conformance-safe for existing implementations the way removing them is — it
-lands when a test drives the exact shape and the twin can migrate in step.
+*has* the methods, so removing them from the Protocol cannot break it.
+The typed path-steering surface landed 2026-06-12 (`set_uplink_selection` /
+`get_uplink_selection` over ordered `UplinkSelectionRule`s with
+`SteeringScope{INTERNET,OVERLAY}` and a `FlowMatch` 5-tuple; performance
+classes reuse `SLAPolicy` by name) — the steering/route-decision acceptance
+tests drove the exact shape and both existing implementations migrated in
+step. Note the cross-vendor v2 caveat: one reviewed family cannot express
+arbitrary performance thresholds, so its driver raises
+unsupported-capability for rules carrying a `performance_class`.
 
 ## New capabilities
 
