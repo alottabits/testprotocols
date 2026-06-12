@@ -1,6 +1,6 @@
 """Tests for WAN-edge Protocol shapes.
 
-Covers: Router, SdwanPolicyManager, MulticastClient.
+Covers: Router, WanLinkAdmin, SdwanPolicyManager, MulticastClient.
 """
 
 from __future__ import annotations
@@ -19,9 +19,15 @@ PROTOCOLS = [
             "get_wan_path_metrics",
             "get_link_health",
             "get_telemetry",
+            "get_routing_table",
+        },
+    ),
+    (
+        "WanLinkAdmin",
+        "testprotocols.wan_link_admin",
+        {
             "bring_wan_down",
             "bring_wan_up",
-            "get_routing_table",
         },
     ),
     (
@@ -56,6 +62,17 @@ def test_protocol_shape(class_name: str, module: str, expected_methods: set[str]
     cls = getattr(importlib.import_module(module), class_name)
     actual = set(cls.__protocol_attrs__)
     assert expected_methods <= actual, f"{class_name} missing: {expected_methods - actual}"
+
+
+def test_router_excludes_link_admin_methods() -> None:
+    """Forced link-down moved off Router to the dedicated WanLinkAdmin
+    capability (host-substrate split — an API-managed appliance cannot
+    admin-down its own uplink; see SPLITS.md)."""
+    from testprotocols.router import Router
+
+    attrs = set(Router.__protocol_attrs__)
+    for moved in ("bring_wan_down", "bring_wan_up"):
+        assert moved not in attrs, f"{moved} should have moved off Router"
 
 
 def test_sdwan_policy_manager_excludes_firewall_methods() -> None:

@@ -318,7 +318,10 @@ identified; one would be added on signal per `LEVELS.md`.
 Forced link-down (admin-down an uplink) is likewise **not** on the appliance: a
 managed appliance generally cannot admin-down its own uplink via API, so that is
 a traffic-controller / infra-controller concern — the same boundary as the netem
-precedent. The appliance keeps the Router *read* surface and `uplinks` status.
+precedent. As of 2026-06-12 this is structural, not just conventional:
+`bring_wan_down` / `bring_wan_up` moved off `Router` to `WanLinkAdmin`
+(`wan_admin:` on the twin only; see `SPLITS.md` 2026-06-12), so `Router` is a
+pure read surface and the appliance keeps it plus `uplinks` status.
 
 ## Tracking-file entries
 

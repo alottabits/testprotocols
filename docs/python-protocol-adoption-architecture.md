@@ -228,10 +228,8 @@ class Router(Protocol):
     """Capability protocol for a routing-aware WAN-path device."""
 
     def get_active_wan_interface(self) -> str: ...
-    def bring_wan_down(self, label: str) -> None: ...
-    def bring_wan_up(self, label: str) -> None: ...
     def get_wan_interface_status(self) -> dict[str, LinkStatus]: ...
-    # ... rest of the existing surface ...
+    # ... rest of the read surface; forced link up/down lives on WanLinkAdmin ...
 ```
 
 Notes on the per-protocol pattern:
@@ -771,10 +769,13 @@ class FrrSdwanRouter(LinuxDevice):
         class _RouterImpl:
             def get_active_wan_interface(self_inner) -> str:
                 return outer.execute_command("ip route show default | head -1").split()[4]
+
+        class _WanAdminImpl:
             def bring_wan_down(self_inner, label):
                 outer.execute_command(f"ip link set {outer._config['wan_interfaces'][label]} down")
 
         self.router = _RouterImpl()
+        self.wan_admin = _WanAdminImpl()
         self.sdwan_policy = _SdwanPolicyImpl(self)
         self.netem = _NetemImpl(self)
         self.ip_interface = _IpInterfaceImpl(self)
@@ -789,8 +790,8 @@ large enough to warrant its own module:
 class FrrRouter:
     def __init__(self, device): self._device = device
     def get_active_wan_interface(self) -> str: ...
-    def bring_wan_down(self, label: str) -> None: ...
-    # ...
+    def get_wan_interface_status(self) -> dict[str, LinkStatus]: ...
+    # ... (link up/down lives in a separate WanLinkAdmin impl on `wan_admin`)
 
 # my_plugin/devices/frr_sdwan_router.py
 class FrrSdwanRouter(LinuxDevice):
@@ -896,7 +897,7 @@ return-type annotation.
 @when('"{edge}" experiences a complete link failure on "{wan}"')
 def step_link_failure(device_manager, edge, wan):
     dev: LinuxSdwanRouter = device_manager.get_device(edge)  # narrowed
-    dev.router.bring_wan_down(wan)
+    dev.wan_admin.bring_wan_down(wan)
 
 @then('"{edge}" converges to "{wan}" within {ms:d} ms')
 def step_convergence(device_manager, edge, wan, ms):

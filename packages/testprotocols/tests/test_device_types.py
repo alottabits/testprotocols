@@ -177,6 +177,7 @@ def test_sdwan_router_aggregates_expected_capabilities() -> None:
     """
     expected = {
         "routing",
+        "wan_admin",
         "sdwan_policy",
         "ip_interface",
         "pcap",
@@ -210,7 +211,16 @@ def test_sdwan_appliance_aggregates_expected_capabilities() -> None:
     assert expected <= actual, f"missing: {expected - actual}"
     # device_management is Linux-host-shaped (ps/memory/board-logs/file-content)
     # and intentionally NOT on the managed-appliance archetype — see GAPS.md.
-    for twin_ism in ("conntrack", "pcap", "ip_interface", "nat", "device_management"):
+    # wan_admin (forced link-down) is likewise host-substrate-only: an
+    # API-managed appliance cannot admin-down its own uplink — see SPLITS.md.
+    for twin_ism in (
+        "conntrack",
+        "pcap",
+        "ip_interface",
+        "nat",
+        "device_management",
+        "wan_admin",
+    ):
         assert twin_ism not in actual, f"{twin_ism} must not be on the appliance archetype"
 
 

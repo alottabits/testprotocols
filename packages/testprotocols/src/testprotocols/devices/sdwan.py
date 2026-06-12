@@ -22,22 +22,25 @@ from testprotocols.site_to_site_vpn import SiteToSiteVpn
 from testprotocols.syslog_config import SyslogConfig
 from testprotocols.threat_prevention import ThreatPrevention
 from testprotocols.traffic_shaping import TrafficShaping
+from testprotocols.wan_link_admin import WanLinkAdmin
 
 
 @runtime_checkable
 class SdwanRouterDevice(BaseDeviceProtocol, Protocol):
     """SD-WAN router archetype — branch / edge router with policy-based path selection.
 
-    Combines a generic routing surface, SD-WAN policy management (path / app
-    steering), IP interface management, packet capture, NAT, and connection
-    tracking — the full set of L3 levers a test needs to exercise SD-WAN
-    behaviour end to end. Traffic impairment (netem) is on the
+    Combines a generic routing read surface, WAN link administration (forced
+    link up/down — a host-substrate lever this Linux twin *can* exercise),
+    SD-WAN policy management (path / app steering), IP interface management,
+    packet capture, NAT, and connection tracking — the full set of L3 levers
+    a test needs to exercise SD-WAN behaviour end to end. Traffic impairment (netem) is on the
     TrafficControllerDevice archetype — a separate device sitting between the
     router and its WAN peers — not on the router itself; see
     SPLITS.md for the rationale.
     """
 
     routing: Router
+    wan_admin: WanLinkAdmin
     sdwan_policy: SdwanPolicyManager
     ip_interface: IpInterface
     pcap: PcapCapture
@@ -66,7 +69,9 @@ class SdwanApplianceDevice(BaseDeviceProtocol, Protocol):
     port-forwarding (``appliance_nat``), not the host iptables primitives.
     Site-to-site VPN overlay participation — role, hubs, advertised subnets,
     peer status — is the ``vpn`` surface; the overlay's firewall rules stay on
-    ``l3_firewall``.
+    ``l3_firewall``. Forced link-down (``wan_admin``) is likewise absent: an
+    API-managed appliance cannot admin-down its own uplink, so ``routing`` here
+    is the read-only surface and link administration stays on the twin.
     """
 
     routing: Router

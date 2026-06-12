@@ -1,7 +1,11 @@
 """Router / WAN edge template.
 
-Defines the abstract contract for WAN edge router operations including
-interface status, path metrics, link health, and routing table management.
+Defines the abstract contract for **reading** a WAN edge router's state:
+interface status, path metrics, link health, telemetry, and the routing
+table. The surface is read-only so it holds for every WAN-edge archetype —
+including API-managed appliances, whose management planes expose reads but
+no link administration. Forced link-down lives on ``wan_link_admin``
+(host-substrate only; see SPLITS.md).
 """
 
 from __future__ import annotations
@@ -18,7 +22,7 @@ from testprotocols.models.wan_edge import (
 
 @runtime_checkable
 class Router(Protocol):
-    """Abstract contract for WAN edge router operations."""
+    """Abstract contract for reading WAN edge router state."""
 
     def get_active_wan_interface(self, flow_dst: str | None = None) -> str | None:
         """Return the name of the active WAN interface, or ``None`` if no uplink
@@ -42,14 +46,6 @@ class Router(Protocol):
 
     def get_telemetry(self) -> dict[str, Any]:
         """Return a dict of current device telemetry data."""
-        ...
-
-    def bring_wan_down(self, label: str) -> None:
-        """Bring down the WAN interface identified by *label*."""
-        ...
-
-    def bring_wan_up(self, label: str) -> None:
-        """Bring up the WAN interface identified by *label*."""
         ...
 
     def get_routing_table(self) -> list[RouteEntry]:

@@ -75,6 +75,7 @@ from testprotocols.tr069_server import Tr069Server
 from testprotocols.traffic_shaping import TrafficShaping
 from testprotocols.upnp_client import UpnpClient
 from testprotocols.vlan_client import VlanClient
+from testprotocols.wan_link_admin import WanLinkAdmin
 from testprotocols.wifi_bss import WifiBss
 from testprotocols.wifi_client import WifiClient
 from testprotocols.wifi_mesh import WifiMesh, WifiMeshWhiteBox
@@ -152,6 +153,7 @@ __all__ = [
     "TrafficShaping",
     "UpnpClient",
     "VlanClient",
+    "WanLinkAdmin",
     "WanServerDevice",
     "WifiBss",
     "WifiClient",

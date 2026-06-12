@@ -323,3 +323,37 @@ The `FirewallRule` model import was dropped from `sdwan_policy_manager.py`.
 (2026-06-11 entries) for the deferred follow-ons.
 
 ---
+
+## 2026-06-12 — `bring_wan_down` / `bring_wan_up` moved `Router` → `WanLinkAdmin`
+
+**Signal:** Granularity review of the appliance protocol work: *"API-managed
+appliances like managed SD-WAN edges cannot administratively down their own
+uplinks. Split Router into a pure read protocol and a separate link-admin
+protocol implemented only by the Linux digital twin."* Corroborated by the
+2026-06-12 capability validation: no reviewed managed-appliance API publishes
+an admin-down operation for its own uplink, yet `Router` rides on **both**
+WAN-edge archetypes, so the appliance archetype demanded two methods its
+device class cannot implement.
+
+**Decision:** move
+
+**Rationale:** The read surface (interface status, path metrics, link health,
+telemetry, routing table) is universal across WAN-edge archetypes; forced
+link-down is a host-substrate lever (the twin shells `ip link set … down`).
+Same boundary as the netem precedent: a capability that structurally belongs
+to a different substrate does not ride on the shared protocol. `Router` is now
+read-only; `WanLinkAdmin` (`wan_link_admin.py`) carries `bring_wan_down` /
+`bring_wan_up` and is composed only by `SdwanRouterDevice` (`wan_admin:`).
+
+**Migration impact:**
+- `testprotocols`: `router.py` slimmed (read-only); new `wan_link_admin.py`;
+  `SdwanRouterDevice` gains `wan_admin: WanLinkAdmin`; `SdwanApplianceDevice`
+  unchanged (its archetype gate now asserts `wan_admin` absent);
+  `tests/test_wan_edge_templates.py` expected sets updated + absence assertion.
+- `testoperations`: unaffected — `measure_failover_convergence` only reads
+  `get_active_wan_interface` (impairment is injected via `NetemController`).
+- The external digital-twin driver must add a `wan_admin` attribute exposing
+  its existing `bring_wan_down`/`bring_wan_up` implementations before
+  upgrading (pre-1.0 coordinated migration; methods themselves are unchanged).
+
+---
