@@ -18,6 +18,7 @@ from testprotocols.nat import Nat
 from testprotocols.pcap_capture import PcapCapture
 from testprotocols.router import Router
 from testprotocols.sdwan_policy_manager import SdwanPolicyManager
+from testprotocols.site_to_site_vpn import SiteToSiteVpn
 from testprotocols.syslog_config import SyslogConfig
 from testprotocols.threat_prevention import ThreatPrevention
 from testprotocols.traffic_shaping import TrafficShaping
@@ -63,10 +64,14 @@ class SdwanApplianceDevice(BaseDeviceProtocol, Protocol):
     Firewall is split by layer (``l3_firewall`` / ``l7_firewall``) and content
     filtering is its own surface; NAT here is the appliance's 1:1 / 1:Many /
     port-forwarding (``appliance_nat``), not the host iptables primitives.
+    Site-to-site VPN overlay participation — role, hubs, advertised subnets,
+    peer status — is the ``vpn`` surface; the overlay's firewall rules stay on
+    ``l3_firewall``.
     """
 
     routing: Router
     sdwan_policy: SdwanPolicyManager
+    vpn: SiteToSiteVpn
     traffic_shaping: TrafficShaping
     l3_firewall: L3Firewall
     l7_firewall: L7Firewall

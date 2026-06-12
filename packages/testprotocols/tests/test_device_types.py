@@ -204,6 +204,7 @@ def test_sdwan_appliance_aggregates_expected_capabilities() -> None:
         "uplinks",
         "lan",
         "syslog",
+        "vpn",
     }
     actual = set(SdwanApplianceDevice.__protocol_attrs__)
     assert expected <= actual, f"missing: {expected - actual}"
