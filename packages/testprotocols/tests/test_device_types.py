@@ -179,6 +179,7 @@ def test_sdwan_router_aggregates_expected_capabilities() -> None:
         "routing",
         "wan_admin",
         "static_routes",
+        "bgp",
         "sdwan_policy",
         "ip_interface",
         "pcap",
@@ -197,6 +198,7 @@ def test_sdwan_appliance_aggregates_expected_capabilities() -> None:
     expected = {
         "routing",
         "static_routes",
+        "bgp",
         "sdwan_policy",
         "traffic_shaping",
         "l3_firewall",

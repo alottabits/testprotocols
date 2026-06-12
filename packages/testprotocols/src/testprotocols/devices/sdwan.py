@@ -7,6 +7,7 @@ from typing import Protocol, runtime_checkable
 from testprotocols.appliance_nat import ApplianceNat
 from testprotocols.appliance_uplinks import ApplianceUplinks
 from testprotocols.appliance_vlans import ApplianceVlans
+from testprotocols.bgp import Bgp
 from testprotocols.content_filtering import ContentFiltering
 from testprotocols.conntrack import Conntrack
 from testprotocols.devices import register_device_type
@@ -43,6 +44,7 @@ class SdwanRouterDevice(BaseDeviceProtocol, Protocol):
     routing: Router
     wan_admin: WanLinkAdmin
     static_routes: StaticRoutes
+    bgp: Bgp
     sdwan_policy: SdwanPolicyManager
     ip_interface: IpInterface
     pcap: PcapCapture
@@ -78,6 +80,7 @@ class SdwanApplianceDevice(BaseDeviceProtocol, Protocol):
 
     routing: Router
     static_routes: StaticRoutes
+    bgp: Bgp
     sdwan_policy: SdwanPolicyManager
     vpn: SiteToSiteVpn
     traffic_shaping: TrafficShaping
