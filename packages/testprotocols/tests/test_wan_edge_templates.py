@@ -1,6 +1,6 @@
 """Tests for WAN-edge Protocol shapes.
 
-Covers: Router, WanLinkAdmin, StaticRoutes, SdwanPolicyManager, MulticastClient.
+Covers: Router, WanLinkAdmin, StaticRoutes, Bgp, SdwanPolicyManager, MulticastClient.
 """
 
 from __future__ import annotations
@@ -37,6 +37,16 @@ PROTOCOLS = [
             "add_static_route",
             "remove_static_route",
             "list_static_routes",
+        },
+    ),
+    (
+        "Bgp",
+        "testprotocols.bgp",
+        {
+            "set_bgp_config",
+            "get_bgp_config",
+            "get_bgp_neighbors",
+            "get_learned_routes",
         },
     ),
     (

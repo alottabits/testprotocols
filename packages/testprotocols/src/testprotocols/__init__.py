@@ -7,6 +7,7 @@ from testprotocols.appliance_nat import ApplianceNat
 from testprotocols.appliance_uplinks import ApplianceUplinks
 from testprotocols.appliance_vlans import ApplianceVlans
 from testprotocols.arp_client import ArpClient
+from testprotocols.bgp import Bgp
 from testprotocols.content_filtering import ContentFiltering
 from testprotocols.conntrack import Conntrack, ConntrackWhiteBox
 from testprotocols.device_lifecycle import DeviceLifecycle
@@ -94,6 +95,7 @@ __all__ = [
     "ApplianceVlans",
     "ArpClient",
     "BaseDeviceProtocol",
+    "Bgp",
     "ContentFiltering",
     "Conntrack",
     "ConntrackWhiteBox",
