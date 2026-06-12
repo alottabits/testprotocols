@@ -4,8 +4,8 @@
 | -------- | ------------------------------------------------------------------------------------------------------------- |
 | Status   | Implemented                                                                                                   |
 | Author   | rjvisser                                                                                                       |
-| Date     | 2026-06-11                                                                                                     |
-| Related  | `packages/testprotocols/SPLITS.md` (2026-05-02 netem removal; 2026-05-11 firewall fold; 2026-06-11 sdwan_policy firewall split), `GAPS.md` (2026-06-11 appliance follow-ons), `LEVELS.md`, `devices/sdwan.py`, `models/sdwan_appliance.py`, `models/wan_edge.py` |
+| Date     | 2026-06-11 (updated 2026-06-12: `vpn: SiteToSiteVpn` + L3Firewall VPN rule set)                                |
+| Related  | `packages/testprotocols/SPLITS.md` (2026-05-02 netem removal; 2026-05-11 firewall fold; 2026-06-11 sdwan_policy firewall split), `GAPS.md` (2026-06-11 appliance follow-ons; 2026-06-12 static-route + BGP entries), `LEVELS.md`, `devices/sdwan.py`, `models/sdwan_appliance.py`, `models/wan_edge.py`, `site_to_site_vpn.py` |
 
 This document explains why `testprotocols` carries a dedicated **managed
 SD-WAN appliance** archetype alongside the existing SD-WAN *router* archetype,
@@ -101,6 +101,7 @@ than guessed at here.
 class SdwanApplianceDevice(BaseDeviceProtocol, Protocol):
     routing: Router                       # reuse — read + static/BGP surface
     sdwan_policy: SdwanPolicyManager      # reuse (reshaped — firewall methods out)
+    vpn: SiteToSiteVpn                    # new (2026-06-12 — overlay role/hubs/subnets + peer status)
     traffic_shaping: TrafficShaping       # new
     l3_firewall: L3Firewall               # new
     l7_firewall: L7Firewall               # new
@@ -161,6 +162,9 @@ outbound and inbound rule sets — deliberately distinct from the chain-based
 `PacketFilter`. `L3Rule` carries `policy` (allow/deny), protocol, src/dst CIDR
 and ports, a comment, and a per-rule syslog flag. Cross-vendor: all four use
 ordered allow/deny rule sets.
+As of 2026-06-12 the protocol also carries the site-to-site VPN rule set
+(`set_vpn_rules` / `get_vpn_rules`) — same flat-ordered-list contract,
+applied to overlay traffic.
 
 ### `l7_firewall: L7Firewall`
 Application-aware deny rules: `set_rules` / `get_rules` over `L7Rule`
@@ -209,6 +213,18 @@ Syslog server configuration (`set_syslog_servers` / `get_syslog_servers`).
 arguably-generic capability (any networked device can have syslog), scoped to
 the appliance archetype but reusable.
 
+### `vpn: SiteToSiteVpn` (added 2026-06-12)
+Overlay participation as one whole-replace config object —
+`SiteToSiteVpnConfig(role, hubs, subnets)` with `VpnRole{DISABLED,HUB,SPOKE}`,
+per-hub `use_default_route`, per-subnet `advertise` — plus a peer-status read
+(`VpnPeerStatus` / `VpnPeerState{REACHABLE,UNREACHABLE,UNKNOWN}`). Hubs and
+peers are referenced by testbed-level name; the plugin maps name⇄vendor id.
+No `MESH` role and no IPsec crypto parameters yet — both grow on evidence.
+Cross-vendor: overlay role/topology control and a peer-reachability read are
+published-API surfaces on all four reviewed families. The VPN-scoped firewall
+rule set deliberately lives on `L3Firewall` (`set_vpn_rules`/`get_vpn_rules`),
+keeping firewall one coherent domain.
+
 ## Cross-vendor neutrality
 
 Every capability is a concept that **all four reviewed managed-appliance
@@ -221,6 +237,7 @@ live entirely in driver translation.
 | ------------------------------ | :-------: | :-----------------: | :--------------: | :-------------: |
 | routing / BGP / static         | ✓         | ✓                   | ✓                | ✓               |
 | sdwan_policy (steering, SLA)   | ✓         | ✓ (app-route, SLA)  | ✓ (SD-WAN rules) | ✓ (path policy) |
+| vpn (overlay config + peer status) | ✓         | ✓ (topology policy)  | ✓ (IPsec + monitor) | ✓ (vpnlinks)     |
 | traffic_shaping (+DSCP)        | ✓         | ✓ (QoS policer)     | ✓                | ✓ (QoS profile) |
 | l3_firewall (ordered)          | ✓         | ✓                   | ✓                | ✓               |
 | l7_firewall (app-aware)        | ✓         | ✓ (app-route/Snort) | ✓ (app-control)  | ✓ (app-ID)      |
@@ -310,7 +327,9 @@ precedent. The appliance keeps the Router *read* surface and `uplinks` status.
 - **`GAPS.md`** — appliance follow-ons recorded as deferred (2026-06-11): the
   individual-`Application` registry and the typed `SdwanPolicyManager`
   path-steering surface; plus any future `*WhiteBox` candidates if
-  appliance-only introspection surfaces later.
+  appliance-only introspection surfaces later. Added 2026-06-12: static-route
+  configuration and BGP config + operational read (deferred follow-ups from
+  the `SiteToSiteVpn` seeding round).
 - **`LEVELS.md`** — none yet (no white-box extensions added for this archetype).
 
 ## Verification

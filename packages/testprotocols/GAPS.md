@@ -369,6 +369,65 @@ seeded. Do **not** reuse the host-shaped `DeviceManagement`.
 
 ---
 
+## 2026-06-12 — Router static-route configuration [priority: high]
+
+**Signal:** Operator acceptance scopes for managed SD-WAN appliances require
+configuring a static route on the appliance toward a downstream LAN router
+via the management API and verifying traffic follows it. `Router` today is
+read-only (`get_routing_table`); neither it nor any appliance capability has
+a static-route write surface.
+
+**Trigger to act:** First appliance driver or testbed implementing a
+static-routing acceptance case.
+
+**Out of scope right now because:** the 2026-06-12 seeding round prioritized
+`SiteToSiteVpn` (the larger blocking surface); static routes are a small,
+separable follow-up.
+
+**Design notes (when picked up):** per-entry CRUD, not list-replace — all
+four reviewed appliance families expose static routes as individual objects
+(Meraki Dashboard API `staticRoutes` CRUD; Catalyst SD-WAN Manager VPN
+feature-template rows; FortiOS `router/static`; Prisma SD-WAN element
+`staticroutes`). Shape sketch: `add_static_route(destination_cidr, next_hop,
+name)` / `remove_static_route(name)`; reads stay on `get_routing_table`.
+Decide at design time whether this lands on `Router` or a sibling capability
+(adding required methods to `Router` is not conformance-safe for the twin —
+migrate it in step).
+
+**Cross-references:** `router.py`, `models/wan_edge.py::RouteEntry`,
+`devices/sdwan.py`.
+
+---
+
+## 2026-06-12 — BGP configuration + operational read [priority: medium]
+
+**Signal:** Operator acceptance scopes require BGP peering between the
+appliance and a LAN-side router, asserting advertised routes on the peer and
+learned routes on the appliance. No capability protocol covers BGP
+configuration or BGP operational state.
+
+**Trigger to act:** First appliance driver or testbed implementing a BGP
+acceptance case.
+
+**Out of scope right now because:** same prioritization as the static-route
+entry; BGP additionally needs a config/read split decision (below) that
+deserves its own design pass.
+
+**Design notes (when picked up):** model **config and operational read as
+separate methods** — configuration is available on all four reviewed
+families (Meraki Dashboard API `appliance/vpn/bgp`; Catalyst SD-WAN Manager
+BGP feature template; FortiOS `router/bgp`; Prisma SD-WAN element
+`bgppeers`), but at least one family publishes **no** BGP operational/
+learned-route read, so a driver must be able to support config while raising
+unsupported-capability on the status read. Read side elsewhere: FortiOS
+routing monitor, SD-WAN Manager `/device/bgp/*`, Prisma `bgppeers/status` +
+`reachableprefixes`.
+
+**Cross-references:** `router.py`, `site_to_site_vpn.py` (overlay vs
+LAN-side routing boundary), `devices/sdwan.py`.
+
+---
+
 ## Workflow
 
 When picking up a deferred capability:
