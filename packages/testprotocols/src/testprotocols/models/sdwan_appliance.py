@@ -158,6 +158,7 @@ class ApplicationCategory(StrEnum):
     REMOTE_ACCESS = "remote_access"
     SOCIAL_NETWORKING = "social_networking"
     SOFTWARE_UPDATES = "software_updates"
+    SPORTS = "sports"
     VIDEO_STREAMING = "video_streaming"
     VOIP_AND_VIDEO_CONFERENCING = "voip_and_video_conferencing"
     VPN_AND_PROXY = "vpn_and_proxy"

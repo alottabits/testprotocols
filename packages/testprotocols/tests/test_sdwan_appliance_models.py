@@ -88,6 +88,8 @@ def test_content_category_is_a_normalized_strenum_taxonomy() -> None:
 def test_application_category_is_a_normalized_strenum_taxonomy() -> None:
     assert issubclass(ApplicationCategory, StrEnum)
     assert ApplicationCategory.VIDEO_STREAMING == "video_streaming"
+    # evidence-driven member: L7 block-by-app-category acceptance test (sports)
+    assert ApplicationCategory.SPORTS == "sports"
     assert len(ApplicationCategory) >= 15
     with pytest.raises(ValueError):
         ApplicationCategory("not_a_category")
