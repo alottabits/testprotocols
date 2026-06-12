@@ -425,3 +425,71 @@ class DhcpLease:
     ip: str
     hostname: str = ""
     vlan_id: int = 0
+
+
+# --- Site-to-site VPN overlay ---
+
+
+class VpnRole(StrEnum):
+    """Role a device plays in the site-to-site VPN overlay."""
+
+    DISABLED = "disabled"
+    HUB = "hub"
+    SPOKE = "spoke"
+
+
+class VpnPeerState(StrEnum):
+    """Reachability of a site-to-site VPN peer."""
+
+    REACHABLE = "reachable"
+    UNREACHABLE = "unreachable"
+    UNKNOWN = "unknown"
+
+
+@dataclass
+class VpnHub:
+    """A hub a spoke connects to.
+
+    ``name`` is the testbed-level hub identifier; the plugin maps it to the
+    vendor's id. ``use_default_route`` points the spoke's default route into
+    the overlay via this hub.
+    """
+
+    name: str
+    use_default_route: bool = False
+
+
+@dataclass
+class VpnSubnet:
+    """A local subnet and whether it participates in the overlay."""
+
+    subnet: str
+    advertise: bool = True
+
+
+@dataclass
+class SiteToSiteVpnConfig:
+    """Complete overlay-participation config — read and replaced whole.
+
+    ``hubs`` is only meaningful for ``VpnRole.SPOKE`` and is ordered by
+    priority. ``subnets`` lists the local subnets and whether each is
+    advertised into the overlay.
+    """
+
+    role: VpnRole
+    hubs: list[VpnHub] = field(default_factory=list)
+    subnets: list[VpnSubnet] = field(default_factory=list)
+
+
+@dataclass
+class VpnPeerStatus:
+    """Observed status of one site-to-site VPN peer (read-only).
+
+    ``name`` is the peer's testbed-level site name (normalized; the plugin
+    maps the vendor's peer identifier). ``uplink`` names the local uplink
+    carrying the tunnel when the product reports it, else ``""``.
+    """
+
+    name: str
+    state: VpnPeerState
+    uplink: str = ""

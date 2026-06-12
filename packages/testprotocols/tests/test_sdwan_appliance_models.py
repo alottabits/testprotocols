@@ -31,12 +31,18 @@ from testprotocols.models.sdwan_appliance import (
     SecurityEvent,
     ShapingPriority,
     ShapingRule,
+    SiteToSiteVpnConfig,
     SyslogRole,
     SyslogServer,
     ThreatCategory,
     UplinkState,
     UplinkStatus,
     VlanConfig,
+    VpnHub,
+    VpnPeerState,
+    VpnPeerStatus,
+    VpnRole,
+    VpnSubnet,
 )
 
 
@@ -160,3 +166,37 @@ def test_vlan_and_dhcp_models() -> None:
     assert vlan.dhcp_lease_seconds == 86400
     lease = DhcpLease(mac="00:11:22:33:44:55", ip="10.0.100.50", hostname="host1", vlan_id=100)
     assert lease.ip == "10.0.100.50"
+
+
+def test_vpn_vocabularies_are_normalized_strenums() -> None:
+    assert issubclass(VpnRole, StrEnum)
+    assert issubclass(VpnPeerState, StrEnum)
+    # members are strings; construction validates at the vendor-ingest boundary
+    assert VpnRole.SPOKE == "spoke"
+    assert VpnRole("hub") is VpnRole.HUB
+    assert VpnPeerState.REACHABLE == "reachable"
+    with pytest.raises(ValueError):
+        VpnRole("mesh")  # not seeded — grows on evidence
+    with pytest.raises(ValueError):
+        VpnPeerState("degraded")
+
+
+def test_site_to_site_vpn_config_models() -> None:
+    hub = VpnHub(name="hub-1")
+    assert hub.use_default_route is False
+    subnet = VpnSubnet(subnet="192.168.10.0/24")
+    assert subnet.advertise is True
+    config = SiteToSiteVpnConfig(role=VpnRole.SPOKE, hubs=[hub], subnets=[subnet])
+    assert config.role is VpnRole.SPOKE
+    assert config.hubs[0].name == "hub-1"
+    # role-only construction: hubs/subnets default to empty, instances independent
+    a = SiteToSiteVpnConfig(role=VpnRole.DISABLED)
+    b = SiteToSiteVpnConfig(role=VpnRole.HUB)
+    a.hubs.append(hub)
+    assert b.hubs == []
+
+
+def test_vpn_peer_status_model() -> None:
+    peer = VpnPeerStatus(name="hub-1", state=VpnPeerState.REACHABLE)
+    assert peer.uplink == ""
+    assert peer.state == "reachable"  # StrEnum: serializes as the plain string
