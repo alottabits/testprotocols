@@ -121,7 +121,7 @@ def test_shaping_rule_uses_normalized_vocabulary() -> None:
 
 def test_uplink_state_and_status() -> None:
     assert issubclass(UplinkState, StrEnum)
-    assert {s.value for s in UplinkState} == {"up", "down", "standby", "not_connected"}
+    assert {s.value for s in UplinkState} == {"up", "degraded", "down", "standby", "not_connected"}
     up = UplinkStatus(name="wan1", state=UplinkState.UP, ip="203.0.113.5")
     assert up.state == "up"
 

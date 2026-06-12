@@ -7,6 +7,12 @@ shaping rules that match a traffic class and limit / DSCP-mark / prioritize it.
 In scope: uplink bandwidth, global per-client bandwidth, and the shaping-rule
 list (which also carries DSCP marking).
 
+Support note: per-uplink caps, shaping rules, and DSCP marking are universal
+across reviewed appliance families; the **global per-client cap is not** —
+several families expose no per-client/per-host primitive, and their drivers
+raise unsupported-capability on the per-client methods (a coverage gap, not
+a contract leak).
+
 Out of scope: SD-WAN path selection / SLA steering (see ``sdwan_policy_manager``),
 firewall rules (see ``l3_firewall`` / ``l7_firewall``), and link impairment
 (``netem`` lives on the traffic-controller device, not the appliance).

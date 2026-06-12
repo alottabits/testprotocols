@@ -47,6 +47,11 @@ class L3Firewall(Protocol):
 
         The list is the complete policy in evaluation order; the driver
         replaces the appliance's inbound ruleset wholesale.
+
+        Conformance note: not every appliance family exposes a generic
+        inbound rule list — some offer only an implicit stateful deny plus
+        NAT-scoped inbound allowances. Such drivers raise
+        unsupported-capability here rather than approximating.
         """
         ...
 

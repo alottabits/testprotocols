@@ -111,7 +111,6 @@ class SdwanApplianceDevice(BaseDeviceProtocol, Protocol):
     uplinks: ApplianceUplinks             # new (replaces ip_interface WAN-read)
     lan: ApplianceVlans                   # new (replaces ip_interface LAN + DhcpServer)
     syslog: SyslogConfig                  # new
-    device_management: DeviceManagement   # reuse
 
 register_device_type("sdwan_appliance", SdwanApplianceDevice)
 ```
@@ -227,33 +226,76 @@ keeping firewall one coherent domain.
 
 ## Cross-vendor neutrality
 
-Every capability is a concept that **all four reviewed managed-appliance
-families — Meraki MX, Catalyst SD-WAN, FortiGate, and Prisma SD-WAN — expose
-through their management plane** — none is specific to one product. Endpoint
-*names* differ across products; the Protocol is intent-level, so the differences
-live entirely in driver translation.
+Every capability is a concept that **the reviewed managed-appliance
+families — Meraki MX, Catalyst SD-WAN, FortiGate, Prisma SD-WAN, and (since
+the v2 review below) Arista SD-WAN (VeloCloud) — expose through their
+management plane** — none is specific to one product. Endpoint *names* differ
+across products; the Protocol is intent-level, so the differences live
+entirely in driver translation. Three per-method exceptions found by the v2
+review are handled via the unsupported-capability convention and listed in
+the v2 subsection.
 
-| Capability                     | Meraki MX | Catalyst SD-WAN     | FortiGate        | Prisma SD-WAN   |
-| ------------------------------ | :-------: | :-----------------: | :--------------: | :-------------: |
-| routing / BGP / static         | ✓         | ✓                   | ✓                | ✓               |
-| sdwan_policy (steering, SLA)   | ✓         | ✓ (app-route, SLA)  | ✓ (SD-WAN rules) | ✓ (path policy) |
-| vpn (overlay config + peer status) | ✓         | ✓ (topology policy)  | ✓ (IPsec + monitor) | ✓ (vpnlinks)     |
-| traffic_shaping (+DSCP)        | ✓         | ✓ (QoS policer)     | ✓                | ✓ (QoS profile) |
-| l3_firewall (ordered)          | ✓         | ✓                   | ✓                | ✓               |
-| l7_firewall (app-aware)        | ✓         | ✓ (app-route/Snort) | ✓ (app-control)  | ✓ (app-ID)      |
-| content_filtering              | ✓         | ✓ (UTD URL-F)       | ✓                | ✓               |
-| appliance_nat (1:1/1:N/PF)     | ✓         | ✓                   | ✓ (VIPs)         | ✓               |
-| security (IPS / AV)            | ✓         | ✓ (Snort)           | ✓ (IPS/AV)       | ✓               |
-| uplinks (WAN status)           | ✓         | ✓                   | ✓                | ✓               |
-| lan (VLANs + DHCP)             | ✓           | ✓                      | ✓                  | ✓               |
-| syslog                         | ✓           | ✓                      | ✓                  | ✓               |
+| Capability                     | Meraki MX | Catalyst SD-WAN     | FortiGate        | Prisma SD-WAN   | Arista (VeloCloud)² |
+| ------------------------------ | :-------: | :-----------------: | :--------------: | :-------------: | :-----------------: |
+| routing / BGP / static         | ✓         | ✓                   | ✓                | ✓               | ✓ (enterprise route table) |
+| sdwan_policy (steering, SLA)   | ✓         | ✓ (app-route, SLA)  | ✓ (SD-WAN rules) | ✓ (path policy) | ◐ (link steering ✓; arbitrary SLA thresholds ✗ — fixed per-class DMPO SLAs) |
+| vpn (overlay config + peer status) | ✓         | ✓ (topology policy)  | ✓ (IPsec + monitor) | ✓ (vpnlinks)     | ✓ (Cloud VPN + SD-WAN peers; relational role model) |
+| traffic_shaping (+DSCP)        | ✓         | ✓ (QoS policer)     | ✓                | ✓ (QoS profile) | ✓ (business-rule QoS; per-client cap ✗) |
+| l3_firewall (ordered)          | ✓         | ✓                   | ✓                | ✓               | ◐ (outbound ✓; generic inbound list ✗; rule logging segment-scoped) |
+| l7_firewall (app-aware)        | ✓         | ✓ (app-route/Snort) | ✓ (app-control)  | ✓ (app-ID)      | ✓ (appid/classid match) |
+| content_filtering              | ✓         | ✓ (UTD URL-F)       | ✓                | ✓               | ✓ (EFS URL categories, licensed) |
+| appliance_nat (1:1/1:N/PF)     | ✓         | ✓                   | ✓ (VIPs)         | ✓               | ✓ (inbound NAT rules + policy NAT) |
+| security (IPS / AV)            | ✓         | ✓ (Snort)           | ✓ (IPS/AV)       | ✓               | ◐ (EFS IDS/IPS ✓; anti-malware ✗) |
+| uplinks (WAN status)           | ✓         | ✓                   | ✓                | ✓               | ✓ (link status + WAN module) |
+| lan (VLANs + DHCP)             | ✓           | ✓                      | ✓                  | ✓               | ✓ (deviceSettings LAN) |
+| syslog                         | ✓           | ✓                      | ✓                  | ✓               | ✓ (syslog collectors) |
 
-The reviewed set spans four of the major commercial managed-SD-WAN appliance
+The reviewed set spans the major commercial managed-SD-WAN appliance
 families; they are named here only to show the concept is genuinely shared
 rather than borrowed from one product. The endpoint and feature names in
 parentheses are each vendor's term for the same intent — they never leak into
 `testprotocols`; they live only in the per-driver mapping. A capability that did
-not appear across all four would not have entered the baseline.
+not appear across the reviewed families would not have entered the baseline.
+
+² Fifth column added by the v2 review below; ◐ = supported with the noted
+per-method exceptions, handled via the unsupported-capability convention.
+
+### Cross-vendor neutrality v2 (2026-06-12 — fifth-family review)
+
+A fifth managed-appliance family — **Arista SD-WAN (the VeloCloud Edge,
+driven through the Orchestrator Portal API)** — was reviewed against the
+implemented protocol set, alongside a version-pinned re-verification of
+Catalyst SD-WAN at Manager 20.12 (which confirmed the original column
+unchanged). No protocol or model was invalidated; the read-only `Router`,
+the `WanLinkAdmin` exclusion (VeloCloud publishes **no** operational
+link-down at all), whole-list-replace semantics (VeloCloud configuration
+modules are explicitly full-blob replace), and the intent-level
+`SiteToSiteVpn` shape all held. Three v1 "universal" claims are revised:
+
+- **Anti-malware is 4/5, not universal.** The VeloCloud Edge's security
+  services are IDS/IPS, URL category/reputation, and malicious-IP filtering —
+  no anti-malware engine. `ThreatPrevention.set_malware` stays in the
+  baseline; the VeloCloud driver raises unsupported-capability.
+- **Arbitrary SLA thresholds are 4/5.** VeloCloud steers on fixed
+  per-traffic-class SLAs; a driver cannot faithfully implement
+  "failover if latency > N ms" via `configure_sla_policy` and raises
+  unsupported-capability rather than approximating with QoE-scoring knobs
+  that mean something else.
+- **The global per-client bandwidth cap is 2/5** (decision: **kept** in
+  `TrafficShaping` under the unsupported-capability convention — see the
+  module's support note). Per-uplink caps, shaping rules, and DSCP marking
+  remain universal.
+
+Secondary v2 findings, resolved as documentation rather than contract
+changes: per-rule firewall logging is segment-scoped on VeloCloud
+(approximation documented on `L3Rule.syslog_enabled`); a generic inbound
+rule list is absent on VeloCloud (conformance note on
+`set_inbound_rules`); the relational hub-role model is recorded as a
+mapping pattern in `site_to_site_vpn.py`; `UplinkState` gained `DEGRADED`
+on this evidence (link forwarding but impaired — e.g. unstable/lossy
+states — previously collapsed into `UP`); and `get_dhcp_leases` is now
+documented as a best-effort read (only one reviewed family publishes a
+true lease table).
 
 ### Data-model neutrality — vocabulary in commons, mappings in the plugin
 

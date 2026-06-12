@@ -12,6 +12,15 @@ spoke), and a managed appliance exposes overlay participation as a single
 configuration surface. "Point the default route into the overlay" is a
 config edit: get, flip ``use_default_route`` on a hub entry, set.
 
+Mapping pattern — relational role models: on some management planes the
+role is not stored on the device. Hub-ness exists only relationally (an
+edge *is* a hub because other sites' configs reference it), and the
+default-route intent is a backhaul designation rather than a per-hub flag.
+A driver for such a product synthesizes the role on read (referenced as
+hub anywhere → ``HUB``; overlay enabled with hub list → ``SPOKE``) and on
+write registers/dereferences the device in the relevant site configs. The
+round-trip is intent-preserving even where the stored shape differs.
+
 In scope: overlay participation (role, hubs + default route, subnets) and
 peer status.
 

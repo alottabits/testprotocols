@@ -39,5 +39,12 @@ class ApplianceVlans(Protocol):
         ...
 
     def get_dhcp_leases(self, vlan_id: int | None = None) -> list[DhcpLease]:
-        """Return current DHCP leases, optionally filtered to one *vlan_id*."""
+        """Return current DHCP leases, optionally filtered to one *vlan_id*.
+
+        Best-effort read: several management planes publish no true lease
+        table, so a driver may approximate from observed-client visibility
+        (no expiry / binding state) or raise unsupported-capability. Tests
+        should treat the result as observational evidence, not an exact
+        lease-table assertion.
+        """
         ...

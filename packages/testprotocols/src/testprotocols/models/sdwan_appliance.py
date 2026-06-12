@@ -45,6 +45,11 @@ class L3Rule:
     ``"any"`` when unconstrained; ports may be a single port, a range
     (``"8000-8100"``), or a comma list — always a string so the contract stays
     transport- and vendor-agnostic.
+
+    ``syslog_enabled`` is per-rule intent. Products whose firewall logging is
+    only list- or segment-scoped approximate it in the driver (enable scoped
+    logging when any rule requests it) — an accepted, documented approximation,
+    not a contract violation.
     """
 
     action: RuleAction
@@ -237,9 +242,15 @@ class OneToManyNatRule:
 
 
 class UplinkState(StrEnum):
-    """Operational state of a WAN uplink."""
+    """Operational state of a WAN uplink.
+
+    ``DEGRADED`` covers vendor states reporting a link that is forwarding but
+    impaired (unstable / lossy / connecting) — normalized here so drivers do
+    not collapse such states into ``UP``.
+    """
 
     UP = "up"
+    DEGRADED = "degraded"
     DOWN = "down"
     STANDBY = "standby"
     NOT_CONNECTED = "not_connected"
