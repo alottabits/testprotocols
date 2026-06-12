@@ -103,6 +103,15 @@ PROTOCOLS = [
             "get_dhcp_leases",
         },
     ),
+    (
+        "SiteToSiteVpn",
+        "testprotocols.site_to_site_vpn",
+        {
+            "set_vpn_config",
+            "get_vpn_config",
+            "get_vpn_peers",
+        },
+    ),
 ]
 
 

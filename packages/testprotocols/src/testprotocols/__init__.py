@@ -64,6 +64,7 @@ from testprotocols.router import Router
 from testprotocols.sdwan_policy_manager import SdwanPolicyManager
 from testprotocols.sip_phone import SipPhone
 from testprotocols.sip_server import SipServer
+from testprotocols.site_to_site_vpn import SiteToSiteVpn
 from testprotocols.snmp_client import SnmpClient
 from testprotocols.streaming_server import StreamingServer
 from testprotocols.syslog_config import SyslogConfig
@@ -138,6 +139,7 @@ __all__ = [
     "SipPhoneDevice",
     "SipServer",
     "SipServerDevice",
+    "SiteToSiteVpn",
     "SnmpClient",
     "StreamingServer",
     "SyslogConfig",
