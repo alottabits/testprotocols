@@ -344,36 +344,6 @@ seeded. Do **not** reuse the host-shaped `DeviceManagement`.
 
 ---
 
-## 2026-06-12 — Router static-route configuration [priority: high]
-
-**Signal:** Operator acceptance scopes for managed SD-WAN appliances require
-configuring a static route on the appliance toward a downstream LAN router
-via the management API and verifying traffic follows it. `Router` today is
-read-only (`get_routing_table`); neither it nor any appliance capability has
-a static-route write surface.
-
-**Trigger to act:** First appliance driver or testbed implementing a
-static-routing acceptance case.
-
-**Out of scope right now because:** the 2026-06-12 seeding round prioritized
-`SiteToSiteVpn` (the larger blocking surface); static routes are a small,
-separable follow-up.
-
-**Design notes (when picked up):** per-entry CRUD, not list-replace — all
-four reviewed appliance families expose static routes as individual objects
-(Meraki Dashboard API `staticRoutes` CRUD; Catalyst SD-WAN Manager VPN
-feature-template rows; FortiOS `router/static`; Prisma SD-WAN element
-`staticroutes`). Shape sketch: `add_static_route(destination_cidr, next_hop,
-name)` / `remove_static_route(name)`; reads stay on `get_routing_table`.
-Decide at design time whether this lands on `Router` or a sibling capability
-(adding required methods to `Router` is not conformance-safe for the twin —
-migrate it in step).
-
-**Cross-references:** `router.py`, `models/wan_edge.py::RouteEntry`,
-`devices/sdwan.py`.
-
----
-
 ## 2026-06-12 — BGP configuration + operational read [priority: medium]
 
 **Signal:** Operator acceptance scopes require BGP peering between the
@@ -412,6 +382,16 @@ LAN-side routing boundary), `devices/sdwan.py`.
   performance classes reuse `SLAPolicy` by name (no separate
   `PerformanceClass`). Both existing implementations migrated in step.
   Design record: `docs/superpowers/specs/2026-06-12-typed-path-steering-design.md`.
+
+- **2026-06-12 — Static-route configuration** (deferred earlier the same
+  day): landed as the sibling `StaticRoutes` capability
+  (`add_static_route` / `remove_static_route` / `list_static_routes` over
+  `StaticRoute(name, destination_cidr, next_hop)`), composed on **both**
+  WAN-edge archetypes — `Router` stays read-only. Per-entry CRUD (all five
+  reviewed families store static routes as individual objects); config-view
+  read-back deliberately added beyond the original sketch. Both existing
+  implementations migrated in step.
+  Design record: `docs/superpowers/specs/2026-06-12-static-routes-design.md`.
 
 ---
 

@@ -100,6 +100,7 @@ than guessed at here.
 @runtime_checkable
 class SdwanApplianceDevice(BaseDeviceProtocol, Protocol):
     routing: Router                       # reuse — read + static/BGP surface
+    static_routes: StaticRoutes           # new (2026-06-12 — per-entry CRUD; also on the twin archetype)
     sdwan_policy: SdwanPolicyManager      # reuse (reshaped — firewall methods out)
     vpn: SiteToSiteVpn                    # new (2026-06-12 — overlay role/hubs/subnets + peer status)
     traffic_shaping: TrafficShaping       # new
@@ -230,6 +231,15 @@ published-API surfaces on all four reviewed families. The VPN-scoped firewall
 rule set deliberately lives on `L3Firewall` (`set_vpn_rules`/`get_vpn_rules`),
 keeping firewall one coherent domain.
 
+### `static_routes: StaticRoutes` (added 2026-06-12)
+Per-entry static-route CRUD — `StaticRoute(name, destination_cidr,
+next_hop)` with `add_static_route` (idempotent by name) /
+`remove_static_route` / `list_static_routes` (config view; the RIB read
+stays on `Router.get_routing_table`). Composed on **both** WAN-edge
+archetypes; `Router` remains read-only per the 2026-06-12 split.
+Cross-vendor: all five reviewed families store static routes as individual
+objects, so the contract is per-entry CRUD, not list-replace.
+
 ## Cross-vendor neutrality
 
 Every capability is a concept that **the reviewed managed-appliance
@@ -244,6 +254,7 @@ the v2 subsection.
 | Capability                     | Meraki MX | Catalyst SD-WAN     | FortiGate        | Prisma SD-WAN   | Arista (VeloCloud)² |
 | ------------------------------ | :-------: | :-----------------: | :--------------: | :-------------: | :-----------------: |
 | routing / BGP / static         | ✓         | ✓                   | ✓                | ✓               | ✓ (enterprise route table) |
+| static_routes (per-entry CRUD) | ✓ | ✓ (service-VPN parcel push) | ✓ (router/static) | ✓ (element staticroutes) | ✓ (deviceSettings static[]) |
 | sdwan_policy (steering, SLA)   | ✓         | ✓ (app-route, SLA)  | ✓ (SD-WAN rules) | ✓ (path policy) | ◐ (link steering ✓; arbitrary SLA thresholds ✗ — fixed per-class DMPO SLAs) |
 | vpn (overlay config + peer status) | ✓         | ✓ (topology policy)  | ✓ (IPsec + monitor) | ✓ (vpnlinks)     | ✓ (Cloud VPN + SD-WAN peers; relational role model) |
 | traffic_shaping (+DSCP)        | ✓         | ✓ (QoS policer)     | ✓                | ✓ (QoS profile) | ✓ (business-rule QoS; per-client cap ✗) |
