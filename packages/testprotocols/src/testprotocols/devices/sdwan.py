@@ -19,6 +19,7 @@ from testprotocols.pcap_capture import PcapCapture
 from testprotocols.router import Router
 from testprotocols.sdwan_policy_manager import SdwanPolicyManager
 from testprotocols.site_to_site_vpn import SiteToSiteVpn
+from testprotocols.static_routes import StaticRoutes
 from testprotocols.syslog_config import SyslogConfig
 from testprotocols.threat_prevention import ThreatPrevention
 from testprotocols.traffic_shaping import TrafficShaping
@@ -41,6 +42,7 @@ class SdwanRouterDevice(BaseDeviceProtocol, Protocol):
 
     routing: Router
     wan_admin: WanLinkAdmin
+    static_routes: StaticRoutes
     sdwan_policy: SdwanPolicyManager
     ip_interface: IpInterface
     pcap: PcapCapture
@@ -75,6 +77,7 @@ class SdwanApplianceDevice(BaseDeviceProtocol, Protocol):
     """
 
     routing: Router
+    static_routes: StaticRoutes
     sdwan_policy: SdwanPolicyManager
     vpn: SiteToSiteVpn
     traffic_shaping: TrafficShaping

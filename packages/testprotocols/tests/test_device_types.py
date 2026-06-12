@@ -178,6 +178,7 @@ def test_sdwan_router_aggregates_expected_capabilities() -> None:
     expected = {
         "routing",
         "wan_admin",
+        "static_routes",
         "sdwan_policy",
         "ip_interface",
         "pcap",
@@ -195,6 +196,7 @@ def test_sdwan_appliance_aggregates_expected_capabilities() -> None:
     on SdwanRouterDevice (the digital twin). See SPLITS.md."""
     expected = {
         "routing",
+        "static_routes",
         "sdwan_policy",
         "traffic_shaping",
         "l3_firewall",
