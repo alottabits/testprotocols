@@ -13,7 +13,8 @@ also done via WifiBss (no convenience-bleed snapshot here).
 
 Per-client triggers may legitimately raise NotImplementedError on drivers
 whose underlying stack only exposes coarse-grained "client steering"
-features without raw frame-send (typically UniFi, Omada, FortiAP, cnMaestro).
+features without raw frame-send (typical of controller-managed enterprise
+stacks).
 """
 
 from __future__ import annotations

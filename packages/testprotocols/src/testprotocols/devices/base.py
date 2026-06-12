@@ -12,7 +12,7 @@ class BaseDeviceProtocol(Protocol):
     Substrate- and framework-neutral: any concrete driver that exposes a
     ``device_name`` and a ``device_type`` satisfies this — palco's
     ``PalcoDevice`` (where both are ``@property``), a hypothetical
-    boardfarm ``BoardfarmDevice``, a Cisco pyATS ``Device`` wrapper, a
+    boardfarm ``BoardfarmDevice``, a pyATS ``Device`` wrapper, a
     pure-Python simulator. Archetype Protocols in
     ``testprotocols.devices.*`` inherit from this so consumers
     (operations, step defs) can read identity for log / assertion
