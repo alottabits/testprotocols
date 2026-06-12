@@ -101,6 +101,7 @@ than guessed at here.
 class SdwanApplianceDevice(BaseDeviceProtocol, Protocol):
     routing: Router                       # reuse — read + static/BGP surface
     static_routes: StaticRoutes           # new (2026-06-12 — per-entry CRUD; also on the twin archetype)
+    bgp: Bgp                              # new (2026-06-12 — config 5/5; operational reads 4/5; also on the twin archetype)
     sdwan_policy: SdwanPolicyManager      # reuse (reshaped — firewall methods out)
     vpn: SiteToSiteVpn                    # new (2026-06-12 — overlay role/hubs/subnets + peer status)
     traffic_shaping: TrafficShaping       # new
@@ -240,6 +241,18 @@ archetypes; `Router` remains read-only per the 2026-06-12 split.
 Cross-vendor: all five reviewed families store static routes as individual
 objects, so the contract is per-entry CRUD, not list-replace.
 
+### `bgp: Bgp` (added 2026-06-12)
+Whole-replace BGP configuration — `BgpConfig(enabled, as_number,
+neighbors[BgpNeighbor], advertised_networks)` — plus operational reads:
+`get_bgp_neighbors` (`BgpPeerStatus` over the RFC 4271 `BgpSessionState`
+vocabulary, seeded in full because it is protocol-standard rather than a
+vendor taxonomy) and `get_learned_routes` (reusing `wan_edge.RouteEntry`).
+Composed on **both** WAN-edge archetypes. The config/read split is
+per-method: config write + read-back are universal, the operational reads
+are not — a product without a published BGP state read raises
+unsupported-capability there, and one without per-network advertise
+control does the same for a non-empty `advertised_networks`.
+
 ## Cross-vendor neutrality
 
 Every capability is a concept that **the reviewed managed-appliance
@@ -255,6 +268,7 @@ the v2 subsection.
 | ------------------------------ | :-------: | :-----------------: | :--------------: | :-------------: | :-----------------: |
 | routing / BGP / static         | ✓         | ✓                   | ✓                | ✓               | ✓ (enterprise route table) |
 | static_routes (per-entry CRUD) | ✓ | ✓ (service-VPN parcel push) | ✓ (router/static) | ✓ (element staticroutes) | ✓ (deviceSettings static[]) |
+| bgp (config / operational read) | ✓ config, ✗ reads | ✓ / ✓ (/device/bgp/*) | ✓ / ✓ (routing monitor) | ✓ / ✓ (bgppeers status+prefixes) | ✓ / ✓ (BGP peer status) |
 | sdwan_policy (steering, SLA)   | ✓         | ✓ (app-route, SLA)  | ✓ (SD-WAN rules) | ✓ (path policy) | ◐ (link steering ✓; arbitrary SLA thresholds ✗ — fixed per-class DMPO SLAs) |
 | vpn (overlay config + peer status) | ✓         | ✓ (topology policy)  | ✓ (IPsec + monitor) | ✓ (vpnlinks)     | ✓ (Cloud VPN + SD-WAN peers; relational role model) |
 | traffic_shaping (+DSCP)        | ✓         | ✓ (QoS policer)     | ✓                | ✓ (QoS profile) | ✓ (business-rule QoS; per-client cap ✗) |
