@@ -33,6 +33,7 @@ from testprotocols.models.sdwan_appliance import (
     ShapingPriority,
     ShapingRule,
     SiteToSiteVpnConfig,
+    StaticRoute,
     SteeringScope,
     SyslogRole,
     SyslogServer,
@@ -233,3 +234,14 @@ def test_uplink_selection_rule_defaults() -> None:
     assert rule.performance_class is None
     assert rule.match.dst_cidr == "198.51.100.4/32"
     assert rule.scope == "internet"  # StrEnum: serializes as the plain string
+
+
+def test_static_route_model() -> None:
+    route = StaticRoute(
+        name="to-lan", destination_cidr="172.16.5.0/24", next_hop="10.0.100.2"
+    )
+    assert (route.name, route.destination_cidr, route.next_hop) == (
+        "to-lan",
+        "172.16.5.0/24",
+        "10.0.100.2",
+    )

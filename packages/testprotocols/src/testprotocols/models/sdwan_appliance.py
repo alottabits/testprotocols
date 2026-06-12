@@ -553,3 +553,23 @@ class UplinkSelectionRule:
     match: FlowMatch
     preferred_uplink: str
     performance_class: str | None = None
+
+
+# --- Static routes ---
+
+
+@dataclass
+class StaticRoute:
+    """A testbed-owned static route.
+
+    ``name`` is the per-entry CRUD handle (``remove_static_route(name)``).
+    Products whose API keys routes by sequence number or opaque id carry the
+    name in their description/comment field or a driver-side mapping — a
+    driver concern, not a contract one. ``next_hop`` is a next-hop IP
+    address; interface-bound next hops, metrics/administrative distance, and
+    per-route advertise flags grow on evidence.
+    """
+
+    name: str
+    destination_cidr: str
+    next_hop: str
