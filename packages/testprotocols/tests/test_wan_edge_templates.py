@@ -1,6 +1,6 @@
 """Tests for WAN-edge Protocol shapes.
 
-Covers: Router, WanLinkAdmin, SdwanPolicyManager, MulticastClient.
+Covers: Router, WanLinkAdmin, StaticRoutes, SdwanPolicyManager, MulticastClient.
 """
 
 from __future__ import annotations
@@ -28,6 +28,15 @@ PROTOCOLS = [
         {
             "bring_wan_down",
             "bring_wan_up",
+        },
+    ),
+    (
+        "StaticRoutes",
+        "testprotocols.static_routes",
+        {
+            "add_static_route",
+            "remove_static_route",
+            "list_static_routes",
         },
     ),
     (
