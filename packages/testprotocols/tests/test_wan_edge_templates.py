@@ -39,6 +39,8 @@ PROTOCOLS = [
             "configure_sla_policy",
             "remove_sla_policy",
             "get_application_flows",
+            "set_uplink_selection",
+            "get_uplink_selection",
         },
     ),
     (
