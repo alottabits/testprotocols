@@ -80,6 +80,12 @@ class L3Switch(L2Switch, Protocol):
     routed interfaces, static routes, RIB read, OSPF, per-interface DHCP, and
     gateway redundancy. Scope is the default VRF (multi-VRF deferred, GAPS.md).
     BGP is on the L3SwitchRouted tier (it fails the L3 majority bar).
+    Host-substrate levers (conntrack, pcap, ip_interface, nat, packet_filter,
+    firewall_zones, wan_admin) are deliberately absent — same exclusion as
+    ``L2Switch``. The WAN-edge uplink-admin surface (``wan_admin`` / full
+    ``Router`` write layer) is also excluded: an API-managed switch cannot
+    admin-down its own uplinks, so the RIB surface here is the read-only
+    ``routing_read`` / ``RouteEntry`` view, not the router's write surface.
     """
 
     routed_interfaces: RoutedInterfaces
