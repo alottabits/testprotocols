@@ -19,6 +19,9 @@ PROTOCOLS = [
     ),
     ("SwitchVlans", "testprotocols.switch_vlans",
      {"list_vlans", "create_vlan", "delete_vlan"}),
+    ("SpanningTree", "testprotocols.spanning_tree",
+     {"set_mode", "get_mode", "set_bridge_priority",
+      "set_port_config", "get_port_config", "get_port_state"}),
 ]
 
 
