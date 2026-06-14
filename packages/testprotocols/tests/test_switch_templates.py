@@ -35,6 +35,7 @@ PROTOCOLS = [
      {"set_config", "get_config"}),
     ("SwitchAcl", "testprotocols.switch_acl",
      {"set_acl", "get_acl"}),
+    ("Discovery", "testprotocols.discovery", {"get_neighbors"}),
 ]
 
 
