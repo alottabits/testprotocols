@@ -25,7 +25,7 @@ from testprotocols.devices.infra import (
     TftpDevice,
 )
 from testprotocols.devices.sdwan import SdwanApplianceDevice, SdwanRouterDevice
-from testprotocols.devices.switch import L2Switch
+from testprotocols.devices.switch import L2Switch, L3Switch, L3SwitchRouted
 from testprotocols.devices.traffic import (
     IperfTrafficGeneratorDevice,
     TrafficControllerDevice,
@@ -43,8 +43,10 @@ from testprotocols.file_transfer import FileTransfer
 from testprotocols.firewall import Firewall, FirewallWhiteBox
 from testprotocols.firewall_zones import FirewallZones
 from testprotocols.first_hop_security import FirstHopSecurity
+from testprotocols.gateway_redundancy import GatewayRedundancy
 from testprotocols.http_client import HttpClient
 from testprotocols.http_server import HttpServer
+from testprotocols.interface_dhcp import InterfaceDhcp
 from testprotocols.hw_console import HwConsole
 from testprotocols.ip_interface import IpInterface
 from testprotocols.ip_routing import IpRouting
@@ -58,6 +60,7 @@ from testprotocols.mac_table import MacTable
 from testprotocols.multicast_client import MulticastClient
 from testprotocols.nat import Nat
 from testprotocols.netem_controller import NetemController
+from testprotocols.ospf import Ospf
 from testprotocols.nmap_scanner import NmapScanner
 from testprotocols.ntp_client import NtpClient
 from testprotocols.ntp_config import NtpConfig
@@ -70,7 +73,9 @@ from testprotocols.port_status import PortStatus
 from testprotocols.qoe_browser import QoeBrowser
 from testprotocols.radius_client import RadiusClient
 from testprotocols.radius_server import RadiusServer
+from testprotocols.routed_interfaces import RoutedInterfaces
 from testprotocols.router import Router
+from testprotocols.routing_read import RoutingRead
 from testprotocols.sdwan_policy_manager import SdwanPolicyManager
 from testprotocols.sip_phone import SipPhone
 from testprotocols.sip_server import SipServer
@@ -126,9 +131,11 @@ __all__ = [
     "FirewallWhiteBox",
     "FirewallZones",
     "FirstHopSecurity",
+    "GatewayRedundancy",
     "HttpClient",
     "HttpServer",
     "HwConsole",
+    "InterfaceDhcp",
     "IpInterface",
     "IpRouting",
     "IperfClient",
@@ -137,6 +144,8 @@ __all__ = [
     "IperfTrafficGeneratorDevice",
     "L2Switch",
     "L3Firewall",
+    "L3Switch",
+    "L3SwitchRouted",
     "L7Firewall",
     "LanClientDevice",
     "LinkAggregation",
@@ -147,6 +156,7 @@ __all__ = [
     "NmapScanner",
     "NtpClient",
     "NtpConfig",
+    "Ospf",
     "PacketFilter",
     "PacketFilterWhiteBox",
     "PcapCapture",
@@ -159,7 +169,9 @@ __all__ = [
     "QoeClientDevice",
     "RadiusClient",
     "RadiusServer",
+    "RoutedInterfaces",
     "Router",
+    "RoutingRead",
     "SdwanApplianceDevice",
     "SdwanPolicyManager",
     "SdwanRouterDevice",

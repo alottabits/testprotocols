@@ -113,12 +113,23 @@ from testprotocols.models.radius import (
 )
 from testprotocols.models.tr069 import CpeConnectionStatus
 from testprotocols.models.traffic import TrafficResult, TrafficSpec
+from testprotocols.models.switch_routing import (
+    InterfaceDhcpConfig,
+    InterfaceMode,
+    OspfConfig,
+    OspfInterfaceSettings,
+    OspfVersion,
+    RedundancyGroup,
+    RedundancyRole,
+    RoutedInterface,
+)
 from testprotocols.models.wan_edge import (
     AppFlow,
     LinkHealthReport,
     LinkStatus,
     PathMetrics,
     RouteEntry,
+    RouteOrigin,
     SLAPolicy,
     TrafficShapingRule,
     VPNPeerStatus,
@@ -174,6 +185,15 @@ __all__ = [
     "SwitchAclRule",
     "SwitchPort",
     "VlanDef",
+    # switch_routing
+    "InterfaceDhcpConfig",
+    "InterfaceMode",
+    "OspfConfig",
+    "OspfInterfaceSettings",
+    "OspfVersion",
+    "RedundancyGroup",
+    "RedundancyRole",
+    "RoutedInterface",
     # wan_edge
     "AppFlow",
     # firewall
@@ -258,6 +278,7 @@ __all__ = [
     "RadiusSession",
     "RadiusUser",
     "RouteEntry",
+    "RouteOrigin",
     "SLAPolicy",
     # traffic
     "TrafficResult",
