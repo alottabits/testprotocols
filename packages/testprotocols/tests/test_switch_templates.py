@@ -22,6 +22,8 @@ PROTOCOLS = [
     ("SpanningTree", "testprotocols.spanning_tree",
      {"set_mode", "get_mode", "set_bridge_priority",
       "set_port_config", "get_port_config", "get_port_state"}),
+    ("LinkAggregation", "testprotocols.link_aggregation",
+     {"list_groups", "set_group", "remove_group"}),
 ]
 
 
