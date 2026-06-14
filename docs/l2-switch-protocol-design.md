@@ -4,15 +4,15 @@
 | -------- | ------------------------------------------------------------------------------------------------------------- |
 | Status   | Proposed                                                                                                      |
 | Author   | rjvisser                                                                                                       |
-| Date     | 2026-06-14 (updated 2026-06-14: Arista EOS verification — CCS-720D Series cross-vendor check; AAA/RADIUS + FirstHopSecurity (concept-check 6/6) added; Arista CDP cell corrected)                  |
-| Related  | `packages/testprotocols/GAPS.md` (2026-05-02 `L2Bridge` HIGH — to be cross-referenced; new `IgmpSnooping` / `PortMirror` / `MulticastRouting` deferrals), `SPLITS.md` (`Router` RIB carve-out; `ApplianceVlans` SVI/DHCP reuse; unified `SwitchAcl`), `LEVELS.md` (`MacTableWhiteBox` candidate), `devices/switch.py` (new), `models/switch.py` (new), `models/l2_common.py` (new — STP/FDB vocab shared with the future CPE-side `L2Bridge`), `models/switch_routing.py` (new, L3 sibling), `docs/l3-switch-protocol-design.md` (sibling — composes this layer), `docs/sdwan-appliance-protocol-design.md` (precedent), `models/sdwan_appliance.py` (`RuleAction` / `RuleProtocol` / `DhcpMode` reuse), `syslog_config.py`, `radius_client.py` (+ `models/radius.py` — 802.1X/MAB RADIUS backend reuse), `static_routes.py`, `router.py`, `bgp.py` |
+| Date     | 2026-06-14 (updated 2026-06-14: Arista EOS verification — CCS-720D Series cross-vendor check; AAA/RADIUS + FirstHopSecurity (concept-check 6/6) + NtpConfig added; Arista CDP cell corrected)                  |
+| Related  | `packages/testprotocols/GAPS.md` (2026-05-02 `L2Bridge` HIGH — to be cross-referenced; new `IgmpSnooping` / `PortMirror` / `MulticastRouting` deferrals), `SPLITS.md` (`Router` RIB carve-out; `ApplianceVlans` SVI/DHCP reuse; unified `SwitchAcl`), `LEVELS.md` (`MacTableWhiteBox` candidate), `devices/switch.py` (new), `models/switch.py` (new), `models/l2_common.py` (new — STP/FDB vocab shared with the future CPE-side `L2Bridge`), `models/switch_routing.py` (new, L3 sibling), `docs/l3-switch-protocol-design.md` (sibling — composes this layer), `docs/sdwan-appliance-protocol-design.md` (precedent), `models/sdwan_appliance.py` (`RuleAction` / `RuleProtocol` / `DhcpMode` reuse), `syslog_config.py`, `ntp_config.py` (new — small NTP-server-config capability), `radius_client.py` (+ `models/radius.py` — 802.1X/MAB RADIUS backend reuse), `static_routes.py`, `router.py`, `bgp.py` |
 
 This document explains why `testprotocols` carries a dedicated **managed
 access switch** archetype — `L2Switch` — and records the shape proposed for it.
 It defines the **shared L2 capability layer in full**: VLANs, switchports, STP,
 link aggregation, PoE, port-security, AAA (RADIUS), first-hop security (DHCP
 snooping + DAI), storm-control, L2 ACL, discovery, MAC table, port status, QoS,
-and syslog. It deliberately does **not** carry any L3
+syslog, and NTP. It deliberately does **not** carry any L3
 layer; the routed-distribution archetype (`L3Switch`,
 `docs/l3-switch-protocol-design.md`) composes everything here **plus** an L3
 layer as a strict superset, and cross-references this document rather than
@@ -136,6 +136,7 @@ class L2Switch(BaseDeviceProtocol, Protocol):
     port_status: PortStatus              # new (read-only) — link/speed/duplex/counters per port
     switch_qos: SwitchQos                # new — QoS rule list + DSCP→CoS map
     syslog: SyslogConfig                 # reuse-as-is — remote logging destinations
+    ntp: NtpConfig                       # new — NTP server config (small/generic, the time-sync sibling of syslog)
 
 register_device_type("managed_switch_l2", L2Switch)
 ```
@@ -319,6 +320,19 @@ limits scheduler control (◐), so the capability normalizes to rules + trust/ma
 explicit queue-scheduler / per-port-rate-limit tuning is **not** modeled now
 (deferred — surfaces unevenly and no test drives it).
 
+### `ntp: NtpConfig` — NEW (5/6)
+NTP-server configuration — `set_ntp_servers` / `get_ntp_servers` over a small
+`NtpServer(host, prefer)` model (whole-list replace), the time-sync sibling of
+`syslog`. Small and generic — any networked device can sync time — but it clears
+the cross-vendor bar on switches: every reviewed family except the design-target
+exposes it. **Concept check 5/6** — Aruba 1960, Catalyst 9200L, Juniper EX2300,
+Omada (✓) and UniFi (◐ controller-level) expose NTP-server config; the
+design-target (MS225) manages time via the Meraki cloud (timezone-only, **no
+custom NTP-server config**), so a driver raises unsupported-capability there. New
+model `NtpServer` lives in `models/switch.py`; no new enum. (`ntp_client.py`
+already exists but is the *operational* surface — get/set/sync time — a different
+shape; `NtpConfig` is server-list config, like `SyslogConfig`.)
+
 ## Normalized vocabulary
 
 All new vocabularies are `StrEnum` authored from day one (per the legacy-`str` →
@@ -393,7 +407,8 @@ unsupported-capability for `StormControl` config (UI-only), `MacTable` / FDB rea
 (no endpoint), and `SwitchVlans` create/delete (VLANs implicit); for `FirstHopSecurity` it raises
 on per-port DHCP-snooping trust / rate-limit / binding-table read (rogue-DHCP is
 MAC allow/block) and DAI is switch-wide, not per-VLAN — and UniFi raises it across
-the whole DAI surface. Families without a per-port PoE-priority
+the whole DAI surface; for `NtpConfig` MS225 raises it (Meraki-cloud time,
+timezone-only). Families without a per-port PoE-priority
 knob raise it on `PoePriority`. Families with no public/automatable API at all
 (noted in the matrix) are recorded as effectively unsupported for programmatic
 config — recorded, **not** modeled away.
@@ -427,6 +442,7 @@ target, not a privileged shape.
 | `PortStatus`      | ✓ (ports statuses)      | ✓ (GUI/SNMP)             | ✓ (port_table)      | ✓ (show interfaces)   | ✓ (show interfaces RPC)   | ✓ (port stats)        | ✓ (show interfaces + telemetry) |
 | `SwitchQos`       | ✓ (QoS rules + DSCP/CoS) | ✓ (CoS/DSCP, SP/WRR)    | ◐ (DSCP, limited sched) | ✓ (MQC)            | ✓ (Junos CoS)             | ✓ (8-queue QoS)       | ✓ (CoS/DSCP trust + SP/WRR/DWRR) |
 | `SyslogConfig`    | ✓ (syslog servers)      | ✓ (remote syslog)        | ◐ (controller-level) | ✓ (logging host)      | ✓ (`[system syslog]`)     | ✓ (syslog)            | ✓ (logging host)        |
+| `NtpConfig`       | ✗ (cloud time; tz only) | ✓ (SNTP/NTP)             | ◐ (controller-level) | ✓ (ntp server)        | ✓ (system ntp)            | ✓ (NTP settings)      | ✓ (ntp server)          |
 | *`IgmpSnooping`* (deferred) | ✗ (no API)    | ✓                        | ✓                   | ✓                     | ✓                         | ✓                     | ✓ (per-VLAN snooping + querier) |
 | *`PortMirror`* (deferred)   | ◐ (per-port)  | ✓                        | ✓                   | ✓                     | ✓                         | ✓                     | ✓ (SPAN/ERSPAN + sFlow/IPFIX divergent path) |
 
@@ -466,7 +482,7 @@ this evidence.** What HELD:
 - **The full L2 capability set is present and first-class.** Every proposed
   protocol — `SwitchPorts`, `SwitchVlans`, `SpanningTree`, `LinkAggregation`,
   `PortPoe`, `PortSecurity`, `RadiusClient`, `StormControl`, `SwitchAcl`, `Discovery`,
-  `MacTable`, `PortStatus`, `SwitchQos`, `SyslogConfig` — maps to a published EOS
+  `MacTable`, `PortStatus`, `SwitchQos`, `SyslogConfig`, `NtpConfig` — maps to a published EOS
   management-plane surface (CLI/eAPI/NETCONF/OpenConfig). Notably, the three
   capabilities the design-target (MS225) cannot exercise — `StormControl`,
   `MacTable`/FDB read, and `SwitchVlans` create/delete — are **all fully present
