@@ -39,6 +39,8 @@ PROTOCOLS = [
     ("MacTable", "testprotocols.mac_table", {"get_mac_table"}),
     ("PortStatus", "testprotocols.port_status",
      {"list_port_status", "get_port_status"}),
+    ("SwitchQos", "testprotocols.switch_qos",
+     {"set_trust_mode", "set_dscp_cos_map", "set_rules", "get_rules"}),
 ]
 
 
