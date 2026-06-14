@@ -41,6 +41,6 @@ def all_device_types() -> dict[str, DeviceTypeSpec]:
 # ``importlib.import_module`` avoids the unused-import / out-of-order-import
 # friction that direct ``from … import …`` statements would create here, and
 # keeps the import section at the top of the file as PEP 8 prefers.
-for _mod in ("client", "cpe", "infra", "sdwan", "traffic", "voice", "wan"):
+for _mod in ("client", "cpe", "infra", "sdwan", "switch", "traffic", "voice", "wan"):
     importlib.import_module(f"testprotocols.devices.{_mod}")
 del _mod

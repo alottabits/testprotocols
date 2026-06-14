@@ -26,12 +26,14 @@ from testprotocols.devices.traffic import (
     TrafficControllerDevice,
 )
 from testprotocols.devices.voice import SipPhoneDevice, SipServerDevice
+from testprotocols.devices.switch import L2Switch
 from testprotocols.devices.wan import WanServerDevice
 
 _ALL_ARCHETYPES = (
     AcsDevice,
     CpeDevice,
     IperfTrafficGeneratorDevice,
+    L2Switch,
     LanClientDevice,
     ProvisionerDevice,
     QoeClientDevice,
@@ -70,6 +72,7 @@ def test_all_device_types_registered() -> None:
         "linux_sip_phone",
         "linux_sip_server",
         "linux_wan_server",
+        "managed_switch_l2",
     }
     assert expected == set(all_device_types().keys())
 
@@ -468,3 +471,31 @@ def test_archetype_carries_universal_identity(archetype: type) -> None:
         f"{archetype.__name__} missing universal-identity attrs: "
         f"{ {'device_name', 'device_type'} - attrs}"
     )
+
+
+# ---------------------------------------------------------------------------
+# L2Switch archetype
+# ---------------------------------------------------------------------------
+
+
+def test_l2_switch_registered() -> None:
+    spec = get_device_type("managed_switch_l2")
+    assert isinstance(spec, DeviceTypeSpec)
+    assert spec.protocol is L2Switch
+
+
+def test_l2_switch_aggregates_expected_capabilities() -> None:
+    expected = {
+        "switch_ports", "switch_vlans", "spanning_tree", "link_aggregation",
+        "port_poe", "port_security", "radius", "first_hop_security",
+        "storm_control", "switch_acl", "discovery", "mac_table",
+        "port_status", "switch_qos", "syslog", "ntp",
+    }
+    actual = set(L2Switch.__protocol_attrs__)
+    assert expected <= actual, f"missing: {expected - actual}"
+    # host-substrate levers stay on the Linux twins, never on a managed switch
+    for host_lever in (
+        "conntrack", "pcap", "ip_interface", "nat",
+        "packet_filter", "firewall_zones", "wan_admin",
+    ):
+        assert host_lever not in actual, f"{host_lever} must not be on L2Switch"
