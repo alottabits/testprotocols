@@ -30,3 +30,26 @@ def test_switch_routing_enums() -> None:
     assert OspfVersion.V2 == "v2"
     assert RedundancyRole.PRIMARY == "primary"
     assert RouteOrigin.BGP == "bgp"
+
+
+def test_switch_routing_records() -> None:
+    from testprotocols.models.switch_routing import (
+        InterfaceDhcpConfig,
+        InterfaceMode,
+        OspfConfig,
+        OspfInterfaceSettings,
+        RedundancyGroup,
+        RedundancyRole,
+        RoutedInterface,
+    )
+
+    ri = RoutedInterface(name="vlan10", mode=InterfaceMode.SVI, ip_address="10.0.10.1", subnet="10.0.10.0/24", vlan_id=10)
+    assert ri.vlan_id == 10
+    d = InterfaceDhcpConfig(interface="vlan10")
+    assert d.mode == "disabled" and d.relay_targets == []
+    o = OspfConfig(enabled=True, router_id="1.1.1.1")
+    assert o.version == "v2" and o.interfaces == []
+    oi = OspfInterfaceSettings(interface="vlan10", area="0.0.0.0")
+    assert oi.passive is False
+    g = RedundancyGroup(group_id=1, virtual_ip="10.0.10.254", role=RedundancyRole.PRIMARY, interface="vlan10")
+    assert g.virtual_ip == "10.0.10.254"
