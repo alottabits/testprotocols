@@ -33,6 +33,8 @@ PROTOCOLS = [
       "set_dai", "set_arp_trust"}),
     ("StormControl", "testprotocols.storm_control",
      {"set_config", "get_config"}),
+    ("SwitchAcl", "testprotocols.switch_acl",
+     {"set_acl", "get_acl"}),
 ]
 
 
