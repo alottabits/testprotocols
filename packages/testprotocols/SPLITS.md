@@ -417,7 +417,7 @@ the `appliance_ip → svi_ip` rename touches the appliance consumer(s) of
 
 ---
 
-## 2026-06-14 — unified `SwitchAcl` (one L2+L3 ACL surface, not two protocols) (planned)
+## 2026-06-14 — unified `SwitchAcl` (one L2+L3 ACL surface, not two protocols)
 
 **Signal:** Managed-switch design round
 (`docs/l2-switch-protocol-design.md`, `docs/l3-switch-protocol-design.md`). The
@@ -425,23 +425,26 @@ reviewed switches enforce L2 (MAC/VLAN) and L3/L4 (5-tuple) ACLs through **one
 engine** — on the design-target, literally the same endpoint — so modelling
 separate L2 and L3 ACL protocols would not match any reviewed product.
 
-**Decision:** defer (executes at switch-protocol implementation). Model **one**
-`SwitchAcl` capability carrying both L2 and L3 match fields, bound by port/VLAN
-and `AclDirection{INGRESS,EGRESS}` as an ordered whole-list-replace. `SwitchAcl`
-is a **net-new** capability (its evidence is the 6/6 per-port/VLAN filtering
-concern), not a reshape of an existing protocol; the SPLITS-relevant decision is
-the *single-surface* choice and the **enum reuse** of `RuleAction{ALLOW,DENY}` /
-`RuleProtocol` (`models/sdwan_appliance.py`). A new `SwitchAclRule` record
-(optional `src_mac`/`dst_mac`/`vlan` + optional IP 5-tuple) lives in
-`models/switch.py`; the existing `L3Rule` (pure IP 5-tuple) is **not** extended.
+**Decision:** implement as a net-new `SwitchAcl` capability. One surface
+carrying both L2 and L3 match fields, bound by port/VLAN and
+`AclDirection{INGRESS,EGRESS}` as an ordered whole-list-replace. Enum reuse of
+`RuleAction{ALLOW,DENY}` / `RuleProtocol` (`models/sdwan_appliance.py`); new
+`SwitchAclRule` record (optional `src_mac`/`dst_mac`/`vlan` + optional IP
+5-tuple) in `models/switch.py`; the existing `L3Rule` (pure IP 5-tuple) is **not**
+extended. Composed on `L2Switch` as `switch_acl: SwitchAcl`.
 
 **Rationale:** Match the real device shape (one ACL engine); reuse the rule
 vocabularies rather than duplicating them; keep host-chain shapes
 (`packet_filter`) and the appliance LAN/WAN/VPN triad (`l3_firewall`) out — both
 are gateway/host-shaped.
 
-**Migration impact:** none yet — design-review record only. When implemented:
-new `SwitchAcl` protocol + `SwitchAclRule` record; no change to `L3Rule` or its
-consumers. Design record: `docs/l2-switch-protocol-design.md`.
+**Migration impact (implemented 2026-06-14):**
+- `switch_acl.py` — new `SwitchAcl` protocol with `set_acl` / `get_acl`.
+- `models/switch.py` — new `SwitchAclRule` record.
+- `devices/switch.py` — `L2Switch.switch_acl: SwitchAcl`.
+- `L3Rule` and its consumers unchanged.
+- Plan 2 (`L3Switch`) composes the same `SwitchAcl` unchanged — the L2+L3
+  unified surface already covers the L3 superset.
+- Design record: `docs/l2-switch-protocol-design.md` (Status: Implemented).
 
 ---

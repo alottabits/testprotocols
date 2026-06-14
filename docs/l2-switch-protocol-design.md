@@ -2,7 +2,7 @@
 
 | Field    | Value                                                                                                          |
 | -------- | ------------------------------------------------------------------------------------------------------------- |
-| Status   | Proposed                                                                                                      |
+| Status   | Implemented (L2 layer; see docs/superpowers/plans/2026-06-14-l2-switch-archetype.md)                          |
 | Author   | rjvisser                                                                                                       |
 | Date     | 2026-06-14 (updated 2026-06-14: Arista EOS verification — CCS-720D Series cross-vendor check; AAA/RADIUS + FirstHopSecurity (concept-check 6/6) + NtpConfig added; Arista CDP cell corrected)                  |
 | Related  | `packages/testprotocols/GAPS.md` (2026-05-02 `L2Bridge` HIGH — to be cross-referenced; new `IgmpSnooping` / `PortMirror` / `MulticastRouting` deferrals), `SPLITS.md` (`Router` RIB carve-out; `ApplianceVlans` SVI/DHCP reuse; unified `SwitchAcl`), `LEVELS.md` (`MacTableWhiteBox` candidate), `devices/switch.py` (new), `models/switch.py` (new), `models/l2_common.py` (new — STP/FDB vocab shared with the future CPE-side `L2Bridge`), `models/switch_routing.py` (new, L3 sibling), `docs/l3-switch-protocol-design.md` (sibling — composes this layer), `docs/sdwan-appliance-protocol-design.md` (precedent), `models/sdwan_appliance.py` (`RuleAction` / `RuleProtocol` / `DhcpMode` reuse), `syslog_config.py`, `ntp_config.py` (new — small NTP-server-config capability), `radius_client.py` (+ `models/radius.py` — 802.1X/MAB RADIUS backend reuse), `static_routes.py`, `router.py`, `bgp.py` |
