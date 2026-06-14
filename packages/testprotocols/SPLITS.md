@@ -357,3 +357,91 @@ read-only; `WanLinkAdmin` (`wan_link_admin.py`) carries `bring_wan_down` /
   upgrading (pre-1.0 coordinated migration; methods themselves are unchanged).
 
 ---
+
+## 2026-06-14 — `Router` RIB read shared into a switch-scoped `RoutingRead` (planned)
+
+**Signal:** Managed-switch design round
+(`docs/l3-switch-protocol-design.md`). A managed distribution switch routes
+east-west between local SVIs; it needs the RIB **read** surface of `Router`
+(`get_routing_table() -> list[RouteEntry]`) but **none** of `Router`'s
+WAN-uplink methods. The RIB read is currently buried inside the WAN-edge
+`Router`.
+
+**Decision:** defer (executes when the switch protocols are implemented). Carve
+the RIB-read kernel into a switch-scoped `RoutingRead` capability that shares the
+`RouteEntry` model with `Router`; `Router` keeps its WAN-uplink methods. Bundled
+with this carve-out, `RouteEntry` (`models/wan_edge.py`) is **reshaped**: it
+gains an `origin: RouteOrigin` field (new `RouteOrigin` StrEnum:
+`STATIC/CONNECTED/OSPF/BGP/LOCAL`) so a switch route read can report the route
+source.
+
+**Rationale:** Read surface is universal across routed archetypes; WAN-uplink
+admin is WAN-edge-specific — the same structural-shape boundary as the
+2026-06-12 `WanLinkAdmin` split. Modelling the switch against the full `Router`
+shape would over-specify it with uplink methods it does not have.
+
+**Migration impact:** none yet — design-review record only. When implemented:
+the `origin` field carries a **default** so both existing `RouteEntry`
+producers — `Router.get_routing_table()` (WAN edge) and
+`Bgp.get_learned_routes()` — stay source-compatible (no call-site change). The
+method carve-out leaves `Router` consumers unaffected (`Router` keeps its
+methods); the switch composes the new `RoutingRead`. The dynamic-/learned-RIB
+*facet* is 3/6 across the reviewed distribution families and is admitted as a
+per-method best-effort read (the `bgp.py` operational-read discipline), while
+the config-view read is 6/6. Design record:
+`docs/l3-switch-protocol-design.md`.
+
+---
+
+## 2026-06-14 — `ApplianceVlans` SVI/DHCP fields shared into `RoutedInterfaces` / `InterfaceDhcp` (planned)
+
+**Signal:** Managed-switch design round
+(`docs/l3-switch-protocol-design.md`). `appliance_vlans.VlanConfig` already
+carries an SVI IP plus the `DhcpMode{SERVER,RELAY,DISABLED}` field and per-VLAN
+DHCP config — almost exactly the L3-switch SVI + per-SVI DHCP shape — but it is
+named and scoped for the WAN edge.
+
+**Decision:** defer (executes at switch-protocol implementation). Share the SVI
++ DHCP fields of `VlanConfig` into the switch's `RoutedInterfaces` (SVI / routed
+port) and `InterfaceDhcp` (per-SVI server/relay) capabilities, renaming
+`appliance_ip → svi_ip`. `DhcpMode` is reused, not re-declared.
+
+**Rationale:** Same coherent concept (an L3 interface over a VLAN with optional
+DHCP) on two device classes; one model, two accessors beats a greenfield
+duplicate. The rename de-WAN-edges the field name.
+
+**Migration impact:** none yet — design-review record only. When implemented:
+the `appliance_ip → svi_ip` rename touches the appliance consumer(s) of
+`VlanConfig`; log the appliance-side migration at that point. Design record:
+`docs/l3-switch-protocol-design.md`.
+
+---
+
+## 2026-06-14 — unified `SwitchAcl` (one L2+L3 ACL surface, not two protocols) (planned)
+
+**Signal:** Managed-switch design round
+(`docs/l2-switch-protocol-design.md`, `docs/l3-switch-protocol-design.md`). The
+reviewed switches enforce L2 (MAC/VLAN) and L3/L4 (5-tuple) ACLs through **one
+engine** — on the design-target, literally the same endpoint — so modelling
+separate L2 and L3 ACL protocols would not match any reviewed product.
+
+**Decision:** defer (executes at switch-protocol implementation). Model **one**
+`SwitchAcl` capability carrying both L2 and L3 match fields, bound by port/VLAN
+and `AclDirection{INGRESS,EGRESS}` as an ordered whole-list-replace. `SwitchAcl`
+is a **net-new** capability (its evidence is the 6/6 per-port/VLAN filtering
+concern), not a reshape of an existing protocol; the SPLITS-relevant decision is
+the *single-surface* choice and the **enum reuse** of `RuleAction{ALLOW,DENY}` /
+`RuleProtocol` (`models/sdwan_appliance.py`). A new `SwitchAclRule` record
+(optional `src_mac`/`dst_mac`/`vlan` + optional IP 5-tuple) lives in
+`models/switch.py`; the existing `L3Rule` (pure IP 5-tuple) is **not** extended.
+
+**Rationale:** Match the real device shape (one ACL engine); reuse the rule
+vocabularies rather than duplicating them; keep host-chain shapes
+(`packet_filter`) and the appliance LAN/WAN/VPN triad (`l3_firewall`) out — both
+are gateway/host-shaped.
+
+**Migration impact:** none yet — design-review record only. When implemented:
+new `SwitchAcl` protocol + `SwitchAclRule` record; no change to `L3Rule` or its
+consumers. Design record: `docs/l2-switch-protocol-design.md`.
+
+---

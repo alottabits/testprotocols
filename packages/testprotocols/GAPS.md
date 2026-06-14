@@ -63,6 +63,24 @@ without a real consumer tend to need rework on first use.
 `firewall_zones.py`. CPE archetype protocol (`testprotocols/devices/cpe.py`)
 will need an `l2_bridge: L2Bridge` attribute once seeded.
 
+**Update 2026-06-14 (managed-switch design round) — realize-as-switch-native
+decision:** The managed-switch design docs
+(`docs/l2-switch-protocol-design.md`, `docs/l3-switch-protocol-design.md`)
+deliberately do **not** realize this `L2Bridge` entry. A managed switch's
+first-class object is the *switchport* — modeled by switch-native capabilities
+(`SwitchPorts`, `SpanningTree`, `LinkAggregation`, `PortPoe`, `MacTable`) — not
+"add port to bridge"; and link aggregation and PoE have no home in the
+Linux-bridge shape at all. Reusing this substrate-shaped contract on a
+hardware-switch device class would be the same mistake the SD-WAN appliance
+archetype rejected for its host levers. `L2Bridge` therefore stays scoped to
+its original **CPE / Linux-bridge** trigger. To stop the two from diverging,
+the STP/FDB *vocabulary* genuinely shared between a Linux bridge and a hardware
+switch — `StpMode`, `StpGuard`, `StpPortState`, and the `MacTableEntry` record
+— is authored by the switch work in a neutral commons module
+`models/l2_common.py`; when this `L2Bridge` entry is picked up it must
+**import that shared vocabulary** rather than re-inventing divergent enums.
+Cross-reference both switch design docs.
+
 ---
 
 ## 2026-05-02 — `WifiMlo` (or `WifiBss` / `WifiStations` extension for MLO) [priority: low]
@@ -341,6 +359,125 @@ seeded. Do **not** reuse the host-shaped `DeviceManagement`.
 
 **Cross-references:** `devices/sdwan.py` (`SdwanApplianceDevice`),
 `device_management.py` (the host-shaped one to NOT reuse), `appliance_uplinks.py`.
+
+---
+
+## 2026-06-14 — `IgmpSnooping` [priority: HIGH]
+
+**Signal:** The managed-switch design round
+(`docs/l2-switch-protocol-design.md`) cross-vendor review found IGMP snooping
+clears the strong-majority bar (5–6/6) across the reviewed access-switch
+families, but the design-target (Meraki MS225) exposes **no API config** —
+snooping runs by default and is toggled in the controller UI only — and no
+switch test drives it yet.
+
+**Trigger to act:** First switch scenario asserting multicast group containment
+/ snooping behaviour at L2.
+
+**Out of scope right now because:** No consumer test, and the design-target has
+no programmatic surface to drive; a speculative shape would need rework on first
+real use.
+
+**Design notes (when picked up):** a snooping vocabulary (enable / querier /
+group-membership read) seeded then. `models/multicast.py` currently holds only
+the IGMPv3 record-type codes (`MulticastGroupRecordType`, RFC 3376) and the
+`McastSource` / `McastGroup` aliases — **not** a snooping vocabulary. Coordinate
+with `MulticastRouting` (below) for shared multicast vocab.
+
+**Cross-references:** `docs/l2-switch-protocol-design.md`, `models/multicast.py`,
+`MulticastRouting` (this file).
+
+---
+
+## 2026-06-14 — `PortMirror` (SPAN) [priority: medium]
+
+**Signal:** Managed-switch design round: the SPAN-session concept is 6/6 present
+across the reviewed access families, but it **straddles the
+`TrafficControllerDevice` / `pcap` boundary** (capture is the traffic device's
+job — the netem precedent in `SPLITS.md`), and the design-target exposes only a
+per-port mirror, not a multi-source SPAN object.
+
+**Trigger to act:** A test needing switch-side mirror-session config that is
+distinct from host packet capture.
+
+**Out of scope right now because:** No driving test, and the device-boundary
+decision (switch-owned mirror vs traffic-controller capture) needs to be settled
+on real evidence rather than guessed.
+
+**Design notes (when picked up):** a `PortMirror` protocol (session: source
+ports + direction → destination port) on the switch archetype; record the
+boundary with `pcap` / `TrafficControllerDevice` explicitly.
+
+**Cross-references:** `docs/l2-switch-protocol-design.md`, `pcap_capture.py`,
+`SPLITS.md` (2026-05-02 netem precedent).
+
+---
+
+## 2026-06-14 — `MulticastRouting` (PIM) [priority: medium]
+
+**Signal:** L3-switch design round (`docs/l3-switch-protocol-design.md`):
+PIM-SM + RP reaches 5/6 present across the distribution review set
+(Meraki / Aruba CX / Juniper / Catalyst full, FortiSwitch ◐ standalone-only,
+UniFi ✗) — the **same headcount** as the admitted `GatewayRedundancy` — but is
+deferred on the **driving-test discriminator**: high surface area and no switch
+test drives it, whereas `GatewayRedundancy` carries a first-hop-failover test.
+
+**Trigger to act:** A switch scenario asserting routed multicast distribution.
+
+**Out of scope right now because:** Large, vendor-divergent surface admitted on
+a real test, not on headcount alone.
+
+**Design notes (when picked up):** reuse `RouteEntry` (`models/wan_edge.py`) and
+a multicast vocab; coordinate with `IgmpSnooping` for shared multicast
+vocabulary.
+
+**Cross-references:** `docs/l3-switch-protocol-design.md`, `IgmpSnooping` (this
+file), `models/multicast.py`.
+
+---
+
+## 2026-06-14 — `Bgp` on the mandatory `L3Switch` [priority: low / note]
+
+**Signal:** L3-switch design round: the existing `Bgp` protocol (`bgp.py`) is
+reusable as-is, but BGP **fails the L3-switch majority bar** (3/6 — Aruba CX /
+Juniper / Catalyst only; absent on the design-target MS355 and on UniFi;
+standalone-only on FortiSwitch). It is therefore composed only on the optional
+`L3SwitchRouted(L3Switch, Protocol)` variant, never on the mandatory `L3Switch`.
+
+**Trigger to act:** A switch test (across more than the routed minority) that
+drives BGP into the mandatory baseline.
+
+**Out of scope right now because:** Forcing a minority-of-segment capability onto
+every L3 switch is exactly the one-vendor-shape risk the cross-vendor bar guards
+against; the optional variant covers the routed deployments meanwhile.
+
+**Design notes (when picked up):** promote `bgp: Bgp` from `L3SwitchRouted` to
+the mandatory `L3Switch` only on test evidence; no model change needed
+(`BgpConfig` / `BgpPeerStatus` / `BgpNeighbor` / `BgpSessionState` already live
+in `models/sdwan_appliance.py`, imported by `bgp.py`).
+
+**Cross-references:** `docs/l3-switch-protocol-design.md`, `bgp.py`,
+`models/sdwan_appliance.py`.
+
+---
+
+## 2026-06-14 — `SwitchStacks` / stack-scoped config [priority: low]
+
+**Signal:** Managed-switch design round: most reviewed families expose physical
+stacking and stack-level state (and stack-level L3 on the distribution set); no
+current test exercises it.
+
+**Trigger to act:** A test asserting stack membership, stack-scoped config, or
+stack-member failover.
+
+**Out of scope right now because:** No consumer, and the surface is
+vendor-divergent — seed on evidence.
+
+**Design notes (when picked up):** a stack-membership read plus stack-scoped
+config accessors; design the shape against the first consumer.
+
+**Cross-references:** `docs/l2-switch-protocol-design.md`,
+`docs/l3-switch-protocol-design.md`.
 
 ---
 

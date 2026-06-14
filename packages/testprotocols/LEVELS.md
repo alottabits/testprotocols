@@ -146,7 +146,17 @@ kernel netfilter behind them.
 
 ## Open candidates (signals received, action deferred)
 
-*None yet.*
+- **`MacTableWhiteBox(MacTable, Protocol)`** — 2026-06-14, managed-switch design
+  round (`docs/l2-switch-protocol-design.md`). Raw FDB dump (the
+  `show mac address-table` / `show ethernet-switching table` equivalent) for
+  ASIC/kernel-level FDB pinning, analogous to the `L2Bridge` `bridge fdb show`
+  WhiteBox note in `GAPS.md`. *Method:* `get_raw_mac_table_dump() -> str`.
+  *Black-box impact:* none — base `MacTable` returns normalized
+  `MacTableEntry(mac, port, vlan)`; the raw dump lives on the WhiteBox only (LSP
+  rule). *Drivers expected to satisfy:* on-box / structured-RPC families (Aruba
+  CX, Juniper, Catalyst, Omada). *Drivers expected NOT to satisfy:* the
+  design-target Meraki MS225 / MS355 (no FDB API). Seed when the base `MacTable`
+  capability is implemented. No L3-only WhiteBox candidate identified yet.
 
 The architecture doc (palco-bdd `palco-architecture.md` v2.0) initially listed
 `FirewallWhiteBox`, `RoutingWhiteBox`, `SipPhoneWhiteBox`, `SipServerWhiteBox`
