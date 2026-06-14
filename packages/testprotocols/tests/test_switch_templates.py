@@ -46,6 +46,7 @@ PROTOCOLS = [
     ("RoutedInterfaces", "testprotocols.routed_interfaces",
      {"list_interfaces", "get_interface", "set_interface"}),
     ("RoutingRead", "testprotocols.routing_read", {"get_routing_table"}),
+    ("Ospf", "testprotocols.ospf", {"set_ospf_config", "get_ospf_config"}),
 ]
 
 
