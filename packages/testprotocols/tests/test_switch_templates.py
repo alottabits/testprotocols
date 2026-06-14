@@ -17,6 +17,8 @@ PROTOCOLS = [
         "testprotocols.switch_ports",
         {"list_ports", "get_port", "set_port"},
     ),
+    ("SwitchVlans", "testprotocols.switch_vlans",
+     {"list_vlans", "create_vlan", "delete_vlan"}),
 ]
 
 
