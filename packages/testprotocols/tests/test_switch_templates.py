@@ -31,6 +31,8 @@ PROTOCOLS = [
     ("FirstHopSecurity", "testprotocols.first_hop_security",
      {"set_dhcp_snooping", "set_dhcp_snooping_trust", "get_dhcp_bindings",
       "set_dai", "set_arp_trust"}),
+    ("StormControl", "testprotocols.storm_control",
+     {"set_config", "get_config"}),
 ]
 
 
