@@ -4,7 +4,7 @@
 | -------- | ------------------------------------------------------------------------------------------------------------- |
 | Status   | Proposed                                                                                                      |
 | Author   | rjvisser                                                                                                       |
-| Date     | 2026-06-14                                                                                                     |
+| Date     | 2026-06-14 (updated 2026-06-14: Arista EOS verification — CCS-720D Series cross-vendor check)                  |
 | Related  | `packages/testprotocols/GAPS.md` (2026-05-02 `L2Bridge` HIGH — to be cross-referenced; new `IgmpSnooping` / `PortMirror` / `MulticastRouting` deferrals), `SPLITS.md` (`Router` RIB carve-out; `ApplianceVlans` SVI/DHCP reuse; unified `SwitchAcl`), `LEVELS.md` (`MacTableWhiteBox` candidate), `devices/switch.py` (new), `models/switch.py` (new), `models/l2_common.py` (new — STP/FDB vocab shared with the future CPE-side `L2Bridge`), `models/switch_routing.py` (new, L3 sibling), `docs/l3-switch-protocol-design.md` (sibling — composes this layer), `docs/sdwan-appliance-protocol-design.md` (precedent), `models/sdwan_appliance.py` (`RuleAction` / `RuleProtocol` / `DhcpMode` reuse), `syslog_config.py`, `static_routes.py`, `router.py`, `bgp.py` |
 
 This document explains why `testprotocols` carries a dedicated **managed
@@ -18,9 +18,11 @@ layer as a strict superset, and cross-references this document rather than
 re-stating the L2 baseline.
 
 The concrete peer/driver target for this archetype is a cloud-managed access
-switch (Cisco Meraki MS225). That product name appears **only** in the
-cross-vendor neutrality matrix below, as the concept check — never in a
-proposed protocol, model, or enum name.
+switch (Cisco Meraki MS225); the proposed shape was additionally verified
+against the Arista CCS-720D Series² (Arista EOS, CloudVision/eAPI-managed) as a
+cross-vendor verification point (see "Cross-vendor neutrality v2"). Those product
+names appear **only** in the cross-vendor neutrality matrix and v2 prose below, as
+the concept check — never in a proposed protocol, model, or enum name.
 
 ## Context and problem statement
 
@@ -356,28 +358,29 @@ target, not a privileged shape.
 
 `✓` full · `◐` partial / divergent · `✗` absent.
 
-| Capability        | Meraki MS225            | Aruba Instant On 1960   | UniFi Pro 48        | Catalyst 9200L        | Juniper EX2300            | TP-Link Omada SG3452P |
-| ----------------- | :---------------------: | :---------------------: | :-----------------: | :-------------------: | :-----------------------: | :-------------------: |
-| `SwitchPorts`     | ✓ (per-port port object) | ✓ (port VLAN membership) | ✓ (port profile)    | ✓ (switchport)        | ✓ (ethernet-switching)    | ✓ (Port Config)       |
-| `SwitchVlans`     | ◐ (implicit + profiles) | ✓ (VLAN Wizard)          | ✓ (Virtual Networks) | ✓ (802.1Q)            | ✓ (`[vlans]`)             | ✓ (802.1Q)            |
-| `SpanningTree`    | ◐ (RSTP only)           | ◐ (MSTP local-web only)  | ◐ (RSTP, no MSTP)   | ✓ (MSTP/RSTP/PVST)    | ✓ (RSTP/MSTP)             | ✓ (STP/RSTP/MSTP)     |
-| `LinkAggregation` | ✓ (LAG object)          | ✓ (LACP/static)          | ✓ (LACP)            | ✓ (EtherChannel)      | ✓ (`ae`/LACP)             | ✓ (LACP/static)       |
-| `PortPoe`         | ✓ (poe-enabled)         | ✓ (PoE priority/sched)   | ✓ (PoE++)           | ✓ (power inline)      | ✓ (`[poe]`)               | ✓ (PoE+ priority)     |
-| `PortSecurity`    | ✓ (access policy/sticky) | ✓ (802.1X/port-sec)      | ✓ (802.1X/MAC)      | ✓ (port-security/dot1x) | ✓ (dot1x/sticky)         | ✓ (port-sec/802.1X)   |
-| `StormControl`    | ✗ (UI-only, no API)     | ✓ (global storm ctrl)    | ✓ (storm + rate-limit) | ✓ (storm-control)   | ✓ (storm-control profiles) | ✓ (storm control)    |
-| `SwitchAcl` (L2)  | ◐ (combined, full-replace) | ✓ (MAC+IP ACL)        | ✓ (MAC ACL/isolation) | ✓ (MAC/port ACL)    | ✓ (eth-switching filter)  | ✓ (MAC ACL)           |
-| `Discovery`       | ✓ (LLDP+CDP)            | ◐ (LLDP only)            | ◐ (LLDP only)       | ✓ (LLDP+CDP)          | ◐ (LLDP only)             | ◐ (LLDP only)         |
-| `MacTable`        | ✗ (no FDB API)          | ✓ (FDB GUI)              | ✓ (controller FDB)  | ✓ (mac addr-table)    | ✓ (eth-switching table)   | ✓ (FDB table)         |
-| `PortStatus`      | ✓ (ports statuses)      | ✓ (GUI/SNMP)             | ✓ (port_table)      | ✓ (show interfaces)   | ✓ (show interfaces RPC)   | ✓ (port stats)        |
-| `SwitchQos`       | ✓ (QoS rules + DSCP/CoS) | ✓ (CoS/DSCP, SP/WRR)    | ◐ (DSCP, limited sched) | ✓ (MQC)            | ✓ (Junos CoS)             | ✓ (8-queue QoS)       |
-| `SyslogConfig`    | ✓ (syslog servers)      | ✓ (remote syslog)        | ◐ (controller-level) | ✓ (logging host)      | ✓ (`[system syslog]`)     | ✓ (syslog)            |
-| *`IgmpSnooping`* (deferred) | ✗ (no API)    | ✓                        | ✓                   | ✓                     | ✓                         | ✓                     |
-| *`PortMirror`* (deferred)   | ◐ (per-port)  | ✓                        | ✓                   | ✓                     | ✓                         | ✓                     |
+| Capability        | Meraki MS225            | Aruba Instant On 1960   | UniFi Pro 48        | Catalyst 9200L        | Juniper EX2300            | TP-Link Omada SG3452P | Arista CCS-720D²        |
+| ----------------- | :---------------------: | :---------------------: | :-----------------: | :-------------------: | :-----------------------: | :-------------------: | :---------------------: |
+| `SwitchPorts`     | ✓ (per-port port object) | ✓ (port VLAN membership) | ✓ (port profile)    | ✓ (switchport)        | ✓ (ethernet-switching)    | ✓ (Port Config)       | ✓ (switchport mode/trunk) |
+| `SwitchVlans`     | ◐ (implicit + profiles) | ✓ (VLAN Wizard)          | ✓ (Virtual Networks) | ✓ (802.1Q)            | ✓ (`[vlans]`)             | ✓ (802.1Q)            | ✓ (vlan/name DB)        |
+| `SpanningTree`    | ◐ (RSTP only)           | ◐ (MSTP local-web only)  | ◐ (RSTP, no MSTP)   | ✓ (MSTP/RSTP/PVST)    | ✓ (RSTP/MSTP)             | ✓ (STP/RSTP/MSTP)     | ✓ (rapid-pvst/mstp/rstp + full guards) |
+| `LinkAggregation` | ✓ (LAG object)          | ✓ (LACP/static)          | ✓ (LACP)            | ✓ (EtherChannel)      | ✓ (`ae`/LACP)             | ✓ (LACP/static)       | ✓ (Port-Channel LACP/static; MLAG layered) |
+| `PortPoe`         | ✓ (poe-enabled)         | ✓ (PoE priority/sched)   | ✓ (PoE++)           | ✓ (power inline)      | ✓ (`[poe]`)               | ✓ (PoE+ priority)     | ✓ (802.3bt + Dynamic PoE priority) |
+| `PortSecurity`    | ✓ (access policy/sticky) | ✓ (802.1X/port-sec)      | ✓ (802.1X/MAC)      | ✓ (port-security/dot1x) | ✓ (dot1x/sticky)         | ✓ (port-sec/802.1X)   | ✓ (port-security max/sticky; 802.1X/MAB; MACsec) |
+| `StormControl`    | ✗ (UI-only, no API)     | ✓ (global storm ctrl)    | ✓ (storm + rate-limit) | ✓ (storm-control)   | ✓ (storm-control profiles) | ✓ (storm control)    | ✓ (per-iface bcast/mcast/unknown-ucast) |
+| `SwitchAcl` (L2)  | ◐ (combined, full-replace) | ✓ (MAC+IP ACL)        | ✓ (MAC ACL/isolation) | ✓ (MAC/port ACL)    | ✓ (eth-switching filter)  | ✓ (MAC ACL)           | ✓ (MAC + IP ACLs, one engine) |
+| `Discovery`       | ✓ (LLDP+CDP)            | ◐ (LLDP only)            | ◐ (LLDP only)       | ✓ (LLDP+CDP)          | ◐ (LLDP only)             | ◐ (LLDP only)         | ◐ (LLDP only, no CDP)   |
+| `MacTable`        | ✗ (no FDB API)          | ✓ (FDB GUI)              | ✓ (controller FDB)  | ✓ (mac addr-table)    | ✓ (eth-switching table)   | ✓ (FDB table)         | ✓ (show mac address-table) |
+| `PortStatus`      | ✓ (ports statuses)      | ✓ (GUI/SNMP)             | ✓ (port_table)      | ✓ (show interfaces)   | ✓ (show interfaces RPC)   | ✓ (port stats)        | ✓ (show interfaces + telemetry) |
+| `SwitchQos`       | ✓ (QoS rules + DSCP/CoS) | ✓ (CoS/DSCP, SP/WRR)    | ◐ (DSCP, limited sched) | ✓ (MQC)            | ✓ (Junos CoS)             | ✓ (8-queue QoS)       | ✓ (CoS/DSCP trust + SP/WRR/DWRR) |
+| `SyslogConfig`    | ✓ (syslog servers)      | ✓ (remote syslog)        | ◐ (controller-level) | ✓ (logging host)      | ✓ (`[system syslog]`)     | ✓ (syslog)            | ✓ (logging host)        |
+| *`IgmpSnooping`* (deferred) | ✗ (no API)    | ✓                        | ✓                   | ✓                     | ✓                         | ✓                     | ✓ (per-VLAN snooping + querier) |
+| *`PortMirror`* (deferred)   | ◐ (per-port)  | ✓                        | ✓                   | ✓                     | ✓                         | ✓                     | ✓ (SPAN/ERSPAN + sFlow/IPFIX divergent path) |
 
 The reviewed set spans cloud-managed (Meraki, Aruba Instant On, UniFi, Omada),
-on-box NETCONF/YANG (Juniper EX2300), and dual-plane (Catalyst 9200L) access
-families — named here only to show the concept is genuinely shared rather than
-borrowed from one product. The vendor terms in parentheses are each product's
+on-box NETCONF/YANG (Juniper EX2300), dual-plane (Catalyst 9200L), and — as an
+additional verification point — full-NOS / CloudVision-managed (Arista
+CCS-720D²) access families — named here only to show the concept is genuinely
+shared rather than borrowed from one product. The vendor terms in parentheses are each product's
 spelling of the same intent; they live only in the per-driver mapping. A
 capability that did not clear the strong-majority concept bar across the
 reviewed families would not have entered the baseline.
@@ -386,6 +389,101 @@ Two rows below the rule are **deferred** (see §"Tracking-file entries"):
 `IgmpSnooping` (concept clears 5–6/6 but the design-target has no API config and
 no test drives it) and `PortMirror` (concept is 6/6 present but straddles the
 traffic-controller / pcap boundary).
+
+² Seventh column added by the v2 review below as an **additional cross-vendor
+verification point**, not a re-count: the `K/6` concept bars stay the primary
+measure against the original six families, and Arista is presented as a
+confirming check. `✓` / `◐` / `✗` carry the same meaning as the other columns;
+per-method divergences are handled via the unsupported-capability convention and
+listed in the v2 subsection.
+
+### Cross-vendor neutrality v2 (2026-06-14 — Arista EOS verification)
+
+A seventh access family — the **Arista CCS-720D Series (campus access switch,
+running full Arista EOS, managed via CloudVision state-streaming telemetry, the
+eAPI JSON-RPC plane, NETCONF/OpenConfig, and CLI)** — was reviewed against the
+proposed protocol set as an additional cross-vendor verification point. The
+original `K/6` concept bars against the first six families remain the primary
+measure; Arista is the confirming column, exactly as the appliance doc kept its
+original counts and footnoted its fifth family. **No protocol, model, or enum was
+invalidated, and no capability's mandatory/optional/deferred status changes on
+this evidence.** What HELD:
+
+- **The full L2 capability set is present and first-class.** Every proposed
+  protocol — `SwitchPorts`, `SwitchVlans`, `SpanningTree`, `LinkAggregation`,
+  `PortPoe`, `PortSecurity`, `StormControl`, `SwitchAcl`, `Discovery`,
+  `MacTable`, `PortStatus`, `SwitchQos`, `SyslogConfig` — maps to a published EOS
+  management-plane surface (CLI/eAPI/NETCONF/OpenConfig). Notably, the three
+  capabilities the design-target (MS225) cannot exercise — `StormControl`,
+  `MacTable`/FDB read, and `SwitchVlans` create/delete — are **all fully present
+  on Arista**, so the verification strengthens the case that those concepts are
+  genuinely switch-native (the MS225 shortfalls stay driver-side
+  unsupported-capability errors, not contract changes). `Discovery` confirms the
+  `LLDP`-only normalization: Arista is **LLDP-only (no CDP)**, so the single
+  `DiscoveryProtocol.LLDP` member fits without addition.
+- **The `SwitchAcl` one-engine decision is confirmed.** EOS uses one ACL engine
+  matching both MAC (src/dst) and IP/L4 fields, bound per-interface/VLAN by
+  direction — exactly the unified-`SwitchAcl` + `AclDirection` shape, reusing
+  `RuleAction` / `RuleProtocol`.
+- **The host-substrate exclusions hold.** EOS is a routed/managed network OS, not
+  a Linux host you model via `conntrack` / `pcap` / `ip_interface` / `nat` /
+  `packet_filter` / `firewall_zones` / `wan_link_admin`; none of the excluded
+  levers is the right shape, and `PortStatus` (not `ip_interface`) is the port
+  read.
+- **Incremental config confirms the contract is not whole-replace-bound.** Unlike
+  a controller-only cloud switch, EOS supports targeted per-object updates and
+  transactional candidate/commit batches natively (eAPI command lists, NETCONF,
+  configuration sessions), so the intent-level per-object protocols translate
+  directly — see the divergence note on whole-config below.
+
+Arista-specific shapes, handled via driver translation / the
+unsupported-capability convention (named here and in the matrix **only**, never
+in a proposed protocol/model/enum name):
+
+- **Multi-chassis LAG.** Beyond plain single-switch LACP/static Port-Channel, the
+  720D can dual-home a downstream device to two peer switches presenting one
+  logical bundle. From the downstream link's perspective this still satisfies a
+  `LinkAggregation` intent (member ports + `AggregationMode{LACP,STATIC}`); the
+  multi-chassis pairing (peer-link + domain) is a distinct topology concept
+  layered on top. A driver maps the member-port + mode LAG intent onto either a
+  plain Port-Channel or the multi-chassis variant per topology. **Decision: do
+  NOT add a multi-chassis `AggregationMode` member** — the existing
+  `{LACP,STATIC}` suffices for the link-level aggregation intent, and the
+  multi-chassis nature is better modeled (if/when a test drives it) as a separate
+  redundancy/topology attribute than as a new mode. Kept as a driver-side topology
+  mapping.
+- **First-hop redundancy with an all-active variant (an L3-layer concern,
+  recorded here for the family).** Alongside VRRPv2/VRRPv3 (active-standby), EOS
+  offers an active-active virtual-ARP scheme where every switch answers the same
+  virtual IP / virtual MAC simultaneously, with no single elected master. This is
+  an `L3Switch` gateway-redundancy concern, not an L2 one — the L2 design proper
+  defines **no** gateway-redundancy vocabulary, so nothing changes here. It is
+  noted for the sibling `L3Switch` doc: a `RedundancyRole` vocabulary, **if/when
+  authored there**, should be able to express an `ACTIVE_ACTIVE` (all-active)
+  role distinct from the VRRP `MASTER`/`BACKUP` roles, because collapsing the
+  all-active scheme into `MASTER`/`BACKUP` loses information. Conservative: add
+  only when a `GatewayRedundancy` vocabulary is authored.
+- **Sampled-flow visibility (deferred-`PortMirror` family).** In addition to
+  SPAN/ERSPAN monitor sessions (and tap aggregation), EOS offers sampled-flow and
+  IPFIX/flow-tracking visibility — a divergent visibility path. A sampled-flow
+  intent maps to the flow mechanism; a full-copy mirror intent maps to a monitor
+  session; the driver picks per the visibility intent. This sits entirely within
+  the already-deferred `PortMirror` boundary (it straddles the
+  traffic-controller / pcap line) — no new contract surface.
+- **Whole-config vs incremental.** EOS is **not** whole-config-replace-only; it
+  supports incremental config (eAPI CLI command lists, NETCONF/OpenConfig) and
+  transactional candidate/commit sessions, plus state-streamed telemetry. The
+  whole-port-object-replace fallback noted on `SwitchPorts` is for
+  list-replace-only products; on EOS a driver can do targeted per-object updates,
+  so the intent-level protocols translate without the fallback.
+
+No normalized vocabulary gains a member on this evidence. The two vocabulary
+candidates raised by the review — an `ACTIVE_ACTIVE` `RedundancyRole` and a
+multi-chassis `AggregationMode` — are both declined for the L2 design: the
+former belongs to a not-yet-authored `L3Switch` `GatewayRedundancy` vocabulary
+(recorded above for that doc), and the latter is rejected outright in favor of a
+driver-side topology mapping. The L2 `AggregationMode{LACP,STATIC}`,
+`DiscoveryProtocol{LLDP}`, `StpMode`, `StpGuard`, and the rest stand unchanged.
 
 ### Data-model neutrality — vocabulary in commons, mappings in the plugin
 

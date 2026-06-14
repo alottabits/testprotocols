@@ -4,7 +4,7 @@
 | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Status   | Proposed                                                                                                                                                                                                                                                                                                                    |
 | Author   | rjvisser                                                                                                                                                                                                                                                                                                                    |
-| Date     | 2026-06-14                                                                                                                                                                                                                                                                                                                  |
+| Date     | 2026-06-14 (updated 2026-06-14: Arista EOS verification — CCS-720XP Series added as a cross-vendor verification column; see *Cross-vendor neutrality v2*)                                                                                                                                                                       |
 | Related  | `docs/l2-switch-protocol-design.md` (the composed L2 capability layer — read it first), `docs/sdwan-appliance-protocol-design.md` (the API-managed-device exclusion precedent), `packages/testprotocols/GAPS.md` (L2Bridge HIGH entry; IgmpSnooping / PortMirror / MulticastRouting deferrals), `packages/testprotocols/SPLITS.md` (Router RIB carve-out; ApplianceVlans SVI/DHCP reuse; unified SwitchAcl), `packages/testprotocols/LEVELS.md` (`MacTableWhiteBox`), `devices/switch.py` and `models/switch.py` (authored in the L2Switch doc; this doc adds to / composes them), `models/switch_routing.py` (proposed/new — authored by this doc) |
 
 This document explains why `testprotocols` carries a dedicated **managed
@@ -113,8 +113,11 @@ expose — and the `K/6` count uses **one convention throughout this doc: `◐`
 `✗` (absent) does not. Capabilities that clear the ≥ 5/6 bar **and** carry a
 driving switch concern are in the mandatory `L3Switch` baseline. Two capabilities
 sit below or beside the bar and are handled like the appliance precedent rather
-than forced into the baseline: `Bgp` (3/6, absent on the design-target) is
-composed only on an optional routed variant; `MulticastRouting` reaches 5/6
+than forced into the baseline: `Bgp` (4/6 under the ◐-counts-as-present
+convention — full on Aruba CX / Juniper / Catalyst, ◐ standalone-only on
+FortiSwitch, absent on the design-target MS355 and UniFi — still short of the
+≥ 5/6 bar) is composed only on an optional routed variant; `MulticastRouting`
+reaches 5/6
 present but is deferred to `GAPS.md` on the **driving-test discriminator** — high
 surface area and no switch test drives it — not on the headcount. `RoutingRead`'s
 dynamic-RIB read is the one mandatory surface that does **not** clear the bar
@@ -165,8 +168,10 @@ register_device_type("managed_switch_l3", L3Switch)
 > `SwitchAcl` (L3 fields)*).
 
 **Optional routed variant.** `Bgp` does **not** clear the L3-switch majority bar
-(3/6) and is absent on the design-target. It is composed only on an optional
-routed-distribution variant, not on the mandatory `L3Switch`:
+(4/6 under the ◐-counts-as-present convention — full on three families, ◐ on
+FortiSwitch, absent on the design-target) and is absent on the design-target. It
+is composed only on an optional routed-distribution variant, not on the mandatory
+`L3Switch`:
 
 ```python
 @runtime_checkable
@@ -261,9 +266,9 @@ clears it for the mandatory baseline:
 So the carve-out is mandatory on the strength of the 6/6 config-view read; only
 the 3/6 dynamic-learned facet is best-effort, and that is stated as a per-method
 caveat rather than a sub-bar capability. (This is the inverse of `Bgp`, where the
-*whole* capability — config and reads alike — is 3/6 and therefore moves to the
-optional variant.) **Cross-vendor:** config-view read 6/6; learned-RIB facet 3/6
-full, 3/6 config-only (per-method unsupported-capability).
+*whole* capability — config and reads alike — is sub-bar at 4/6 and therefore
+moves to the optional variant.) **Cross-vendor:** config-view read 6/6;
+learned-RIB facet 3/6 full, 3/6 config-only (per-method unsupported-capability).
 
 ### `ospf: Ospf` — **5/6 ✓**
 Dynamic IGP that clears the bar: whole-config-replace plus per-interface settings,
@@ -323,12 +328,14 @@ distinguishing it from `MulticastRouting`, which reaches the same 5/6 present bu
 is deferred precisely because it carries **high surface area and no driving
 switch test** (the deferral discriminator, not the headcount).
 
-### `bgp: Bgp` (optional routed variant only) — **3/6 ✓**
+### `bgp: Bgp` (optional routed variant only) — **4/6 ✗**
 The existing `Bgp` protocol (`bgp.py`) and its models (`BgpConfig` /
 `BgpPeerStatus` / `BgpNeighbor` and the RFC-4271 `BgpSessionState` FSM, all in
 `models/sdwan_appliance.py`) are reusable as-is, but BGP **fails the L3-switch
-majority bar** (only Aruba CX, Juniper, and Catalyst run it; absent on the design-target
-MS355 and on UniFi; standalone-only on FortiSwitch). **Decision:** `Bgp` is an
+majority bar** — under the ◐-counts-as-present convention it is 4/6 (full on
+Aruba CX, Juniper, and Catalyst; ◐ standalone-only on FortiSwitch; absent on the
+design-target MS355 and on UniFi), still short of the ≥ 5/6 bar. **Decision:**
+`Bgp` is an
 **optional/conditional** capability composed only on `L3SwitchRouted`, never on
 the mandatory `L3Switch`. Products without BGP raise unsupported-capability per
 the documented convention. This mirrors the appliance's per-method discipline
@@ -360,13 +367,19 @@ plain `@dataclass`es composing these enums.
   it is protocol-standard, not a vendor taxonomy.
 - `RedundancyRole(StrEnum)`: `PRIMARY`, `SPARE` — normalizes warm-spare and
   VRRP master/backup. Raw VRRP/HSRP group internals are **not** modelled;
-  behaviour is asserted via virtual-IP + role.
+  behaviour is asserted via virtual-IP + role. **Candidate `ACTIVE_ACTIVE`**
+  (shared/anycast-gateway) recorded on the 2026-06-14 Arista review (symmetric
+  active/active VARP, which has no "spare"); not seeded now — a driver maps both
+  VARP nodes to `PRIMARY` today, and the member lands only on a test asserting
+  active/active explicitly (open-taxonomy rule). See the v2 subsection.
 - `RouteOrigin(StrEnum)` (new `origin` field on `RouteEntry`): `STATIC`,
   `CONNECTED`, `OSPF`, `BGP`, `LOCAL` — standardized, full seed. Adding it
   **reshapes** the shared `RouteEntry` (`models/wan_edge.py`); the field carries a
   default so the WAN-edge `Router.get_routing_table()` and
   `Bgp.get_learned_routes()` consumers stay source-compatible. Tracked in
-  `SPLITS.md`, not treated as pure reuse.
+  `SPLITS.md`, not treated as pure reuse. **Candidate `ISIS` / `RIP`** recorded on
+  the 2026-06-14 Arista review (its RIB exposes those origins); not seeded now —
+  added on a driving test per the open-taxonomy rule. See the v2 subsection.
 
 **Commons owns the vocabulary; the plugin owns the mappings.** Every value
 vocabulary is a normalized `StrEnum` in `testprotocols`; the testbed plugin ships
@@ -395,32 +408,151 @@ with no normalized field is the signal to add a normalized field on evidence.
 
 Every L3 capability is a concept the reviewed **distribution-switch families —
 Cisco Meraki MS355, Aruba CX 6300, Juniper EX4400, Catalyst 9300, UniFi Pro Max,
-and FortiSwitch 400 — expose through their management plane** (subject to the
-per-method exceptions above). Vendor names appear **only** here, as the concept
-check; they never enter the package source. Endpoint and feature names differ
+FortiSwitch 400, and (since the v2 review below) the Arista CCS-720XP Series² —
+expose through their management plane** (subject to the per-method exceptions
+above). Vendor names appear **only** here, as the concept check; they never
+enter the package source. Endpoint and feature names differ
 across products; the Protocol is intent-level, so the differences live entirely
 in driver translation. `✓` full · `◐` partial/divergent · `✗` absent.
 
-| Capability                       | Meraki MS355      | Aruba CX 6300       | Juniper EX4400        | Catalyst 9300       | UniFi Pro Max      | FortiSwitch 400      |
-| -------------------------------- | :---------------: | :-----------------: | :-------------------: | :-----------------: | :----------------: | :------------------: |
-| RoutedInterfaces (SVI)           | ✓ (RoutingInterface) | ✓ (interface vlan) | ✓ (IRB)               | ✓ (interface Vlan)  | ◐ (gateway-anchored) | ◐ (standalone only)  |
-| StaticRoutes                     | ✓ (RoutingStaticRoute) | ✓ (ip route)    | ✓ (routing-options)   | ✓ (ip route)        | ◐ (GUI-capped)     | ◐ (standalone only)  |
-| RoutingRead (config-view 6/6; learned-RIB facet) | ◐ (config-view; no learned RIB) | ✓ (show ip route) | ✓ (show route RPC) | ✓ (show ip route)   | ◐ (CLI-only learned) | ◐ (standalone only)  |
-| Ospf                             | ✓ (RoutingOspf)   | ✓ (ospf_router)     | ✓ ([protocols ospf])  | ✓ (router ospf)     | ✗ (gateway-only)   | ◐ (standalone only)  |
-| Bgp (optional variant)           | ✗ (MS355 none)    | ✓ (bgp_router)      | ✓ ([protocols bgp])   | ✓ (router bgp)      | ✗ (gateway-only)   | ◐ (standalone only)  |
-| InterfaceDhcp                    | ✓ (Interface DHCP) | ✓ (relay+server)   | ✓ (dhcp-relay/server) | ✓ (ip dhcp/helper)  | ◐ (Local Networks) | ◐ (standalone only)  |
-| SwitchAcl (L3 fields)            | ◐ (single ordered list) | ✓ (acl ip)     | ✓ (firewall filter inet) | ✓ (ip access-list) | ◐ (policy constructs) | ✓ (acl ingress)   |
-| GatewayRedundancy                | ◐ (warm spare/VRRP) | ✓ (VRRP)          | ✓ (VRRP)              | ✓ (HSRP/VRRP/GLBP)  | ✗ (gateway-only)   | ◐ (VRRP standalone)  |
-| *MulticastRouting (deferred)*    | ✓ (PIM-SM + RP)   | ✓ (PIM)             | ✓ (PIM)               | ✓ (PIM)             | ✗                  | ◐ (standalone only)  |
+| Capability                       | Meraki MS355      | Aruba CX 6300       | Juniper EX4400        | Catalyst 9300       | UniFi Pro Max      | FortiSwitch 400      | Arista CCS-720XP² (verification) |
+| -------------------------------- | :---------------: | :-----------------: | :-------------------: | :-----------------: | :----------------: | :------------------: | :------------------------------: |
+| RoutedInterfaces (SVI)           | ✓ (RoutingInterface) | ✓ (interface vlan) | ✓ (IRB)               | ✓ (interface Vlan)  | ◐ (gateway-anchored) | ◐ (standalone only)  | ✓ (interface Vlan / no switchport) |
+| StaticRoutes                     | ✓ (RoutingStaticRoute) | ✓ (ip route)    | ✓ (routing-options)   | ✓ (ip route)        | ◐ (GUI-capped)     | ◐ (standalone only)  | ✓ (ip route, VRF-aware) |
+| RoutingRead (config-view 6/6; learned-RIB facet) | ◐ (config-view; no learned RIB) | ✓ (show ip route) | ✓ (show route RPC) | ✓ (show ip route)   | ◐ (CLI-only learned) | ◐ (standalone only)  | ✓ (show ip route eAPI JSON; full learned RIB) |
+| Ospf                             | ✓ (RoutingOspf)   | ✓ (ospf_router)     | ✓ ([protocols ospf])  | ✓ (router ospf)     | ✗ (gateway-only)   | ◐ (standalone only)  | ✓ (router ospf, OSPFv2/v3) |
+| Bgp (optional variant)           | ✗ (MS355 none)    | ✓ (bgp_router)      | ✓ ([protocols bgp])   | ✓ (router bgp)      | ✗ (gateway-only)   | ◐ (standalone only)  | ✓ (router bgp, MP-BGP) |
+| InterfaceDhcp                    | ✓ (Interface DHCP) | ✓ (relay+server)   | ✓ (dhcp-relay/server) | ✓ (ip dhcp/helper)  | ◐ (Local Networks) | ◐ (standalone only)  | ✓ (ip helper-address / DHCP server) |
+| SwitchAcl (L3 fields)            | ◐ (single ordered list) | ✓ (acl ip)     | ✓ (firewall filter inet) | ✓ (ip access-list) | ◐ (policy constructs) | ✓ (acl ingress)   | ✓ (ip access-list, one unified engine) |
+| GatewayRedundancy                | ◐ (warm spare/VRRP) | ✓ (VRRP)          | ✓ (VRRP)              | ✓ (HSRP/VRRP/GLBP)  | ✗ (gateway-only)   | ◐ (VRRP standalone)  | ✓ (VRRP + Virtual-ARP/VARP) |
+| *MulticastRouting (deferred)*    | ✓ (PIM-SM + RP)   | ✓ (PIM)             | ✓ (PIM)               | ✓ (PIM)             | ✗                  | ◐ (standalone only)  | ✓ (PIM-SM/SSM/BiDiR) |
 
 The full L2-layer matrix (the access-switch capabilities `L3Switch` inherits) is
 in `docs/l2-switch-protocol-design.md` and is not repeated here. The endpoint and
 feature names in parentheses are each vendor's term for the same intent — they
 live only in the per-driver mapping, never in `testprotocols`. A capability that
 did not clear the ≥ 5/6 strong-majority bar (counting ◐ as present) did not enter
-the mandatory baseline — `Bgp` (3/6) → optional variant; `MulticastRouting`
+the mandatory baseline — `Bgp` (4/6) → optional variant; `MulticastRouting`
 (5/6 present, but high surface area and no driving test) → deferred on the
 driving-test discriminator.
+
+² Seventh column added by the v2 review below as an additional cross-vendor
+verification point. The original six-family review set and its `K/6` counts
+remain the primary bar; Arista is presented as a verification column (the same
+way the SD-WAN appliance doc kept its original counts and footnoted its fifth
+family). `✓` / `◐` / `✗` carry the same meaning as the primary columns.
+
+### Cross-vendor neutrality v2 (2026-06-14 — Arista EOS verification)
+
+A seventh distribution-switch family — the **Arista CCS-720XP Series** (campus
+PoE switch running the full **Arista EOS** image, managed interchangeably
+through **CloudVision** state-streaming, **eAPI** JSON-RPC, **NETCONF/OpenConfig**,
+and the EOS CLI) — was reviewed against the proposed L3 protocol set as an
+additional cross-vendor verification point. All CCS-720XP variants run the same
+full EOS feature set, so the surface reviewed is EOS itself, not a stripped
+campus subset. No protocol, model, or enum was invalidated; the proposed shape
+**held in full**, and on several axes Arista is a stronger confirmation than the
+design-target.
+
+**What held.** Every mandatory L3 capability is present and first-class on EOS
+across all four management planes: `RoutedInterfaces` (SVIs via `interface Vlan`,
+routed ports via `no switchport`, loopbacks, VRF-aware), `StaticRoutes`
+(per-entry `ip route`, VRF-aware), `Ospf` (OSPFv2 **and** OSPFv3),
+`InterfaceDhcp` (relay incl. Smart Relay **and** server mode per L3 interface),
+`SwitchAcl`, and `GatewayRedundancy`. Two design decisions are confirmed
+especially cleanly:
+
+- **The unified-ACL decision is confirmed exactly.** EOS exposes a *single*
+  ACL engine (ingress/egress, L2/L3/L4 fields, MAC ACLs, IPv4/IPv6, with
+  logging/counters and atomic hitless restart) rather than separate L2 and L3
+  ACL surfaces — matching the proposed one-`SwitchAcl`-engine decision rather
+  than two protocols.
+- **The `RoutingRead` dynamic-learned facet is fully supported here.** EOS
+  returns the learned RIB with route origin (connected/static/OSPF/BGP, and
+  also IS-IS/RIP) via `show ip route` over eAPI JSON, NETCONF, and CloudVision.
+  This does **not** change the primary `RoutingRead` count — the dynamic-learned
+  facet stays **3/6** on the original review set and remains a per-method
+  best-effort read on the families that lack it. Arista is simply a fourth
+  family that *does* expose it; with Arista counted the facet would be 4/7, but
+  the 3/6 best-effort framing is kept as the primary bar.
+- **`Bgp` is fully supported here, but the optional-variant decision stands.**
+  EOS runs BGP and MP-BGP (also IS-IS, RIPv2) — unlike the design-target MS355,
+  which has none. This does **not** promote `Bgp` into the mandatory baseline:
+  the primary count stays **4/6** under the ◐-counts-as-present convention (full
+  on Aruba CX / Juniper / Catalyst, ◐ standalone-only on FortiSwitch, absent on
+  MS355 and UniFi), and Arista becomes a fifth present BGP family (5/7) — still
+  short of the ≥ 5/6 primary bar, so it reinforces the *optional* `L3SwitchRouted`
+  placement rather than changing BGP's mandatory/optional status. No primary K/6
+  count is revised by the Arista review.
+
+**Arista-specific shapes, handled via driver translation / the
+unsupported-capability convention** (named here and in the matrix only, never in
+a proposed protocol/model/enum name):
+
+- **Multi-chassis link aggregation (MLAG).** EOS offers MLAG (up to 128 ports)
+  as its active/active distribution-uplink shape, but the datasheet states it
+  *"Uses IEEE 802.3ad LACP."* MLAG therefore satisfies a LACP-LAG intent and
+  normalizes onto the existing `AggregationMode.LACP` (an L2-layer vocabulary);
+  the multi-chassis property is a **topology attribute**, not a distinct
+  aggregation mode. A driver maps a LAG intent to either a single-chassis
+  port-channel or an MLAG. **No new `AggregationMode` member is justified** by
+  this evidence — confirmation, not a revision. (If a test ever needs to assert
+  multi-chassis specifically, that is a separate boolean/attribute, not an
+  `AggregationMode` member.)
+- **Virtual-ARP (VARP) alongside VRRPv2/v3.** EOS offers both VRRP and VARP for
+  first-hop redundancy, with VARP preferred under MLAG because it avoids
+  peer-link traversal. Both map onto the normalized `GatewayRedundancy` concept
+  (virtual IP + role): VRRP has explicit master/backup → `RedundancyRole`;
+  VARP is **symmetric active/active** (both nodes share the virtual IP/MAC, with
+  no "spare"). VARP is not cleanly captured by `RedundancyRole{PRIMARY,SPARE}`
+  — see the vocabulary note below. A driver can normalize VARP to both nodes
+  presenting `PRIMARY` rather than forcing a primary/spare split, so the
+  capability still holds without a contract change.
+- **sFlow / IPFIX traffic visibility.** EOS offers RFC 3176 sFlow and
+  IPFIX/FlowTracker (statistical/flow export) in addition to SPAN/mirror
+  sessions (16 configured, 4 active, with L2/3/4 filtering and Enhanced Remote
+  mirroring). sFlow is a flow-sampling visibility intent distinct from a
+  `PortMirror`/capture-session intent; both sit on the **deferred** `PortMirror`
+  / multicast-adjacent surface area (the L2-layer `PortMirror` deferral), so no
+  proposed protocol is affected — recorded here as the mechanism a driver would
+  select between when that capability is seeded.
+- **Whole-config / multi-plane management model.** eAPI and the CLI apply config
+  as ordered EOS CLI commands (running-config replace/merge per command), while
+  NETCONF/OpenConfig supports incremental `edit-config` with lock/candidate
+  semantics, and CloudVision provides config plus state-streaming telemetry. A
+  driver chooses incremental (NETCONF) vs command-list (eAPI) per operation;
+  the intent-level protocols are agnostic to this, so the whole-config shape is
+  absorbed entirely in driver translation.
+
+**No capability's mandatory/optional/deferred status changed.** The Arista
+evidence is uniformly confirming: it does not force any capability out of the
+baseline, into the baseline, or out of deferral. It strengthens (does not
+revise) the `RoutingRead` dynamic-learned facet and the `Bgp` optional-variant
+placement. (Separately, this review pass corrected the `Bgp` primary count from a
+mis-stated 3/6 to **4/6** so the ◐-counts-as-present convention is applied to BGP
+the same way it is to OSPF and GatewayRedundancy — FortiSwitch's standalone-only
+◐ counts as present throughout. The correction does not move BGP past the ≥ 5/6
+bar, so its optional placement is unchanged.) The `RoutingRead` dynamic-learned
+facet keeps its **3/6** primary count, which is genuinely sub-bar (Meraki, UniFi,
+and FortiSwitch are config-only ◐ on the learned-RIB facet, so even counting ◐ as
+present it does not reach 5/6).
+
+**Vocabulary candidates recorded on this evidence** (candidates, not mandatory —
+each grows on a driving test per the open-taxonomy rule):
+
+- **`RedundancyRole` — candidate `ACTIVE_ACTIVE`.** VARP's symmetric
+  active/active (both nodes share the virtual IP, neither is a "spare") is not
+  cleanly captured by `RedundancyRole{PRIMARY,SPARE}`. An `ACTIVE_ACTIVE` (or
+  shared/anycast-gateway) member would let a VARP/active-active gateway avoid a
+  primary/spare framing it does not have. Marked a **candidate**: the driver can
+  also map both VARP nodes to `PRIMARY`, so `GatewayRedundancy` holds today
+  without it; the member lands only if a test needs to assert active/active
+  explicitly. Reflected in the *Normalized vocabulary* section below.
+- **`RouteOrigin` — candidate `ISIS`, `RIP`.** Arista's RIB exposes IS-IS and
+  RIP origins in addition to the seeded `STATIC`/`CONNECTED`/`OSPF`/`BGP`/`LOCAL`
+  set. If those route sources must be represented, `ISIS` and `RIP` members are
+  justified (open taxonomy, add on a driving test). Reflected in the
+  *Normalized vocabulary* section below.
 
 ## Excluded host-substrate levers (explicit)
 
@@ -454,9 +586,11 @@ in `LEVELS.md`); one would be added on signal.
   `RouteEntry` and the multicast vocab when seeded. Trigger: a switch scenario
   asserting routed multicast distribution.
 - **`Bgp` on `L3Switch` [LOW/note]** — `bgp.py` is reused as-is, but BGP fails
-  the L3-switch majority bar (3/6, absent on the design-target). Recorded as
-  composed only on the optional `L3SwitchRouted` variant; revisit if a switch
-  test drives it into the mandatory baseline.
+  the L3-switch majority bar (4/6 under the ◐-counts-as-present convention —
+  full on three families, ◐ standalone-only on FortiSwitch, absent on the
+  design-target — short of the ≥ 5/6 bar). Recorded as composed only on the
+  optional `L3SwitchRouted` variant; revisit if a switch test drives it into the
+  mandatory baseline.
 - **`SwitchStacks` / stack-scoped routing [LOW]** — physical stacking and
   stack-level L3 are exposed by Meraki/Aruba/UniFi/Catalyst; no current test.
   Defer.
