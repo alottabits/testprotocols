@@ -58,3 +58,42 @@ def test_switch_enums_values() -> None:
     assert BindingSource.STATIC == "static"
     with pytest.raises(ValueError):
         DiscoveryProtocol("cdp")  # CDP normalizes onto LLDP; not a member
+
+
+def test_switch_records() -> None:
+    from testprotocols.models.sdwan_appliance import RuleAction
+    from testprotocols.models.switch import (
+        AccessPolicy,
+        AccessPolicyType,
+        FhsBinding,
+        LinkState,
+        LldpNeighbor,
+        NtpServer,
+        PoePortStatus,
+        PoeStatus,
+        PortStatusEntry,
+        QosRule,
+        StormControlConfig,
+        StormControlType,
+        StpPortConfig,
+        SwitchAclRule,
+        SwitchPort,
+        VlanDef,
+        LinkAggregationGroup,
+    )
+
+    p = SwitchPort(name="1", mode="access")  # type: ignore[arg-type]
+    assert p.enabled is True and p.allowed_vlans == [] and p.isolated is False
+    assert VlanDef(vlan_id=10).name == ""
+    assert StpPortConfig(port="1").guard == "none"
+    assert LinkAggregationGroup(name="po1", member_ports=["1", "2"]).mode == "lacp"
+    assert PoePortStatus(port="1", status=PoeStatus.DELIVERING).draw_watts is None
+    assert AccessPolicy(port="1", policy_type=AccessPolicyType.DOT1X).max_macs is None
+    assert StormControlConfig(port="1").thresholds == {}
+    r = SwitchAclRule(action=RuleAction.DENY, vlan=10)
+    assert r.src_mac is None and r.dst_cidr == "any"
+    assert LldpNeighbor(local_port="1", remote_system="sw2", remote_port="5").protocol == "lldp"
+    assert PortStatusEntry(name="1", link_state=LinkState.UP).duplex == "auto"
+    assert QosRule(name="voip", match="vlan 10").dscp is None
+    assert FhsBinding(mac="aa", ip="10.0.0.1", vlan=10, port="1").source == "dynamic_snooping"
+    assert NtpServer(host="10.0.0.1").prefer is False
