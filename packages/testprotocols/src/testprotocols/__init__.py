@@ -46,8 +46,8 @@ from testprotocols.first_hop_security import FirstHopSecurity
 from testprotocols.gateway_redundancy import GatewayRedundancy
 from testprotocols.http_client import HttpClient
 from testprotocols.http_server import HttpServer
-from testprotocols.interface_dhcp import InterfaceDhcp
 from testprotocols.hw_console import HwConsole
+from testprotocols.interface_dhcp import InterfaceDhcp
 from testprotocols.ip_interface import IpInterface
 from testprotocols.ip_routing import IpRouting
 from testprotocols.iperf_client import IperfClient
@@ -60,10 +60,10 @@ from testprotocols.mac_table import MacTable
 from testprotocols.multicast_client import MulticastClient
 from testprotocols.nat import Nat
 from testprotocols.netem_controller import NetemController
-from testprotocols.ospf import Ospf
 from testprotocols.nmap_scanner import NmapScanner
 from testprotocols.ntp_client import NtpClient
 from testprotocols.ntp_config import NtpConfig
+from testprotocols.ospf import Ospf
 from testprotocols.packet_filter import PacketFilter, PacketFilterWhiteBox
 from testprotocols.pcap_capture import PcapCapture
 from testprotocols.pdu_controller import PduController
