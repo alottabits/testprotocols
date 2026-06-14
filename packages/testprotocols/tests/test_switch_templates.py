@@ -41,6 +41,8 @@ PROTOCOLS = [
      {"list_port_status", "get_port_status"}),
     ("SwitchQos", "testprotocols.switch_qos",
      {"set_trust_mode", "set_dscp_cos_map", "set_rules", "get_rules"}),
+    ("NtpConfig", "testprotocols.ntp_config",
+     {"set_ntp_servers", "get_ntp_servers"}),
 ]
 
 
