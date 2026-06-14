@@ -534,3 +534,28 @@ def test_l2_switch_aggregates_expected_capabilities() -> None:
         "packet_filter", "firewall_zones", "wan_admin",
     ):
         assert host_lever not in actual, f"{host_lever} must not be on L2Switch"
+
+
+def test_l3_switch_excludes_host_substrate_levers() -> None:
+    """L3Switch must not carry any host-substrate levers.
+
+    Routed-interface config is switch-native (``routed_interfaces``), not the
+    Linux-host-shaped ``ip_interface``; firewall / NAT / conntrack belong on the
+    CPE/router archetypes; wan_admin is a Linux-only forced link-down lever.
+    """
+    actual = set(L3Switch.__protocol_attrs__)
+    for host_lever in (
+        "conntrack", "pcap", "ip_interface", "nat",
+        "packet_filter", "firewall_zones", "wan_admin",
+    ):
+        assert host_lever not in actual, f"{host_lever} must not be on L3Switch"
+
+
+def test_l3_switch_routed_excludes_host_substrate_levers() -> None:
+    """L3SwitchRouted (the BGP-capable variant) likewise excludes host-substrate levers."""
+    actual = set(L3SwitchRouted.__protocol_attrs__)
+    for host_lever in (
+        "conntrack", "pcap", "ip_interface", "nat",
+        "packet_filter", "firewall_zones", "wan_admin",
+    ):
+        assert host_lever not in actual, f"{host_lever} must not be on L3SwitchRouted"

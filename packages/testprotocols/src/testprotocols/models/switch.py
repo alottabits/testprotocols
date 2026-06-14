@@ -17,11 +17,16 @@ from testprotocols.models.sdwan_appliance import RuleAction, RuleProtocol
 
 
 class PortMode(StrEnum):
-    """Switchport framing mode; ``ROUTED`` is valid only on the L3Switch superset, access/trunk are universal."""
+    """Switchport framing mode.
+
+    ``ACCESS`` and ``TRUNK`` are universal — all managed-switch drivers must support them.
+    ``ROUTED`` models a routed / "no-switchport" physical port and is only meaningful on
+    an L3 switch; an L2-only driver raises unsupported-capability if asked to set it.
+    """
 
     ACCESS = "access"
     TRUNK = "trunk"
-    ROUTED = "routed"  # used only at L3 (L3Switch); access/trunk are universal
+    ROUTED = "routed"  # routed / no-switchport port; L3Switch only
 
 
 class PortAdminState(StrEnum):
@@ -270,7 +275,12 @@ class QosRule:
 
 @dataclass
 class FhsBinding:
-    """A first-hop-security binding-table entry (DHCP snooping / DAI)."""
+    """A first-hop-security binding-table entry (DHCP snooping / DAI).
+
+    Note: a driver returning static bindings MUST set ``source=BindingSource.STATIC``
+    explicitly — static entries are immune to ageing and differ operationally from
+    snooped ones, so do not rely on the default for static tables.
+    """
 
     mac: str
     ip: str

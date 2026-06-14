@@ -439,10 +439,11 @@ file), `models/multicast.py`.
 ## 2026-06-14 — `Bgp` on the mandatory `L3Switch` [priority: low / note]
 
 **Signal:** L3-switch design round: the existing `Bgp` protocol (`bgp.py`) is
-reusable as-is, but BGP **fails the L3-switch majority bar** (3/6 — Aruba CX /
-Juniper / Catalyst only; absent on the design-target MS355 and on UniFi;
-standalone-only on FortiSwitch). It is therefore composed only on the optional
-`L3SwitchRouted(L3Switch, Protocol)` variant, never on the mandatory `L3Switch`.
+reusable as-is, but BGP **fails the L3-switch majority bar** (4/6 under the
+◐-counts-as-present convention — Aruba CX / Juniper / Catalyst full, FortiSwitch
+◐ standalone-only, absent on the design-target MS355 and on UniFi). It is
+therefore composed only on the optional `L3SwitchRouted(L3Switch, Protocol)`
+variant, never on the mandatory `L3Switch`.
 
 **Trigger to act:** A switch test (across more than the routed minority) that
 drives BGP into the mandatory baseline.
