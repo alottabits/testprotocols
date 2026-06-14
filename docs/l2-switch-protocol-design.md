@@ -4,14 +4,15 @@
 | -------- | ------------------------------------------------------------------------------------------------------------- |
 | Status   | Proposed                                                                                                      |
 | Author   | rjvisser                                                                                                       |
-| Date     | 2026-06-14 (updated 2026-06-14: Arista EOS verification — CCS-720D Series cross-vendor check)                  |
-| Related  | `packages/testprotocols/GAPS.md` (2026-05-02 `L2Bridge` HIGH — to be cross-referenced; new `IgmpSnooping` / `PortMirror` / `MulticastRouting` deferrals), `SPLITS.md` (`Router` RIB carve-out; `ApplianceVlans` SVI/DHCP reuse; unified `SwitchAcl`), `LEVELS.md` (`MacTableWhiteBox` candidate), `devices/switch.py` (new), `models/switch.py` (new), `models/l2_common.py` (new — STP/FDB vocab shared with the future CPE-side `L2Bridge`), `models/switch_routing.py` (new, L3 sibling), `docs/l3-switch-protocol-design.md` (sibling — composes this layer), `docs/sdwan-appliance-protocol-design.md` (precedent), `models/sdwan_appliance.py` (`RuleAction` / `RuleProtocol` / `DhcpMode` reuse), `syslog_config.py`, `static_routes.py`, `router.py`, `bgp.py` |
+| Date     | 2026-06-14 (updated 2026-06-14: Arista EOS verification — CCS-720D Series cross-vendor check; AAA/RADIUS + FirstHopSecurity (concept-check 6/6) added; Arista CDP cell corrected)                  |
+| Related  | `packages/testprotocols/GAPS.md` (2026-05-02 `L2Bridge` HIGH — to be cross-referenced; new `IgmpSnooping` / `PortMirror` / `MulticastRouting` deferrals), `SPLITS.md` (`Router` RIB carve-out; `ApplianceVlans` SVI/DHCP reuse; unified `SwitchAcl`), `LEVELS.md` (`MacTableWhiteBox` candidate), `devices/switch.py` (new), `models/switch.py` (new), `models/l2_common.py` (new — STP/FDB vocab shared with the future CPE-side `L2Bridge`), `models/switch_routing.py` (new, L3 sibling), `docs/l3-switch-protocol-design.md` (sibling — composes this layer), `docs/sdwan-appliance-protocol-design.md` (precedent), `models/sdwan_appliance.py` (`RuleAction` / `RuleProtocol` / `DhcpMode` reuse), `syslog_config.py`, `radius_client.py` (+ `models/radius.py` — 802.1X/MAB RADIUS backend reuse), `static_routes.py`, `router.py`, `bgp.py` |
 
 This document explains why `testprotocols` carries a dedicated **managed
 access switch** archetype — `L2Switch` — and records the shape proposed for it.
 It defines the **shared L2 capability layer in full**: VLANs, switchports, STP,
-link aggregation, PoE, port-security, storm-control, L2 ACL, discovery, MAC
-table, port status, QoS, and syslog. It deliberately does **not** carry any L3
+link aggregation, PoE, port-security, AAA (RADIUS), first-hop security (DHCP
+snooping + DAI), storm-control, L2 ACL, discovery, MAC table, port status, QoS,
+and syslog. It deliberately does **not** carry any L3
 layer; the routed-distribution archetype (`L3Switch`,
 `docs/l3-switch-protocol-design.md`) composes everything here **plus** an L3
 layer as a strict superset, and cross-references this document rather than
@@ -56,8 +57,9 @@ The first-class object of a managed switch is the **switchport**
 (access/trunk/PVID/allowed-VLANs/voice-VLAN/PoE/isolation) — and *nothing* in
 the contract models one (`vlan_client` is host-NIC-shaped). Spanning-tree,
 link aggregation, PoE, port-security, storm-control, per-port/VLAN L2 ACLs,
-LLDP neighbour discovery, the MAC forwarding table, per-port link/counter
-status, and switch QoS all sit on every reviewed access switch and have no home.
+first-hop security (DHCP snooping / Dynamic ARP Inspection), LLDP neighbour
+discovery, the MAC forwarding table, per-port link/counter status, and switch
+QoS all sit on every reviewed access switch and have no home.
 
 **The `L2Bridge` temptation — and why it is the wrong home.** `GAPS.md` carries
 a deferred `L2Bridge` entry (2026-05-02, HIGH). It is explicitly
@@ -125,6 +127,8 @@ class L2Switch(BaseDeviceProtocol, Protocol):
     link_aggregation: LinkAggregation    # new — LAG group CRUD by member ports + mode
     port_poe: PortPoe                    # new — per-port enable + draw/status read
     port_security: PortSecurity          # new — per-port access policy + MAC allow/sticky limits
+    radius: RadiusClient                 # reuse-as-is — RADIUS server registry (802.1X/MAB backend), referenced by name
+    first_hop_security: FirstHopSecurity # new — DHCP snooping + Dynamic ARP Inspection (rogue-DHCP / ARP-spoof prevention)
     storm_control: StormControl          # new — per-port broadcast/multicast/unknown-unicast thresholds
     switch_acl: SwitchAcl                # new (reuses RuleAction/RuleProtocol enums) — new L2 match + port/VLAN/direction binding
     discovery: Discovery                 # new (read-only) — LLDP neighbour read per port
@@ -147,8 +151,8 @@ archetype): `conntrack` (+ `*WhiteBox`), `pcap` (`PcapCapture`), `ip_interface`
 
 ## Reuse notes — capabilities taken from existing protocols
 
-One capability reuses an existing `testprotocols` shape as-is (`syslog`); a
-second (`switch_acl`) is **net-new** but reuses existing **enums**:
+Two capabilities reuse an existing `testprotocols` shape as-is (`syslog`,
+`radius`); a third (`switch_acl`) is **net-new** but reuses existing **enums**:
 
 - **`switch_acl: SwitchAcl` — NEW capability, reuses the rule enums.** The
   reviewed switches use **one ACL engine** matching L2 (src/dst MAC, VLAN) and
@@ -178,6 +182,18 @@ second (`switch_acl`) is **net-new** but reuses existing **enums**:
   list (`SyslogServer` host/port/normalized roles). It satisfies the switch's
   log-export concern directly with no change; `syslog_config.py` is shared
   unchanged with the appliance archetype.
+
+- **`radius: RadiusClient` — REUSE-AS-IS.** The existing `radius_client.py`
+  capability — *"a device that authenticates upstream to one or more RADIUS
+  servers … a wired switch doing port-based authentication"* (its own docstring)
+  — is the RADIUS-server registry that `port_security`'s 802.1X / MAB policy
+  depends on. Without it the archetype would compose 802.1X port-security with
+  nowhere to point its authenticator. Servers are held by logical **name**; the
+  access policy references them by name (the `WifiBss` precedent), and
+  address/port/secret resolution stays driver-side. Models reuse
+  `models/radius.py` (`RadiusServerConfig`) — no new model. **Cross-vendor: every
+  reviewed access family exposes RADIUS-server configuration through its
+  management plane (6/6).**
 
 - **The strict-superset spine** — the L3 reuse map (`RoutedInterfaces` reshaping
   `ApplianceVlans`' SVI/DHCP fields, `static_routes` / `bgp` reuse-as-is, the
@@ -234,9 +250,34 @@ unsupported-capability there while enable + draw/status read remain universal.
 
 ### `port_security: PortSecurity` — NEW (6/6)
 Per-port access-policy reference plus MAC allow / sticky / limit controls
-(802.1X / MAB everywhere, MAC-limit / sticky everywhere). Reuses no existing
-protocol — `firewall_zones` / `packet_filter` are gateway/host-shaped. **Concept
-check 6/6.**
+(802.1X / MAB everywhere, MAC-limit / sticky everywhere). Its `firewall_zones` /
+`packet_filter` cousins are gateway/host-shaped and are not reused; the RADIUS
+backend the 802.1X / MAB policy points at is the composed `radius: RadiusClient`
+registry (servers referenced **by name**, the `WifiBss` precedent — see §Reuse
+notes), not server addresses inlined here. **Concept check 6/6.**
+
+### `first_hop_security: FirstHopSecurity` — NEW (6/6 present)
+Switch-native L2 first-hop security — **DHCP snooping** (block rogue DHCP
+servers) and **Dynamic ARP Inspection** (block ARP spoofing) — the two controls
+that keep an access edge honest. Distinct from `port_security` (802.1X / MAC
+limits) and `switch_acl` (port/VLAN ACLs). Intent-level methods: DHCP-snooping
+enable per scope (`FhsScope{GLOBAL,PER_VLAN}`), per-port trust
+(`FhsTrustState{TRUSTED,UNTRUSTED}`), an optional rate-limit, and a binding-table
+read; DAI enable per scope, per-port ARP trust, an optional rate-limit, and a
+`BindingSource{DYNAMIC_SNOOPING,STATIC}` selector. Rogue-DHCP control is modeled
+as the DHCP-snooping *intent* so divergent vendor shapes normalize onto one
+surface — Meraki DHCP Guard / RA Guard (server allow/block), UniFi DHCP Guarding,
+IOS / Junos / EOS port-trust snooping, and Aruba / Omada IMPB all map in.
+**Concept check 6/6 present** (DHCP snooping 6/6; DAI 5/6 — UniFi has no DAI),
+established by a dedicated cross-vendor concept-check (2026-06-14). The
+design-target (MS225) exposes both via Dashboard **and** Dashboard API (DAI
+switch-wide + per-port trusted; rogue-DHCP via DHCP Server Policy), so this is a
+**baseline** capability, not a deferral. Granularity gaps are driver-side
+unsupported-capability errors: MS225 has no per-port snooping trust / rate-limit
+/ binding-table read and DAI is switch-wide (not per-VLAN); UniFi raises it
+across the whole DAI surface. **IP Source Guard** (5/6 hardware, absent/uncertain
+on the cloud targets) is **not** in the baseline shape — a deferred optional
+extension (see §"Tracking-file entries").
 
 ### `storm_control: StormControl` — NEW (5/6 platform-capable)
 Per-port enable plus broadcast / multicast / unknown-unicast suppression
@@ -337,11 +378,22 @@ above which lives in `models/l2_common.py`):**
   in the plugin mapping and the cross-vendor matrix, never in the contract.
 - `StormControlType(StrEnum)`: `BROADCAST`, `MULTICAST`, `UNKNOWN_UNICAST`.
 - `QosTrustMode(StrEnum)`: `DSCP`, `COS`, `UNTRUSTED`.
+- `FhsTrustState(StrEnum)`: `TRUSTED`, `UNTRUSTED` — per-port DHCP-snooping / ARP
+  trust (first-hop security).
+- `FhsScope(StrEnum)`: `GLOBAL`, `PER_VLAN` — a driver that only supports a
+  switch-wide toggle (e.g. MS225 DAI) maps `PER_VLAN` → `GLOBAL` or raises
+  unsupported-capability.
+- `BindingSource(StrEnum)`: `DYNAMIC_SNOOPING`, `STATIC` — what DAI validates
+  against; some platforms (e.g. EOS on certain hardware) validate against static
+  bindings rather than a dynamically-snooped table.
 
 **Unsupported-capability exceptions surfaced by the cross-vendor data
 (driver-side, not contract leaks):** the design-target (MS225) raises
 unsupported-capability for `StormControl` config (UI-only), `MacTable` / FDB read
-(no endpoint), and `SwitchVlans` create/delete (VLANs implicit). Families without a per-port PoE-priority
+(no endpoint), and `SwitchVlans` create/delete (VLANs implicit); for `FirstHopSecurity` it raises
+on per-port DHCP-snooping trust / rate-limit / binding-table read (rogue-DHCP is
+MAC allow/block) and DAI is switch-wide, not per-VLAN — and UniFi raises it across
+the whole DAI surface. Families without a per-port PoE-priority
 knob raise it on `PoePriority`. Families with no public/automatable API at all
 (noted in the matrix) are recorded as effectively unsupported for programmatic
 config — recorded, **not** modeled away.
@@ -366,9 +418,11 @@ target, not a privileged shape.
 | `LinkAggregation` | ✓ (LAG object)          | ✓ (LACP/static)          | ✓ (LACP)            | ✓ (EtherChannel)      | ✓ (`ae`/LACP)             | ✓ (LACP/static)       | ✓ (Port-Channel LACP/static; MLAG layered) |
 | `PortPoe`         | ✓ (poe-enabled)         | ✓ (PoE priority/sched)   | ✓ (PoE++)           | ✓ (power inline)      | ✓ (`[poe]`)               | ✓ (PoE+ priority)     | ✓ (802.3bt + Dynamic PoE priority) |
 | `PortSecurity`    | ✓ (access policy/sticky) | ✓ (802.1X/port-sec)      | ✓ (802.1X/MAC)      | ✓ (port-security/dot1x) | ✓ (dot1x/sticky)         | ✓ (port-sec/802.1X)   | ✓ (port-security max/sticky; 802.1X/MAB; MACsec) |
+| `RadiusClient` (AAA) | ✓ (access-policy RADIUS) | ✓ (RADIUS servers)   | ✓ (RADIUS profiles) | ✓ (radius-server host) | ✓ (access radius)        | ✓ (RADIUS profile)    | ✓ (radius-server / aaa group) |
+| `FirstHopSecurity` | ✓ (DHCP Guard/RA Guard + DAI) | ✓ (snoop + ARP-protect + IPSG) | ◐ (DHCP Guarding; no DAI) | ✓ (snoop + DAI + IPSG) | ✓ (dhcp-security tree) | ✓ (IMPB + snoop + ARP-insp) | ◐ (snoop full; DAI static-binding) |
 | `StormControl`    | ✗ (UI-only, no API)     | ✓ (global storm ctrl)    | ✓ (storm + rate-limit) | ✓ (storm-control)   | ✓ (storm-control profiles) | ✓ (storm control)    | ✓ (per-iface bcast/mcast/unknown-ucast) |
 | `SwitchAcl` (L2)  | ◐ (combined, full-replace) | ✓ (MAC+IP ACL)        | ✓ (MAC ACL/isolation) | ✓ (MAC/port ACL)    | ✓ (eth-switching filter)  | ✓ (MAC ACL)           | ✓ (MAC + IP ACLs, one engine) |
-| `Discovery`       | ✓ (LLDP+CDP)            | ◐ (LLDP only)            | ◐ (LLDP only)       | ✓ (LLDP+CDP)          | ◐ (LLDP only)             | ◐ (LLDP only)         | ◐ (LLDP only, no CDP)   |
+| `Discovery`       | ✓ (LLDP+CDP)            | ◐ (LLDP only)            | ◐ (LLDP only)       | ✓ (LLDP+CDP)          | ◐ (LLDP only)             | ◐ (LLDP only)         | ✓ (LLDP+CDP)            |
 | `MacTable`        | ✗ (no FDB API)          | ✓ (FDB GUI)              | ✓ (controller FDB)  | ✓ (mac addr-table)    | ✓ (eth-switching table)   | ✓ (FDB table)         | ✓ (show mac address-table) |
 | `PortStatus`      | ✓ (ports statuses)      | ✓ (GUI/SNMP)             | ✓ (port_table)      | ✓ (show interfaces)   | ✓ (show interfaces RPC)   | ✓ (port stats)        | ✓ (show interfaces + telemetry) |
 | `SwitchQos`       | ✓ (QoS rules + DSCP/CoS) | ✓ (CoS/DSCP, SP/WRR)    | ◐ (DSCP, limited sched) | ✓ (MQC)            | ✓ (Junos CoS)             | ✓ (8-queue QoS)       | ✓ (CoS/DSCP trust + SP/WRR/DWRR) |
@@ -411,16 +465,17 @@ this evidence.** What HELD:
 
 - **The full L2 capability set is present and first-class.** Every proposed
   protocol — `SwitchPorts`, `SwitchVlans`, `SpanningTree`, `LinkAggregation`,
-  `PortPoe`, `PortSecurity`, `StormControl`, `SwitchAcl`, `Discovery`,
+  `PortPoe`, `PortSecurity`, `RadiusClient`, `StormControl`, `SwitchAcl`, `Discovery`,
   `MacTable`, `PortStatus`, `SwitchQos`, `SyslogConfig` — maps to a published EOS
   management-plane surface (CLI/eAPI/NETCONF/OpenConfig). Notably, the three
   capabilities the design-target (MS225) cannot exercise — `StormControl`,
   `MacTable`/FDB read, and `SwitchVlans` create/delete — are **all fully present
   on Arista**, so the verification strengthens the case that those concepts are
   genuinely switch-native (the MS225 shortfalls stay driver-side
-  unsupported-capability errors, not contract changes). `Discovery` confirms the
-  `LLDP`-only normalization: Arista is **LLDP-only (no CDP)**, so the single
-  `DiscoveryProtocol.LLDP` member fits without addition.
+  unsupported-capability errors, not contract changes). `Discovery` reinforces the
+  `LLDP`-only normalization: Arista EOS supports **both LLDP and CDP** (`cdp run`),
+  but a driver maps its CDP neighbour data onto the same LLDP-shaped read, so the
+  single `DiscoveryProtocol.LLDP` member still fits without addition.
 - **The `SwitchAcl` one-engine decision is confirmed.** EOS uses one ACL engine
   matching both MAC (src/dst) and IP/L4 fields, bound per-interface/VLAN by
   direction — exactly the unified-`SwitchAcl` + `AclDirection` shape, reusing
@@ -477,7 +532,12 @@ in a proposed protocol/model/enum name):
   list-replace-only products; on EOS a driver can do targeted per-object updates,
   so the intent-level protocols translate without the fallback.
 
-No normalized vocabulary gains a member on this evidence. The two vocabulary
+A separate `FirstHopSecurity` concept-check (DHCP snooping + DAI, 2026-06-14)
+added that capability to the L2 baseline (6/6 present) with its own vocabulary;
+Arista's DAI behaviour — validating against static `ip source binding` rather than
+a dynamically-snooped table on some hardware — is the specific evidence for the
+`BindingSource{DYNAMIC_SNOOPING,STATIC}` member. No other normalized vocabulary
+gains a member on the Arista evidence proper. The two vocabulary
 candidates raised by the review — an `ACTIVE_ACTIVE` `RedundancyRole` and a
 multi-chassis `AggregationMode` — are both declined for the L2 design: the
 former belongs to a not-yet-authored `L3Switch` `GatewayRedundancy` vocabulary
@@ -589,6 +649,14 @@ nor `cpe.py` has to depend on the other.)
   `L3Switch` doc.
 - **`SwitchStacks` / stack-scoped config [LOW]** — most reviewed families expose
   physical stacking and stack-level state; no current test. Defer.
+- **`IpSourceGuard` (`FirstHopSecurity` optional extension) [LOW]** — IP Source
+  Guard is present on 5/6 reviewed hardware families (Aruba 1960, Catalyst 9200L,
+  Juniper EX2300, Omada, Arista) but absent/uncertain on the cloud targets
+  (Meraki MS225, UniFi), so it is **kept out of the baseline `FirstHopSecurity`
+  shape**. *Trigger:* a test asserting source-IP filtering against the
+  DHCP-snooping binding table. *Design notes:* add as an optional
+  `FirstHopSecurity` method (or a sibling) reusing the binding-table model;
+  drivers lacking it raise unsupported-capability.
 - **`L2Bridge` HIGH entry [UPDATE — mandatory]** — the existing 2026-05-02
   `L2Bridge` entry must be updated to (a) cross-reference this switch design and
   record the **realize-as-switch-native** decision explicitly so the two are not

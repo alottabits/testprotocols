@@ -481,6 +481,121 @@ config accessors; design the shape against the first consumer.
 
 ---
 
+## 2026-06-14 — `IpSourceGuard` (`FirstHopSecurity` optional extension) [priority: low]
+
+**Signal:** Spec-review feedback on the switch design proposed first-hop security;
+the dedicated concept-check landed `FirstHopSecurity` (DHCP snooping + DAI) as an
+`L2Switch` baseline capability, but **IP Source Guard** is present on only 5/6
+reviewed hardware families (Aruba 1960, Catalyst 9200L, Juniper EX2300, Omada,
+Arista) and is absent/uncertain on the cloud targets (Meraki MS225, UniFi), so it
+was kept **out** of the baseline `FirstHopSecurity` shape.
+
+**Trigger to act:** First test asserting source-IP filtering against the
+DHCP-snooping binding table.
+
+**Out of scope right now because:** Borderline cross-vendor and unproven on the
+cloud design-target; the baseline DHCP-snooping + DAI surface covers the evidenced
+cases.
+
+**Design notes (when picked up):** add as an optional `FirstHopSecurity` method
+(or a sibling capability) reusing the snooping binding-table model; drivers
+lacking it raise unsupported-capability.
+
+**Cross-references:** `docs/l2-switch-protocol-design.md` (`FirstHopSecurity`).
+
+---
+
+## 2026-06-14 — `Vrf` / multi-VRF awareness [priority: medium]
+
+**Signal:** Spec-review feedback: modern distribution switches use VRFs for
+segmentation. VRF is present on the enterprise on-box families (Catalyst 9300,
+Aruba CX 6300, Juniper EX4400, Arista CCS-720XP) but **absent on the design-target
+— Meraki MS225/MS355 have a single global routing table** (VRF on Meraki is
+IOS-XE-only: MS390 / Cloud-Managed Catalyst, 17.18+) — and absent on UniFi. ~4/6
+(5/7 with Arista), patterning exactly like `Bgp`.
+
+**Trigger to act:** A VRF-capable driver **and** a test asserting per-VRF
+segmentation / overlapping addressing.
+
+**Out of scope right now because:** The design-target cannot exercise it, so the
+L3 models are scoped to the default VRF (stated explicitly in the L3 design);
+adding speculative multi-table fields ahead of a consumer violates the
+grow-on-evidence rule.
+
+**Design notes (when picked up):** add an optional `vrf: str | None = None` field
+(default → global table, back-compatible) to `RoutedInterfaces` / `StaticRoutes`
+/ `RoutingRead` / `Ospf` and a `vrf` selector on the reads; a driver without VRF
+ignores it or raises unsupported-capability for a non-default value. This is a
+`SPLITS.md`-worthy reshape of those models when it lands — pre-designed here to
+keep the future change clean.
+
+**Cross-references:** `docs/l3-switch-protocol-design.md` (§New capabilities →
+*Scope — default VRF only*; Arista v2 VRF note), `models/switch_routing.py`,
+`static_routes.py`, `models/wan_edge.py` (`RouteEntry`).
+
+---
+
+## 2026-06-14 — `Vxlan` / EVPN fabric [priority: low–medium]
+
+**Signal:** Spec-review feedback: VXLAN + EVPN campus fabric is a defining
+modern-distribution feature (Catalyst 9300, Aruba CX 6300, Arista 720XP).
+
+**Trigger to act:** A campus-fabric test scenario (overlay reachability, VNI
+mapping, EVPN peering).
+
+**Out of scope right now because:** Massive, vendor-divergent surface area and no
+driving test — same bucket as `MulticastRouting`.
+
+**Design notes (when picked up):** a dedicated capability (VNI↔VLAN mapping, VTEP
+config, EVPN address family) seeded on real evidence — large enough to warrant
+its own design doc.
+
+**Cross-references:** `docs/l3-switch-protocol-design.md`, `MulticastRouting`
+(this file).
+
+---
+
+## 2026-06-14 — `RoutingPolicy` (route redistribution / route-maps / prefix-lists) [priority: medium]
+
+**Signal:** Spec-review feedback: L3 switches running OSPF/BGP commonly
+redistribute connected/static routes into the IGP via route-maps / prefix-lists.
+Present on the on-box families, limited on the cloud target.
+
+**Trigger to act:** A test asserting route redistribution or route filtering.
+
+**Out of scope right now because:** The route-map / prefix-list **expression** is
+highly vendor-divergent and there is no driving test; an intent-level shape needs
+real evidence to avoid baking in one vendor's grammar.
+
+**Design notes (when picked up):** either a `RoutingPolicy` capability (normalized
+match/set predicates + redistribution rules) or bounded redistribution fields on
+`Ospf` / `Bgp`; design the normalized expression on the first consumer.
+
+**Cross-references:** `docs/l3-switch-protocol-design.md`, `bgp.py`,
+`models/switch_routing.py` (`Ospf`).
+
+---
+
+## 2026-06-14 — `Bfd` (Bidirectional Forwarding Detection) [priority: low]
+
+**Signal:** Spec-review feedback: BFD is standard for fast convergence on
+distribution uplinks alongside OSPF/BGP. Present on the on-box families,
+limited/absent on the cloud target.
+
+**Trigger to act:** A convergence-time test.
+
+**Out of scope right now because:** No driving test; a speculative toggle adds
+surface without evidence.
+
+**Design notes (when picked up):** model as an optional toggle (interval /
+multiplier) on `OspfInterfaceSettings` and `BgpNeighbor` — **not** a standalone
+capability.
+
+**Cross-references:** `docs/l3-switch-protocol-design.md`
+(`OspfInterfaceSettings`), `bgp.py` (`BgpNeighbor`).
+
+---
+
 ## Implemented
 
 - **2026-06-12 — `SdwanPolicyManager` typed path-steering surface** (deferred

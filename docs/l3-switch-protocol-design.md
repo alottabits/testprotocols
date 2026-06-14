@@ -4,8 +4,8 @@
 | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Status   | Proposed                                                                                                                                                                                                                                                                                                                    |
 | Author   | rjvisser                                                                                                                                                                                                                                                                                                                    |
-| Date     | 2026-06-14 (updated 2026-06-14: Arista EOS verification — CCS-720XP Series added as a cross-vendor verification column; see *Cross-vendor neutrality v2*)                                                                                                                                                                       |
-| Related  | `docs/l2-switch-protocol-design.md` (the composed L2 capability layer — read it first), `docs/sdwan-appliance-protocol-design.md` (the API-managed-device exclusion precedent), `packages/testprotocols/GAPS.md` (L2Bridge HIGH entry; IgmpSnooping / PortMirror / MulticastRouting deferrals), `packages/testprotocols/SPLITS.md` (Router RIB carve-out; ApplianceVlans SVI/DHCP reuse; unified SwitchAcl), `packages/testprotocols/LEVELS.md` (`MacTableWhiteBox`), `devices/switch.py` and `models/switch.py` (authored in the L2Switch doc; this doc adds to / composes them), `models/switch_routing.py` (proposed/new — authored by this doc) |
+| Date     | 2026-06-14 (updated 2026-06-14: Arista EOS verification — CCS-720XP Series added as a cross-vendor verification column; see *Cross-vendor neutrality v2*; default-VRF scope made explicit + VRF deferral; composed L2 layer gains AAA/RADIUS + FirstHopSecurity)                                                                                                                                                                       |
+| Related  | `docs/l2-switch-protocol-design.md` (the composed L2 capability layer — read it first), `docs/sdwan-appliance-protocol-design.md` (the API-managed-device exclusion precedent), `packages/testprotocols/GAPS.md` (L2Bridge HIGH entry; IgmpSnooping / PortMirror / MulticastRouting deferrals), `packages/testprotocols/SPLITS.md` (Router RIB carve-out; ApplianceVlans SVI/DHCP reuse; unified SwitchAcl), `packages/testprotocols/LEVELS.md` (`MacTableWhiteBox`), `devices/switch.py` and `models/switch.py` (authored in the L2Switch doc; this doc adds to / composes them), `models/switch_routing.py` (proposed/new — authored by this doc), `radius_client.py` (composed L2-layer AAA reuse) |
 
 This document explains why `testprotocols` carries a dedicated **managed
 distribution switch** archetype, `L3Switch`, modelled as a **strict superset**
@@ -142,6 +142,8 @@ class L3Switch(L2Switch, Protocol):
     link_aggregation: LinkAggregation     # LAG group CRUD by member ports + mode
     port_poe: PortPoe                     # per-port PoE enable + draw/status read
     port_security: PortSecurity           # per-port access policy + MAC allow/sticky limits
+    radius: RadiusClient                  # reuse-as-is — RADIUS server registry (802.1X/MAB backend)
+    first_hop_security: FirstHopSecurity  # DHCP snooping + Dynamic ARP Inspection
     storm_control: StormControl           # per-port broadcast/multicast/unknown-unicast thresholds
     switch_acl: SwitchAcl                 # unified L2+L3 port/VLAN-bound ACL (see L3 note below)
     discovery: Discovery                  # read — LLDP/CDP neighbour view per port
@@ -227,6 +229,20 @@ can be asked to do*, not how any product's API spells it. New models live in
 `models/switch_routing.py` (new); reshaped models reuse `models/switch.py` (the
 L2 module) and the existing WAN-edge / appliance models. Each carries its
 cross-vendor `K/6` concept check.
+
+**Scope — default VRF only.** `RoutedInterfaces`, `StaticRoutes`, `RoutingRead`,
+and `Ospf` operate in the device's **global / default routing table**. Multi-VRF
+segmentation is deliberately out of scope here, and the assumption is stated
+rather than left implicit: the design-target (Meraki MS225 / MS355) does **not**
+support VRF at all — on Meraki it is an IOS-XE-only feature limited to MS390 /
+Cloud-Managed Catalyst (IOS-XE 17.18+), so the native MS line has a single global
+table — and VRF patterns exactly like `Bgp` (present on the enterprise on-box
+families Catalyst / Aruba CX / Juniper / Arista, absent on the cloud target).
+Rather than bake a global-table assumption in silently or add speculative fields,
+VRF-awareness is recorded as a `GAPS.md` deferral with a precise design note (an
+optional `vrf: str | None` field on these four models + a `vrf` selector on the
+reads), to be added when a VRF-capable driver and a driving test arrive. See
+§"Tracking-file entries".
 
 ### `routed_interfaces: RoutedInterfaces` — **6/6**
 SVIs (one L3 interface per VLAN) and routed ports, reshaped from the appliance's
@@ -537,6 +553,15 @@ facet keeps its **3/6** primary count, which is genuinely sub-bar (Meraki, UniFi
 and FortiSwitch are config-only ◐ on the learned-RIB facet, so even counting ◐ as
 present it does not reach 5/6).
 
+- **VRF segmentation (deferred — outside the default-VRF scope).** Arista (like
+  Catalyst / Aruba CX / Juniper) is **VRF-aware** — the matrix and "what held"
+  notes mark `StaticRoutes` / `RoutedInterfaces` as VRF-capable. The proposed L3
+  models are scoped to the **default VRF** (see §New capabilities → *Scope*),
+  because the design-target Meraki MS line has no VRF at all. Multi-VRF is a
+  `GAPS.md` deferral carrying an optional-`vrf`-field design note; Arista is one
+  of the enterprise families that would exercise it once a test drives it. No
+  contract change now.
+
 **Vocabulary candidates recorded on this evidence** (candidates, not mandatory —
 each grows on a driving test per the open-taxonomy rule):
 
@@ -594,6 +619,41 @@ in `LEVELS.md`); one would be added on signal.
 - **`SwitchStacks` / stack-scoped routing [LOW]** — physical stacking and
   stack-level L3 are exposed by Meraki/Aruba/UniFi/Catalyst; no current test.
   Defer.
+- **`Vrf` / multi-VRF awareness [MEDIUM]** — VRF-based segmentation is present on
+  the enterprise on-box families (Catalyst 9300, Aruba CX 6300, Juniper EX4400,
+  Arista CCS-720XP — its matrix cells note "VRF-aware") but **absent on the
+  design-target**: Meraki MS225/MS355 have a single global routing table — VRF on
+  Meraki is IOS-XE-only (MS390 / Cloud-Managed Catalyst, 17.18+) — and absent on
+  UniFi. That is ~4/6 (5/7 with Arista), patterning exactly like `Bgp`, so the L3
+  models are scoped to the **default VRF** (stated in §New capabilities →
+  *Scope*). *Trigger:* a VRF-capable driver **and** a test asserting per-VRF
+  segmentation / overlapping addressing. *Design notes:* add an optional
+  `vrf: str | None = None` field (default → global table, back-compatible) to
+  `RoutedInterfaces` / `StaticRoutes` / `RoutingRead` / `Ospf` + a `vrf` selector
+  on the reads; a driver without VRF ignores it or raises unsupported-capability
+  for a non-default value. Do **not** add the field speculatively before the
+  trigger. Cross-reference the Arista v2 "VRF-aware" note.
+- **`Vxlan` / EVPN fabric [LOW–MEDIUM]** — VXLAN + EVPN campus fabric is a
+  defining modern-distribution feature (Catalyst 9300, Aruba CX 6300, Arista
+  720XP) but has **massive surface area** and no driving test — deferred
+  alongside `MulticastRouting`. *Trigger:* a campus-fabric test scenario.
+  *Design notes:* a dedicated capability (VNI↔VLAN mapping, VTEP, EVPN address
+  family) seeded on real evidence — large enough to warrant its own design doc.
+- **`RoutingPolicy` (route redistribution / route-maps / prefix-lists) [MEDIUM]**
+  — L3 switches running OSPF/BGP commonly redistribute connected/static routes
+  into the IGP via route-maps / prefix-lists. Present on the on-box families but
+  **highly vendor-divergent in expression** (route-map grammar) and limited on
+  the cloud target; no driving test. *Trigger:* a test asserting redistribution
+  / route filtering. *Design notes:* either a `RoutingPolicy` capability
+  (normalized match/set + redistribution rules) or bounded redistribution fields
+  on `Ospf` / `Bgp`; the expression divergence is the hard part — seed
+  intent-level on evidence.
+- **`Bfd` (Bidirectional Forwarding Detection) [LOW]** — fast-convergence failure
+  detection for OSPF/BGP uplinks; present on the on-box families, limited/absent
+  on the cloud target; no driving test. *Trigger:* a convergence-time test.
+  *Design notes:* model as an optional toggle (interval / multiplier) on
+  `OspfInterfaceSettings` and `BgpNeighbor` when seeded, **not** a standalone
+  capability.
 - Inherited L2-layer deferrals (`IgmpSnooping` [HIGH], `PortMirror` [MEDIUM])
   are recorded in `docs/l2-switch-protocol-design.md` / its GAPS entries and
   cross-referenced here; `IgmpSnooping` cross-references `MulticastRouting` for
