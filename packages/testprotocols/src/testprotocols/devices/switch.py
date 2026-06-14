@@ -3,7 +3,7 @@
 ``L2Switch`` is the managed access switch: the capability surface an
 API/controller-managed switch exposes, satisfiable by any vendor's driver.
 Host-substrate levers (conntrack, pcap, ip_interface, nat, packet_filter,
-firewall_zones, wan_link_admin) are deliberately absent — a switch is not a Linux
+firewall_zones, wan_admin) are deliberately absent — a switch is not a Linux
 host. See docs/l2-switch-protocol-design.md.
 """
 
@@ -39,6 +39,9 @@ class L2Switch(BaseDeviceProtocol, Protocol):
     as-is; ``first_hop_security`` and ``ntp`` are net-new baseline capabilities.
     The sibling ``L3Switch`` (separate doc) composes this set plus an L3 layer as
     a strict superset.
+    Host-substrate levers (conntrack, pcap, ip_interface, nat, packet_filter,
+    firewall_zones, wan_admin) are deliberately absent — a switch is API/controller-managed,
+    not a Linux host.
     """
 
     switch_ports: SwitchPorts

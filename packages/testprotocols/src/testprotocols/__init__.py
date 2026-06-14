@@ -8,10 +8,9 @@ from testprotocols.appliance_uplinks import ApplianceUplinks
 from testprotocols.appliance_vlans import ApplianceVlans
 from testprotocols.arp_client import ArpClient
 from testprotocols.bgp import Bgp
-from testprotocols.content_filtering import ContentFiltering
 from testprotocols.conntrack import Conntrack, ConntrackWhiteBox
+from testprotocols.content_filtering import ContentFiltering
 from testprotocols.device_lifecycle import DeviceLifecycle
-from testprotocols.discovery import Discovery
 from testprotocols.device_management import DeviceManagement
 from testprotocols.devices.base import BaseDeviceProtocol
 from testprotocols.devices.client import (
@@ -38,11 +37,12 @@ from testprotocols.devices.voice import (
 from testprotocols.devices.wan import WanServerDevice
 from testprotocols.dhcp_client import DhcpClient
 from testprotocols.dhcp_server import DhcpServer
+from testprotocols.discovery import Discovery
 from testprotocols.dns_client import DnsClient
 from testprotocols.file_transfer import FileTransfer
 from testprotocols.firewall import Firewall, FirewallWhiteBox
-from testprotocols.first_hop_security import FirstHopSecurity
 from testprotocols.firewall_zones import FirewallZones
+from testprotocols.first_hop_security import FirstHopSecurity
 from testprotocols.http_client import HttpClient
 from testprotocols.http_server import HttpServer
 from testprotocols.hw_console import HwConsole
@@ -52,8 +52,8 @@ from testprotocols.iperf_client import IperfClient
 from testprotocols.iperf_generator import IperfGenerator
 from testprotocols.iperf_server import IperfServer
 from testprotocols.l3_firewall import L3Firewall
-from testprotocols.link_aggregation import LinkAggregation
 from testprotocols.l7_firewall import L7Firewall
+from testprotocols.link_aggregation import LinkAggregation
 from testprotocols.mac_table import MacTable
 from testprotocols.multicast_client import MulticastClient
 from testprotocols.nat import Nat
@@ -62,11 +62,11 @@ from testprotocols.nmap_scanner import NmapScanner
 from testprotocols.ntp_client import NtpClient
 from testprotocols.ntp_config import NtpConfig
 from testprotocols.packet_filter import PacketFilter, PacketFilterWhiteBox
+from testprotocols.pcap_capture import PcapCapture
+from testprotocols.pdu_controller import PduController
 from testprotocols.port_poe import PortPoe
 from testprotocols.port_security import PortSecurity
 from testprotocols.port_status import PortStatus
-from testprotocols.pcap_capture import PcapCapture
-from testprotocols.pdu_controller import PduController
 from testprotocols.qoe_browser import QoeBrowser
 from testprotocols.radius_client import RadiusClient
 from testprotocols.radius_server import RadiusServer
@@ -79,11 +79,11 @@ from testprotocols.snmp_client import SnmpClient
 from testprotocols.spanning_tree import SpanningTree
 from testprotocols.static_routes import StaticRoutes
 from testprotocols.storm_control import StormControl
+from testprotocols.streaming_server import StreamingServer
 from testprotocols.switch_acl import SwitchAcl
 from testprotocols.switch_ports import SwitchPorts
 from testprotocols.switch_qos import SwitchQos
 from testprotocols.switch_vlans import SwitchVlans
-from testprotocols.streaming_server import StreamingServer
 from testprotocols.syslog_config import SyslogConfig
 from testprotocols.tftp_server import TftpServer
 from testprotocols.threat_prevention import ThreatPrevention
@@ -111,15 +111,15 @@ __all__ = [
     "ArpClient",
     "BaseDeviceProtocol",
     "Bgp",
-    "ContentFiltering",
     "Conntrack",
     "ConntrackWhiteBox",
+    "ContentFiltering",
     "CpeDevice",
     "DeviceLifecycle",
     "DeviceManagement",
-    "Discovery",
     "DhcpClient",
     "DhcpServer",
+    "Discovery",
     "DnsClient",
     "FileTransfer",
     "Firewall",
@@ -149,11 +149,11 @@ __all__ = [
     "NtpConfig",
     "PacketFilter",
     "PacketFilterWhiteBox",
+    "PcapCapture",
+    "PduController",
     "PortPoe",
     "PortSecurity",
     "PortStatus",
-    "PcapCapture",
-    "PduController",
     "ProvisionerDevice",
     "QoeBrowser",
     "QoeClientDevice",
