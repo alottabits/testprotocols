@@ -1,7 +1,7 @@
 """Data models for the vendor-neutral L3 (distribution) switch capabilities.
 
 Composed by ``devices.switch.L3Switch`` (a strict superset of ``L2Switch``).
-Reuses ``DhcpMode`` / ``DhcpOption`` / ``DhcpReservation`` / ``DhcpLease`` from
+Reuses ``DhcpMode`` / ``DhcpOption`` / ``DhcpReservation`` from
 ``models/sdwan_appliance.py`` and ``RouteEntry`` / ``RouteOrigin`` from
 ``models/wan_edge.py``. Scope is the **default VRF** — multi-VRF is deferred
 (GAPS.md). Vendor neutrality is part of the contract: no product name, vendor id,
@@ -63,7 +63,7 @@ class RoutedInterface:
     """An L3 interface — SVI, routed port, or loopback.
 
     ``ip_address`` is the interface IP (the SVI IP for an SVI). Reuses the
-    appliance DHCP vocabulary via ``InterfaceDhcp``; this record carries only the
+    appliance DHCP vocabulary via ``InterfaceDhcpConfig``; this record carries only the
     L3 addressing identity.
     """
 
