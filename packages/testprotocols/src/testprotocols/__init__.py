@@ -11,6 +11,7 @@ from testprotocols.bgp import Bgp
 from testprotocols.content_filtering import ContentFiltering
 from testprotocols.conntrack import Conntrack, ConntrackWhiteBox
 from testprotocols.device_lifecycle import DeviceLifecycle
+from testprotocols.discovery import Discovery
 from testprotocols.device_management import DeviceManagement
 from testprotocols.devices.base import BaseDeviceProtocol
 from testprotocols.devices.client import (
@@ -25,6 +26,7 @@ from testprotocols.devices.infra import (
     TftpDevice,
 )
 from testprotocols.devices.sdwan import SdwanApplianceDevice, SdwanRouterDevice
+from testprotocols.devices.switch import L2Switch
 from testprotocols.devices.traffic import (
     IperfTrafficGeneratorDevice,
     TrafficControllerDevice,
@@ -39,6 +41,7 @@ from testprotocols.dhcp_server import DhcpServer
 from testprotocols.dns_client import DnsClient
 from testprotocols.file_transfer import FileTransfer
 from testprotocols.firewall import Firewall, FirewallWhiteBox
+from testprotocols.first_hop_security import FirstHopSecurity
 from testprotocols.firewall_zones import FirewallZones
 from testprotocols.http_client import HttpClient
 from testprotocols.http_server import HttpServer
@@ -49,13 +52,19 @@ from testprotocols.iperf_client import IperfClient
 from testprotocols.iperf_generator import IperfGenerator
 from testprotocols.iperf_server import IperfServer
 from testprotocols.l3_firewall import L3Firewall
+from testprotocols.link_aggregation import LinkAggregation
 from testprotocols.l7_firewall import L7Firewall
+from testprotocols.mac_table import MacTable
 from testprotocols.multicast_client import MulticastClient
 from testprotocols.nat import Nat
 from testprotocols.netem_controller import NetemController
 from testprotocols.nmap_scanner import NmapScanner
 from testprotocols.ntp_client import NtpClient
+from testprotocols.ntp_config import NtpConfig
 from testprotocols.packet_filter import PacketFilter, PacketFilterWhiteBox
+from testprotocols.port_poe import PortPoe
+from testprotocols.port_security import PortSecurity
+from testprotocols.port_status import PortStatus
 from testprotocols.pcap_capture import PcapCapture
 from testprotocols.pdu_controller import PduController
 from testprotocols.qoe_browser import QoeBrowser
@@ -67,7 +76,13 @@ from testprotocols.sip_phone import SipPhone
 from testprotocols.sip_server import SipServer
 from testprotocols.site_to_site_vpn import SiteToSiteVpn
 from testprotocols.snmp_client import SnmpClient
+from testprotocols.spanning_tree import SpanningTree
 from testprotocols.static_routes import StaticRoutes
+from testprotocols.storm_control import StormControl
+from testprotocols.switch_acl import SwitchAcl
+from testprotocols.switch_ports import SwitchPorts
+from testprotocols.switch_qos import SwitchQos
+from testprotocols.switch_vlans import SwitchVlans
 from testprotocols.streaming_server import StreamingServer
 from testprotocols.syslog_config import SyslogConfig
 from testprotocols.tftp_server import TftpServer
@@ -102,6 +117,7 @@ __all__ = [
     "CpeDevice",
     "DeviceLifecycle",
     "DeviceManagement",
+    "Discovery",
     "DhcpClient",
     "DhcpServer",
     "DnsClient",
@@ -109,6 +125,7 @@ __all__ = [
     "Firewall",
     "FirewallWhiteBox",
     "FirewallZones",
+    "FirstHopSecurity",
     "HttpClient",
     "HttpServer",
     "HwConsole",
@@ -118,16 +135,23 @@ __all__ = [
     "IperfGenerator",
     "IperfServer",
     "IperfTrafficGeneratorDevice",
+    "L2Switch",
     "L3Firewall",
     "L7Firewall",
     "LanClientDevice",
+    "LinkAggregation",
+    "MacTable",
     "MulticastClient",
     "Nat",
     "NetemController",
     "NmapScanner",
     "NtpClient",
+    "NtpConfig",
     "PacketFilter",
     "PacketFilterWhiteBox",
+    "PortPoe",
+    "PortSecurity",
+    "PortStatus",
     "PcapCapture",
     "PduController",
     "ProvisionerDevice",
@@ -145,8 +169,14 @@ __all__ = [
     "SipServerDevice",
     "SiteToSiteVpn",
     "SnmpClient",
+    "SpanningTree",
     "StaticRoutes",
+    "StormControl",
     "StreamingServer",
+    "SwitchAcl",
+    "SwitchPorts",
+    "SwitchQos",
+    "SwitchVlans",
     "SyslogConfig",
     "TftpDevice",
     "TftpServer",
