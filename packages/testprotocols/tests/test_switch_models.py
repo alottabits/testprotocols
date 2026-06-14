@@ -83,6 +83,7 @@ def test_switch_records() -> None:
     )
 
     p = SwitchPort(name="1", mode="access")  # type: ignore[arg-type]
+    assert p.mode == "access"  # StrEnum coercion: plain str accepted as member
     assert p.enabled is True and p.allowed_vlans == [] and p.isolated is False
     assert VlanDef(vlan_id=10).name == ""
     assert StpPortConfig(port="1").guard == "none"

@@ -17,34 +17,46 @@ from testprotocols.models.sdwan_appliance import RuleAction, RuleProtocol
 
 
 class PortMode(StrEnum):
+    """Switchport framing mode; ``ROUTED`` is valid only on the L3Switch superset, access/trunk are universal."""
+
     ACCESS = "access"
     TRUNK = "trunk"
     ROUTED = "routed"  # used only at L3 (L3Switch); access/trunk are universal
 
 
 class PortAdminState(StrEnum):
+    """Administrative enable/disable state of a port."""
+
     ENABLED = "enabled"
     DISABLED = "disabled"
 
 
 class LinkState(StrEnum):
+    """Observed per-port link state."""
+
     UP = "up"
     DOWN = "down"
     DISABLED = "disabled"
 
 
 class Duplex(StrEnum):
+    """Port duplex mode (full, half, or auto-negotiated)."""
+
     FULL = "full"
     HALF = "half"
     AUTO = "auto"
 
 
 class AggregationMode(StrEnum):
+    """Link-aggregation negotiation mode (LACP or static)."""
+
     LACP = "lacp"
     STATIC = "static"
 
 
 class PoeStatus(StrEnum):
+    """Observed Power-over-Ethernet delivery state for a port."""
+
     DELIVERING = "delivering"
     DISABLED = "disabled"
     FAULT = "fault"
@@ -53,12 +65,16 @@ class PoeStatus(StrEnum):
 
 
 class PoePriority(StrEnum):
+    """PoE port priority used when total power budget is constrained."""
+
     CRITICAL = "critical"
     HIGH = "high"
     LOW = "low"
 
 
 class AccessPolicyType(StrEnum):
+    """Port-level admission-control policy (open, MAC-based, or 802.1X)."""
+
     OPEN = "open"
     MAC_ALLOW_LIST = "mac_allow_list"
     STICKY_MAC = "sticky_mac"
@@ -66,6 +82,8 @@ class AccessPolicyType(StrEnum):
 
 
 class AclDirection(StrEnum):
+    """Direction in which a port ACL is applied."""
+
     INGRESS = "ingress"
     EGRESS = "egress"
 
@@ -78,28 +96,38 @@ class DiscoveryProtocol(StrEnum):
 
 
 class StormControlType(StrEnum):
+    """Traffic category that storm-control rate limiting is applied to."""
+
     BROADCAST = "broadcast"
     MULTICAST = "multicast"
     UNKNOWN_UNICAST = "unknown_unicast"
 
 
 class QosTrustMode(StrEnum):
+    """Which QoS marking field the port trusts for inbound classification."""
+
     DSCP = "dscp"
     COS = "cos"
     UNTRUSTED = "untrusted"
 
 
 class FhsTrustState(StrEnum):
+    """First-hop-security trust level assigned to a port."""
+
     TRUSTED = "trusted"
     UNTRUSTED = "untrusted"
 
 
 class FhsScope(StrEnum):
+    """Scope at which a first-hop-security feature (e.g. DHCP snooping) operates."""
+
     GLOBAL = "global"
     PER_VLAN = "per_vlan"
 
 
 class BindingSource(StrEnum):
+    """How a first-hop-security binding-table entry was learned."""
+
     DYNAMIC_SNOOPING = "dynamic_snooping"
     STATIC = "static"
 
@@ -227,7 +255,12 @@ class PortStatusEntry:
 
 @dataclass
 class QosRule:
-    """A QoS classification rule (match -> DSCP/CoS marking)."""
+    """A QoS classification rule (match -> DSCP/CoS marking).
+
+    ``match`` holds a vendor-neutral traffic-classifier expression (e.g. by
+    VLAN, protocol, or port) that the driver maps to its product's QoS
+    classifier; ``dscp`` and ``cos`` are the resulting mark values.
+    """
 
     name: str
     match: str
