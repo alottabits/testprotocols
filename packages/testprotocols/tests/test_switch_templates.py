@@ -43,6 +43,8 @@ PROTOCOLS = [
      {"set_trust_mode", "set_dscp_cos_map", "set_rules", "get_rules"}),
     ("NtpConfig", "testprotocols.ntp_config",
      {"set_ntp_servers", "get_ntp_servers"}),
+    ("RoutedInterfaces", "testprotocols.routed_interfaces",
+     {"list_interfaces", "get_interface", "set_interface"}),
 ]
 
 
