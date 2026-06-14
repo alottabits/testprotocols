@@ -358,7 +358,7 @@ read-only; `WanLinkAdmin` (`wan_link_admin.py`) carries `bring_wan_down` /
 
 ---
 
-## 2026-06-14 — `Router` RIB read shared into a switch-scoped `RoutingRead` (planned)
+## 2026-06-14 — `Router` RIB read shared into a switch-scoped `RoutingRead` (implemented)
 
 **Signal:** Managed-switch design round
 (`docs/l3-switch-protocol-design.md`). A managed distribution switch routes
@@ -367,33 +367,43 @@ east-west between local SVIs; it needs the RIB **read** surface of `Router`
 WAN-uplink methods. The RIB read is currently buried inside the WAN-edge
 `Router`.
 
-**Decision:** defer (executes when the switch protocols are implemented). Carve
-the RIB-read kernel into a switch-scoped `RoutingRead` capability that shares the
-`RouteEntry` model with `Router`; `Router` keeps its WAN-uplink methods. Bundled
-with this carve-out, `RouteEntry` (`models/wan_edge.py`) is **reshaped**: it
-gains an `origin: RouteOrigin` field (new `RouteOrigin` StrEnum:
-`STATIC/CONNECTED/OSPF/BGP/LOCAL`) so a switch route read can report the route
-source.
+**Decision:** reshape — carve the RIB-read kernel into a switch-scoped
+`RoutingRead` capability that shares the `RouteEntry` model with `Router`;
+`Router` keeps its WAN-uplink methods (no carve *removal* from `Router`).
 
 **Rationale:** Read surface is universal across routed archetypes; WAN-uplink
 admin is WAN-edge-specific — the same structural-shape boundary as the
 2026-06-12 `WanLinkAdmin` split. Modelling the switch against the full `Router`
 shape would over-specify it with uplink methods it does not have.
 
-**Migration impact:** none yet — design-review record only. When implemented:
-the `origin` field carries a **default** so both existing `RouteEntry`
-producers — `Router.get_routing_table()` (WAN edge) and
-`Bgp.get_learned_routes()` — stay source-compatible (no call-site change). The
-method carve-out leaves `Router` consumers unaffected (`Router` keeps its
-methods); the switch composes the new `RoutingRead`. The dynamic-/learned-RIB
-*facet* is 3/6 across the reviewed distribution families and is admitted as a
-per-method best-effort read (the `bgp.py` operational-read discipline), while
-the config-view read is 6/6. Design record:
-`docs/l3-switch-protocol-design.md`.
+**As-built (2026-06-14 — Plan 2, `feat/switch-archetypes`):**
+
+- `RouteEntry` (`models/wan_edge.py`) gained `origin: RouteOrigin = RouteOrigin.UNKNOWN`
+  (new `RouteOrigin` StrEnum: `UNKNOWN/STATIC/CONNECTED/OSPF/BGP/LOCAL` in
+  `models/wan_edge.py`; re-exported from `models/switch_routing.py` for
+  convenience). The field carries a **default** so both existing `RouteEntry`
+  producers — `Router.get_routing_table()` (WAN edge) and
+  `Bgp.get_learned_routes()` — stay source-compatible; no call-site changes
+  required.
+- `RoutingRead` is a **new sibling Protocol** (`routing_read.py`) with a single
+  method: `get_routing_table() -> list[RouteEntry]`. `Router` is unchanged —
+  it keeps all its WAN-uplink methods and its own `get_routing_table()`.
+- `L3Switch` composes `routing_read: RoutingRead`; no `Router` attribute on the
+  switch archetype.
+- The dynamic-/learned-RIB facet is 3/6 across reviewed distribution families
+  and is admitted as a per-method best-effort read (same discipline as
+  `bgp.py`); the config-view read is 6/6.
+
+**Migration impact:**
+- `testprotocols`: `models/wan_edge.py` reshaped (`RouteOrigin` + `RouteEntry.origin`);
+  new `routing_read.py`; `L3Switch` in `devices/switch.py`; exports in
+  `__init__.py` + `models/__init__.py`. No consumer of `Router` or `Bgp` needs
+  updating (default-backed field). Design record:
+  `docs/l3-switch-protocol-design.md` (Status: Implemented).
 
 ---
 
-## 2026-06-14 — `ApplianceVlans` SVI/DHCP fields shared into `RoutedInterfaces` / `InterfaceDhcp` (planned)
+## 2026-06-14 — `ApplianceVlans` SVI/DHCP fields shared into `RoutedInterfaces` / `InterfaceDhcp` (implemented)
 
 **Signal:** Managed-switch design round
 (`docs/l3-switch-protocol-design.md`). `appliance_vlans.VlanConfig` already
@@ -401,19 +411,38 @@ carries an SVI IP plus the `DhcpMode{SERVER,RELAY,DISABLED}` field and per-VLAN
 DHCP config — almost exactly the L3-switch SVI + per-SVI DHCP shape — but it is
 named and scoped for the WAN edge.
 
-**Decision:** defer (executes at switch-protocol implementation). Share the SVI
-+ DHCP fields of `VlanConfig` into the switch's `RoutedInterfaces` (SVI / routed
-port) and `InterfaceDhcp` (per-SVI server/relay) capabilities, renaming
-`appliance_ip → svi_ip`. `DhcpMode` is reused, not re-declared.
+**Decision:** reshape — reuse the vocabulary, realize the switch-side shape as
+sibling models. `DhcpMode` is reused, not re-declared.
 
 **Rationale:** Same coherent concept (an L3 interface over a VLAN with optional
 DHCP) on two device classes; one model, two accessors beats a greenfield
-duplicate. The rename de-WAN-edges the field name.
+duplicate.
 
-**Migration impact:** none yet — design-review record only. When implemented:
-the `appliance_ip → svi_ip` rename touches the appliance consumer(s) of
-`VlanConfig`; log the appliance-side migration at that point. Design record:
-`docs/l3-switch-protocol-design.md`.
+**As-built (2026-06-14 — Plan 2, `feat/switch-archetypes`):**
+
+- The doc's proposed `appliance_ip → svi_ip` rename was **realized as a sibling
+  model**, not a mutation of `VlanConfig`. `VlanConfig` (in
+  `models/sdwan_appliance.py`) is **left untouched** — renaming its field would
+  break the appliance archetype and put a switch-meaning name on an
+  appliance-scoped field (zero appliance blast radius).
+- `RoutedInterface` (`models/switch_routing.py`) is a **new switch-side
+  dataclass** carrying `name`, `mode: InterfaceMode`, `ip_address` (neutral —
+  works for SVI/routed-port/loopback), `subnet`, and optional `vlan_id`. The
+  "rename" is realized by this neutral field naming rather than by mutating
+  `VlanConfig.appliance_ip`.
+- `InterfaceDhcpConfig` (`models/switch_routing.py`) is a **new per-interface
+  DHCP record** reusing `DhcpMode`, `DhcpOption`, `DhcpReservation` from
+  `models/sdwan_appliance.py` — keeping L3 addressing (`RoutedInterfaces`) and
+  DHCP (`InterfaceDhcp`) as the two separate capabilities the spec defines.
+- `L3Switch` composes `routed_interfaces: RoutedInterfaces` and
+  `interface_dhcp: InterfaceDhcp`.
+
+**Migration impact:**
+- `testprotocols`: new `models/switch_routing.py` (sibling models); new
+  `routed_interfaces.py` + `interface_dhcp.py` protocols; `L3Switch` in
+  `devices/switch.py`; exports in `__init__.py` + `models/__init__.py`.
+  `VlanConfig` and all appliance consumers are **unchanged**. Design record:
+  `docs/l3-switch-protocol-design.md` (Status: Implemented).
 
 ---
 
