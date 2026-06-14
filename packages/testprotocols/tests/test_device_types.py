@@ -26,7 +26,7 @@ from testprotocols.devices.traffic import (
     TrafficControllerDevice,
 )
 from testprotocols.devices.voice import SipPhoneDevice, SipServerDevice
-from testprotocols.devices.switch import L2Switch
+from testprotocols.devices.switch import L2Switch, L3Switch, L3SwitchRouted
 from testprotocols.devices.wan import WanServerDevice
 
 _ALL_ARCHETYPES = (
@@ -34,6 +34,8 @@ _ALL_ARCHETYPES = (
     CpeDevice,
     IperfTrafficGeneratorDevice,
     L2Switch,
+    L3Switch,
+    L3SwitchRouted,
     LanClientDevice,
     ProvisionerDevice,
     QoeClientDevice,
@@ -73,6 +75,8 @@ def test_all_device_types_registered() -> None:
         "linux_sip_server",
         "linux_wan_server",
         "managed_switch_l2",
+        "managed_switch_l3",
+        "managed_switch_l3_routed",
     }
     assert expected == set(all_device_types().keys())
 
@@ -482,6 +486,37 @@ def test_l2_switch_registered() -> None:
     spec = get_device_type("managed_switch_l2")
     assert isinstance(spec, DeviceTypeSpec)
     assert spec.protocol is L2Switch
+
+
+def test_l3_switch_registered() -> None:
+    spec = get_device_type("managed_switch_l3")
+    assert isinstance(spec, DeviceTypeSpec)
+    assert spec.protocol is L3Switch
+
+
+def test_l3_switch_routed_registered() -> None:
+    spec = get_device_type("managed_switch_l3_routed")
+    assert isinstance(spec, DeviceTypeSpec)
+    assert spec.protocol is L3SwitchRouted
+
+
+def test_l3_switch_is_strict_superset_of_l2() -> None:
+    # Protocol inheritance: every L3 attribute set includes the full L2 set.
+    l2_attrs = set(L2Switch.__protocol_attrs__)
+    l3_attrs = set(L3Switch.__protocol_attrs__)
+    assert l2_attrs <= l3_attrs, f"L3Switch missing L2 attrs: {l2_attrs - l3_attrs}"
+    expected_l3 = {
+        "routed_interfaces", "static_routes", "routing_read",
+        "ospf", "interface_dhcp", "gateway_redundancy",
+    }
+    assert expected_l3 <= l3_attrs, f"missing: {expected_l3 - l3_attrs}"
+    assert "bgp" not in l3_attrs, "bgp belongs only on L3SwitchRouted"
+
+
+def test_l3_switch_routed_adds_bgp() -> None:
+    attrs = set(L3SwitchRouted.__protocol_attrs__)
+    assert "bgp" in attrs
+    assert set(L3Switch.__protocol_attrs__) <= attrs  # still a superset of L3Switch
 
 
 def test_l2_switch_aggregates_expected_capabilities() -> None:

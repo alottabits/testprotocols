@@ -11,18 +11,25 @@ from __future__ import annotations
 
 from typing import Protocol, runtime_checkable
 
+from testprotocols.bgp import Bgp
 from testprotocols.devices import register_device_type
 from testprotocols.devices.base import BaseDeviceProtocol
 from testprotocols.discovery import Discovery
 from testprotocols.first_hop_security import FirstHopSecurity
+from testprotocols.gateway_redundancy import GatewayRedundancy
+from testprotocols.interface_dhcp import InterfaceDhcp
 from testprotocols.link_aggregation import LinkAggregation
 from testprotocols.mac_table import MacTable
 from testprotocols.ntp_config import NtpConfig
+from testprotocols.ospf import Ospf
 from testprotocols.port_poe import PortPoe
 from testprotocols.port_security import PortSecurity
 from testprotocols.port_status import PortStatus
 from testprotocols.radius_client import RadiusClient
+from testprotocols.routed_interfaces import RoutedInterfaces
+from testprotocols.routing_read import RoutingRead
 from testprotocols.spanning_tree import SpanningTree
+from testprotocols.static_routes import StaticRoutes
 from testprotocols.storm_control import StormControl
 from testprotocols.switch_acl import SwitchAcl
 from testprotocols.switch_ports import SwitchPorts
@@ -63,3 +70,40 @@ class L2Switch(BaseDeviceProtocol, Protocol):
 
 
 register_device_type("managed_switch_l2", L2Switch)
+
+
+@runtime_checkable
+class L3Switch(L2Switch, Protocol):
+    """Managed distribution switch — strict superset of L2Switch plus an L3 layer.
+
+    Inherits the full L2 capability layer via Protocol inheritance and adds
+    routed interfaces, static routes, RIB read, OSPF, per-interface DHCP, and
+    gateway redundancy. Scope is the default VRF (multi-VRF deferred, GAPS.md).
+    BGP is on the L3SwitchRouted tier (it fails the L3 majority bar).
+    """
+
+    routed_interfaces: RoutedInterfaces
+    static_routes: StaticRoutes
+    routing_read: RoutingRead
+    ospf: Ospf
+    interface_dhcp: InterfaceDhcp
+    gateway_redundancy: GatewayRedundancy
+
+
+register_device_type("managed_switch_l3", L3Switch)
+
+
+@runtime_checkable
+class L3SwitchRouted(L3Switch, Protocol):
+    """L3Switch plus BGP — the routed-distribution tier.
+
+    BGP is absent on the cloud design-target and fails the L3 majority bar, so it
+    is a separate tier rather than a mandatory L3Switch attribute. A driver for a
+    BGP-capable switch satisfies this; the registration isinstance-gate flags a
+    missing bgp at startup.
+    """
+
+    bgp: Bgp
+
+
+register_device_type("managed_switch_l3_routed", L3SwitchRouted)
