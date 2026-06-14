@@ -28,6 +28,9 @@ PROTOCOLS = [
      {"set_enabled", "set_priority", "get_status"}),
     ("PortSecurity", "testprotocols.port_security",
      {"set_access_policy", "get_access_policy"}),
+    ("FirstHopSecurity", "testprotocols.first_hop_security",
+     {"set_dhcp_snooping", "set_dhcp_snooping_trust", "get_dhcp_bindings",
+      "set_dai", "set_arp_trust"}),
 ]
 
 
