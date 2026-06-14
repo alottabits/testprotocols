@@ -19,5 +19,5 @@ class PortStatus(Protocol):
         ...
 
     def get_port_status(self, name: str) -> PortStatusEntry:
-        """Return status for port *name*."""
+        """Return status for port *name*. Raises KeyError if absent."""
         ...

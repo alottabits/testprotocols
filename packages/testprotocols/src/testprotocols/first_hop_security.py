@@ -47,5 +47,6 @@ class FirstHopSecurity(Protocol):
         ...
 
     def set_arp_trust(self, port: str, trust: FhsTrustState) -> None:
-        """Set the per-port ARP-inspection trust state."""
+        """Set the per-port ARP-inspection trust state. Optional — unsupported-capability
+        where the product has no per-port ARP trust."""
         ...

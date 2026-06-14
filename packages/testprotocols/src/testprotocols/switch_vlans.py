@@ -1,4 +1,10 @@
-"""VLAN id/name registry for a managed switch (distinct from ApplianceVlans)."""
+"""VLAN id/name registry for a managed switch.
+
+A switch VLAN registry tracks id/name membership and port assignment; this is
+distinct from an appliance VLAN surface, which pairs each VLAN with an SVI,
+DHCP scope, and routing policy. Keeping them separate lets each capability
+protocol stay minimal and composable.
+"""
 
 from __future__ import annotations
 
