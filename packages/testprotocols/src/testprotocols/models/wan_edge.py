@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from enum import StrEnum
 from typing import Any
 
 
@@ -26,14 +27,33 @@ class LinkStatus:
     ip_address: str
 
 
+class RouteOrigin(StrEnum):
+    """How a route was learned. Seeded with the standardized origins; ``ISIS`` /
+    ``RIP`` grow on evidence (see GAPS.md). ``UNKNOWN`` is the back-compat default
+    for callers that do not classify the route."""
+
+    UNKNOWN = "unknown"
+    STATIC = "static"
+    CONNECTED = "connected"
+    OSPF = "ospf"
+    BGP = "bgp"
+    LOCAL = "local"
+
+
 @dataclass
 class RouteEntry:
-    """Holds a single routing table entry with destination, gateway, interface, and metric."""
+    """A single routing-table entry: destination, gateway, interface, metric, origin.
+
+    ``origin`` is default-backed so the WAN-edge ``Router.get_routing_table`` and
+    ``Bgp.get_learned_routes`` producers stay source-compatible; the switch
+    ``RoutingRead`` populates it. See SPLITS.md.
+    """
 
     destination: str
     gateway: str
     interface: str
     metric: int
+    origin: RouteOrigin = RouteOrigin.UNKNOWN
 
 
 @dataclass
