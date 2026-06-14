@@ -45,6 +45,7 @@ PROTOCOLS = [
      {"set_ntp_servers", "get_ntp_servers"}),
     ("RoutedInterfaces", "testprotocols.routed_interfaces",
      {"list_interfaces", "get_interface", "set_interface"}),
+    ("RoutingRead", "testprotocols.routing_read", {"get_routing_table"}),
 ]
 
 
