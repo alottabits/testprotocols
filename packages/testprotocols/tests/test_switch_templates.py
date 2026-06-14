@@ -24,6 +24,8 @@ PROTOCOLS = [
       "set_port_config", "get_port_config", "get_port_state"}),
     ("LinkAggregation", "testprotocols.link_aggregation",
      {"list_groups", "set_group", "remove_group"}),
+    ("PortPoe", "testprotocols.port_poe",
+     {"set_enabled", "set_priority", "get_status"}),
 ]
 
 
