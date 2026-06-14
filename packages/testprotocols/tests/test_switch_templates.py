@@ -26,6 +26,8 @@ PROTOCOLS = [
      {"list_groups", "set_group", "remove_group"}),
     ("PortPoe", "testprotocols.port_poe",
      {"set_enabled", "set_priority", "get_status"}),
+    ("PortSecurity", "testprotocols.port_security",
+     {"set_access_policy", "get_access_policy"}),
 ]
 
 
