@@ -49,6 +49,8 @@ PROTOCOLS = [
     ("Ospf", "testprotocols.ospf", {"set_ospf_config", "get_ospf_config"}),
     ("InterfaceDhcp", "testprotocols.interface_dhcp",
      {"set_interface_dhcp", "get_interface_dhcp", "get_dhcp_leases"}),
+    ("GatewayRedundancy", "testprotocols.gateway_redundancy",
+     {"list_groups", "get_group", "set_group"}),
 ]
 
 
