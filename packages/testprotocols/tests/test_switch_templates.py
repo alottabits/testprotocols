@@ -36,6 +36,7 @@ PROTOCOLS = [
     ("SwitchAcl", "testprotocols.switch_acl",
      {"set_acl", "get_acl"}),
     ("Discovery", "testprotocols.discovery", {"get_neighbors"}),
+    ("MacTable", "testprotocols.mac_table", {"get_mac_table"}),
 ]
 
 
