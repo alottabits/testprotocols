@@ -16,3 +16,17 @@ def test_route_origin_and_backcompat() -> None:
         metric=1, origin=RouteOrigin.STATIC,
     )
     assert e2.origin == "static"
+
+
+def test_switch_routing_enums() -> None:
+    from testprotocols.models.switch_routing import (
+        InterfaceMode,
+        OspfVersion,
+        RedundancyRole,
+        RouteOrigin,  # re-exported for convenience
+    )
+
+    assert InterfaceMode.SVI == "svi"
+    assert OspfVersion.V2 == "v2"
+    assert RedundancyRole.PRIMARY == "primary"
+    assert RouteOrigin.BGP == "bgp"
