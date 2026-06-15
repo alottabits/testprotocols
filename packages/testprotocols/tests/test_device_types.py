@@ -16,6 +16,7 @@ from testprotocols.devices.base import BaseDeviceProtocol
 from testprotocols.devices.client import (
     LanClientDevice,
     QoeClientDevice,
+    QoeMeasurementClientDevice,
     WlanClientDevice,
 )
 from testprotocols.devices.cpe import CpeDevice
@@ -39,6 +40,7 @@ _ALL_ARCHETYPES = (
     LanClientDevice,
     ProvisionerDevice,
     QoeClientDevice,
+    QoeMeasurementClientDevice,
     SdwanApplianceDevice,
     SdwanRouterDevice,
     SipPhoneDevice,
@@ -63,6 +65,7 @@ def test_all_device_types_registered() -> None:
         "linux_lan_client",
         "linux_wlan_client",
         "linux_qoe_client",
+        "linux_qoe_measurement_client",
         "linux_cpe",
         "linux_acs",
         "linux_provisioner",
@@ -307,6 +310,27 @@ def test_qoe_client_aggregates_expected_capabilities() -> None:
     expected = {"qoe_browser", "ip_interface", "dhcp_client"}
     actual = set(QoeClientDevice.__protocol_attrs__)
     assert expected <= actual, f"missing: {expected - actual}"
+
+
+def test_qoe_measurement_client_aggregates_expected_capabilities() -> None:
+    expected = {
+        "qoe_browser",
+        "ip_interface",
+        "dhcp_client",
+        "iperf_client",
+        "iperf_server",
+        "network_probe",
+        "pcap",
+    }
+    actual = set(QoeMeasurementClientDevice.__protocol_attrs__)
+    assert expected <= actual, f"missing: {expected - actual}"
+
+
+def test_qoe_measurement_client_is_a_qoe_client() -> None:
+    """Strict-superset invariant: the measurement client subsumes QoeClientDevice."""
+    assert set(QoeClientDevice.__protocol_attrs__) <= set(
+        QoeMeasurementClientDevice.__protocol_attrs__
+    )
 
 
 def test_acs_aggregates_expected_capabilities() -> None:

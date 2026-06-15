@@ -98,6 +98,28 @@ class QoeClientDevice(BaseDeviceProtocol, Protocol):
     dhcp_client: DhcpClient
 
 
+@runtime_checkable
+class QoeMeasurementClientDevice(QoeClientDevice, Protocol):
+    """QoE measurement client — a QoeClientDevice that is also a LAN-side
+    throughput source/sink, reachability prober, and capture point.
+
+    One host that drives browser QoE workloads AND acts as an iperf source/sink,
+    runs protocol-parameterised reachability probes (icmp / tcp / udp, with a
+    responder so the connectionless "blocked vs no-service" case is observable),
+    and captures traffic on the test segment. A strict superset of
+    ``QoeClientDevice`` (qoe_browser + ip_interface + dhcp_client) — so any
+    consumer typed against ``QoeClientDevice`` also accepts this device — for
+    testbeds (e.g. a mobile LAN-side measurement VM) that fold all those roles
+    into one host rather than separate browser / iperf-generator devices.
+    """
+
+    iperf_client: IperfClient
+    iperf_server: IperfServer
+    network_probe: NetworkProbe
+    pcap: PcapCapture
+
+
 register_device_type("linux_lan_client", LanClientDevice)
 register_device_type("linux_wlan_client", WlanClientDevice)
 register_device_type("linux_qoe_client", QoeClientDevice)
+register_device_type("linux_qoe_measurement_client", QoeMeasurementClientDevice)
