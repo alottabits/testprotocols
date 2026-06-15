@@ -9,6 +9,7 @@ from testprotocols.devices.base import BaseDeviceProtocol
 from testprotocols.ip_interface import IpInterface
 from testprotocols.iperf_generator import IperfGenerator
 from testprotocols.netem_controller import NetemController
+from testprotocols.pcap_capture import PcapCapture
 
 
 @runtime_checkable
@@ -16,12 +17,16 @@ class TrafficControllerDevice(BaseDeviceProtocol, Protocol):
     """Traffic controller archetype — inline impairment injector.
 
     Sits in the data path to apply latency, loss, jitter, and rate-limit
-    impairments via netem. Also exposes IP interface management for placement
-    on the test topology.
+    impairments via netem. Being inline on the path, it is also the device that
+    **captures** traffic crossing it (pcap) — the capture role the host/appliance
+    and switch archetypes deliberately exclude as "the TrafficControllerDevice's
+    job" (SPLITS.md). Also exposes IP interface management for placement on the
+    test topology.
     """
 
     netem: NetemController
     ip_interface: IpInterface
+    pcap: PcapCapture
 
 
 @runtime_checkable

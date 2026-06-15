@@ -333,7 +333,7 @@ def test_tftp_aggregates_expected_capabilities() -> None:
 
 
 def test_traffic_controller_aggregates_expected_capabilities() -> None:
-    expected = {"netem", "ip_interface"}
+    expected = {"netem", "ip_interface", "pcap"}
     actual = set(TrafficControllerDevice.__protocol_attrs__)
     assert expected <= actual, f"missing: {expected - actual}"
 

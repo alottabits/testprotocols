@@ -534,3 +534,32 @@ module docstring (separate testbed-plugin repo, out of scope for this package).
 `radius: RadiusClient`), `GAPS.md` (2026-06-15 `AccessPolicy.radius_server_names`).
 
 ---
+
+## 2026-06-15 — `pcap: PcapCapture` added to `TrafficControllerDevice`
+
+**Signal:** Building the KPN `linux_traffic_controller` driver surfaced that the
+inline impairment bridge is also the natural packet-capture point: the KPN plan
+verifies TC-10 (DSCP marking) and TC-15/16 (path steering) "via TC capture", and
+the host/appliance/switch archetypes already exclude `pcap` on the explicit
+grounds that capture "is the `TrafficControllerDevice`'s job" (this file + the
+switch design docs). The capability was thus implied to live here but had not
+been composed onto the archetype.
+
+**Decision:** move (compose) — add `pcap: PcapCapture` to
+`TrafficControllerDevice`.
+
+**Rationale:**
+- `PcapCapture` already exists; this is archetype *composition* (placing an
+  existing capability where it structurally belongs), not a net-new capability —
+  so no cross-vendor `K/6` evidence is required, only a consumer signal, which
+  the ≥3 KPN test cases supply.
+- An inline traffic shaper is the one device that sees every frame crossing the
+  path under test; making capture first-class lets steps typed against
+  `TrafficControllerDevice` use `device.pcap` without a `cast`.
+
+**Migration impact:** `TrafficControllerDevice` consumers must now provide
+`pcap`. KPN's `LinuxTrafficController` already does. The sdwan-digital-twin
+example TC (netem + ip_interface only) was updated to compose its existing
+`LinuxPcapCaptureImpl`. `tests/test_device_types.py` expected-attrs updated.
+
+---
