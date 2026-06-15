@@ -477,6 +477,19 @@ vendor-divergent — seed on evidence.
 **Design notes (when picked up):** a stack-membership read plus stack-scoped
 config accessors; design the shape against the first consumer.
 
+**Update 2026-06-15 (driver evidence — trigger NOT yet fired):** a Meraki
+L3-switch driver hit the stack-scope endpoint divergence (per-device routing
+endpoints return 400 on stack members) and absorbed it **driver-side** via
+stack-scoped vs per-device endpoint selection (a `_stack.py` helper across
+`routed_interfaces` / `static_routes` / `routing_read` / `interface_dhcp`); the
+contract method shape was preserved. A driver needing stack membership
+*internally* is **not** the trigger — the trigger remains a **test** asserting
+stack membership / stack-scoped config / member failover. If/when it fires, the
+shape is a composed `SwitchStacks` capability (optionally a
+`L3SwitchStacked(L3Switch, Protocol)` tier that adds it, mirroring
+`L3SwitchRouted`/`bgp`) — **not** a role-defined device type, since stacked/
+standalone is mutable state, not a capability superset.
+
 **Cross-references:** `docs/l2-switch-protocol-design.md`,
 `docs/l3-switch-protocol-design.md`.
 
