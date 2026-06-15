@@ -4,7 +4,7 @@
 | -------- | ------------------------------------------------------------------------------------------------------------- |
 | Status   | Implemented (L2 layer; see docs/superpowers/plans/2026-06-14-l2-switch-archetype.md)                          |
 | Author   | rjvisser                                                                                                       |
-| Date     | 2026-06-14 (updated 2026-06-14: Arista EOS verification — CCS-720D Series cross-vendor check; AAA/RADIUS + FirstHopSecurity (concept-check 6/6) + NtpConfig added; Arista CDP cell corrected)                  |
+| Date     | 2026-06-14 (updated 2026-06-14: Arista EOS verification — CCS-720D Series cross-vendor check; AAA/RADIUS + FirstHopSecurity (concept-check 6/6) + NtpConfig added; Arista CDP cell corrected; updated 2026-06-15: StormControl found API-reachable on MS225 via a live hardware check — 5/6 → 6/6, no MS225 shortfall) |
 | Related  | `packages/testprotocols/GAPS.md` (2026-05-02 `L2Bridge` HIGH — to be cross-referenced; new `IgmpSnooping` / `PortMirror` / `MulticastRouting` deferrals), `SPLITS.md` (`Router` RIB carve-out; `ApplianceVlans` SVI/DHCP reuse; unified `SwitchAcl`), `LEVELS.md` (`MacTableWhiteBox` candidate), `devices/switch.py` (new), `models/switch.py` (new), `models/l2_common.py` (new — STP/FDB vocab shared with the future CPE-side `L2Bridge`), `models/switch_routing.py` (new, L3 sibling), `docs/l3-switch-protocol-design.md` (sibling — composes this layer), `docs/sdwan-appliance-protocol-design.md` (precedent), `models/sdwan_appliance.py` (`RuleAction` / `RuleProtocol` / `DhcpMode` reuse), `syslog_config.py`, `ntp_config.py` (new — small NTP-server-config capability), `radius_client.py` (+ `models/radius.py` — 802.1X/MAB RADIUS backend reuse), `static_routes.py`, `router.py`, `bgp.py` |
 
 This document explains why `testprotocols` carries a dedicated **managed
@@ -280,15 +280,19 @@ across the whole DAI surface. **IP Source Guard** (5/6 hardware, absent/uncertai
 on the cloud targets) is **not** in the baseline shape — a deferred optional
 extension (see §"Tracking-file entries").
 
-### `storm_control: StormControl` — NEW (5/6 platform-capable)
+### `storm_control: StormControl` — NEW (6/6; MS225 corrected 2026-06-15)
 Per-port enable plus broadcast / multicast / unknown-unicast suppression
-thresholds. **Concept check 5/6 platform-capable** — five of six reviewed
-families expose it; the design-target (MS225) configures storm control in the
-controller UI only, with **no API endpoint**. The concept clears the
-strong-majority bar, so the capability is in the baseline and the MS225 shortfall
-is a **driver-side per-method unsupported-capability error, not a contract
-leak**. (One other family normalizes to rate/ratio rather than discrete per-type
-thresholds — a plugin-side mapping concern.)
+thresholds. **Concept check 6/6.** The pre-implementation review recorded the
+design-target (MS225) as controller-UI-only with no API endpoint (a 5/6
+"platform-capable" framing). A **live read/write check against real MS225 and
+MS355 hardware (2026-06-15) corrected this**: storm control **is** exposed via
+the Dashboard API at *network* scope (`getNetworkSwitchStormControl` /
+`updateNetworkSwitchStormControl`, the three broadcast/multicast/unknown-unicast
+percentage thresholds), so the count is **6/6** and there is no MS225 shortfall
+to surface as unsupported-capability. The one divergence from the per-*port*
+contract shape is that Meraki applies the thresholds **network-wide** — a
+plugin-side mapping concern, not a contract leak. (One other family normalizes to
+rate/ratio rather than discrete per-type thresholds — likewise plugin-side.)
 
 ### `discovery: Discovery` — NEW, read-only (6/6 LLDP)
 Per-port link-layer neighbour read. **Concept check 6/6** for LLDP (the open
@@ -403,8 +407,8 @@ above which lives in `models/l2_common.py`):**
 
 **Unsupported-capability exceptions surfaced by the cross-vendor data
 (driver-side, not contract leaks):** the design-target (MS225) raises
-unsupported-capability for `StormControl` config (UI-only), `MacTable` / FDB read
-(no endpoint), and `SwitchVlans` create/delete (VLANs implicit); for `FirstHopSecurity` it raises
+unsupported-capability for `MacTable` / FDB read
+(no endpoint) and `SwitchVlans` create/delete (VLANs implicit); for `FirstHopSecurity` it raises
 on per-port DHCP-snooping trust / rate-limit / binding-table read (rogue-DHCP is
 MAC allow/block) and DAI is switch-wide, not per-VLAN — and UniFi raises it across
 the whole DAI surface; for `NtpConfig` MS225 raises it (Meraki-cloud time,
@@ -435,7 +439,7 @@ target, not a privileged shape.
 | `PortSecurity`    | ✓ (access policy/sticky) | ✓ (802.1X/port-sec)      | ✓ (802.1X/MAC)      | ✓ (port-security/dot1x) | ✓ (dot1x/sticky)         | ✓ (port-sec/802.1X)   | ✓ (port-security max/sticky; 802.1X/MAB; MACsec) |
 | `RadiusClient` (AAA) | ✓ (access-policy RADIUS) | ✓ (RADIUS servers)   | ✓ (RADIUS profiles) | ✓ (radius-server host) | ✓ (access radius)        | ✓ (RADIUS profile)    | ✓ (radius-server / aaa group) |
 | `FirstHopSecurity` | ✓ (DHCP Guard/RA Guard + DAI) | ✓ (snoop + ARP-protect + IPSG) | ◐ (DHCP Guarding; no DAI) | ✓ (snoop + DAI + IPSG) | ✓ (dhcp-security tree) | ✓ (IMPB + snoop + ARP-insp) | ◐ (snoop full; DAI static-binding) |
-| `StormControl`    | ✗ (UI-only, no API)     | ✓ (global storm ctrl)    | ✓ (storm + rate-limit) | ✓ (storm-control)   | ✓ (storm-control profiles) | ✓ (storm control)    | ✓ (per-iface bcast/mcast/unknown-ucast) |
+| `StormControl`    | ◐ (network-wide API; corrected 2026-06-15) | ✓ (global storm ctrl)    | ✓ (storm + rate-limit) | ✓ (storm-control)   | ✓ (storm-control profiles) | ✓ (storm control)    | ✓ (per-iface bcast/mcast/unknown-ucast) |
 | `SwitchAcl` (L2)  | ◐ (combined, full-replace) | ✓ (MAC+IP ACL)        | ✓ (MAC ACL/isolation) | ✓ (MAC/port ACL)    | ✓ (eth-switching filter)  | ✓ (MAC ACL)           | ✓ (MAC + IP ACLs, one engine) |
 | `Discovery`       | ✓ (LLDP+CDP)            | ◐ (LLDP only)            | ◐ (LLDP only)       | ✓ (LLDP+CDP)          | ◐ (LLDP only)             | ◐ (LLDP only)         | ✓ (LLDP+CDP)            |
 | `MacTable`        | ✗ (no FDB API)          | ✓ (FDB GUI)              | ✓ (controller FDB)  | ✓ (mac addr-table)    | ✓ (eth-switching table)   | ✓ (FDB table)         | ✓ (show mac address-table) |
@@ -483,9 +487,9 @@ this evidence.** What HELD:
   protocol — `SwitchPorts`, `SwitchVlans`, `SpanningTree`, `LinkAggregation`,
   `PortPoe`, `PortSecurity`, `RadiusClient`, `StormControl`, `SwitchAcl`, `Discovery`,
   `MacTable`, `PortStatus`, `SwitchQos`, `SyslogConfig`, `NtpConfig` — maps to a published EOS
-  management-plane surface (CLI/eAPI/NETCONF/OpenConfig). Notably, the three
-  capabilities the design-target (MS225) cannot exercise — `StormControl`,
-  `MacTable`/FDB read, and `SwitchVlans` create/delete — are **all fully present
+  management-plane surface (CLI/eAPI/NETCONF/OpenConfig). Notably, the
+  capabilities the design-target (MS225) cannot exercise — `MacTable`/FDB read
+  and `SwitchVlans` create/delete — are **all fully present
   on Arista**, so the verification strengthens the case that those concepts are
   genuinely switch-native (the MS225 shortfalls stay driver-side
   unsupported-capability errors, not contract changes). `Discovery` reinforces the
