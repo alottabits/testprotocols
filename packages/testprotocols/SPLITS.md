@@ -477,3 +477,60 @@ are gateway/host-shaped.
 - Design record: `docs/l2-switch-protocol-design.md` (Status: Implemented).
 
 ---
+
+## 2026-06-15 — `RadiusClient` kept separate from `PortSecurity` (shared backing object → merge, not clobber)
+
+**Signal:** During the MD225 (Meraki MS-class) switch-driver implementation:
+Meraki has **no standalone RADIUS registry** — RADIUS servers are inline in a
+Switch Access Policy object, which is *also* what `PortSecurity.set_access_policy`
+writes. Question raised: since both `RadiusClient` and `PortSecurity` would then
+be two points of control over one backing object, would it be cleaner to **not**
+support the `RadiusClient` methods on the Meraki driver?
+
+**Decision:** keep. `RadiusClient` (the server registry) and `PortSecurity` (the
+per-port access policy) stay **separate** capabilities, and RADIUS servers are
+**not** folded into `AccessPolicy`. The shared-backing-object concern is resolved
+by a **driver-coherence requirement** (read-modify-write), not by dropping a
+capability.
+
+**Rationale:**
+- `AccessPolicy` (`models/switch.py`) carries **no RADIUS-server fields**, so
+  dropping `RadiusClient` on a driver would leave **nowhere to configure the
+  authenticator** — a `DOT1X` policy would point at nothing. The only alternative,
+  folding servers into `AccessPolicy`, would inline Meraki's per-policy server
+  shape into the vendor-neutral contract — exactly the impedance the design keeps
+  driver-side.
+- The cross-vendor review shows 6 of 7 families expose a standalone server
+  registry or a named RADIUS profile (referenced by name); only Meraki inlines
+  servers per access policy. You do not reshape the contract for the one outlier —
+  you absorb it in its driver. `RadiusClient` is therefore the correct neutral
+  shape (the `WifiBss` reference-by-name precedent).
+- `radius: RadiusClient` is a **mandatory** `L2Switch` attribute, checked by the
+  registration `isinstance` gate. The design convention is per-**method**
+  unsupported-capability errors, never dropping a whole composed capability.
+
+**Driver requirement (the real output of this entry):** where one vendor object
+backs **both** capabilities (e.g. the Meraki access policy), the driver MUST
+read-modify-write that object, never full-replace:
+- `radius.add_server` / `update_server` / `remove_server` → read the policy, merge
+  the change into its server array, write back.
+- `port_security.set_access_policy` → read the existing server array, set only the
+  policy-type / MAC fields, write back **preserving** the servers.
+A naive full-object PUT from either surface clobbers the other's contribution.
+Because Meraki replicates servers **per policy** (not per-switch), a single global
+`RadiusClient` change fans out across **every** access policy that inlines those
+servers — the driver is responsible for that propagation.
+
+**Migration impact:** none in `testprotocols` — this records a *kept* granularity
+decision plus a driver-coherence requirement; no protocol/model change. The
+related field-level gap (explicit per-port server selection, since `AccessPolicy`
+cannot today name which servers a port uses) is tracked separately in `GAPS.md`
+(2026-06-15). The merge-not-clobber requirement belongs in the MD225 driver's own
+module docstring (separate testbed-plugin repo, out of scope for this package).
+
+**Cross-references:** `radius_client.py` (`RadiusClient`), `port_security.py`
+(`PortSecurity`), `models/switch.py` (`AccessPolicy`), `models/radius.py`
+(`RadiusServerConfig`), `docs/l2-switch-protocol-design.md` (§Reuse notes →
+`radius: RadiusClient`), `GAPS.md` (2026-06-15 `AccessPolicy.radius_server_names`).
+
+---

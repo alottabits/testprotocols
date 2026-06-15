@@ -597,6 +597,42 @@ capability.
 
 ---
 
+## 2026-06-15 — explicit per-port RADIUS-server selection on `AccessPolicy` [priority: low]
+
+**Signal:** During the MD225 (Meraki MS-class) switch-driver implementation, the
+`port_security.py` module docstring states the access policy *"references RADIUS
+servers by name from the composed `radius` (`RadiusClient`) registry"* — but the
+`AccessPolicy` record (`models/switch.py`) carries **no field naming which
+servers** a port's policy should use. Today the link is implicit: a `DOT1X`
+policy authenticates against whatever is registered in the composed
+`RadiusClient`, with no per-port subset selection.
+
+**Trigger to act:** First test or driver that must point different ports at
+**different** registered RADIUS server sets (i.e. more than one server group in
+play across the switch's access policies), rather than a single implicit
+registry.
+
+**Out of scope right now because:** No consumer needs per-port server selection;
+the single implicit-registry link covers every evidenced 802.1X/MAB case, and the
+reviewed design-target inlines one server set per access policy. Adding the field
+speculatively ahead of a driving test risks the wrong shape (e.g. names vs group
+ids).
+
+**Design notes (when picked up):** add an optional
+`radius_server_names: list[str] = field(default_factory=list)` to `AccessPolicy`
+— empty meaning "driver uses the default/whole registry" so the change is
+back-compatible. Drivers map the names → vendor server refs; on Meraki the names
+resolve to the bound access policy's inline `radiusServers` array (see the
+SPLITS.md shared-backing-object entry). This is a `SPLITS.md`-worthy model reshape
+when it lands.
+
+**Cross-references:** `port_security.py` (`PortSecurity`, the docstring claim),
+`models/switch.py` (`AccessPolicy`), `radius_client.py` (`RadiusClient`),
+`SPLITS.md` (2026-06-15 `RadiusClient`/`PortSecurity` shared-backing-object
+entry).
+
+---
+
 ## Implemented
 
 - **2026-06-12 — `SdwanPolicyManager` typed path-steering surface** (deferred
