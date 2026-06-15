@@ -27,5 +27,14 @@ class BaseDeviceProtocol(Protocol):
     defs need both.
     """
 
-    device_name: str
-    device_type: str
+    # Read-only identity. Declared as properties (not settable variables) so that
+    # implementers exposing them as ``@property`` (VitroDevice, palco's
+    # PalcoDevice) statically satisfy the Protocol — a settable-variable member
+    # would reject a read-only property. A plain ``device_name: str`` attribute
+    # also satisfies a read-only-property member, so this is the more permissive,
+    # correct declaration for read-only identity.
+    @property
+    def device_name(self) -> str: ...
+
+    @property
+    def device_type(self) -> str: ...
