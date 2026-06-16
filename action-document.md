@@ -70,11 +70,13 @@ branch `chore/pypi-release-workflow` (off current `main`). The old
 
 ### 1. Contributor governance (DCO) — mostly done
 - [x] Adopt DCO; remove CLA docs + CLA bot; rewrite `CONTRIBUTING.md`.
-- [ ] **Enable DCO enforcement** on the repo. Simplest: install the
-      [DCO GitHub App](https://github.com/apps/dco) (org-level, zero config) so
-      every PR is checked for `Signed-off-by`. In-repo alternative: add a
-      `.github/workflows/dco.yml` running a DCO-check action (keeps enforcement
-      version-controlled, no app install).
+- [x] **DCO enforcement = in-repo workflow** `.github/workflows/dco.yml`
+      (chosen over the org-level DCO GitHub App so enforcement is confined to
+      this repo and version-controlled). Self-contained shell check on
+      `pull_request`; verifies a well-formed `Signed-off-by` trailer on every
+      non-merge commit. No third-party action beyond `actions/checkout`.
+- [ ] Once the repo is public, mark the **`dco` check required** in branch
+      protection (Settings → Branches) so PRs can't merge without it.
 - [ ] (Optional) Quick legal sanity-check that DCO + Apache-2.0 inbound = outbound
       matches Alottabits' intent — far lighter than the CLA counsel review, but
       worth a glance. No bespoke agreement text to review anymore.
