@@ -27,12 +27,13 @@ and publish both packages to **PyPI**.
 
 ## Done so far (committed to `main`)
 
-The relicense + contributor-governance work landed on `main` in commit
+The relicense first landed on `main` in commit
 `11954ac chore: relicense to Apache-2.0 and add contributor governance`. The
-PyPI metadata polish, release workflow, and the DCO governance switch are on
-branch `chore/pypi-release-workflow` (off current `main`). The old
-`chore/apache-relicense-cla-pypi-prep` branch was stale and has been deleted
-(local + remote).
+PyPI metadata polish, release workflow, and the CLA→DCO governance switch were
+done on branch `chore/pypi-release-workflow` and **merged to `main` via PR #1**
+(merge commit `d04174b`); that branch and the older stale
+`chore/apache-relicense-cla-pypi-prep` branch have both been deleted. The repo
+is now **public**.
 
 - **Relicense to Apache-2.0**
   - Root `LICENSE` replaced with full Apache-2.0 text; root `NOTICE` added.
@@ -44,27 +45,33 @@ branch `chore/pypi-release-workflow` (off current `main`). The old
   - Verified via `uv build --package testprotocols`: wheel METADATA shows
     `License-Expression: Apache-2.0` and both license files bundled under
     `dist-info/licenses/`.
-- **Contributor governance = DCO** (branch `chore/pypi-release-workflow`)
+- **Contributor governance = DCO** (merged to `main`)
   - Replaced the CLA approach with the Developer Certificate of Origin.
     Deleted `ICLA.md`, `CCLA.md`, and the CLA-assistant workflow
     `.github/workflows/cla.yml`.
   - `CONTRIBUTING.md` rewritten to explain the DCO: `Signed-off-by` per commit
     (`git commit -s`), inbound = outbound = Apache-2.0, link to
     developercertificate.org.
+  - DCO enforcement live: `.github/workflows/dco.yml` ran on PR #1 and
+    passed; the CLA Assistant workflow is removed and no longer registered.
   - _Historical note:_ the original commit `11954ac` on `main` added the CLA
-    docs + bot; this branch supersedes that governance choice.
-- **Package metadata polish** (branch `chore/pypi-release-workflow`)
+    docs + bot; PR #1 supersedes that governance choice.
+- **Package metadata polish** (merged to `main`)
   - Both `pyproject.toml`s now carry `authors` + `maintainers`
     (`Alottabits <rjvisser@alottabits.com>`) and a `[project.urls]` table
     (Homepage, Repository, Issues → `github.com/alottabits/testprotocols`).
   - Verified in the built wheels: METADATA shows `Author-email`,
     `Maintainer-email`, and the three `Project-URL` entries;
     `testoperations` still records `Requires-Dist: testprotocols>=0.1.0`.
-- **Release workflow** — `.github/workflows/release.yml`
+- **Release workflow** — `.github/workflows/release.yml` (merged to `main`)
   - Triggers on `v*` tag push; `permissions: id-token: write`;
     `environment: pypi`. Builds both packages with `uv build --package`, then
     `uv publish`es `testprotocols` before `testoperations` (trusted publishing,
     automatic OIDC, no stored token).
+- **GitHub setup complete**
+  - Repo is **public**; Actions enabled. `DCO` and `Release` are the active
+    workflows. The `pypi` **Environment** exists with **required reviewer**
+    (self) configured as the publish approval gate.
 
 ## Remaining TODOs
 
@@ -75,8 +82,9 @@ branch `chore/pypi-release-workflow` (off current `main`). The old
       this repo and version-controlled). Self-contained shell check on
       `pull_request`; verifies a well-formed `Signed-off-by` trailer on every
       non-merge commit. No third-party action beyond `actions/checkout`.
-- [ ] Once the repo is public, mark the **`dco` check required** in branch
-      protection (Settings → Branches) so PRs can't merge without it.
+- [ ] Mark the **`dco` check required** in branch protection (Settings →
+      Branches → rule for `main` → Require status checks → `dco`) so PRs can't
+      merge without sign-off. (Repo is public now; the `dco` check is green.)
 - [ ] (Optional) Quick legal sanity-check that DCO + Apache-2.0 inbound = outbound
       matches Alottabits' intent — far lighter than the CLA counsel review, but
       worth a glance. No bespoke agreement text to review anymore.
@@ -86,31 +94,35 @@ branch `chore/pypi-release-workflow` (off current `main`). The old
 - [x] Add `[project.urls]` to both (Homepage, Repository, Issues) — shows on
       the PyPI project page.
 
-### 3. Make the repo public
-- [ ] Flip repo visibility to public on GitHub.
-- [ ] **Enable Actions** (Settings → Actions → General) so `release.yml` can run.
-      DCO via the GitHub App needs no special workflow permissions; an in-repo
-      `dco.yml` only needs the default read token.
-- [ ] Verify DCO enforcement with a test PR: an unsigned commit should be
-      blocked, and `git commit --amend -s` (or `--signoff` rebase) should clear it.
+### 3. Make the repo public — ✅ done
+- [x] Repo flipped to **public** on GitHub.
+- [x] **Actions enabled**; `DCO` and `Release` workflows active.
+- [x] DCO enforcement verified — `dco` check ran green on PR #1; the
+      CLA Assistant is gone.
 
 ### 4. Trusted publishing setup
-- [ ] On PyPI, register a **pending publisher** for **each** name
-      (`testprotocols`, `testoperations`): owner `alottabits`, repo
-      `testprotocols`, workflow `release.yml`, environment `pypi`.
-- [x] Write `.github/workflows/release.yml` — done on
-      `chore/pypi-release-workflow`. Triggers on `v*`; `id-token: write`;
-      `environment: pypi`; builds both via `uv build --package`, then
-      `uv publish`es `testprotocols` then `testoperations`.
-- [ ] On GitHub, create the `pypi` **Environment** (Settings → Environments)
-      if you want the manual approval gate the workflow references.
+- [x] Write `.github/workflows/release.yml` (merged to `main`). Triggers on
+      `v*`; `id-token: write`; `environment: pypi`; builds both via
+      `uv build --package`, then `uv publish`es `testprotocols` then
+      `testoperations`.
+- [x] Create the `pypi` **GitHub Environment** with **required reviewer**
+      (self) as the publish approval gate.
+- [~] Register PyPI **pending publishers** (owner `alottabits`, repo
+      `testprotocols`, workflow `release.yml`, environment `pypi`):
+  - [x] `testprotocols` — registered.
+  - [ ] `testoperations` — **still to register** (PyPI threw "something went
+        wrong" during a maintenance window; retry when it clears).
 
 ### 5. First release
 - [ ] Bump versions in both `pyproject.toml`s as needed (currently `0.1.0`).
-- [ ] Rehearse on **TestPyPI** first (`uv publish --index testpypi`), then
-      verify a clean install in a throwaway env.
+- [ ] **Rehearse on TestPyPI** first (still to do) — local: `uv build` both,
+      `uv publish --publish-url https://test.pypi.org/legacy/` with a TestPyPI
+      token, then verify a clean install from `test.pypi.org` in a throwaway
+      env. (TestPyPI versions are immutable too — use an `rc` version if
+      iterating.)
 - [ ] Tag (`v0.1.0`) and push → release workflow publishes `testprotocols`
-      then `testoperations`.
+      then `testoperations`. **Blocked until** the `testoperations` pending
+      publisher is registered (see §4).
 
 ## Notes / gotchas
 
