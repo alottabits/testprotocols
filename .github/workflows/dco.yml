@@ -1,0 +1,59 @@
+name: DCO
+
+# Verifies every commit in a pull request carries a Developer Certificate of
+# Origin sign-off (`Signed-off-by: Name <email>`). Confined to this repository:
+# it runs only on pull requests opened against this repo, and uses a
+# self-contained shell check (no third-party action) so the enforcement logic
+# is version-controlled and reviewable. See CONTRIBUTING.md.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  dco:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Full history so base..head is resolvable for the commit range.
+          fetch-depth: 0
+
+      - name: Check Signed-off-by on all PR commits
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          missing=0
+          # Each commit introduced by this PR (merges excluded — merge commits
+          # are created by GitHub and are not contributor work).
+          commits=$(git rev-list --no-merges "$BASE_SHA..$HEAD_SHA")
+          if [ -z "$commits" ]; then
+            echo "No non-merge commits to check."
+            exit 0
+          fi
+          for sha in $commits; do
+            subject=$(git show -s --format='%s' "$sha")
+            # Require a well-formed trailer: Signed-off-by: Name <email@host>
+            if git show -s --format='%B' "$sha" \
+                 | grep -qiE '^Signed-off-by: .+ <[^@<>]+@[^@<>]+>$'; then
+              echo "ok      $sha  $subject"
+            else
+              echo "MISSING $sha  $subject"
+              missing=1
+            fi
+          done
+          if [ "$missing" -ne 0 ]; then
+            echo ""
+            echo "One or more commits are missing a valid 'Signed-off-by' line."
+            echo "Sign off the last commit with:  git commit --amend -s"
+            echo "or a whole branch with:         git rebase --signoff $BASE_SHA"
+            echo "See CONTRIBUTING.md for details."
+            exit 1
+          fi
+          echo ""
+          echo "All commits are signed off. ✅"

@@ -1,50 +1,47 @@
 # Contributing to Alottabits Test Protocols
 
 Thanks for your interest in contributing. This project aims to be a shared,
-industry-standard test resource layer, so we ask every contributor to agree
-to a Contributor License Agreement (CLA) before we can merge their work.
+industry-standard test resource layer, so we ask every contributor to sign off
+on the Developer Certificate of Origin (DCO) for the work they submit.
 
-## Contributor License Agreement (CLA)
+## Developer Certificate of Origin (DCO)
 
-To keep the project's licensing clean and to allow Alottabits to steward the
-project on behalf of the community, all contributions must be covered by a
-CLA. The CLA confirms that you have the right to contribute your code and
-that you grant Alottabits and the project's users a broad license to use it.
-You retain copyright in your contributions.
+To keep the project legally safe and permanently open source, we use the
+[Developer Certificate of Origin](https://developercertificate.org/) (DCO) —
+the same lightweight process used by the Linux kernel, Git, and Docker. There
+is no separate agreement to sign and nothing to email.
 
-There are two agreements:
+The DCO is a statement that you wrote the contribution (or otherwise have the
+right to submit it) and that you agree to license it under the project's
+inbound license, **Apache-2.0**. Inbound equals outbound: your contributions
+are offered under the same terms as the project itself, which keeps the code
+open source and the provenance clear. You retain copyright in your work.
 
-- **[Individual CLA](ICLA.md)** — for contributions you make as yourself.
-- **[Corporate CLA](CCLA.md)** — for contributions made on behalf of your
-  employer. If your employer owns intellectual property you create, an
-  authorized representative should sign the Corporate CLA, and you should be
-  listed among its designated employees.
+### How to sign your work
 
-One signed CLA covers your contributions to **all current and future
-Alottabits open-source projects** — you do not need to re-sign per
-repository.
+Add a `Signed-off-by` line to each commit message, using your real name and an
+email you can be reached at:
 
-### How acceptance works
+```text
+This is my commit message
 
-When you open your first pull request, an automated CLA assistant will check
-whether your CLA is on file. If it is not, the bot will comment on the pull
-request with a link to the agreement. To sign, post this exact comment on the
-pull request:
+Signed-off-by: Jane Doe <jane.doe@example.com>
+```
 
-> I have read the CLA Document and I hereby sign the CLA
+Git can add this for you — just pass the `-s` / `--signoff` flag when you
+commit:
 
-Your acceptance is recorded electronically against your GitHub identity (full
-name, email, and account), along with the date and time — that record serves
-as your signature. If the check does not update, comment `recheck` to re-run
-it. One signature covers all your future contributions to Alottabits
-projects.
+```bash
+git commit -s -m "Your message"
+```
 
-For the Corporate CLA, an authorized representative must first return the
-signed agreement to [NOTICES EMAIL] before designated employees' pull
-requests can be merged.
+By adding the sign-off you certify the statements in the DCO. **Every commit in
+a pull request must be signed off.** If you forget, amend the most recent
+commit with `git commit --amend -s`, or sign off a whole branch against `main`
+with `git rebase --signoff main`.
 
-> The CLA documents in this repository are drafts pending legal review.
-> Final, executed versions govern any actual contribution.
+A DCO check runs on every pull request and will flag any commit missing a valid
+`Signed-off-by` line, with instructions on how to fix it.
 
 ## Development workflow
 
