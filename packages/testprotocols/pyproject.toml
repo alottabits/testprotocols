@@ -7,6 +7,8 @@ dependencies = []
 readme = "README.md"
 license = "Apache-2.0"
 license-files = ["LICENSE", "NOTICE"]
+authors = [{ name = "Alottabits", email = "rjvisser@alottabits.com" }]
+maintainers = [{ name = "Alottabits", email = "rjvisser@alottabits.com" }]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
@@ -17,6 +19,11 @@ classifiers = [
     "Topic :: Software Development :: Testing",
     "Typing :: Typed",
 ]
+
+[project.urls]
+Homepage = "https://github.com/alottabits/testprotocols"
+Repository = "https://github.com/alottabits/testprotocols"
+Issues = "https://github.com/alottabits/testprotocols/issues"
 
 [build-system]
 requires = ["setuptools>=77.0"]
