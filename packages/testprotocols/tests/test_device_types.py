@@ -307,7 +307,7 @@ def test_wlan_client_aggregates_expected_capabilities() -> None:
 
 
 def test_qoe_client_aggregates_expected_capabilities() -> None:
-    expected = {"qoe_browser", "ip_interface", "dhcp_client"}
+    expected = {"qoe_browser", "ip_interface", "dhcp_client", "syslog"}
     actual = set(QoeClientDevice.__protocol_attrs__)
     assert expected <= actual, f"missing: {expected - actual}"
 
@@ -321,6 +321,7 @@ def test_qoe_measurement_client_aggregates_expected_capabilities() -> None:
         "iperf_server",
         "network_probe",
         "pcap",
+        "syslog",
     }
     actual = set(QoeMeasurementClientDevice.__protocol_attrs__)
     assert expected <= actual, f"missing: {expected - actual}"
@@ -357,7 +358,7 @@ def test_tftp_aggregates_expected_capabilities() -> None:
 
 
 def test_traffic_controller_aggregates_expected_capabilities() -> None:
-    expected = {"netem", "ip_interface", "pcap"}
+    expected = {"netem", "ip_interface", "pcap", "syslog"}
     actual = set(TrafficControllerDevice.__protocol_attrs__)
     assert expected <= actual, f"missing: {expected - actual}"
 

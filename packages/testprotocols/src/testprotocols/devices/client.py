@@ -24,6 +24,7 @@ from testprotocols.ntp_client import NtpClient
 from testprotocols.packet_filter import PacketFilter
 from testprotocols.pcap_capture import PcapCapture
 from testprotocols.qoe_browser import QoeBrowser
+from testprotocols.syslog_config import SyslogConfig
 from testprotocols.upnp_client import UpnpClient
 from testprotocols.vlan_client import VlanClient
 from testprotocols.wifi_client import WifiClient
@@ -96,6 +97,13 @@ class QoeClientDevice(BaseDeviceProtocol, Protocol):
     qoe_browser: QoeBrowser
     ip_interface: IpInterface
     dhcp_client: DhcpClient
+    syslog: SyslogConfig
+    """Where this host forwards its syslog stream (management-plane telemetry).
+
+    Testbed-driven: the driver auto-applies the configured collector at
+    configure time; a testbed with no collector simply leaves it unset.
+    ``QoeMeasurementClientDevice`` inherits this attribute.
+    """
 
 
 @runtime_checkable

@@ -10,6 +10,7 @@ from testprotocols.ip_interface import IpInterface
 from testprotocols.iperf_generator import IperfGenerator
 from testprotocols.netem_controller import NetemController
 from testprotocols.pcap_capture import PcapCapture
+from testprotocols.syslog_config import SyslogConfig
 
 
 @runtime_checkable
@@ -27,6 +28,12 @@ class TrafficControllerDevice(BaseDeviceProtocol, Protocol):
     netem: NetemController
     ip_interface: IpInterface
     pcap: PcapCapture
+    syslog: SyslogConfig
+    """Where this host forwards its syslog stream (management-plane telemetry).
+
+    Testbed-driven: the driver auto-applies the configured collector at
+    configure time; a testbed with no collector simply leaves it unset.
+    """
 
 
 @runtime_checkable
