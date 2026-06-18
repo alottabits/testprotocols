@@ -3,13 +3,19 @@ name: Release
 # Publishes both packages to PyPI when a version tag (vX.Y.Z) is pushed.
 #
 # Auth is PyPI **trusted publishing** (OIDC) — no API tokens stored as secrets.
-# This requires, on PyPI, a registered (or pending) publisher for EACH package
-# pointing at: owner `alottabits`, repo `testprotocols`, workflow `release.yml`,
-# environment `pypi`. `uv publish` mints a short-lived OIDC token automatically
-# when it detects it is running in GitHub Actions with `id-token: write`.
+# Each package has its own trusted publisher on PyPI. Pending publishers are
+# keyed by the (owner, repo, workflow, environment) tuple, which must be UNIQUE
+# per project — so a monorepo's packages cannot share one environment before the
+# projects exist. They therefore publish from separate jobs with distinct
+# environments:
+#   - testprotocols   -> environment `pypi`
+#   - testoperations  -> environment `pypi-testoperations`
+# Both point at owner `alottabits`, repo `testprotocols`, workflow `release.yml`.
+# `uv publish` mints a short-lived OIDC token automatically when it detects it is
+# running in GitHub Actions with `id-token: write`.
 #
-# `testoperations` depends on `testprotocols>=0.1.0`, so `testprotocols` is
-# published first.
+# `testoperations` depends on `testprotocols>=0.1.0`, so its job `needs` the
+# testprotocols job and runs after it.
 
 on:
   push:
@@ -20,14 +26,14 @@ permissions:
   contents: read
 
 jobs:
-  release:
+  publish-testprotocols:
     runs-on: ubuntu-latest
     # `environment: pypi` matches the trusted-publisher config on PyPI and lets
-    # you require a manual approval gate (Settings → Environments → pypi).
+    # you require a manual approval gate (Settings -> Environments -> pypi).
     environment: pypi
     permissions:
-      # Required for OIDC trusted publishing — easy to forget; without it
-      # `uv publish` falls back to looking for a token and fails.
+      # Required for OIDC trusted publishing — without it `uv publish` falls
+      # back to looking for a token and fails.
       id-token: write
     steps:
       - uses: actions/checkout@v4
@@ -37,20 +43,36 @@ jobs:
         # https://github.com/astral-sh/setup-uv/releases
         uses: astral-sh/setup-uv@v6
 
-      # Build both packages up front. `uv build --package` strips the local
-      # `[tool.uv.sources]` workspace override from published metadata, leaving
-      # the real `testprotocols>=0.1.0` dependency on `testoperations`.
+      # `uv build --package` strips the local `[tool.uv.sources]` workspace
+      # override from published metadata, leaving the real
+      # `testprotocols>=0.1.0` dependency on `testoperations`.
       - name: Build testprotocols
         run: uv build --package testprotocols --out-dir dist/testprotocols
 
-      - name: Build testoperations
-        run: uv build --package testoperations --out-dir dist/testoperations
-
-      # Publish in dependency order. Trusted publishing is automatic in CI; no
-      # token is passed. A published version is immutable — rehearse on TestPyPI
-      # before tagging.
+      # Trusted publishing is automatic in CI; no token is passed. A published
+      # version is immutable — rehearse on TestPyPI before tagging.
       - name: Publish testprotocols
         run: uv publish dist/testprotocols/*
+
+  publish-testoperations:
+    runs-on: ubuntu-latest
+    # Runs after testprotocols so the dependency (`testprotocols>=0.1.0`) is on
+    # PyPI first.
+    needs: publish-testprotocols
+    # Distinct environment -> distinct (owner, repo, workflow, environment)
+    # publisher tuple, which pending publishers require to be unique. Mirror the
+    # `pypi` approval gate on this environment (Settings -> Environments).
+    environment: pypi-testoperations
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+
+      - name: Build testoperations
+        run: uv build --package testoperations --out-dir dist/testoperations
 
       - name: Publish testoperations
         run: uv publish dist/testoperations/*
