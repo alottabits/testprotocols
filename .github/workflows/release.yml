@@ -36,12 +36,12 @@ jobs:
       # back to looking for a token and fails.
       id-token: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Install uv
         # Pin to a released version; check for newer at
         # https://github.com/astral-sh/setup-uv/releases
-        uses: astral-sh/setup-uv@v6
+        uses: astral-sh/setup-uv@v8
 
       # `uv build --package` strips the local `[tool.uv.sources]` workspace
       # override from published metadata, leaving the real
@@ -66,10 +66,10 @@ jobs:
     permissions:
       id-token: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v6
+        uses: astral-sh/setup-uv@v8
 
       - name: Build testoperations
         run: uv build --package testoperations --out-dir dist/testoperations
