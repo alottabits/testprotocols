@@ -47,6 +47,7 @@ from testprotocols.gateway_redundancy import GatewayRedundancy
 from testprotocols.http_client import HttpClient
 from testprotocols.http_server import HttpServer
 from testprotocols.hw_console import HwConsole
+from testprotocols.infra_controller import InfraController
 from testprotocols.interface_dhcp import InterfaceDhcp
 from testprotocols.ip_interface import IpInterface
 from testprotocols.ip_routing import IpRouting
@@ -135,6 +136,7 @@ __all__ = [
     "HttpClient",
     "HttpServer",
     "HwConsole",
+    "InfraController",
     "InterfaceDhcp",
     "IpInterface",
     "IpRouting",
