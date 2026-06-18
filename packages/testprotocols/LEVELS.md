@@ -147,7 +147,7 @@ kernel netfilter behind them.
 ## Open candidates (signals received, action deferred)
 
 - **`MacTableWhiteBox(MacTable, Protocol)`** — 2026-06-14, managed-switch design
-  round (`docs/l2-switch-protocol-design.md`). Raw FDB dump (the
+  round (`docs/architecture/l2-switch-protocol-design.md`). Raw FDB dump (the
   `show mac address-table` / `show ethernet-switching table` equivalent) for
   ASIC/kernel-level FDB pinning, analogous to the `L2Bridge` `bridge fdb show`
   WhiteBox note in `GAPS.md`. *Method:* `get_raw_mac_table_dump() -> str`.

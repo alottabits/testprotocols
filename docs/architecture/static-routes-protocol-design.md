@@ -1,11 +1,11 @@
-# Design: `StaticRoutes` capability seed
+# Design: WAN-edge `StaticRoutes` capability
 
 | Field   | Value                                                              |
 | ------- | ------------------------------------------------------------------ |
-| Status  | Approved for implementation                                         |
-| Author  | rjvisser                                                            |
-| Date    | 2026-06-12                                                          |
-| Related | `GAPS.md` (2026-06-12 static-route entry — resolved by this), `docs/sdwan-appliance-protocol-design.md`, `router.py` (read-only RIB surface), `models/wan_edge.py::RouteEntry`, `devices/sdwan.py` |
+| Status  | Implemented                                                        |
+| Author  | rjvisser                                                           |
+| Date    | 2026-06-12                                                         |
+| Related | `packages/testprotocols/GAPS.md` (2026-06-12 static-route entry — resolved by this), `docs/architecture/sdwan-appliance-protocol-design.md`, `router.py` (read-only RIB surface), `models/wan_edge.py::RouteEntry`, `devices/sdwan.py` |
 
 ## Purpose
 
@@ -20,20 +20,11 @@ This resolves the GAPS.md entry of 2026-06-12 ("Router static-route
 configuration", priority high). The entry's trigger — a driver/testbed
 implementing a static-routing acceptance case — has fired.
 
-## Constraints
+## Conventions
 
-- No customer/test-suite names in package source, tests, tracking files, or
-  commit messages; vendor names only in `docs/`, `GAPS.md`/`SPLITS.md` (and
-  the vendor-specific consumer repos).
-- `mypy --strict`; established conventions (dataclass models in
-  `models/sdwan_appliance.py`, `runtime_checkable` Protocols, parametrized
-  conformance tests, vendor-isolation grep).
-- **Adding a required archetype attribute is conformance-breaking** for both
-  existing device implementations — the Linux digital twin
-  (vitro-bdd `examples/sdwan-digital-twin`, `LinuxSdwanRouter`) and the MX
-  driver (the MX-driver testbed repo, `MerakiMx`). Both are migrated **in step** (same working
-  session).
-- All python via each repo's `.venv-3.12`.
+Dataclass models in `models/sdwan_appliance.py`, `runtime_checkable`
+Protocols, parametrized conformance tests, grow-on-evidence for vendor
+taxonomies, `mypy --strict` clean.
 
 ## Model (`models/sdwan_appliance.py`)
 
@@ -65,7 +56,7 @@ Decisions recorded:
 - **Per-entry CRUD, not list-replace** — all five reviewed appliance
   families store static routes as individual objects.
 
-## Protocol (`static_routes.py`, new)
+## Protocol (`static_routes.py`)
 
 ```python
 @runtime_checkable
@@ -106,7 +97,7 @@ gate tests extended. Conformance entry lands in
 `tests/test_wan_edge_templates.py` beside `Router`/`WanLinkAdmin` (shared
 WAN-edge surface).
 
-## Cross-vendor concept check (public API references — docs only; 5/5)
+## Cross-vendor concept check (public API references — 5/5)
 
 | Intent | Meraki MX | Catalyst SD-WAN | FortiGate | Prisma SD-WAN | Arista (VeloCloud) |
 |---|---|---|---|---|---|
@@ -114,48 +105,8 @@ WAN-edge surface).
 
 Driver-mechanics caveats (not contract concerns): Catalyst writes are
 template/parcel pushes; sequence-/id-keyed stores carry the name in
-comment/description or a driver map.
-
-## Consumer migration (in step, same session)
-
-1. **Twin** — vitro-bdd `examples/sdwan-digital-twin`: new methods on the
-   device's routing-side impl family using the existing `_run_vtysh`
-   plumbing — `ip route <destination_cidr> <next_hop>` /
-   `no ip route <destination_cidr> <next_hop>`. FRR stores no route names,
-   so the impl keeps a name→`StaticRoute` dict as the CRUD handle and
-   serves `list_static_routes` from it (add-with-existing-name first
-   removes the old prefix/next-hop pair, then installs the new one). Wire
-   `static_routes` onto `LinuxSdwanRouter` (cli route + device alias, same
-   pattern as `wan_admin`). Unit tests with mocked vtysh.
-2. **MX driver** — MX-driver testbed repo: new `impls/static_routes.py` —
-   `add_static_route` resolves name→`staticRouteId` via
-   `getNetworkApplianceStaticRoutes`; update in place when the name exists
-   (`updateNetworkApplianceStaticRoute`), else
-   `createNetworkApplianceStaticRoute(network_id, name=..., subnet=...,
-   gatewayIp=...)`; `remove_static_route` deletes by resolved id (KeyError
-   when absent); `list_static_routes` maps the GET. Wire `static_routes`
-   onto `MerakiMx`. Unit tests with mocked dashboard client.
-3. Neither repo may pin/upgrade across this change without its migration.
-
-## Tests (testprotocols)
-
-1. Model test: `StaticRoute` fields (no defaults beyond none — all three
-   required) and value behavior.
-2. Conformance: new `StaticRoutes` entry in `test_wan_edge_templates.py`
-   (`add_static_route`, `remove_static_route`, `list_static_routes`).
-3. Device-type gates: `static_routes` expected on BOTH archetypes.
-4. `mypy --strict`; vendor-isolation grep; full suite green.
-
-## Tracking & docs
-
-- **GAPS.md**: move the 2026-06-12 static-route entry into the existing
-  `## Implemented` section (delete the deferred entry; one summary bullet).
-- **`docs/sdwan-appliance-protocol-design.md`**: `static_routes:` line in
-  the archetype block, a short capability note, and a cross-vendor table
-  row (5/5, including the fifth family).
-- **MX-driver repo validation addendum**: §5.3 row flips to Implemented once the
-  MX migration lands.
-- **`SPLITS.md` / `LEVELS.md`**: no entries (addition; no white-box).
+comment/description or a driver map. Endpoint names stay in docs; only
+normalized intent enters the package.
 
 ## Error handling
 
@@ -163,11 +114,3 @@ comment/description or a driver map.
 `get_vlan` / `get_uplink`). Unsupported-capability per the framework
 convention where a product cannot comply (none expected across the five
 reviewed families). No new error types.
-
-## Acceptance
-
-- testprotocols: full suite + mypy --strict + vendor/customer-name greps
-  green.
-- twin and MX-driver repo suites green with the new capability
-  wired and tested.
-- GAPS.md entry resolved; docs updated as listed.

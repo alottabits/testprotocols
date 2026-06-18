@@ -4,7 +4,7 @@
 API/controller-managed switch exposes, satisfiable by any vendor's driver.
 Host-substrate levers (conntrack, pcap, ip_interface, nat, packet_filter,
 firewall_zones, wan_admin) are deliberately absent — a switch is not a Linux
-host. See docs/l2-switch-protocol-design.md.
+host. See docs/architecture/l2-switch-protocol-design.md.
 """
 
 from __future__ import annotations

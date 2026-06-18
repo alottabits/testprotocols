@@ -2,16 +2,16 @@
 
 | Field    | Value                                                                                                                                                                                                                                                                                                                       |
 | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Status   | Implemented (see docs/superpowers/plans/2026-06-14-l3-switch-archetype.md)                                                                                                                                                                                                                                                  |
+| Status   | Implemented                                                                                                                                                                                                                                                                                                                 |
 | Author   | rjvisser                                                                                                                                                                                                                                                                                                                    |
 | Date     | 2026-06-14 (updated 2026-06-14: Arista EOS verification — CCS-720XP Series added as a cross-vendor verification column; see *Cross-vendor neutrality v2*; default-VRF scope made explicit + VRF deferral; composed L2 layer gains AAA/RADIUS + FirstHopSecurity + NtpConfig)                                                                                                                                                                       |
-| Related  | `docs/l2-switch-protocol-design.md` (the composed L2 capability layer — read it first), `docs/sdwan-appliance-protocol-design.md` (the API-managed-device exclusion precedent), `packages/testprotocols/GAPS.md` (L2Bridge HIGH entry; IgmpSnooping / PortMirror / MulticastRouting deferrals), `packages/testprotocols/SPLITS.md` (Router RIB carve-out; ApplianceVlans SVI/DHCP reuse; unified SwitchAcl), `packages/testprotocols/LEVELS.md` (`MacTableWhiteBox`), `devices/switch.py` and `models/switch.py` (authored in the L2Switch doc; this doc adds to / composes them), `models/switch_routing.py` (proposed/new — authored by this doc), `radius_client.py` (composed L2-layer AAA reuse), `ntp_config.py` (composed L2-layer NTP, new) |
+| Related  | `docs/architecture/l2-switch-protocol-design.md` (the composed L2 capability layer — read it first), `docs/architecture/sdwan-appliance-protocol-design.md` (the API-managed-device exclusion precedent), `packages/testprotocols/GAPS.md` (L2Bridge HIGH entry; IgmpSnooping / PortMirror / MulticastRouting deferrals), `packages/testprotocols/SPLITS.md` (Router RIB carve-out; ApplianceVlans SVI/DHCP reuse; unified SwitchAcl), `packages/testprotocols/LEVELS.md` (`MacTableWhiteBox`), `devices/switch.py` and `models/switch.py` (authored in the L2Switch doc; this doc adds to / composes them), `models/switch_routing.py` (proposed/new — authored by this doc), `radius_client.py` (composed L2-layer AAA reuse), `ntp_config.py` (composed L2-layer NTP, new) |
 
 This document explains why `testprotocols` carries a dedicated **managed
 distribution switch** archetype, `L3Switch`, modelled as a **strict superset**
 of the `L2Switch` access-switch archetype, and records the shape proposed for it.
 It is a proposal; the L2 capability layer it composes is derived in full in the
-sibling document `docs/l2-switch-protocol-design.md` and is **not** re-derived
+sibling document `docs/architecture/l2-switch-protocol-design.md` and is **not** re-derived
 here. This document focuses on the **L3-only additions** that `L3Switch` layers
 on top of the complete L2 baseline.
 
@@ -62,7 +62,7 @@ relationship is `runtime_checkable`-verifiable.
 ## Decision
 
 Add a vendor-neutral **`L3Switch`** archetype that **composes every capability
-of `L2Switch`** (see `docs/l2-switch-protocol-design.md` for the full derivation
+of `L2Switch`** (see `docs/architecture/l2-switch-protocol-design.md` for the full derivation
 of the L2 layer) and **adds the L3 layer**:
 
 ```
@@ -83,7 +83,7 @@ shortfalls (no BGP, no RIB read, warm-spare instead of per-VIP VRRP, RSTP-only,
 implicit VLANs) are surfaced as per-method **unsupported-capability** exceptions
 in the driver — never as contract leaks.
 
-This mirrors the SD-WAN appliance precedent (`docs/sdwan-appliance-protocol-design.md`):
+This mirrors the SD-WAN appliance precedent (`docs/architecture/sdwan-appliance-protocol-design.md`):
 an API-managed device gets an archetype that reflects what its management plane
 genuinely exposes, excludes host-substrate levers, and adds the missing
 capabilities — guarded by a cross-vendor concept check.
@@ -130,7 +130,7 @@ capability, with the split stated explicitly below.
 relationship is explicit and `runtime_checkable`-verifiable. The block lists the
 **complete** attribute set (the composed L2 layer plus the L3 layer) so the
 Protocol is self-contained; the L2 attributes are derived in
-`docs/l2-switch-protocol-design.md` and only summarised here.
+`docs/architecture/l2-switch-protocol-design.md` and only summarised here.
 
 ```python
 @runtime_checkable
@@ -195,7 +195,7 @@ host-substrate levers*.
 ## Reuse notes — capabilities taken from existing protocols
 
 The full L2-layer reuse map (which L2 capabilities are NEW, REUSE, or RESHAPE) is
-in `docs/l2-switch-protocol-design.md`. For the L3 layer the reuse decisions are:
+in `docs/architecture/l2-switch-protocol-design.md`. For the L3 layer the reuse decisions are:
 
 | L3 capability                | Existing protocol / model                                   | Action                                            |
 | ---------------------------- | ----------------------------------------------------------- | ------------------------------------------------- |
@@ -366,7 +366,7 @@ The L2 vocabularies (`PortMode`, `PortAdminState`, `LinkState`, `Duplex`,
 `RuleAction`, not a new `AclAction`), `DiscoveryProtocol`, `StormControlType`,
 `QosTrustMode`, and the `LinkSpeed`
 int-Mbps-field decision) are authored in `models/switch.py` and derived in
-`docs/l2-switch-protocol-design.md`. They are **not** repeated here.
+`docs/architecture/l2-switch-protocol-design.md`. They are **not** repeated here.
 
 The L3 layer adds these `StrEnum`s in `models/switch_routing.py`, authored as
 `StrEnum` from day one per the legacy-`str`→`StrEnum` GAPS rule. The plugin holds
@@ -445,7 +445,7 @@ in driver translation. `✓` full · `◐` partial/divergent · `✗` absent.
 | *MulticastRouting (deferred)*    | ✓ (PIM-SM + RP)   | ✓ (PIM)             | ✓ (PIM)               | ✓ (PIM)             | ✗                  | ◐ (standalone only)  | ✓ (PIM-SM/SSM/BiDiR) |
 
 The full L2-layer matrix (the access-switch capabilities `L3Switch` inherits) is
-in `docs/l2-switch-protocol-design.md` and is not repeated here. The endpoint and
+in `docs/architecture/l2-switch-protocol-design.md` and is not repeated here. The endpoint and
 feature names in parentheses are each vendor's term for the same intent — they
 live only in the per-driver mapping, never in `testprotocols`. A capability that
 did not clear the ≥ 5/6 strong-majority bar (counting ◐ as present) did not enter
@@ -656,7 +656,7 @@ in `LEVELS.md`); one would be added on signal.
   `OspfInterfaceSettings` and `BgpNeighbor` when seeded, **not** a standalone
   capability.
 - Inherited L2-layer deferrals (`IgmpSnooping` [HIGH], `PortMirror` [MEDIUM])
-  are recorded in `docs/l2-switch-protocol-design.md` / its GAPS entries and
+  are recorded in `docs/architecture/l2-switch-protocol-design.md` / its GAPS entries and
   cross-referenced here; `IgmpSnooping` cross-references `MulticastRouting` for
   shared multicast vocab.
 - **L2Bridge HIGH entry [UPDATE] — owned by the L2 doc, cross-referenced here.**
@@ -666,7 +666,7 @@ in `LEVELS.md`); one would be added on signal.
   by the switch archetypes — the realize-as-switch-native decision applies to the
   whole switch family (L2 + L3). To avoid the same mandatory edit being performed
   twice or not at all, the **single owner of the L2Bridge `[UPDATE]` is the L2
-  doc** (`docs/l2-switch-protocol-design.md`, *Tracking-file entries → `GAPS.md`
+  doc** (`docs/architecture/l2-switch-protocol-design.md`, *Tracking-file entries → `GAPS.md`
   → `L2Bridge` HIGH entry*): the shared STP/FDB vocabulary the update points at
   (`StpMode`, `StpGuard`, `StpPortState`, `MacTableEntry`) is authored in
   `models/switch.py`, which is the L2 layer's module — so the cross-reference

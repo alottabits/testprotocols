@@ -8,5 +8,6 @@ __pycache__/
 dist/
 build/
 
-# local working documents (implementation plans) — not shipped
+# local working documents — not shipped
 docs/superpowers/plans/
+action-document.md

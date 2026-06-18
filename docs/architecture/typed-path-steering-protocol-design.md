@@ -1,11 +1,11 @@
-# Design: typed path-steering surface on `SdwanPolicyManager`
+# Design: typed path-steering on `SdwanPolicyManager`
 
 | Field   | Value                                                              |
 | ------- | ------------------------------------------------------------------ |
-| Status  | Approved for implementation                                         |
-| Author  | rjvisser                                                            |
-| Date    | 2026-06-12                                                          |
-| Related | `GAPS.md` (2026-06-11 typed path-steering deferral — resolved by this), `docs/sdwan-appliance-protocol-design.md` (incl. cross-vendor v2), `sdwan_policy_manager.py`, `models/sdwan_appliance.py`, `models/wan_edge.py::SLAPolicy` |
+| Status  | Implemented                                                        |
+| Author  | rjvisser                                                           |
+| Date    | 2026-06-12                                                         |
+| Related | `packages/testprotocols/GAPS.md` (2026-06-11 typed path-steering deferral — resolved by this), `docs/architecture/sdwan-appliance-protocol-design.md` (incl. cross-vendor v2), `sdwan_policy_manager.py`, `models/sdwan_appliance.py`, `models/wan_edge.py::SLAPolicy` |
 
 ## Purpose
 
@@ -21,21 +21,12 @@ This resolves the GAPS.md deferral of 2026-06-11 ("typed `SdwanPolicyManager`
 path-steering surface"). The deferral's stated trigger — path-steering /
 route-decision tests driving the exact shape — has fired.
 
-## Constraints
+## Conventions
 
-- No customer/test-suite names in package source, tests, tracking files, or
-  commit messages; vendor names only in `docs/` and `GAPS.md`/`SPLITS.md`
-  with public-API citations.
-- `mypy --strict`; established conventions (StrEnum vocabularies, dataclass
-  models in `models/sdwan_appliance.py`, whole-list-replace semantics,
-  parametrized conformance tests).
-- **Adding required methods to `SdwanPolicyManager` is conformance-breaking**
-  for its two existing implementations — the Linux digital twin
-  (`LinuxSdwanPolicyImpl`, vitro-bdd `examples/sdwan-digital-twin`) and the
-  MX driver (the MX-driver testbed repo, `impls/sdwan_policy.py`). Both are migrated **in
-  step** (same working session); testprotocols must not be left published
-  with un-migrated consumers across the three repos.
-- All python via each repo's `.venv-3.12`.
+Normalized `StrEnum` vocabularies, dataclass models in
+`models/sdwan_appliance.py`, whole-list-replace semantics, parametrized
+conformance tests, grow-on-evidence for vendor taxonomies, `mypy --strict`
+clean.
 
 ## Models (`models/sdwan_appliance.py`)
 
@@ -119,7 +110,7 @@ Module docstring updated: typed steering is now in scope; `apply_policy`
 remains the escape hatch for vendor-shaped policies beyond this surface;
 the GAPS.md cross-reference paragraph is rewritten accordingly.
 
-## Cross-vendor concept check (public API references — docs only)
+## Cross-vendor concept check (public API references)
 
 | Intent | Meraki MX | Catalyst SD-WAN | FortiGate | Prisma SD-WAN | Arista (VeloCloud) |
 |---|---|---|---|---|---|
@@ -128,51 +119,11 @@ the GAPS.md cross-reference paragraph is rewritten accordingly.
 
 5/5 for steering; 4/5 for arbitrary performance thresholds — handled by the
 unsupported-capability convention, consistent with the design doc's v2
-subsection.
-
-## Consumer migration (in step, same session)
-
-1. **Twin** — vitro-bdd `examples/sdwan-digital-twin`,
-   `LinuxSdwanPolicyImpl`: implement `set_uplink_selection` /
-   `get_uplink_selection` as a thin translation onto the impl's existing
-   policy machinery (exact mechanics decided in that repo; unit tests
-   added there; suite green with its own `.venv-3.12`).
-2. **MX driver** — MX-driver testbed repo, `impls/sdwan_policy.py`: real implementation —
-   `SteeringScope.INTERNET` → WAN traffic uplink preferences;
-   `SteeringScope.OVERLAY` → VPN traffic uplink preferences with the
-   performance class resolved to a custom-performance-class id
-   (created/looked up from the referenced `SLAPolicy`). Unit tests with
-   mocked dashboard client; suite green.
-3. Neither repo may pin/upgrade across this change without its migration.
-
-## Tests (testprotocols)
-
-1. Model tests: `SteeringScope` validation; `FlowMatch` defaults;
-   `UplinkSelectionRule` defaults (`performance_class is None`).
-2. Conformance: `SdwanPolicyManager` expected-method set gains the two
-   methods in `tests/test_wan_edge_templates.py`.
-3. `mypy --strict`; vendor-isolation grep; full suite green.
-
-## Tracking & docs
-
-- **GAPS.md**: move the 2026-06-11 typed path-steering entry to a resolved
-  disposition per the file's Workflow section (trigger fired; shape driven
-  by the acceptance tests; consumers migrated in step).
-- **`docs/sdwan-appliance-protocol-design.md`**: short addition under the
-  capability sections noting the typed steering surface and the 4/5
-  performance-threshold caveat (cross-reference the v2 subsection).
-- **MX-driver repo validation addendum**: §5.7 row flips to Implemented once the
-  MX migration lands.
-- **`SPLITS.md`**: no entry (addition, not a split).
+subsection. Endpoint names stay in docs; only normalized intent enters the
+package.
 
 ## Error handling
 
 Drivers raise the framework's unsupported-capability error where the
 product cannot satisfy a rule (notably: `performance_class` set on a
 product with fixed per-class SLAs). No new error types.
-
-## Acceptance
-
-- testprotocols: full suite + mypy --strict + vendor grep green.
-- twin and MX-driver repo suites green with the new methods.
-- GAPS.md entry resolved; docs updated as listed.
