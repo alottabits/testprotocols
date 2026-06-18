@@ -17,7 +17,7 @@ jobs:
   dco:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           # Full history so base..head is resolvable for the commit range.
           fetch-depth: 0
