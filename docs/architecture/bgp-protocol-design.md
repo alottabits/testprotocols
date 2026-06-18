@@ -1,11 +1,11 @@
-# Design: `Bgp` capability seed
+# Design: WAN-edge `Bgp` capability
 
 | Field   | Value                                                              |
 | ------- | ------------------------------------------------------------------ |
-| Status  | Approved for implementation                                         |
-| Author  | rjvisser                                                            |
-| Date    | 2026-06-12                                                          |
-| Related | `GAPS.md` (2026-06-12 BGP entry — resolved by this; the last SD-WAN-round gap), `docs/sdwan-appliance-protocol-design.md`, `router.py` (read-only), `static_routes.py` (sibling-capability precedent), `models/wan_edge.py::RouteEntry` |
+| Status  | Implemented                                                        |
+| Author  | rjvisser                                                           |
+| Date    | 2026-06-12                                                         |
+| Related | `packages/testprotocols/GAPS.md` (2026-06-12 BGP entry — resolved by this; the last SD-WAN-round gap), `docs/architecture/sdwan-appliance-protocol-design.md`, `router.py` (read-only), `static_routes.py` (sibling-capability precedent), `models/wan_edge.py::RouteEntry` |
 
 ## Purpose
 
@@ -20,19 +20,12 @@ round. Placement follows the `StaticRoutes` precedent: a **sibling
 capability** (`bgp: Bgp`) on both WAN-edge archetypes — `Router` stays
 read-only-RIB, and dynamic-routing config does not ride on it.
 
-## Constraints
+## Conventions
 
-- No customer/test-suite names in package source, tests, tracking files,
-  commit messages, or this spec; vendor names only in `docs/` and
-  `GAPS.md`/`SPLITS.md` with public-API citations.
-- `mypy --strict`; established conventions (StrEnum vocabularies, dataclass
-  models in `models/sdwan_appliance.py`, parametrized conformance tests,
-  vendor-isolation grep).
-- **Adding a required archetype attribute is conformance-breaking** for both
-  existing device implementations — the Linux digital twin (vitro-bdd
-  `examples/sdwan-digital-twin`) and the MX driver (the MX-driver testbed
-  repo). Both are migrated **in step** (same working session).
-- All python via each repo's `.venv-3.12`.
+Normalized `StrEnum` vocabularies, dataclass models in
+`models/sdwan_appliance.py`, `runtime_checkable` Protocols, and parametrized
+conformance tests. The grow-on-evidence rule applies to vendor taxonomies,
+not to standardized protocol states. `mypy --strict` clean.
 
 ## Models (`models/sdwan_appliance.py`)
 
@@ -96,7 +89,7 @@ class BgpPeerStatus:
     prefixes_received: int | None = None
 ```
 
-## Protocol (`bgp.py`, new)
+## Protocol (`bgp.py`)
 
 ```python
 @runtime_checkable
@@ -124,13 +117,13 @@ class Bgp(Protocol):
         """
 ```
 
-**Config/read split at method granularity** (the GAPS design-note demand):
-config write + read-back are universal (5/5 — even the family without
-operational reads has a config GET); only the two *operational* reads carry
-the unsupported-capability convention (4/5).
+**Config/read split at method granularity:** config write + read-back are
+universal (5/5 — even the family without operational reads has a config
+GET); only the two *operational* reads carry the unsupported-capability
+convention (4/5).
 
-Module docstring: In scope — BGP process config (whole-replace), neighbor
-session status, learned-prefix read. Out of scope — RIB reads
+Module docstring scope — In scope: BGP process config (whole-replace),
+neighbor session status, learned-prefix read. Out of scope: RIB reads
 (`router.get_routing_table`), static routes (`static_routes`), route
 maps/filters and per-neighbor policy (grow on evidence), other dynamic
 protocols (OSPF — no driving test).
@@ -142,7 +135,7 @@ directly after `static_routes` in each. Both device-type gate tests
 extended. Conformance entry in `tests/test_wan_edge_templates.py` (shared
 WAN-edge surface, beside `Router`/`WanLinkAdmin`/`StaticRoutes`).
 
-## Cross-vendor concept check (public API references — docs only)
+## Cross-vendor concept check (public API references)
 
 | Intent | Meraki MX | Catalyst SD-WAN | FortiGate | Prisma SD-WAN | Arista (VeloCloud) |
 |---|---|---|---|---|---|
@@ -152,60 +145,12 @@ WAN-edge surface, beside `Router`/`WanLinkAdmin`/`StaticRoutes`).
 
 Config 5/5; operational reads 4/5 — handled per method by the
 unsupported-capability convention, consistent with the design doc's v2
-posture and the validation record (the one family's learned-route
-verification stays a manual dashboard step).
-
-## Consumer migration (in step, same session)
-
-1. **Twin** — vitro-bdd `examples/sdwan-digital-twin`: real FRR
-   implementation via the existing vtysh plumbing — `router bgp <AS>`,
-   `neighbor <ip> remote-as <as>`, `network <cidr>` (and `no router bgp
-   <AS>` on disable / reconfigure). `get_bgp_config` returns the stored
-   config (same stored-state pattern as the static-routes dict; FRR
-   running-config parsing deferred). Operational reads parse
-   `show bgp ipv4 unicast summary json` (neighbor states, pfxRcd) and
-   `show ip route bgp json` (learned prefixes) via the device's existing
-   JSON-extraction helper. Unit tests with mocked vtysh/command output.
-2. **MX driver** — the MX-driver testbed repo: `set_bgp_config` /
-   `get_bgp_config` over the dashboard BGP endpoint (enabled, asNumber,
-   neighbors[{ip, remoteAsNumber}]); `advertised_networks` non-empty →
-   unsupported-capability (the product auto-advertises overlay subnets);
-   `get_bgp_neighbors` / `get_learned_routes` raise unsupported-capability
-   with a message pointing at the dashboard (matching the validation
-   addendum's disposition for the learned-route acceptance case). Unit
-   tests with mocked dashboard client. Driver caveat (docstring): the
-   product applies BGP in hub/concentrator contexts — a testbed
-   precondition, not a contract concern.
-3. Neither repo may pin/upgrade across this change without its migration.
-
-## Tests (testprotocols)
-
-1. Model tests: `BgpSessionState` full-FSM membership + validation;
-   `BgpNeighbor`/`BgpConfig` defaults (empty lists, independent instances);
-   `BgpPeerStatus.prefixes_received is None` default.
-2. Conformance: `Bgp` entry in `test_wan_edge_templates.py` (four methods).
-3. Device-type gates: `bgp` expected on BOTH archetypes.
-4. `mypy --strict`; vendor-isolation + customer-name greps; full suite green.
-
-## Tracking & docs
-
-- **GAPS.md**: delete the BGP deferred entry; append an Implemented bullet
-  (this closes the last SD-WAN-round gap).
-- **`docs/sdwan-appliance-protocol-design.md`**: `bgp:` archetype-block
-  line, capability note, cross-vendor row (config 5/5 / reads 4/5).
-- **MX-driver repo validation addendum**: §5.4 row flips to Implemented
-  once the MX migration lands.
-- **`SPLITS.md` / `LEVELS.md`**: no entries.
+posture (the one family's learned-route verification stays a manual
+dashboard step). Endpoint names stay in docs; only normalized intent enters
+the package.
 
 ## Error handling
 
 Unsupported-capability per the framework convention on the operational
 reads and on `advertised_networks` where a product cannot comply. No new
 error types; no KeyError semantics needed (whole-config replace).
-
-## Acceptance
-
-- testprotocols: full suite + mypy --strict + vendor/customer greps green.
-- Twin and MX-driver repo suites green with the new capability wired and
-  tested.
-- GAPS.md BGP entry resolved; docs updated as listed.

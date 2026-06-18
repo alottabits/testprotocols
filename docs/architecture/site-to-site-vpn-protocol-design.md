@@ -1,11 +1,11 @@
-# Design: `SiteToSiteVpn` capability seed (+ `L3Firewall` VPN rule set)
+# Design: SD-WAN appliance `SiteToSiteVpn` capability (+ `L3Firewall` VPN rule set)
 
 | Field   | Value                                                              |
 | ------- | ------------------------------------------------------------------ |
-| Status  | Approved for implementation                                         |
-| Author  | rjvisser                                                            |
-| Date    | 2026-06-12                                                          |
-| Related | `docs/sdwan-appliance-protocol-design.md`, the 2026-06-12 capability-validation assessment (kept outside this repo) §5.1–§5.2, `GAPS.md`, `models/sdwan_appliance.py`, `l3_firewall.py`, `devices/sdwan.py` |
+| Status  | Implemented                                                        |
+| Author  | rjvisser                                                           |
+| Date    | 2026-06-12                                                         |
+| Related | `docs/architecture/sdwan-appliance-protocol-design.md`, `packages/testprotocols/GAPS.md`, `models/sdwan_appliance.py`, `l3_firewall.py`, `devices/sdwan.py` |
 
 ## Purpose
 
@@ -17,17 +17,13 @@ default route into the overlay, advertised subnets), a peer-reachability
 read, and a firewall policy applied to overlay traffic. Both capabilities
 pass the four-vendor concept check (see Cross-vendor section).
 
-## Constraints
+## Conventions
 
-- **No customer/test-suite names** in package source, tracking files, or
-  enum/model vocabulary. Evidence in `GAPS.md` and docstrings is phrased
-  generically ("operator acceptance scope") and cites **public vendor API
-  documentation** only.
-- All existing conventions hold: normalized `StrEnum` vocabularies,
-  dataclass models in `models/sdwan_appliance.py`, `runtime_checkable`
-  Protocols, vendor-isolation grep, `mypy --strict`.
-- Adding `vpn:` to `SdwanApplianceDevice` is conformance-safe: no driver
-  implements the archetype yet (verified 2026-06-12).
+Normalized `StrEnum` vocabularies, dataclass models in
+`models/sdwan_appliance.py`, `runtime_checkable` Protocols, grow-on-evidence
+for vendor taxonomies, `mypy --strict` clean. Evidence in `GAPS.md` and
+docstrings is phrased generically ("operator acceptance scope") and cites
+**public vendor API documentation** only.
 
 ## Models (`models/sdwan_appliance.py`)
 
@@ -84,7 +80,7 @@ Decisions recorded:
 - New normalized `VpnPeerStatus` is used; `wan_edge.VPNPeerStatus`
   (free-string reachability, zero consumers) is left untouched for the twin.
 
-## Protocol (`site_to_site_vpn.py`, new)
+## Protocol (`site_to_site_vpn.py`)
 
 ```python
 @runtime_checkable
@@ -122,7 +118,7 @@ Docstring notes: the rule set governs traffic traversing the site-to-site
 VPN; on some products it is broader than one device (e.g. fleet-wide) —
 a driver/testbed concern, not a contract one. Firewall stays one coherent
 domain (consistent with the 2026-06-11 `SdwanPolicyManager` split; this is
-an addition, not a split — **no `SPLITS.md` entry**).
+an addition, not a split).
 
 ## Archetype (`devices/sdwan.py`)
 
@@ -141,52 +137,9 @@ All cells are published-API surfaces (developer.cisco.com/meraki/api-v1,
 developer.cisco.com/sdwan, docs.fortinet.com, pan.dev/sdwan). Endpoint names
 stay in docs; only normalized intent enters the package.
 
-## Tests
-
-Following the existing per-capability pattern:
-
-1. **Model tests** (`test_sdwan_appliance_models.py`): `VpnRole` /
-   `VpnPeerState` construct-from-value validation; `VpnHub` / `VpnSubnet` /
-   `SiteToSiteVpnConfig` / `VpnPeerStatus` defaults and field types.
-2. **Protocol-conformance test** (`test_sdwan_appliance_templates.py`
-   pattern): a minimal fake satisfying `SiteToSiteVpn` passes
-   `isinstance`; a fake missing a method fails.
-3. **`L3Firewall` conformance** updated for the two new methods.
-4. **Archetype gate**: device-types test asserts `SdwanApplianceDevice`
-   requires `vpn`.
-5. **Vendor-isolation grep** stays green (no product names in package
-   source).
-6. `mypy --strict` clean.
-
-## Tracking-file changes
-
-- **`GAPS.md`** — two new deferred entries from the same validation effort
-  (no customer references; public vendor-API citations only):
-  - *Static-route configuration on `Router`* — operator acceptance scope
-    requires creating a static route toward a downstream LAN router;
-    all four reviewed families expose it (Meraki `staticRoutes` CRUD,
-    SD-WAN Manager VPN feature template, FortiOS `router/static`,
-    Prisma element `staticroutes`).
-  - *BGP configuration + operational read* — operator acceptance scope
-    requires BGP peering with a LAN-side router and verifying learned
-    routes; config is 4/4, operational read 3/4 (one family publishes no
-    BGP state read — model config and status as separate methods so a
-    driver can support one without the other).
-- **`SPLITS.md`** — no entry (addition, not a split/merge).
-- **`LEVELS.md`** — no entry (no white-box extension).
-- **`docs/sdwan-appliance-protocol-design.md`** — add `vpn: SiteToSiteVpn`
-  to the archetype block, a `## New capabilities` subsection, and a
-  cross-vendor table row.
-
 ## Error handling
 
 Protocols define intent only; drivers raise the framework's
 unsupported-capability error where a product cannot satisfy a method (e.g.
 a product whose overlay role is fixed by the controller). No new error
 types are introduced.
-
-## Acceptance
-
-- All new/changed tests pass; full suite green; `mypy --strict` clean.
-- Vendor-isolation grep passes over package source.
-- Archetype registration test covers the new attribute.

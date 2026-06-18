@@ -265,8 +265,6 @@ Deleted with no replacement (driver-internal or covered elsewhere):
   - `tests/test_cpe_templates.py` removes the `Tr069Gui` row, adds the
     three new methods to the `Tr069Server` expected-method set.
   - `tests/test_device_types.py` updates `AcsDevice` expected attrs.
-  - `docs/python-protocol-adoption-architecture.md` collapses the
-    separate "TR-069 GUI" row into the `Tr069Server` notes.
 - `boardfarm-bdd`:
   - Step definitions and feature scenarios under
     `tests/features/ACS GUI Device Management.feature` reference the
@@ -361,7 +359,7 @@ read-only; `WanLinkAdmin` (`wan_link_admin.py`) carries `bring_wan_down` /
 ## 2026-06-14 — `Router` RIB read shared into a switch-scoped `RoutingRead` (implemented)
 
 **Signal:** Managed-switch design round
-(`docs/l3-switch-protocol-design.md`). A managed distribution switch routes
+(`docs/architecture/l3-switch-protocol-design.md`). A managed distribution switch routes
 east-west between local SVIs; it needs the RIB **read** surface of `Router`
 (`get_routing_table() -> list[RouteEntry]`) but **none** of `Router`'s
 WAN-uplink methods. The RIB read is currently buried inside the WAN-edge
@@ -399,14 +397,14 @@ shape would over-specify it with uplink methods it does not have.
   new `routing_read.py`; `L3Switch` in `devices/switch.py`; exports in
   `__init__.py` + `models/__init__.py`. No consumer of `Router` or `Bgp` needs
   updating (default-backed field). Design record:
-  `docs/l3-switch-protocol-design.md` (Status: Implemented).
+  `docs/architecture/l3-switch-protocol-design.md` (Status: Implemented).
 
 ---
 
 ## 2026-06-14 — `ApplianceVlans` SVI/DHCP fields shared into `RoutedInterfaces` / `InterfaceDhcp` (implemented)
 
 **Signal:** Managed-switch design round
-(`docs/l3-switch-protocol-design.md`). `appliance_vlans.VlanConfig` already
+(`docs/architecture/l3-switch-protocol-design.md`). `appliance_vlans.VlanConfig` already
 carries an SVI IP plus the `DhcpMode{SERVER,RELAY,DISABLED}` field and per-VLAN
 DHCP config — almost exactly the L3-switch SVI + per-SVI DHCP shape — but it is
 named and scoped for the WAN edge.
@@ -442,14 +440,14 @@ duplicate.
   `routed_interfaces.py` + `interface_dhcp.py` protocols; `L3Switch` in
   `devices/switch.py`; exports in `__init__.py` + `models/__init__.py`.
   `VlanConfig` and all appliance consumers are **unchanged**. Design record:
-  `docs/l3-switch-protocol-design.md` (Status: Implemented).
+  `docs/architecture/l3-switch-protocol-design.md` (Status: Implemented).
 
 ---
 
 ## 2026-06-14 — unified `SwitchAcl` (one L2+L3 ACL surface, not two protocols)
 
 **Signal:** Managed-switch design round
-(`docs/l2-switch-protocol-design.md`, `docs/l3-switch-protocol-design.md`). The
+(`docs/architecture/l2-switch-protocol-design.md`, `docs/architecture/l3-switch-protocol-design.md`). The
 reviewed switches enforce L2 (MAC/VLAN) and L3/L4 (5-tuple) ACLs through **one
 engine** — on the design-target, literally the same endpoint — so modelling
 separate L2 and L3 ACL protocols would not match any reviewed product.
@@ -474,7 +472,7 @@ are gateway/host-shaped.
 - `L3Rule` and its consumers unchanged.
 - Plan 2 (`L3Switch`) composes the same `SwitchAcl` unchanged — the L2+L3
   unified surface already covers the L3 superset.
-- Design record: `docs/l2-switch-protocol-design.md` (Status: Implemented).
+- Design record: `docs/architecture/l2-switch-protocol-design.md` (Status: Implemented).
 
 ---
 
@@ -530,16 +528,16 @@ module docstring (separate testbed-plugin repo, out of scope for this package).
 
 **Cross-references:** `radius_client.py` (`RadiusClient`), `port_security.py`
 (`PortSecurity`), `models/switch.py` (`AccessPolicy`), `models/radius.py`
-(`RadiusServerConfig`), `docs/l2-switch-protocol-design.md` (§Reuse notes →
+(`RadiusServerConfig`), `docs/architecture/l2-switch-protocol-design.md` (§Reuse notes →
 `radius: RadiusClient`), `GAPS.md` (2026-06-15 `AccessPolicy.radius_server_names`).
 
 ---
 
 ## 2026-06-15 — `pcap: PcapCapture` added to `TrafficControllerDevice`
 
-**Signal:** Building the KPN `linux_traffic_controller` driver surfaced that the
-inline impairment bridge is also the natural packet-capture point: the KPN plan
-verifies TC-10 (DSCP marking) and TC-15/16 (path steering) "via TC capture", and
+**Signal:** Building a consumer's `linux_traffic_controller` driver surfaced that
+the inline impairment bridge is also the natural packet-capture point: the
+acceptance plan verifies DSCP-marking and path-steering cases "via TC capture", and
 the host/appliance/switch archetypes already exclude `pcap` on the explicit
 grounds that capture "is the `TrafficControllerDevice`'s job" (this file + the
 switch design docs). The capability was thus implied to live here but had not
@@ -552,13 +550,13 @@ been composed onto the archetype.
 - `PcapCapture` already exists; this is archetype *composition* (placing an
   existing capability where it structurally belongs), not a net-new capability —
   so no cross-vendor `K/6` evidence is required, only a consumer signal, which
-  the ≥3 KPN test cases supply.
+  the ≥3 acceptance test cases supply.
 - An inline traffic shaper is the one device that sees every frame crossing the
   path under test; making capture first-class lets steps typed against
   `TrafficControllerDevice` use `device.pcap` without a `cast`.
 
 **Migration impact:** `TrafficControllerDevice` consumers must now provide
-`pcap`. KPN's `LinuxTrafficController` already does. The sdwan-digital-twin
+`pcap`. A consumer's `LinuxTrafficController` already does. The sdwan-digital-twin
 example TC (netem + ip_interface only) was updated to compose its existing
 `LinuxPcapCaptureImpl`. `tests/test_device_types.py` expected-attrs updated.
 

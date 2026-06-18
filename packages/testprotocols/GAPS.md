@@ -65,7 +65,7 @@ will need an `l2_bridge: L2Bridge` attribute once seeded.
 
 **Update 2026-06-14 (managed-switch design round) — realize-as-switch-native
 decision:** The managed-switch design docs
-(`docs/l2-switch-protocol-design.md`, `docs/l3-switch-protocol-design.md`)
+(`docs/architecture/l2-switch-protocol-design.md`, `docs/architecture/l3-switch-protocol-design.md`)
 deliberately do **not** realize this `L2Bridge` entry. A managed switch's
 first-class object is the *switchport* — modeled by switch-native capabilities
 (`SwitchPorts`, `SpanningTree`, `LinkAggregation`, `PortPoe`, `MacTable`) — not
@@ -206,9 +206,9 @@ review noted that `StreamingServer` exists as a capability protocol but no
 three-tier scope rule, plugin-local until a second consumer materialises.
 
 **Trigger to act:** Second consumer (a different example or testbed) needing
-a streaming server. At that point lift the plugin-local definition from
-`palco-bdd/examples/sdwan-digital-twin/palco_plugins/sdwan/sdwan_plugin/protocols/streaming.py`
-into `testprotocols/devices/infra.py` (or a new `streaming.py`) and align
+a streaming server. At that point lift the plugin-local definition from the
+sdwan-digital-twin example plugin (in the `palco-bdd` repo) into
+`testprotocols/devices/infra.py` (or a new `streaming.py`) and align
 both consumers on the same shape.
 
 **Out of scope as a commons archetype because:** sdwan-digital-twin is the
@@ -220,9 +220,9 @@ without forcing a speculative shape into commons.
 this tier. A second consumer may push for those; design when the evidence
 arrives.
 
-**Cross-references:** plugin-local definition at
-`palco-bdd/examples/sdwan-digital-twin/palco_plugins/sdwan/sdwan_plugin/protocols/streaming.py`;
-`testprotocols/streaming_server.py` (the underlying capability protocol).
+**Cross-references:** plugin-local definition in the sdwan-digital-twin
+example plugin (in the `palco-bdd` repo); `testprotocols/streaming_server.py`
+(the underlying capability protocol).
 
 ---
 
@@ -274,14 +274,14 @@ with its own SPLITS/LEVELS note as needed.
 
 *Why this is low-risk at runtime:* `StrEnum` **is** `str` (subclass), so members
 compare / hash / format / `isinstance`-check as their string value. The sole current
-consumer (`vitro-bdd`) keeps working unchanged for `==` comparisons, str-keyed dict
+consumer (`palco-bdd`) keeps working unchanged for `==` comparisons, str-keyed dict
 lookups (vendor-mapping tables), `.upper()`, `in (...)` membership, `isinstance(x, str)`,
 and `json.dumps`. The SD-WAN appliance testbed consumer only touches the
 appliance surface (already `StrEnum`) → **zero impact** there.
 
 *Where it actually breaks — static typing + vocabulary mismatches, not runtime:*
 - A dataclass does **not** coerce: a field typed `FooEnum` that receives a bare runtime
-  `str` is flagged by `mypy --strict` (vitro-bdd runs mypy). Breakage is at **constructor
+  `str` is flagged by `mypy --strict` (palco-bdd runs mypy). Breakage is at **constructor
   call sites** and **reverse-mapping reads** (`dict.get(...) -> str`), each needing the
   producer to wrap the value as `FooEnum(raw)` — which *adds* validation but introduces a
   new `ValueError`-on-unmapped-value failure mode.
@@ -329,7 +329,7 @@ incrementally, on evidence.
 **Cross-references:** `models/wan_edge.py`, `models/firewall.py`, `models/wifi.py`,
 `models/traffic.py`, `models/radius.py`, `models/sdwan_appliance.py` (the pattern to
 follow), `packet_filter.py` (`chain` / `policy` strings). Consumer blast-radius:
-`vitro-bdd` examples `cpe-gateway` + `sdwan-digital-twin` (firewall steps, uci /
+`palco-bdd` examples `cpe-gateway` + `sdwan-digital-twin` (firewall steps, uci /
 linux_firewall / frr_router impls, unit tests).
 
 ---
@@ -365,7 +365,7 @@ seeded. Do **not** reuse the host-shaped `DeviceManagement`.
 ## 2026-06-14 — `IgmpSnooping` [priority: HIGH]
 
 **Signal:** The managed-switch design round
-(`docs/l2-switch-protocol-design.md`) cross-vendor review found IGMP snooping
+(`docs/architecture/l2-switch-protocol-design.md`) cross-vendor review found IGMP snooping
 clears the strong-majority bar (5–6/6) across the reviewed access-switch
 families, but the design-target (Meraki MS225) exposes **no API config** —
 snooping runs by default and is toggled in the controller UI only — and no
@@ -384,7 +384,7 @@ the IGMPv3 record-type codes (`MulticastGroupRecordType`, RFC 3376) and the
 `McastSource` / `McastGroup` aliases — **not** a snooping vocabulary. Coordinate
 with `MulticastRouting` (below) for shared multicast vocab.
 
-**Cross-references:** `docs/l2-switch-protocol-design.md`, `models/multicast.py`,
+**Cross-references:** `docs/architecture/l2-switch-protocol-design.md`, `models/multicast.py`,
 `MulticastRouting` (this file).
 
 ---
@@ -408,14 +408,14 @@ on real evidence rather than guessed.
 ports + direction → destination port) on the switch archetype; record the
 boundary with `pcap` / `TrafficControllerDevice` explicitly.
 
-**Cross-references:** `docs/l2-switch-protocol-design.md`, `pcap_capture.py`,
+**Cross-references:** `docs/architecture/l2-switch-protocol-design.md`, `pcap_capture.py`,
 `SPLITS.md` (2026-05-02 netem precedent).
 
 ---
 
 ## 2026-06-14 — `MulticastRouting` (PIM) [priority: medium]
 
-**Signal:** L3-switch design round (`docs/l3-switch-protocol-design.md`):
+**Signal:** L3-switch design round (`docs/architecture/l3-switch-protocol-design.md`):
 PIM-SM + RP reaches 5/6 present across the distribution review set
 (Meraki / Aruba CX / Juniper / Catalyst full, FortiSwitch ◐ standalone-only,
 UniFi ✗) — the **same headcount** as the admitted `GatewayRedundancy` — but is
@@ -431,7 +431,7 @@ a real test, not on headcount alone.
 a multicast vocab; coordinate with `IgmpSnooping` for shared multicast
 vocabulary.
 
-**Cross-references:** `docs/l3-switch-protocol-design.md`, `IgmpSnooping` (this
+**Cross-references:** `docs/architecture/l3-switch-protocol-design.md`, `IgmpSnooping` (this
 file), `models/multicast.py`.
 
 ---
@@ -457,7 +457,7 @@ the mandatory `L3Switch` only on test evidence; no model change needed
 (`BgpConfig` / `BgpPeerStatus` / `BgpNeighbor` / `BgpSessionState` already live
 in `models/sdwan_appliance.py`, imported by `bgp.py`).
 
-**Cross-references:** `docs/l3-switch-protocol-design.md`, `bgp.py`,
+**Cross-references:** `docs/architecture/l3-switch-protocol-design.md`, `bgp.py`,
 `models/sdwan_appliance.py`.
 
 ---
@@ -490,8 +490,8 @@ shape is a composed `SwitchStacks` capability (optionally a
 `L3SwitchRouted`/`bgp`) — **not** a role-defined device type, since stacked/
 standalone is mutable state, not a capability superset.
 
-**Cross-references:** `docs/l2-switch-protocol-design.md`,
-`docs/l3-switch-protocol-design.md`.
+**Cross-references:** `docs/architecture/l2-switch-protocol-design.md`,
+`docs/architecture/l3-switch-protocol-design.md`.
 
 ---
 
@@ -515,7 +515,7 @@ cases.
 (or a sibling capability) reusing the snooping binding-table model; drivers
 lacking it raise unsupported-capability.
 
-**Cross-references:** `docs/l2-switch-protocol-design.md` (`FirstHopSecurity`).
+**Cross-references:** `docs/architecture/l2-switch-protocol-design.md` (`FirstHopSecurity`).
 
 ---
 
@@ -543,7 +543,7 @@ ignores it or raises unsupported-capability for a non-default value. This is a
 `SPLITS.md`-worthy reshape of those models when it lands — pre-designed here to
 keep the future change clean.
 
-**Cross-references:** `docs/l3-switch-protocol-design.md` (§New capabilities →
+**Cross-references:** `docs/architecture/l3-switch-protocol-design.md` (§New capabilities →
 *Scope — default VRF only*; Arista v2 VRF note), `models/switch_routing.py`,
 `static_routes.py`, `models/wan_edge.py` (`RouteEntry`).
 
@@ -564,7 +564,7 @@ driving test — same bucket as `MulticastRouting`.
 config, EVPN address family) seeded on real evidence — large enough to warrant
 its own design doc.
 
-**Cross-references:** `docs/l3-switch-protocol-design.md`, `MulticastRouting`
+**Cross-references:** `docs/architecture/l3-switch-protocol-design.md`, `MulticastRouting`
 (this file).
 
 ---
@@ -585,7 +585,7 @@ real evidence to avoid baking in one vendor's grammar.
 match/set predicates + redistribution rules) or bounded redistribution fields on
 `Ospf` / `Bgp`; design the normalized expression on the first consumer.
 
-**Cross-references:** `docs/l3-switch-protocol-design.md`, `bgp.py`,
+**Cross-references:** `docs/architecture/l3-switch-protocol-design.md`, `bgp.py`,
 `models/switch_routing.py` (`Ospf`).
 
 ---
@@ -605,7 +605,7 @@ surface without evidence.
 multiplier) on `OspfInterfaceSettings` and `BgpNeighbor` — **not** a standalone
 capability.
 
-**Cross-references:** `docs/l3-switch-protocol-design.md`
+**Cross-references:** `docs/architecture/l3-switch-protocol-design.md`
 (`OspfInterfaceSettings`), `bgp.py` (`BgpNeighbor`).
 
 ---
@@ -654,7 +654,7 @@ entry).
   `UplinkSelectionRule` + `set_uplink_selection` / `get_uplink_selection`;
   performance classes reuse `SLAPolicy` by name (no separate
   `PerformanceClass`). Both existing implementations migrated in step.
-  Design record: `docs/superpowers/specs/2026-06-12-typed-path-steering-design.md`.
+  Design record: `docs/architecture/typed-path-steering-protocol-design.md`.
 
 - **2026-06-12 — Static-route configuration** (deferred earlier the same
   day): landed as the sibling `StaticRoutes` capability
@@ -664,7 +664,7 @@ entry).
   reviewed families store static routes as individual objects); config-view
   read-back deliberately added beyond the original sketch. Both existing
   implementations migrated in step.
-  Design record: `docs/superpowers/specs/2026-06-12-static-routes-design.md`.
+  Design record: `docs/architecture/static-routes-protocol-design.md`.
 
 - **2026-06-12 — BGP configuration + operational read** (the last entry of
   the SD-WAN seeding round): landed as the sibling `Bgp` capability on both
@@ -675,7 +675,7 @@ entry).
   across the reviewed families; the operational reads are 4/5 and carry the
   unsupported-capability convention per method. Both existing
   implementations migrated in step.
-  Design record: `docs/superpowers/specs/2026-06-12-bgp-design.md`.
+  Design record: `docs/architecture/bgp-protocol-design.md`.
 
 ---
 

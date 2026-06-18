@@ -27,7 +27,7 @@ testprotocols/
 │       │   └── *.py
 │       └── tests/
 ├── docs/
-│   └── python-protocol-adoption-architecture.md
+│   └── architecture/             (protocol design references)
 └── pyproject.toml                (root: dev tooling only)
 ```
 
@@ -38,6 +38,6 @@ uv pip install -e packages/testprotocols
 uv pip install -e packages/testoperations
 ```
 
-See the design rationale in `docs/python-protocol-adoption-architecture.md`
+See the per-domain protocol design references under `docs/architecture/`
 and the consumer architecture spec in
 [palco-bdd/docs/architecture/palco-architecture.md](https://github.com/alottabits/palco-bdd/blob/main/docs/architecture/palco-architecture.md).
