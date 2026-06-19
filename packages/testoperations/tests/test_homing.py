@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock
 
-from testoperations.homing import home_client, verify_home
+from testoperations.homing import HomeAssignment, home_client, realize, verify_home
 from testprotocols.models.sdwan_appliance import (
     SiteToSiteVpnConfig,
     VlanConfig,
@@ -125,9 +125,6 @@ def test_verify_home_peers_reachable_false_when_any_unreachable():
 
     v = verify_home(vlan, target_lan, target_vpn)
     assert v["peers_reachable"] is False
-
-
-from testoperations.homing import HomeAssignment, realize
 
 
 def _appliance(name: str, defined_vlan_ids=()):
