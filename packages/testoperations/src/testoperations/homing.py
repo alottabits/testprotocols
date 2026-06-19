@@ -16,6 +16,7 @@ from testprotocols.appliance_vlans import ApplianceVlans
 from testprotocols.models.sdwan_appliance import (
     SiteToSiteVpnConfig,
     VlanConfig,
+    VpnPeerState,
     VpnSubnet,
 )
 from testprotocols.site_to_site_vpn import SiteToSiteVpn
@@ -41,6 +42,50 @@ def _set_advertise(vpn: SiteToSiteVpn, subnet: str, advertise: bool) -> None:
     if advertise:
         subnets.append(VpnSubnet(subnet=subnet, advertise=True))
     vpn.set_vpn_config(SiteToSiteVpnConfig(role=cfg.role, hubs=cfg.hubs, subnets=subnets))
+
+
+def verify_home(
+    vlan: VlanConfig,
+    target_lan: ApplianceVlans,
+    target_vpn: SiteToSiteVpn,
+) -> dict[str, object]:
+    """MX-side verification that *vlan* is homed on the target appliance.
+
+    Reads (no writes): the VLAN is defined with the expected subnet/gateway, its
+    subnet is advertised into the overlay, and every VPN peer is REACHABLE.
+    ``peers_reachable`` is observational — empty peer list (no overlay) reads as
+    False. The in-guest half (gateway reachability from the test namespace) is
+    the plugin's ``verify_homing``; the caller composes the two vantage points.
+    """
+    try:
+        defined = target_lan.get_vlan(vlan.vlan_id)
+        vlan_defined = (
+            defined.subnet == vlan.subnet and defined.appliance_ip == vlan.appliance_ip
+        )
+    except KeyError:
+        defined = None
+        vlan_defined = False
+
+    cfg = target_vpn.get_vpn_config()
+    subnet_advertised = any(
+        s.subnet == vlan.subnet and s.advertise for s in cfg.subnets
+    )
+
+    peers = target_vpn.get_vpn_peers()
+    peers_reachable = bool(peers) and all(
+        p.state is VpnPeerState.REACHABLE for p in peers
+    )
+
+    return {
+        "vlan_defined": vlan_defined,
+        "subnet_advertised": subnet_advertised,
+        "peers_reachable": peers_reachable,
+        "details": {
+            "defined_subnet": getattr(defined, "subnet", None),
+            "defined_gateway": getattr(defined, "appliance_ip", None),
+            "peer_states": {p.name: p.state.value for p in peers},
+        },
+    }
 
 
 def home_client(

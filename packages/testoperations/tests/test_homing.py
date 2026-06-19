@@ -4,10 +4,12 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock
 
-from testoperations.homing import home_client
+from testoperations.homing import home_client, verify_home
 from testprotocols.models.sdwan_appliance import (
     SiteToSiteVpnConfig,
     VlanConfig,
+    VpnPeerState,
+    VpnPeerStatus,
     VpnRole,
     VpnSubnet,
 )
@@ -78,3 +80,48 @@ def test_home_client_skips_withdraw_when_vlan_absent_on_previous():
                 previous_lan=previous_lan, previous_vpn=previous_vpn)
 
     previous_lan.delete_vlan.assert_not_called()
+
+
+def test_verify_home_all_true_when_defined_advertised_and_peers_reachable():
+    vlan = _vlan()
+    target_lan = MagicMock()
+    target_lan.get_vlan.return_value = vlan
+    target_vpn = _vpn_mock([VpnSubnet(subnet="10.1.30.0/24", advertise=True)])
+    target_vpn.get_vpn_peers.return_value = [
+        VpnPeerStatus(name="ermelo", state=VpnPeerState.REACHABLE),
+        VpnPeerStatus(name="amsterdam", state=VpnPeerState.REACHABLE),
+    ]
+
+    v = verify_home(vlan, target_lan, target_vpn)
+
+    assert v["vlan_defined"] is True
+    assert v["subnet_advertised"] is True
+    assert v["peers_reachable"] is True
+
+
+def test_verify_home_false_when_vlan_absent():
+    vlan = _vlan()
+    target_lan = MagicMock()
+    target_lan.get_vlan.side_effect = KeyError(2639)
+    target_vpn = _vpn_mock()
+    target_vpn.get_vpn_peers.return_value = []
+
+    v = verify_home(vlan, target_lan, target_vpn)
+
+    assert v["vlan_defined"] is False
+    assert v["subnet_advertised"] is False
+    assert v["peers_reachable"] is False
+
+
+def test_verify_home_peers_reachable_false_when_any_unreachable():
+    vlan = _vlan()
+    target_lan = MagicMock()
+    target_lan.get_vlan.return_value = vlan
+    target_vpn = _vpn_mock([VpnSubnet(subnet="10.1.30.0/24", advertise=True)])
+    target_vpn.get_vpn_peers.return_value = [
+        VpnPeerStatus(name="ermelo", state=VpnPeerState.REACHABLE),
+        VpnPeerStatus(name="amsterdam", state=VpnPeerState.UNREACHABLE),
+    ]
+
+    v = verify_home(vlan, target_lan, target_vpn)
+    assert v["peers_reachable"] is False
