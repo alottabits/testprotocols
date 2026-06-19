@@ -208,11 +208,33 @@ carries name, normalized `state`, IP, gateway, public IP. Replaces the
 evidence. Cross-vendor: all expose WAN link state.
 
 ### `lan: ApplianceVlans`
-Per-VLAN LAN config (`list_vlans` / `get_vlan` / `set_vlan`) and DHCP lease
-reads. `VlanConfig` carries subnet, appliance IP, normalized `dhcp_mode`
-(server / relay / disabled), lease time, options, reservations, and fixed
-assignments. Replaces `ip_interface` LAN + `DhcpServer` for this archetype.
+Per-VLAN LAN config (`list_vlans` / `get_vlan` / `set_vlan` / `delete_vlan`) and
+DHCP lease reads. `VlanConfig` carries subnet, appliance IP, normalized
+`dhcp_mode` (server / relay / disabled), lease time, options, reservations, and
+fixed assignments. Replaces `ip_interface` LAN + `DhcpServer` for this archetype.
 Cross-vendor: LAN VLAN + DHCP config is universal on SD-WAN edges.
+`delete_vlan` (added 2026-06-19) completes the per-object CRUD surface — see the
+dated note below.
+
+### `ApplianceVlans.delete_vlan` (added 2026-06-19)
+Per-object VLAN removal, completing `ApplianceVlans` from `list/get/set` into a
+full CRUD surface — symmetric with `StaticRoutes.remove_static_route` and driven
+by the same rationale (LAN VLANs are individual objects on all reviewed
+families, not a single list-replace blob).
+
+**Evidence.** A `testoperations` homing operation that repositions a LAN VLAN
+between appliances must *withdraw* the prior definition before redefining it
+elsewhere (single-definer invariant); `set_vlan` alone cannot remove a VLAN.
+
+**Cross-vendor concept check.** "Remove a LAN VLAN" is expressible on all five
+reviewed families, in two shapes: native per-object delete (Meraki MX
+`deleteNetworkApplianceVlan`; FortiGate `cmdb/system/interface` delete; Prisma
+element interface / LAN-network delete) and whole-module replace (Catalyst
+service-VPN parcel push; VeloCloud `deviceSettings` full-blob rewrite). The
+whole-module group is the *same* translation `set_vlan` already requires there
+(read-modify-write the LAN module), so `delete_vlan` introduces no new neutrality
+concern. A plane that cannot remove a required / last LAN VLAN raises
+unsupported-capability, per the established convention.
 
 ### `syslog: SyslogConfig`
 Syslog server configuration (`set_syslog_servers` / `get_syslog_servers`).
@@ -407,6 +429,10 @@ pure read surface and the appliance keeps it plus `uplinks` status.
   configuration and BGP config + operational read (deferred follow-ups from
   the `SiteToSiteVpn` seeding round).
 - **`LEVELS.md`** — none yet (no white-box extensions added for this archetype).
+- **This document** — `ApplianceVlans.delete_vlan` added 2026-06-19 (per-object
+  CRUD completion; evidence + cross-vendor check recorded inline in the `lan`
+  section above). Not a granularity split (`SPLITS.md`) nor a deferred new
+  protocol (`GAPS.md`), so recorded here as a dated contract note.
 
 ## Verification
 
