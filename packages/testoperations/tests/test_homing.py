@@ -48,10 +48,12 @@ def test_home_client_withdraws_from_previous_before_defining():
     target_lan = MagicMock()
     target_lan.set_vlan.side_effect = lambda c: order.append("define")
     target_vpn = _vpn_mock()
+    target_vpn.set_vpn_config.side_effect = lambda c: order.append("vpn-advertise")
     previous_lan = MagicMock()
     previous_lan.get_vlan.return_value = vlan  # present on previous
     previous_lan.delete_vlan.side_effect = lambda vid: order.append("withdraw")
     previous_vpn = _vpn_mock([VpnSubnet(subnet="10.1.30.0/24", advertise=True)])
+    previous_vpn.set_vpn_config.side_effect = lambda c: order.append("vpn-withdraw")
 
     home_client(vlan, target_lan, target_vpn,
                 previous_lan=previous_lan, previous_vpn=previous_vpn)
@@ -61,7 +63,7 @@ def test_home_client_withdraws_from_previous_before_defining():
     prev_cfg = previous_vpn.set_vpn_config.call_args.args[0]
     assert all(s.subnet != "10.1.30.0/24" for s in prev_cfg.subnets)
     # withdraw happens before define
-    assert order == ["withdraw", "define"]
+    assert order == ["withdraw", "vpn-withdraw", "define", "vpn-advertise"]
 
 
 def test_home_client_skips_withdraw_when_vlan_absent_on_previous():
