@@ -125,3 +125,63 @@ def test_verify_home_peers_reachable_false_when_any_unreachable():
 
     v = verify_home(vlan, target_lan, target_vpn)
     assert v["peers_reachable"] is False
+
+
+from testoperations.homing import HomeAssignment, realize
+
+
+def _appliance(name: str, defined_vlan_ids=()):
+    """Fake SdwanApplianceDevice exposing .lan and .vpn."""
+    ap = MagicMock()
+    ap.name = name
+    present = set(defined_vlan_ids)
+
+    def get_vlan(vid):
+        if vid in present:
+            return _vlan()
+        raise KeyError(vid)
+
+    ap.lan.get_vlan.side_effect = get_vlan
+    ap.lan.delete_vlan.side_effect = lambda vid: present.discard(vid)
+    ap.lan.set_vlan.side_effect = lambda c: present.add(c.vlan_id)
+    ap.vpn.get_vpn_config.return_value = SiteToSiteVpnConfig(
+        role=VpnRole.SPOKE, hubs=[], subnets=[]
+    )
+    return ap
+
+
+def test_realize_defines_on_target_and_withdraws_elsewhere():
+    rotterdam = _appliance("rotterdam")
+    amsterdam = _appliance("amsterdam", defined_vlan_ids=[2639])  # stray definition
+    vlan = _vlan()
+
+    realize([HomeAssignment(vlan=vlan, target=rotterdam)], [rotterdam, amsterdam])
+
+    rotterdam.lan.set_vlan.assert_called_once_with(vlan)
+    amsterdam.lan.delete_vlan.assert_called_once_with(2639)  # single-definer enforced
+
+
+def test_realize_is_idempotent_on_clean_apply():
+    rotterdam = _appliance("rotterdam")
+    amsterdam = _appliance("amsterdam")
+    vlan = _vlan()
+    assignments = [HomeAssignment(vlan=vlan, target=rotterdam)]
+
+    realize(assignments, [rotterdam, amsterdam])
+    realize(assignments, [rotterdam, amsterdam])  # second apply == same end state
+
+    # target defined both times; non-target never had it, so never deleted
+    assert rotterdam.lan.set_vlan.call_count == 2
+    amsterdam.lan.delete_vlan.assert_not_called()
+
+
+def test_realize_restores_default_after_a_rehome():
+    rotterdam = _appliance("rotterdam")
+    amsterdam = _appliance("amsterdam", defined_vlan_ids=[2639])  # moved here by a scenario
+    vlan = _vlan()
+
+    # restore default: qoe VLAN belongs on rotterdam
+    realize([HomeAssignment(vlan=vlan, target=rotterdam)], [rotterdam, amsterdam])
+
+    amsterdam.lan.delete_vlan.assert_called_once_with(2639)
+    rotterdam.lan.set_vlan.assert_called_once_with(vlan)

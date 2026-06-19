@@ -12,7 +12,10 @@ results. No vendor SDK is imported here.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 from testprotocols.appliance_vlans import ApplianceVlans
+from testprotocols.devices.sdwan import SdwanApplianceDevice
 from testprotocols.models.sdwan_appliance import (
     SiteToSiteVpnConfig,
     VlanConfig,
@@ -109,3 +112,31 @@ def home_client(
         _set_advertise(previous_vpn, vlan.subnet, advertise=False)
     target_lan.set_vlan(vlan)
     _set_advertise(target_vpn, vlan.subnet, advertise=True)
+
+
+@dataclass
+class HomeAssignment:
+    """A desired home: the client's fixed VLAN on a specific target appliance."""
+
+    vlan: VlanConfig
+    target: SdwanApplianceDevice
+
+
+def realize(
+    assignments: list[HomeAssignment],
+    all_appliances: list[SdwanApplianceDevice],
+) -> None:
+    """Apply a whole homing topology idempotently, enforcing single-definer.
+
+    For each assignment: withdraw the VLAN (definition + advertisement) from every
+    appliance that is NOT its target, then define + advertise on the target. Safe
+    to re-run; restore-to-default is this function with the default assignments.
+    """
+    for a in assignments:
+        for ap in all_appliances:
+            if ap is a.target:
+                continue
+            _delete_if_present(ap.lan, a.vlan.vlan_id)
+            _set_advertise(ap.vpn, a.vlan.subnet, advertise=False)
+        a.target.lan.set_vlan(a.vlan)
+        _set_advertise(a.target.vpn, a.vlan.subnet, advertise=True)
