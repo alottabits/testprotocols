@@ -5,8 +5,8 @@ subnet/addressing and DHCP configuration, plus observed DHCP leases. This is the
 appliance counterpart to a Linux host's interface + DHCP-server surfaces — an
 appliance configures DHCP per VLAN, not via a host daemon.
 
-In scope: list/get/set VLAN configuration (incl. per-VLAN DHCP), and read DHCP
-leases.
+In scope: list/get/set/delete VLAN configuration (incl. per-VLAN DHCP), and read
+DHCP leases.
 
 Out of scope: WAN uplink status (see ``appliance_uplinks``), L3 firewall
 (see ``l3_firewall``), and host-style per-interface config (see ``ip_interface``).
@@ -36,6 +36,19 @@ class ApplianceVlans(Protocol):
 
     def set_vlan(self, config: VlanConfig) -> None:
         """Create or replace the VLAN identified by ``config.vlan_id``."""
+        ...
+
+    def delete_vlan(self, vlan_id: int) -> None:
+        """Remove the LAN VLAN identified by *vlan_id*.
+
+        Per-object remove, completing the VLAN CRUD surface (mirrors
+        ``StaticRoutes.remove_static_route``). On management planes that model the
+        LAN as one config blob, a driver implements this as read-modify-write of
+        that module. Deleting a missing VLAN may raise or succeed by plane;
+        callers needing idempotence should check first (``get_vlan`` raises
+        KeyError when absent). A plane that cannot remove a required / last LAN
+        VLAN raises unsupported-capability.
+        """
         ...
 
     def get_dhcp_leases(self, vlan_id: int | None = None) -> list[DhcpLease]:
