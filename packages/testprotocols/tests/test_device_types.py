@@ -320,6 +320,7 @@ def test_qoe_measurement_client_aggregates_expected_capabilities() -> None:
         "iperf_client",
         "iperf_server",
         "network_probe",
+        "responder",
         "pcap",
         "syslog",
     }
