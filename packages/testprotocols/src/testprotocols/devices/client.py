@@ -24,6 +24,7 @@ from testprotocols.ntp_client import NtpClient
 from testprotocols.packet_filter import PacketFilter
 from testprotocols.pcap_capture import PcapCapture
 from testprotocols.qoe_browser import QoeBrowser
+from testprotocols.reachability_responder import ReachabilityResponder
 from testprotocols.syslog_config import SyslogConfig
 from testprotocols.upnp_client import UpnpClient
 from testprotocols.vlan_client import VlanClient
@@ -124,6 +125,7 @@ class QoeMeasurementClientDevice(QoeClientDevice, Protocol):
     iperf_client: IperfClient
     iperf_server: IperfServer
     network_probe: NetworkProbe
+    responder: ReachabilityResponder
     pcap: PcapCapture
 
     test_ip: str
