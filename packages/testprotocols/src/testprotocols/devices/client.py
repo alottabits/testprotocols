@@ -126,6 +126,12 @@ class QoeMeasurementClientDevice(QoeClientDevice, Protocol):
     network_probe: NetworkProbe
     pcap: PcapCapture
 
+    test_ip: str
+    """The client's test-plane address as a CIDR (e.g. ``"10.1.30.50/24"``), empty
+    if the client is not homed to a test segment. Vendor-neutral metadata the
+    driver resolves from its homing config — read it here rather than reaching into
+    a framework-specific config object."""
+
 
 register_device_type("linux_lan_client", LanClientDevice)
 register_device_type("linux_wlan_client", WlanClientDevice)

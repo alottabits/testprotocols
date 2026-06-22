@@ -8,8 +8,8 @@ from testprotocols.appliance_nat import ApplianceNat
 from testprotocols.appliance_uplinks import ApplianceUplinks
 from testprotocols.appliance_vlans import ApplianceVlans
 from testprotocols.bgp import Bgp
-from testprotocols.content_filtering import ContentFiltering
 from testprotocols.conntrack import Conntrack
+from testprotocols.content_filtering import ContentFiltering
 from testprotocols.devices import register_device_type
 from testprotocols.devices.base import BaseDeviceProtocol
 from testprotocols.ip_interface import IpInterface
@@ -92,6 +92,12 @@ class SdwanApplianceDevice(BaseDeviceProtocol, Protocol):
     uplinks: ApplianceUplinks
     lan: ApplianceVlans
     syslog: SyslogConfig
+
+    model: str
+    """Hardware model identifier (e.g. ``"MX250"``) — vendor-neutral metadata the
+    driver resolves from its management API / inventory. The coverage axis for
+    model-parameterised tests; read it here rather than reaching into a
+    framework-specific config object."""
 
 
 register_device_type("sdwan_appliance", SdwanApplianceDevice)
