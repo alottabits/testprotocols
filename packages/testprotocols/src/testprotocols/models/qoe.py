@@ -29,3 +29,4 @@ class MeasurementSpec:
     completion: str = "networkidle"
     timeout_ms: int = 30000
     duration_s: int | None = None
+    force_quic: bool = True
