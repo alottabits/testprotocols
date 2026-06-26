@@ -27,8 +27,16 @@ class QoeBrowser(Protocol):
         scenario: str = "page_load",
         wait_until: str = "networkidle",
         timeout_ms: int = 30000,
+        force_quic: bool = True,
     ) -> QoEResult:
-        """Measure productivity-app QoE for *url* (e.g., page-load time)."""
+        """Measure productivity-app QoE for *url* (e.g., page-load time).
+
+        ``force_quic=True`` (default) forces HTTP/3/QUIC, as a QoE measurement
+        should. Set ``force_quic=False`` for a reachability/block probe: the
+        navigation runs over TCP/h2 (QUIC disabled), so a non-HTTP/3 site stays
+        reachable and a TCP/TLS-inspecting middlebox (e.g. content filtering)
+        actually sees the traffic.
+        """
         ...
 
     def measure_streaming(
