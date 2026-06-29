@@ -41,7 +41,7 @@ jobs:
       - name: Install uv
         # Pin to a released version; check for newer at
         # https://github.com/astral-sh/setup-uv/releases
-        uses: astral-sh/setup-uv@v8
+        uses: astral-sh/setup-uv@v7
 
       # `uv build --package` strips the local `[tool.uv.sources]` workspace
       # override from published metadata, leaving the real
@@ -69,7 +69,7 @@ jobs:
       - uses: actions/checkout@v5
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v8
+        uses: astral-sh/setup-uv@v7
 
       - name: Build testoperations
         run: uv build --package testoperations --out-dir dist/testoperations
