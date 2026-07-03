@@ -7,9 +7,12 @@ Firewall-rule administration is **not** here — it moved to the dedicated
 ``l3_firewall`` / ``l7_firewall`` capabilities (coherent-domain split; see
 SPLITS.md). Typed path steering (``set_uplink_selection`` /
 ``get_uplink_selection`` over ordered ``UplinkSelectionRule``s; performance
-classes reuse ``SLAPolicy`` by name) landed 2026-06-12; ``apply_policy``
-remains the generic escape hatch for vendor-shaped policies beyond that
-surface. Application-match steering grows on evidence.
+classes reuse ``SLAPolicy`` by name) landed 2026-06-12; the default
+(primary) uplink pair (``get_default_uplink`` / ``set_default_uplink``)
+landed 2026-07-03 — the network-wide "which uplink carries default-routed
+traffic" knob, distinct from per-flow steering. ``apply_policy`` remains
+the generic escape hatch for vendor-shaped policies beyond that surface.
+Application-match steering grows on evidence.
 """
 
 from __future__ import annotations
@@ -46,6 +49,25 @@ class SdwanPolicyManager(Protocol):
         app_filter: str | None = None,
     ) -> list[AppFlow]:
         """Return application flows observed in the last *since_s* seconds."""
+        ...
+
+    def get_default_uplink(self) -> str:
+        """Return the name of the network's default (primary) uplink.
+
+        The default uplink carries all default-routed traffic that no
+        uplink-selection rule steers elsewhere — e.g. ``"wan1"``. Vendor
+        drivers map this to their primary-uplink notion.
+        """
+        ...
+
+    def set_default_uplink(self, uplink: str) -> None:
+        """Set the network's default (primary) uplink to *uplink*.
+
+        Changes only which uplink carries default-routed traffic; the
+        ordered uplink-selection rules (``set_uplink_selection``) are left
+        untouched. Drivers reject names the product cannot express (e.g.
+        an uplink the appliance does not have) rather than approximating.
+        """
         ...
 
     def set_uplink_selection(self, rules: list[UplinkSelectionRule]) -> None:

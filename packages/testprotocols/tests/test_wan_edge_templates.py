@@ -60,6 +60,8 @@ PROTOCOLS = [
             "get_application_flows",
             "set_uplink_selection",
             "get_uplink_selection",
+            "get_default_uplink",
+            "set_default_uplink",
         },
     ),
     (
