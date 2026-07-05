@@ -66,6 +66,7 @@ def test_switch_records() -> None:
         AccessPolicy,
         AccessPolicyType,
         FhsBinding,
+        LinkAggregationGroup,
         LinkState,
         LldpNeighbor,
         NtpServer,
@@ -74,12 +75,10 @@ def test_switch_records() -> None:
         PortStatusEntry,
         QosRule,
         StormControlConfig,
-        StormControlType,
         StpPortConfig,
         SwitchAclRule,
         SwitchPort,
         VlanDef,
-        LinkAggregationGroup,
     )
 
     p = SwitchPort(name="1", mode="access")  # type: ignore[arg-type]

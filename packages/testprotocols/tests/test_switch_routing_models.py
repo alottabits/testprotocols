@@ -43,7 +43,13 @@ def test_switch_routing_records() -> None:
         RoutedInterface,
     )
 
-    ri = RoutedInterface(name="vlan10", mode=InterfaceMode.SVI, ip_address="10.0.10.1", subnet="10.0.10.0/24", vlan_id=10)
+    ri = RoutedInterface(
+        name="vlan10",
+        mode=InterfaceMode.SVI,
+        ip_address="10.0.10.1",
+        subnet="10.0.10.0/24",
+        vlan_id=10,
+    )
     assert ri.vlan_id == 10
     d = InterfaceDhcpConfig(interface="vlan10")
     assert d.mode == "disabled" and d.relay_targets == []
@@ -51,5 +57,7 @@ def test_switch_routing_records() -> None:
     assert o.version == "v2" and o.interfaces == []
     oi = OspfInterfaceSettings(interface="vlan10", area="0.0.0.0")
     assert oi.passive is False
-    g = RedundancyGroup(group_id=1, virtual_ip="10.0.10.254", role=RedundancyRole.PRIMARY, interface="vlan10")
+    g = RedundancyGroup(
+        group_id=1, virtual_ip="10.0.10.254", role=RedundancyRole.PRIMARY, interface="vlan10"
+    )
     assert g.virtual_ip == "10.0.10.254"

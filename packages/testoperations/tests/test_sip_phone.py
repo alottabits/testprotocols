@@ -17,7 +17,7 @@ from testoperations.sip_phone import (
 class TestCallAPhone:
     def test_calls_off_hook_and_dial(self):
         caller = MagicMock()
-        
+
         call_a_phone(caller, "2002")
 
         caller.off_hook.assert_called_once_with()

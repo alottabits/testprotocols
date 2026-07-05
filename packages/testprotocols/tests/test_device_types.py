@@ -10,7 +10,6 @@ inventory-string -> Protocol binding and the per-archetype capability set
 from __future__ import annotations
 
 import pytest
-
 from testprotocols.devices import DeviceTypeSpec, all_device_types, get_device_type
 from testprotocols.devices.base import BaseDeviceProtocol
 from testprotocols.devices.client import (
@@ -22,12 +21,12 @@ from testprotocols.devices.client import (
 from testprotocols.devices.cpe import CpeDevice
 from testprotocols.devices.infra import AcsDevice, ProvisionerDevice, TftpDevice
 from testprotocols.devices.sdwan import SdwanApplianceDevice, SdwanRouterDevice
+from testprotocols.devices.switch import L2Switch, L3Switch, L3SwitchRouted
 from testprotocols.devices.traffic import (
     IperfTrafficGeneratorDevice,
     TrafficControllerDevice,
 )
 from testprotocols.devices.voice import SipPhoneDevice, SipServerDevice
-from testprotocols.devices.switch import L2Switch, L3Switch, L3SwitchRouted
 from testprotocols.devices.wan import WanServerDevice
 
 _ALL_ARCHETYPES = (
@@ -455,7 +454,9 @@ def test_cpe_full_firewall_surface() -> None:
 
 def test_devices_without_firewall() -> None:
     """These archetypes must not pull in any of the firewall capabilities."""
-    firewall_attrs = ("packet_filter", "firewall", "nat", "port_forwarding", "conntrack", "firewall_zones")
+    firewall_attrs = (
+        "packet_filter", "firewall", "nat", "port_forwarding", "conntrack", "firewall_zones"
+    )
     for archetype in (
         TftpDevice,
         WlanClientDevice,

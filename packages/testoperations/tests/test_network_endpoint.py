@@ -5,7 +5,6 @@ from __future__ import annotations
 from unittest.mock import MagicMock
 
 import pytest
-
 from testoperations.network_endpoint import wait_for_endpoint_ready
 
 

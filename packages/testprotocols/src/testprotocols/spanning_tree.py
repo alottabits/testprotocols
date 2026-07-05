@@ -21,7 +21,7 @@ class SpanningTree(Protocol):
         ...
 
     def set_bridge_priority(self, priority: int) -> None:
-        """Set the bridge priority (0–61440, in steps of 4096 per IEEE 802.1D)."""
+        """Set the bridge priority (0-61440, in steps of 4096 per IEEE 802.1D)."""
         ...
 
     def set_port_config(self, config: StpPortConfig) -> None:

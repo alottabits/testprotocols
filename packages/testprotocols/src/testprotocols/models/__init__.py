@@ -13,6 +13,12 @@ from testprotocols.models.firewall import (
     ZonePolicy,
 )
 from testprotocols.models.impairment import ImpairmentProfile
+from testprotocols.models.l2_common import (
+    MacTableEntry,
+    StpGuard,
+    StpMode,
+    StpPortState,
+)
 from testprotocols.models.multicast import (
     McastGroup,
     McastSource,
@@ -22,6 +28,12 @@ from testprotocols.models.multicast import (
 from testprotocols.models.networking import HTTPResult, ICMPPacketData, IPAddresses
 from testprotocols.models.packets import RIPv2PacketData
 from testprotocols.models.qoe import MeasurementSpec, QoEResult
+from testprotocols.models.radius import (
+    RadiusAccountingRecord,
+    RadiusServerConfig,
+    RadiusSession,
+    RadiusUser,
+)
 from testprotocols.models.sdwan_appliance import (
     ApplicationCategory,
     BgpConfig,
@@ -69,12 +81,6 @@ from testprotocols.models.sdwan_appliance import (
     VpnRole,
     VpnSubnet,
 )
-from testprotocols.models.l2_common import (
-    MacTableEntry,
-    StpGuard,
-    StpMode,
-    StpPortState,
-)
 from testprotocols.models.switch import (
     AccessPolicy,
     AccessPolicyType,
@@ -105,14 +111,6 @@ from testprotocols.models.switch import (
     SwitchPort,
     VlanDef,
 )
-from testprotocols.models.radius import (
-    RadiusAccountingRecord,
-    RadiusServerConfig,
-    RadiusSession,
-    RadiusUser,
-)
-from testprotocols.models.tr069 import CpeConnectionStatus
-from testprotocols.models.traffic import TrafficResult, TrafficSpec
 from testprotocols.models.switch_routing import (
     InterfaceDhcpConfig,
     InterfaceMode,
@@ -123,6 +121,8 @@ from testprotocols.models.switch_routing import (
     RedundancyRole,
     RoutedInterface,
 )
+from testprotocols.models.tr069 import CpeConnectionStatus
+from testprotocols.models.traffic import TrafficResult, TrafficSpec
 from testprotocols.models.wan_edge import (
     AppFlow,
     LinkHealthReport,
@@ -151,114 +151,65 @@ from testprotocols.models.wifi import (
 )
 
 __all__ = [
-    # l2_common
-    "MacTableEntry",
-    "StpGuard",
-    "StpMode",
-    "StpPortState",
     # switch
     "AccessPolicy",
     "AccessPolicyType",
     "AclDirection",
     "AggregationMode",
-    "BindingSource",
-    "DiscoveryProtocol",
-    "Duplex",
-    "FhsBinding",
-    "FhsScope",
-    "FhsTrustState",
-    "LinkAggregationGroup",
-    "LinkState",
-    "LldpNeighbor",
-    "NtpServer",
-    "PoePortStatus",
-    "PoePriority",
-    "PoeStatus",
-    "PortAdminState",
-    "PortMode",
-    "PortStatusEntry",
-    "QosRule",
-    "QosTrustMode",
-    "StormControlConfig",
-    "StormControlType",
-    "StpPortConfig",
-    "SwitchAclRule",
-    "SwitchPort",
-    "VlanDef",
-    # switch_routing
-    "InterfaceDhcpConfig",
-    "InterfaceMode",
-    "OspfConfig",
-    "OspfInterfaceSettings",
-    "OspfVersion",
-    "RedundancyGroup",
-    "RedundancyRole",
-    "RoutedInterface",
     # wan_edge
     "AppFlow",
-    # firewall
-    "Connection",
-    "ConntrackStats",
-    # tr069
-    "CpeConnectionStatus",
-    # dhcp
-    "DHCPTraceData",
-    "DHCPV6TraceData",
-    "FirewallRule",
-    # networking
-    "HTTPResult",
-    "ICMPPacketData",
-    "IPAddresses",
-    # impairment
-    "ImpairmentProfile",
     # sdwan_appliance
     "ApplicationCategory",
     "BgpConfig",
     "BgpNeighbor",
     "BgpPeerStatus",
     "BgpSessionState",
+    "BindingSource",
+    # firewall
+    "Connection",
+    "ConntrackStats",
     "ContentCategory",
+    # tr069
+    "CpeConnectionStatus",
+    # dhcp
+    "DHCPTraceData",
+    "DHCPV6TraceData",
     "DhcpLease",
     "DhcpMode",
     "DhcpOption",
     "DhcpOptionType",
     "DhcpReservation",
+    "DiscoveryProtocol",
+    "Duplex",
+    "FhsBinding",
+    "FhsScope",
+    "FhsTrustState",
+    "FirewallRule",
     "FlowMatch",
+    # networking
+    "HTTPResult",
+    "ICMPPacketData",
+    "IPAddresses",
+    # impairment
+    "ImpairmentProfile",
+    # switch_routing
+    "InterfaceDhcpConfig",
+    "InterfaceMode",
     "IntrusionConfig",
     "IntrusionMode",
     "IntrusionSensitivity",
     "L3Rule",
     "L7MatchType",
     "L7Rule",
+    "LinkAggregationGroup",
+    "LinkHealthReport",
+    "LinkState",
+    "LinkStatus",
+    "LldpNeighbor",
+    # l2_common
+    "MacTableEntry",
     "MalwareConfig",
     "MalwareMode",
-    "NatInboundAllow",
-    "OneToManyNatRule",
-    "OneToOneNatRule",
-    "PortForwardRule",
-    "RuleAction",
-    "RuleProtocol",
-    "SecurityAction",
-    "SecurityEvent",
-    "ShapingPriority",
-    "ShapingRule",
-    "SiteToSiteVpnConfig",
-    "StaticRoute",
-    "SteeringScope",
-    "SyslogRole",
-    "SyslogServer",
-    "ThreatCategory",
-    "UplinkSelectionRule",
-    "UplinkState",
-    "UplinkStatus",
-    "VlanConfig",
-    "VpnHub",
-    "VpnPeerState",
-    "VpnPeerStatus",
-    "VpnRole",
-    "VpnSubnet",
-    "LinkHealthReport",
-    "LinkStatus",
     # multicast
     "McastGroup",
     "McastSource",
@@ -266,10 +217,26 @@ __all__ = [
     "MeasurementSpec",
     "MulticastGroupRecord",
     "MulticastGroupRecordType",
+    "NatInboundAllow",
     "NatRule",
+    "NtpServer",
+    "OneToManyNatRule",
+    "OneToOneNatRule",
+    "OspfConfig",
+    "OspfInterfaceSettings",
+    "OspfVersion",
     "PathMetrics",
+    "PoePortStatus",
+    "PoePriority",
+    "PoeStatus",
+    "PortAdminState",
+    "PortForwardRule",
     "PortMapping",
+    "PortMode",
+    "PortStatusEntry",
     "QoEResult",
+    "QosRule",
+    "QosTrustMode",
     # packets
     "RIPv2PacketData",
     # radius
@@ -277,14 +244,47 @@ __all__ = [
     "RadiusServerConfig",
     "RadiusSession",
     "RadiusUser",
+    "RedundancyGroup",
+    "RedundancyRole",
     "RouteEntry",
     "RouteOrigin",
+    "RoutedInterface",
+    "RuleAction",
+    "RuleProtocol",
     "SLAPolicy",
+    "SecurityAction",
+    "SecurityEvent",
+    "ShapingPriority",
+    "ShapingRule",
+    "SiteToSiteVpnConfig",
+    "StaticRoute",
+    "SteeringScope",
+    "StormControlConfig",
+    "StormControlType",
+    "StpGuard",
+    "StpMode",
+    "StpPortConfig",
+    "StpPortState",
+    "SwitchAclRule",
+    "SwitchPort",
+    "SyslogRole",
+    "SyslogServer",
+    "ThreatCategory",
     # traffic
     "TrafficResult",
     "TrafficShapingRule",
     "TrafficSpec",
+    "UplinkSelectionRule",
+    "UplinkState",
+    "UplinkStatus",
     "VPNPeerStatus",
+    "VlanConfig",
+    "VlanDef",
+    "VpnHub",
+    "VpnPeerState",
+    "VpnPeerStatus",
+    "VpnRole",
+    "VpnSubnet",
     # wifi
     "WifiAcl",
     "WifiBssConfig",

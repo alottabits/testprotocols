@@ -10,7 +10,6 @@ from __future__ import annotations
 from enum import StrEnum
 
 import pytest
-
 from testprotocols.models.sdwan_appliance import (
     ApplicationCategory,
     BgpConfig,
@@ -18,20 +17,20 @@ from testprotocols.models.sdwan_appliance import (
     BgpPeerStatus,
     BgpSessionState,
     ContentCategory,
-    FlowMatch,
-    L3Rule,
-    L7MatchType,
-    L7Rule,
-    RuleAction,
-    RuleProtocol,
     DhcpLease,
     DhcpMode,
     DhcpOption,
     DhcpOptionType,
+    FlowMatch,
     IntrusionConfig,
     IntrusionMode,
     IntrusionSensitivity,
+    L3Rule,
+    L7MatchType,
+    L7Rule,
     MalwareMode,
+    RuleAction,
+    RuleProtocol,
     SecurityAction,
     SecurityEvent,
     ShapingPriority,
@@ -126,7 +125,8 @@ def test_shaping_rule_uses_normalized_vocabulary() -> None:
         priority=ShapingPriority.LOW,
     )
     assert rule.priority == "low"
-    assert ShapingRule(name="x", match_type=L7MatchType.HOST, value="1.2.3.4").priority is ShapingPriority.NORMAL
+    default = ShapingRule(name="x", match_type=L7MatchType.HOST, value="1.2.3.4")
+    assert default.priority is ShapingPriority.NORMAL
 
 
 def test_uplink_state_and_status() -> None:
@@ -144,7 +144,10 @@ def test_syslog_role_and_server() -> None:
 
 
 def test_threat_prevention_vocabularies() -> None:
-    for enum_cls in (IntrusionMode, IntrusionSensitivity, MalwareMode, SecurityAction, ThreatCategory):
+    vocabularies = (
+        IntrusionMode, IntrusionSensitivity, MalwareMode, SecurityAction, ThreatCategory
+    )
+    for enum_cls in vocabularies:
         assert issubclass(enum_cls, StrEnum)
     assert {m.value for m in IntrusionMode} == {"disabled", "detection", "prevention"}
     assert {s.value for s in IntrusionSensitivity} == {"low", "medium", "high"}

@@ -38,7 +38,7 @@ def wait_for_endpoint_ready(
     while time.monotonic() < deadline:
         try:
             ip = endpoint.get_ipv4_addr()
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             last_error = exc
             ip = ""
         if ip:
