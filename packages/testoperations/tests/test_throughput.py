@@ -148,14 +148,32 @@ class TestMeasureConcurrentThroughput:
             order.append(f"rx:{port}")
             return (5301, "/tmp/rx.log")
 
-        def _tx(host: str, port: int, time: int, direction: str | None = None) -> tuple[int, str]:
-            order.append(f"tx:{host}:{port}:t={time}:d={direction}")
+        def _tx(
+            host: str,
+            port: int,
+            time: int,
+            bandwidth: int | None = None,
+            direction: str | None = None,
+        ) -> tuple[int, str]:
+            order.append(f"tx:{host}:{port}:t={time}:b={bandwidth}:d={direction}")
             return (4001, "/tmp/tx.log")
 
         receiver.start_traffic_receiver.side_effect = _rx
         sender.start_traffic_sender.side_effect = _tx
         measure_concurrent_throughput([flow], duration_s=7, sleep=lambda _s: None)
-        assert order == ["rx:5301", "tx:192.168.32.3:5301:t=7:d=--json"]
+        assert order == ["rx:5301", "tx:192.168.32.3:5301:t=7:b=None:d=--json"]
+
+    def test_bandwidth_cap_passed_to_the_sender(self) -> None:
+        base, sender, _ = _flow(5301, mbps=1.0)
+        flow = ThroughputFlow(
+            sender=base.sender,
+            receiver=base.receiver,
+            dest_host=base.dest_host,
+            port=base.port,
+            bandwidth_mbps=1,
+        )
+        measure_concurrent_throughput([flow], duration_s=3, sleep=lambda _s: None)
+        assert sender.start_traffic_sender.call_args.kwargs["bandwidth"] == 1
 
     def test_stale_sessions_in_log_are_not_read_as_results(self) -> None:
         # Two stale docs at 1 Mbps sit in the per-port log from an earlier run;

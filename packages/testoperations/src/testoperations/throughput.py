@@ -51,6 +51,12 @@ class ThroughputFlow:
     TCP slow-start ramp) — omitted seconds extend the wall-clock run and are
     excluded from the reported summary, so the rate is steady-state by
     construction.
+
+    ``bandwidth_mbps`` caps the sender's offered rate (iperf3 ``-b Nm``). A
+    low value turns the flow into a **non-saturating path-RTT probe**: it
+    never fills the bottleneck queue, so its ``min_rtt_ms``/``mean_rtt_ms``
+    read the path's idle round-trip time instead of the standing queue a
+    saturating flow builds.
     """
 
     sender: IperfClient
@@ -59,6 +65,7 @@ class ThroughputFlow:
     port: int
     reverse: bool = False
     omit_s: int = 0
+    bandwidth_mbps: int | None = None
 
 
 @dataclass(frozen=True)
@@ -271,6 +278,7 @@ def measure_concurrent_throughput(
             sender_pid, sender_log = flow.sender.start_traffic_sender(
                 flow.dest_host,
                 flow.port,
+                bandwidth=flow.bandwidth_mbps,
                 time=duration_s,
                 direction=_direction_fragment(flow),
             )
