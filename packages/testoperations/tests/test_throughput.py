@@ -124,6 +124,11 @@ def _flow(
     receiver.get_iperf_logs.side_effect = lambda _log: (
         fresh if sender.start_traffic_sender.called else stale
     )
+    # The sender's own --json log (forward-flow RTT source): a completed
+    # session without RTT samples, so RTT resolution terminates immediately.
+    sender.get_iperf_logs.side_effect = lambda _log: (
+        _session_doc(rx_bps=mbps * 1e6) if sender.start_traffic_sender.called else ""
+    )
     flow = ThroughputFlow(sender=sender, receiver=receiver, dest_host="192.168.32.3", port=port)
     return flow, sender, receiver
 
@@ -150,7 +155,7 @@ class TestMeasureConcurrentThroughput:
         receiver.start_traffic_receiver.side_effect = _rx
         sender.start_traffic_sender.side_effect = _tx
         measure_concurrent_throughput([flow], duration_s=7, sleep=lambda _s: None)
-        assert order == ["rx:5301", "tx:192.168.32.3:5301:t=7:d=None"]
+        assert order == ["rx:5301", "tx:192.168.32.3:5301:t=7:d=--json"]
 
     def test_stale_sessions_in_log_are_not_read_as_results(self) -> None:
         # Two stale docs at 1 Mbps sit in the per-port log from an earlier run;
@@ -222,11 +227,13 @@ class TestMeasureConcurrentThroughput:
 
 
 class TestDirectionAndRtt:
-    def test_default_flow_sends_no_direction_fragment(self) -> None:
+    def test_default_flow_sends_json_only(self) -> None:
+        # --json is unconditional: the sender's own log is the forward-flow
+        # RTT source, so it must always be machine-readable.
         flow, sender, _ = _flow(5301, mbps=5.0)
         measure_concurrent_throughput([flow], duration_s=10, sleep=lambda _s: None)
         kwargs = sender.start_traffic_sender.call_args.kwargs
-        assert kwargs["direction"] is None
+        assert kwargs["direction"] == "--json"
 
     def test_reverse_flow_sends_dash_r(self) -> None:
         base, sender, _ = _flow(5301, mbps=5.0)
@@ -238,7 +245,7 @@ class TestDirectionAndRtt:
             reverse=True,
         )
         measure_concurrent_throughput([flow], duration_s=10, sleep=lambda _s: None)
-        assert sender.start_traffic_sender.call_args.kwargs["direction"] == "-R"
+        assert sender.start_traffic_sender.call_args.kwargs["direction"] == "-R --json"
 
     def test_omit_composes_with_reverse_and_extends_the_wait(self) -> None:
         base, sender, _ = _flow(5301, mbps=5.0)
@@ -252,26 +259,68 @@ class TestDirectionAndRtt:
         )
         sleeps: list[float] = []
         measure_concurrent_throughput([flow], duration_s=10, sleep=sleeps.append)
-        assert sender.start_traffic_sender.call_args.kwargs["direction"] == "-R -O 3"
+        assert sender.start_traffic_sender.call_args.kwargs["direction"] == "-R -O 3 --json"
         assert sleeps.count(13.0) == 1
 
-    def test_results_carry_rtt_from_the_session_document(self) -> None:
-        sender = MagicMock()
-        sender.start_traffic_sender.return_value = (4001, "/tmp/cl.log")
-        receiver = MagicMock()
-        receiver.start_traffic_receiver.return_value = (5001, "/tmp/rx.log")
-        fresh = _session_doc(rx_bps=42e6, rtt_us=[(480.0, 1250.0)])
+    def test_forward_flow_rtt_comes_from_the_senders_own_log(self) -> None:
+        # Live-diagnosed 2026-07-06: the server-side log carries NO sender RTT
+        # for client-sent sessions — the client's own --json log is the source.
+        # The receiver doc deliberately carries a DIFFERENT (decoy) RTT.
+        flow, sender, receiver = _flow(5301, mbps=42.0)
         receiver.get_iperf_logs.side_effect = lambda _log: (
-            fresh if sender.start_traffic_sender.called else ""
+            _session_doc(rx_bps=42e6, rtt_us=[(9999.0, 9999.0)])
+            if sender.start_traffic_sender.called
+            else ""
         )
-        flow = ThroughputFlow(sender=sender, receiver=receiver, dest_host="192.168.32.3", port=5301)
+        sender.get_iperf_logs.side_effect = lambda _log: (
+            _session_doc(rx_bps=42e6, rtt_us=[(480.0, 1250.0)])
+            if sender.start_traffic_sender.called
+            else ""
+        )
         (result,) = measure_concurrent_throughput([flow], duration_s=10, sleep=lambda _s: None)
         assert result.mbps == pytest.approx(42.0)
         assert result.min_rtt_ms == pytest.approx(0.48)
         assert result.mean_rtt_ms == pytest.approx(1.25)
 
+    def test_reverse_flow_rtt_comes_from_the_receivers_log(self) -> None:
+        # In reverse mode the listener transmits, so its own log holds the
+        # sending socket's TCP_INFO; the client log is never even polled.
+        base, sender, receiver = _flow(5301, mbps=42.0)
+        flow = ThroughputFlow(
+            sender=base.sender,
+            receiver=base.receiver,
+            dest_host=base.dest_host,
+            port=base.port,
+            reverse=True,
+        )
+        receiver.get_iperf_logs.side_effect = lambda _log: (
+            _session_doc(rx_bps=42e6, rtt_us=[(480.0, 1250.0)])
+            if sender.start_traffic_sender.called
+            else ""
+        )
+        sender.get_iperf_logs.side_effect = lambda _log: ""
+        (result,) = measure_concurrent_throughput([flow], duration_s=10, sleep=lambda _s: None)
+        assert result.min_rtt_ms == pytest.approx(0.48)
+        assert result.mean_rtt_ms == pytest.approx(1.25)
+        sender.get_iperf_logs.assert_not_called()
+
     def test_results_rtt_none_when_session_has_no_samples(self) -> None:
         flow, _, _ = _flow(5301, mbps=5.0)
         (result,) = measure_concurrent_throughput([flow], duration_s=10, sleep=lambda _s: None)
+        assert result.min_rtt_ms is None
+        assert result.mean_rtt_ms is None
+
+    def test_sender_log_never_completing_degrades_rtt_not_the_rate(self) -> None:
+        flow, sender, _ = _flow(5301, mbps=42.0)
+        sender.get_iperf_logs.side_effect = lambda _log: ""  # no session, ever
+        clock = iter(float(t) for t in range(0, 1000, 5))
+        (result,) = measure_concurrent_throughput(
+            [flow],
+            duration_s=10,
+            result_timeout_s=20.0,
+            sleep=lambda _s: None,
+            monotonic=lambda: next(clock),
+        )
+        assert result.mbps == pytest.approx(42.0)
         assert result.min_rtt_ms is None
         assert result.mean_rtt_ms is None

@@ -135,7 +135,11 @@ def _direction_fragment(flow: ThroughputFlow) -> str | None:
         parts.append("-R")
     if flow.omit_s:
         parts.append(f"-O {flow.omit_s}")
-    return " ".join(parts) or None
+    # The sender's own log must be JSON: a forward flow's RTT lives ONLY in
+    # the data-sending (client) side's output — live-diagnosed 2026-07-06,
+    # the server-side log carries no sender RTT for client-sent sessions.
+    parts.append("--json")
+    return " ".join(parts)
 
 
 def last_session_rtt_ms(log_text: str) -> tuple[float | None, float | None]:
@@ -188,6 +192,36 @@ def last_session_mbps(log_text: str) -> float | None:
     return None
 
 
+def _sending_side_rtt(
+    flow: ThroughputFlow,
+    *,
+    receiver_text: str,
+    sender_log: str,
+    deadline: float,
+    sleep: Callable[[float], None],
+    monotonic: Callable[[], float],
+) -> tuple[float | None, float | None]:
+    """RTT of *flow*'s data-sending side, read from that side's own logfile.
+
+    Reverse flow: the listening receiver transmits — its already-fetched
+    session text is the sending side. Forward flow: the client transmits —
+    poll its ``--json`` log (the launch shell-redirect truncates it, so the
+    first completed document IS this session) until a session appears or
+    *deadline* passes. No session by the deadline -> ``(None, None)``: the
+    rate was already confirmed receive-side, so RTT degrades rather than
+    failing the measurement.
+    """
+    if flow.reverse:
+        return last_session_rtt_ms(receiver_text)
+    while True:
+        text = flow.sender.get_iperf_logs(sender_log)
+        if count_sessions(text) > 0:
+            return last_session_rtt_ms(text)
+        if monotonic() >= deadline:
+            return (None, None)
+        sleep(_POLL_INTERVAL_S)
+
+
 def measure_concurrent_throughput(
     flows: Sequence[ThroughputFlow],
     *,
@@ -206,13 +240,22 @@ def measure_concurrent_throughput(
     Raises ``ValueError`` on duplicate ports (two flows would share a server
     instance and logfile) and ``RuntimeError`` when a receiver produces no new
     completed session within *duration_s* + *result_timeout_s*.
+
+    RTT is read from the **data-sending side's own logfile** — the only place
+    the sending socket's ``TCP_INFO`` reliably appears (live-diagnosed
+    2026-07-06: the server-side log carries no sender RTT for client-sent
+    sessions). Forward flow -> the sender's ``--json`` log; reverse flow ->
+    the receiver's log (the listener transmits there). A sending-side log
+    that yields no completed session before the deadline degrades to RTT
+    ``(None, None)`` — the rate, already confirmed receive-side, is returned
+    either way.
     """
     ports = [f.port for f in flows]
     if len(set(ports)) != len(ports):
         raise ValueError(f"flow ports must be unique per measurement, got {ports}")
 
     started: list[tuple[ThroughputFlow, int, str, int]] = []
-    sender_pids: list[tuple[IperfClient, int]] = []
+    senders: list[tuple[IperfClient, int, str]] = []  # (sender, pid, log) per flow
     try:
         for flow in flows:
             receiver_pid, receiver_log = flow.receiver.start_traffic_receiver(flow.port)
@@ -220,26 +263,35 @@ def measure_concurrent_throughput(
             started.append((flow, receiver_pid, receiver_log, prior_sessions))
 
         for flow, _, _, _ in started:
-            sender_pid, _ = flow.sender.start_traffic_sender(
+            sender_pid, sender_log = flow.sender.start_traffic_sender(
                 flow.dest_host,
                 flow.port,
                 time=duration_s,
                 direction=_direction_fragment(flow),
             )
-            sender_pids.append((flow.sender, sender_pid))
+            senders.append((flow.sender, sender_pid, sender_log))
 
         # Omitted slow-start seconds extend the wall clock beyond duration_s.
         sleep(float(duration_s + max((f.omit_s for f in flows), default=0)))
 
         results: list[FlowThroughput] = []
         deadline = monotonic() + result_timeout_s
-        for flow, _, receiver_log, prior_sessions in started:
+        for (flow, _, receiver_log, prior_sessions), (_, _, sender_log) in zip(
+            started, senders, strict=True
+        ):
             while True:
                 log_text = flow.receiver.get_iperf_logs(receiver_log)
                 if count_sessions(log_text) > prior_sessions:
                     mbps = last_session_mbps(log_text)
                     if mbps is not None:
-                        min_rtt_ms, mean_rtt_ms = last_session_rtt_ms(log_text)
+                        min_rtt_ms, mean_rtt_ms = _sending_side_rtt(
+                            flow,
+                            receiver_text=log_text,
+                            sender_log=sender_log,
+                            deadline=deadline,
+                            sleep=sleep,
+                            monotonic=monotonic,
+                        )
                         results.append(
                             FlowThroughput(
                                 port=flow.port,
@@ -258,7 +310,7 @@ def measure_concurrent_throughput(
                 sleep(_POLL_INTERVAL_S)
         return results
     finally:
-        for sender, sender_pid in sender_pids:
+        for sender, sender_pid, _ in senders:
             try:
                 sender.stop_traffic(sender_pid)
             except Exception:
