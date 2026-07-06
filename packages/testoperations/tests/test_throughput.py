@@ -282,9 +282,11 @@ class TestDirectionAndRtt:
         assert result.min_rtt_ms == pytest.approx(0.48)
         assert result.mean_rtt_ms == pytest.approx(1.25)
 
-    def test_reverse_flow_rtt_comes_from_the_receivers_log(self) -> None:
-        # In reverse mode the listener transmits, so its own log holds the
-        # sending socket's TCP_INFO; the client log is never even polled.
+    def test_reverse_flow_reads_rate_from_client_and_rtt_from_receiver(self) -> None:
+        # Live-diagnosed 2026-07-06: in reverse mode the listening server
+        # TRANSMITS — its log's sum_received is ~0 (a decoy here) while the
+        # real received goodput is in the initiating client's own log; the
+        # server's log is where the sending socket's TCP_INFO lives.
         base, sender, receiver = _flow(5301, mbps=42.0)
         flow = ThroughputFlow(
             sender=base.sender,
@@ -294,15 +296,39 @@ class TestDirectionAndRtt:
             reverse=True,
         )
         receiver.get_iperf_logs.side_effect = lambda _log: (
-            _session_doc(rx_bps=42e6, rtt_us=[(480.0, 1250.0)])
+            _session_doc(rx_bps=0.0, rtt_us=[(480.0, 1250.0)])
             if sender.start_traffic_sender.called
             else ""
         )
-        sender.get_iperf_logs.side_effect = lambda _log: ""
+        sender.get_iperf_logs.side_effect = lambda _log: (
+            _session_doc(rx_bps=42e6) if sender.start_traffic_sender.called else ""
+        )
         (result,) = measure_concurrent_throughput([flow], duration_s=10, sleep=lambda _s: None)
+        assert result.mbps == pytest.approx(42.0)
         assert result.min_rtt_ms == pytest.approx(0.48)
         assert result.mean_rtt_ms == pytest.approx(1.25)
-        sender.get_iperf_logs.assert_not_called()
+
+    def test_reverse_flow_without_client_session_raises(self) -> None:
+        # The reverse rate lives in the client's log; if that never completes
+        # there is no result to report — an operational failure, not a 0.0.
+        base, sender, _ = _flow(5301, mbps=42.0)
+        flow = ThroughputFlow(
+            sender=base.sender,
+            receiver=base.receiver,
+            dest_host=base.dest_host,
+            port=base.port,
+            reverse=True,
+        )
+        sender.get_iperf_logs.side_effect = lambda _log: ""  # no session, ever
+        clock = iter(float(t) for t in range(0, 1000, 5))
+        with pytest.raises(RuntimeError, match="reverse flow on port 5301"):
+            measure_concurrent_throughput(
+                [flow],
+                duration_s=10,
+                result_timeout_s=20.0,
+                sleep=lambda _s: None,
+                monotonic=lambda: next(clock),
+            )
 
     def test_results_rtt_none_when_session_has_no_samples(self) -> None:
         flow, _, _ = _flow(5301, mbps=5.0)
