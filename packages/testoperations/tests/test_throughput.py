@@ -11,16 +11,24 @@ from testoperations.throughput import (
     count_sessions,
     iter_json_docs,
     last_session_mbps,
+    last_session_rtt_ms,
     measure_concurrent_throughput,
 )
 
 
-def _session_doc(rx_bps: float | None = None, sum_bps: float | None = None) -> str:
-    end: dict[str, dict[str, float]] = {}
+def _session_doc(
+    rx_bps: float | None = None,
+    sum_bps: float | None = None,
+    rtt_us: list[tuple[float, float]] | None = None,
+) -> str:
+    """One iperf3 session JSON; *rtt_us* adds streams with (min_rtt, mean_rtt) µs."""
+    end: dict[str, object] = {}
     if rx_bps is not None:
         end["sum_received"] = {"bits_per_second": rx_bps}
     if sum_bps is not None:
         end["sum"] = {"bits_per_second": sum_bps}
+    if rtt_us is not None:
+        end["streams"] = [{"sender": {"min_rtt": mn, "mean_rtt": mean}} for mn, mean in rtt_us]
     return json.dumps({"start": {"test_start": {}}, "end": end}, indent=2)
 
 
@@ -55,6 +63,34 @@ class TestLogParsing:
     def test_last_session_mbps_none_when_no_summary(self) -> None:
         assert last_session_mbps("") is None
         assert last_session_mbps(json.dumps({"end": {}})) is None
+
+    def test_last_session_rtt_converts_microseconds_to_ms(self) -> None:
+        text = _session_doc(rx_bps=1e6, rtt_us=[(480.0, 1250.0)])
+        min_ms, mean_ms = last_session_rtt_ms(text)
+        assert min_ms == pytest.approx(0.48)
+        assert mean_ms == pytest.approx(1.25)
+
+    def test_last_session_rtt_aggregates_streams_min_of_min_mean_of_mean(self) -> None:
+        text = _session_doc(rx_bps=1e6, rtt_us=[(400.0, 1000.0), (600.0, 3000.0)])
+        min_ms, mean_ms = last_session_rtt_ms(text)
+        assert min_ms == pytest.approx(0.4)
+        assert mean_ms == pytest.approx(2.0)
+
+    def test_last_session_rtt_reads_the_last_document(self) -> None:
+        text = (
+            _session_doc(rx_bps=1e6, rtt_us=[(9000.0, 9000.0)])
+            + "\n"
+            + _session_doc(rx_bps=1e6, rtt_us=[(500.0, 700.0)])
+        )
+        min_ms, mean_ms = last_session_rtt_ms(text)
+        assert min_ms == pytest.approx(0.5)
+        assert mean_ms == pytest.approx(0.7)
+
+    def test_last_session_rtt_none_when_absent(self) -> None:
+        assert last_session_rtt_ms("") == (None, None)
+        assert last_session_rtt_ms(_session_doc(rx_bps=1e6)) == (None, None)
+        no_samples = json.dumps({"end": {"streams": [{"sender": {}}]}})
+        assert last_session_rtt_ms(no_samples) == (None, None)
 
 
 # --- measure_concurrent_throughput ---------------------------------------------
@@ -99,14 +135,14 @@ class TestMeasureConcurrentThroughput:
             order.append(f"rx:{port}")
             return (5301, "/tmp/rx.log")
 
-        def _tx(host: str, port: int, time: int) -> tuple[int, str]:
-            order.append(f"tx:{host}:{port}:t={time}")
+        def _tx(host: str, port: int, time: int, direction: str | None = None) -> tuple[int, str]:
+            order.append(f"tx:{host}:{port}:t={time}:d={direction}")
             return (4001, "/tmp/tx.log")
 
         receiver.start_traffic_receiver.side_effect = _rx
         sender.start_traffic_sender.side_effect = _tx
         measure_concurrent_throughput([flow], duration_s=7, sleep=lambda _s: None)
-        assert order == ["rx:5301", "tx:192.168.32.3:5301:t=7"]
+        assert order == ["rx:5301", "tx:192.168.32.3:5301:t=7:d=None"]
 
     def test_stale_sessions_in_log_are_not_read_as_results(self) -> None:
         # Two stale docs at 1 Mbps sit in the per-port log from an earlier run;
@@ -175,3 +211,59 @@ class TestMeasureConcurrentThroughput:
         receiver.stop_traffic.side_effect = RuntimeError("already gone")
         results = measure_concurrent_throughput([flow], duration_s=10, sleep=lambda _s: None)
         assert results[0].mbps == pytest.approx(5.0)
+
+
+class TestDirectionAndRtt:
+    def test_default_flow_sends_no_direction_fragment(self) -> None:
+        flow, sender, _ = _flow(5301, mbps=5.0)
+        measure_concurrent_throughput([flow], duration_s=10, sleep=lambda _s: None)
+        kwargs = sender.start_traffic_sender.call_args.kwargs
+        assert kwargs["direction"] is None
+
+    def test_reverse_flow_sends_dash_r(self) -> None:
+        base, sender, _ = _flow(5301, mbps=5.0)
+        flow = ThroughputFlow(
+            sender=base.sender,
+            receiver=base.receiver,
+            dest_host=base.dest_host,
+            port=base.port,
+            reverse=True,
+        )
+        measure_concurrent_throughput([flow], duration_s=10, sleep=lambda _s: None)
+        assert sender.start_traffic_sender.call_args.kwargs["direction"] == "-R"
+
+    def test_omit_composes_with_reverse_and_extends_the_wait(self) -> None:
+        base, sender, _ = _flow(5301, mbps=5.0)
+        flow = ThroughputFlow(
+            sender=base.sender,
+            receiver=base.receiver,
+            dest_host=base.dest_host,
+            port=base.port,
+            reverse=True,
+            omit_s=3,
+        )
+        sleeps: list[float] = []
+        measure_concurrent_throughput([flow], duration_s=10, sleep=sleeps.append)
+        assert sender.start_traffic_sender.call_args.kwargs["direction"] == "-R -O 3"
+        assert sleeps.count(13.0) == 1
+
+    def test_results_carry_rtt_from_the_session_document(self) -> None:
+        sender = MagicMock()
+        sender.start_traffic_sender.return_value = (4001, "/tmp/cl.log")
+        receiver = MagicMock()
+        receiver.start_traffic_receiver.return_value = (5001, "/tmp/rx.log")
+        fresh = _session_doc(rx_bps=42e6, rtt_us=[(480.0, 1250.0)])
+        receiver.get_iperf_logs.side_effect = lambda _log: (
+            fresh if sender.start_traffic_sender.called else ""
+        )
+        flow = ThroughputFlow(sender=sender, receiver=receiver, dest_host="192.168.32.3", port=5301)
+        (result,) = measure_concurrent_throughput([flow], duration_s=10, sleep=lambda _s: None)
+        assert result.mbps == pytest.approx(42.0)
+        assert result.min_rtt_ms == pytest.approx(0.48)
+        assert result.mean_rtt_ms == pytest.approx(1.25)
+
+    def test_results_rtt_none_when_session_has_no_samples(self) -> None:
+        flow, _, _ = _flow(5301, mbps=5.0)
+        (result,) = measure_concurrent_throughput([flow], duration_s=10, sleep=lambda _s: None)
+        assert result.min_rtt_ms is None
+        assert result.mean_rtt_ms is None

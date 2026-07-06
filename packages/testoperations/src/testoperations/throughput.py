@@ -34,25 +34,48 @@ _POLL_INTERVAL_S = 1.0
 
 @dataclass(frozen=True)
 class ThroughputFlow:
-    """One measured flow: *sender* pushes TCP to *dest_host*:*port*, *receiver* listens.
+    """One measured flow: *sender* connects to *dest_host*:*port*, *receiver* listens.
 
     ``port`` must be unique across the flows of one measurement call — each
     flow gets its own iperf3 server instance (and per-port logfile) on the
     receiving device.
+
+    ``reverse`` runs the session in iperf3 reverse mode (``-R``): the *sender*
+    still initiates the connection, but the listening *receiver* transmits the
+    data (a download, from the initiating side's point of view). The reported
+    rate stays receive-side goodput either way — iperf3 exchanges end-of-test
+    summaries, so ``end.sum_received`` in the receiver's log is what the
+    data-receiving side actually got in both directions.
+
+    ``omit_s`` skips the first N seconds of the session (iperf3 ``-O``: the
+    TCP slow-start ramp) — omitted seconds extend the wall-clock run and are
+    excluded from the reported summary, so the rate is steady-state by
+    construction.
     """
 
     sender: IperfClient
     receiver: IperfServer
     dest_host: str
     port: int
+    reverse: bool = False
+    omit_s: int = 0
 
 
 @dataclass(frozen=True)
 class FlowThroughput:
-    """The measured receive-side rate of one flow."""
+    """The measured receive-side rate (and sending-socket RTT) of one flow.
+
+    ``min_rtt_ms`` / ``mean_rtt_ms`` are the loaded connection's TCP round-trip
+    time as sampled by the kernel of the data-sending side (iperf3 stamps
+    ``TCP_INFO`` into ``end.streams[*].sender``), in milliseconds. ``None``
+    when the session carried no RTT samples (UDP, or an iperf3 build that does
+    not exchange them).
+    """
 
     port: int
     mbps: float
+    min_rtt_ms: float | None = None
+    mean_rtt_ms: float | None = None
 
 
 def iter_json_docs(text: str) -> list[Any]:
@@ -98,6 +121,51 @@ def iter_json_docs(text: str) -> list[Any]:
 def count_sessions(log_text: str) -> int:
     """The number of completed iperf3 session documents in *log_text*."""
     return len(iter_json_docs(log_text))
+
+
+def _direction_fragment(flow: ThroughputFlow) -> str | None:
+    """The iperf3 CLI fragment realizing *flow*'s reverse/omit options.
+
+    The ``IperfClient.start_traffic_sender`` ``direction`` parameter is a raw
+    command-line fragment appended verbatim by the implementations; reverse
+    mode and the slow-start omit ride on it, so no protocol change is needed.
+    """
+    parts: list[str] = []
+    if flow.reverse:
+        parts.append("-R")
+    if flow.omit_s:
+        parts.append(f"-O {flow.omit_s}")
+    return " ".join(parts) or None
+
+
+def last_session_rtt_ms(log_text: str) -> tuple[float | None, float | None]:
+    """``(min_rtt_ms, mean_rtt_ms)`` of the LAST completed session's sending side.
+
+    iperf3 stamps the data-sending socket's ``TCP_INFO`` round-trip stats into
+    ``end.streams[*].sender`` (``min_rtt`` / ``mean_rtt``, in microseconds) and
+    both sides exchange end-of-test summaries, so the receiver's ``--json``
+    log carries them for either direction. Multi-stream sessions aggregate as
+    the minimum of the minima and the mean of the means. ``(None, None)`` when
+    no completed session carries RTT samples (UDP, or an iperf3 build that
+    does not exchange ``TCP_INFO``).
+    """
+    docs = iter_json_docs(log_text)
+    if not docs or not isinstance(docs[-1], dict):
+        return (None, None)
+    streams = docs[-1].get("end", {}).get("streams", [])
+    mins: list[float] = []
+    means: list[float] = []
+    for stream in streams:
+        sender = stream.get("sender", {}) if isinstance(stream, dict) else {}
+        if not isinstance(sender, dict):
+            continue
+        if sender.get("min_rtt") is not None:
+            mins.append(float(sender["min_rtt"]))
+        if sender.get("mean_rtt") is not None:
+            means.append(float(sender["mean_rtt"]))
+    min_ms = min(mins) / 1000.0 if mins else None
+    mean_ms = (sum(means) / len(means)) / 1000.0 if means else None
+    return (min_ms, mean_ms)
 
 
 def last_session_mbps(log_text: str) -> float | None:
@@ -151,11 +219,15 @@ def measure_concurrent_throughput(
 
         for flow, _, _, _ in started:
             sender_pid, _ = flow.sender.start_traffic_sender(
-                flow.dest_host, flow.port, time=duration_s
+                flow.dest_host,
+                flow.port,
+                time=duration_s,
+                direction=_direction_fragment(flow),
             )
             sender_pids.append((flow.sender, sender_pid))
 
-        sleep(float(duration_s))
+        # Omitted slow-start seconds extend the wall clock beyond duration_s.
+        sleep(float(duration_s + max((f.omit_s for f in flows), default=0)))
 
         results: list[FlowThroughput] = []
         deadline = monotonic() + result_timeout_s
@@ -165,7 +237,15 @@ def measure_concurrent_throughput(
                 if count_sessions(log_text) > prior_sessions:
                     mbps = last_session_mbps(log_text)
                     if mbps is not None:
-                        results.append(FlowThroughput(port=flow.port, mbps=mbps))
+                        min_rtt_ms, mean_rtt_ms = last_session_rtt_ms(log_text)
+                        results.append(
+                            FlowThroughput(
+                                port=flow.port,
+                                mbps=mbps,
+                                min_rtt_ms=min_rtt_ms,
+                                mean_rtt_ms=mean_rtt_ms,
+                            )
+                        )
                         break
                 if monotonic() >= deadline:
                     raise RuntimeError(
