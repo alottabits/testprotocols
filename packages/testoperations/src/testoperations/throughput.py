@@ -145,9 +145,11 @@ def last_session_rtt_ms(log_text: str) -> tuple[float | None, float | None]:
     ``end.streams[*].sender`` (``min_rtt`` / ``mean_rtt``, in microseconds) and
     both sides exchange end-of-test summaries, so the receiver's ``--json``
     log carries them for either direction. Multi-stream sessions aggregate as
-    the minimum of the minima and the mean of the means. ``(None, None)`` when
-    no completed session carries RTT samples (UDP, or an iperf3 build that
-    does not exchange ``TCP_INFO``).
+    the minimum of the minima and the mean of the means. The pair is
+    both-or-neither: ``(None, None)`` when no completed session carries a
+    complete set of RTT samples (UDP, an iperf3 build that does not exchange
+    ``TCP_INFO``, or a document with only one of the two fields) — callers
+    never see a half-populated pair.
     """
     docs = iter_json_docs(log_text)
     if not docs or not isinstance(docs[-1], dict):
@@ -163,9 +165,9 @@ def last_session_rtt_ms(log_text: str) -> tuple[float | None, float | None]:
             mins.append(float(sender["min_rtt"]))
         if sender.get("mean_rtt") is not None:
             means.append(float(sender["mean_rtt"]))
-    min_ms = min(mins) / 1000.0 if mins else None
-    mean_ms = (sum(means) / len(means)) / 1000.0 if means else None
-    return (min_ms, mean_ms)
+    if not mins or not means:
+        return (None, None)
+    return (min(mins) / 1000.0, (sum(means) / len(means)) / 1000.0)
 
 
 def last_session_mbps(log_text: str) -> float | None:

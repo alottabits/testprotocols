@@ -92,6 +92,14 @@ class TestLogParsing:
         no_samples = json.dumps({"end": {"streams": [{"sender": {}}]}})
         assert last_session_rtt_ms(no_samples) == (None, None)
 
+    def test_last_session_rtt_is_both_or_neither(self) -> None:
+        # A half-populated sender block (only one of min/mean) must collapse
+        # to (None, None) — callers rely on the pair being atomic.
+        only_min = json.dumps({"end": {"streams": [{"sender": {"min_rtt": 500.0}}]}})
+        assert last_session_rtt_ms(only_min) == (None, None)
+        only_mean = json.dumps({"end": {"streams": [{"sender": {"mean_rtt": 900.0}}]}})
+        assert last_session_rtt_ms(only_mean) == (None, None)
+
 
 # --- measure_concurrent_throughput ---------------------------------------------
 
