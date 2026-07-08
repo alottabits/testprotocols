@@ -344,3 +344,182 @@ def measure_concurrent_throughput(
                 flow.receiver.stop_traffic(receiver_pid)
             except Exception:
                 pass
+
+
+# --- rated-path measurement: unloaded RTT probe + sequential directions -------
+#
+# The framing owned here (the reason it is a testoperations function and not a
+# step loop): a rated-performance check of a forwarding path is one unloaded
+# path-RTT probe plus each direction measured on its own — the directions run
+# SEQUENTIALLY, not concurrently, because each must own the path to reach its
+# rated figure (unlike measure_concurrent_throughput's overlapping flows). A
+# freshly-written policy converges eventually, so the round repeats until the
+# caller's stop predicate is satisfied or a time budget lapses. This is a
+# MECHANIC, not a policy: it reports every round's findings and never decides
+# whether they are acceptable — per-round thresholds, what "settled" means
+# (e.g. reproducibility across N rounds), and any pass/fail verdict all live
+# with the caller. Aside from operational failures it raises nothing.
+
+DEFAULT_PROBE_RATE_MBPS = 1
+DEFAULT_PROBE_DURATION_S = 3
+DEFAULT_MEASURE_DURATION_S = 10
+
+
+@dataclass(frozen=True)
+class DirectionSpec:
+    """One measurement round: a *name* label and its iperf3 direction.
+
+    ``reverse`` runs the round in iperf3 reverse mode (the listening receiver
+    transmits — a download from the initiating side). The caller owns the
+    name↔direction convention (e.g. ``upload``→forward, ``download``→reverse);
+    this operation only carries it through to the flow.
+    """
+
+    name: str
+    reverse: bool
+
+
+@dataclass(frozen=True)
+class PathMeasurement:
+    """Facts from one probe+directions round (assertion-free).
+
+    ``probe_min_rtt_ms`` / ``probe_mean_rtt_ms`` are the path's UNLOADED RTT
+    from the rate-capped probe (``(None, None)`` if the probe carried no RTT
+    samples). ``by_direction`` maps each :class:`DirectionSpec` name to its
+    measured :class:`FlowThroughput` (loaded rate + loaded-RTT evidence).
+    """
+
+    probe_min_rtt_ms: float | None
+    probe_mean_rtt_ms: float | None
+    by_direction: dict[str, FlowThroughput]
+
+
+def measure_path_rtt(
+    sender: IperfClient,
+    receiver: IperfServer,
+    dest_host: str,
+    port: int,
+    *,
+    rate_mbps: int = DEFAULT_PROBE_RATE_MBPS,
+    duration_s: int = DEFAULT_PROBE_DURATION_S,
+    measure: Callable[..., list[FlowThroughput]] = measure_concurrent_throughput,
+) -> tuple[float | None, float | None]:
+    """The path's unloaded ``(min, mean)`` RTT via one rate-capped probe flow.
+
+    The flow is capped far below the path's capacity (``rate_mbps``) so it never
+    builds a bottleneck queue — its RTT reads the idle path, not the standing
+    queue a saturating flow keeps. Returns the probe's ``(min_rtt_ms,
+    mean_rtt_ms)`` pair (both-or-neither, per :func:`last_session_rtt_ms`).
+    """
+    flow = ThroughputFlow(
+        sender=sender,
+        receiver=receiver,
+        dest_host=dest_host,
+        port=port,
+        bandwidth_mbps=rate_mbps,
+    )
+    (result,) = measure([flow], duration_s=duration_s)
+    return result.min_rtt_ms, result.mean_rtt_ms
+
+
+def measure_one_direction(
+    sender: IperfClient,
+    receiver: IperfServer,
+    dest_host: str,
+    port: int,
+    *,
+    reverse: bool,
+    duration_s: int = DEFAULT_MEASURE_DURATION_S,
+    omit_s: int = 0,
+    measure: Callable[..., list[FlowThroughput]] = measure_concurrent_throughput,
+) -> FlowThroughput:
+    """Measure a single saturating flow in one direction (forward or reverse).
+
+    ``reverse=False`` sends *sender*→*receiver* (an upload from the sender's
+    side); ``reverse=True`` runs iperf3 reverse mode so the receiver transmits
+    (a download). The reported rate is receive-side goodput either way.
+    """
+    flow = ThroughputFlow(
+        sender=sender,
+        receiver=receiver,
+        dest_host=dest_host,
+        port=port,
+        reverse=reverse,
+        omit_s=omit_s,
+    )
+    (result,) = measure([flow], duration_s=duration_s)
+    return result
+
+
+def measure_path_until(
+    *,
+    sender: IperfClient,
+    receiver: IperfServer,
+    dest_host: str,
+    directions: Sequence[DirectionSpec],
+    allocate_port: Callable[[], int],
+    stop_when: Callable[[list[PathMeasurement]], bool],
+    budget_s: float,
+    probe_rate_mbps: int = DEFAULT_PROBE_RATE_MBPS,
+    probe_duration_s: int = DEFAULT_PROBE_DURATION_S,
+    measure_duration_s: int = DEFAULT_MEASURE_DURATION_S,
+    omit_s: int = 0,
+    on_round: Callable[[PathMeasurement], None] | None = None,
+    measure: Callable[..., list[FlowThroughput]] = measure_concurrent_throughput,
+    monotonic: Callable[[], float] = time.monotonic,
+) -> list[PathMeasurement]:
+    """Measure probe+directions rounds until *stop_when* or *budget_s*; report all.
+
+    One round is: a single unloaded RTT probe, then each *directions* entry
+    measured sequentially (each owns the path). ``allocate_port`` hands out a
+    fresh, collision-free port for every flow (probe and each direction, every
+    round). ``on_round`` — if given — is called with each round's facts as they
+    are produced (a logging seam).
+
+    After each round, *stop_when* receives the findings so far (the ordered list
+    of every round's :class:`PathMeasurement`) and returns ``True`` to stop. This
+    is where the CALLER's acceptability policy lives — per-round thresholds, what
+    "settled" means (e.g. N consecutive passing rounds), when to give up. The
+    loop also stops when ``budget_s`` lapses. ``stop_when`` MAY raise to signal a
+    terminal, non-retryable condition; that exception propagates without a retry.
+
+    Returns every round's findings in order — never a verdict. Whether those
+    findings are acceptable (settled, marginal, or a failure) is entirely the
+    caller's decision. Operational failures from the underlying measurement
+    (duplicate ports, a receiver that never completes) propagate as they do from
+    :func:`measure_concurrent_throughput`.
+    """
+    deadline = monotonic() + budget_s
+    findings: list[PathMeasurement] = []
+    while True:
+        probe_min, probe_mean = measure_path_rtt(
+            sender,
+            receiver,
+            dest_host,
+            allocate_port(),
+            rate_mbps=probe_rate_mbps,
+            duration_s=probe_duration_s,
+            measure=measure,
+        )
+        by_direction: dict[str, FlowThroughput] = {}
+        for spec in directions:
+            by_direction[spec.name] = measure_one_direction(
+                sender,
+                receiver,
+                dest_host,
+                allocate_port(),
+                reverse=spec.reverse,
+                duration_s=measure_duration_s,
+                omit_s=omit_s,
+                measure=measure,
+            )
+        facts = PathMeasurement(
+            probe_min_rtt_ms=probe_min,
+            probe_mean_rtt_ms=probe_mean,
+            by_direction=by_direction,
+        )
+        findings.append(facts)
+        if on_round is not None:
+            on_round(facts)
+        if stop_when(findings) or monotonic() >= deadline:
+            return findings

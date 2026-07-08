@@ -7,12 +7,18 @@ from unittest.mock import MagicMock
 
 import pytest
 from testoperations.throughput import (
+    DirectionSpec,
+    FlowThroughput,
+    PathMeasurement,
     ThroughputFlow,
     count_sessions,
     iter_json_docs,
     last_session_mbps,
     last_session_rtt_ms,
     measure_concurrent_throughput,
+    measure_one_direction,
+    measure_path_rtt,
+    measure_path_until,
 )
 
 
@@ -368,3 +374,155 @@ class TestDirectionAndRtt:
         assert result.mbps == pytest.approx(42.0)
         assert result.min_rtt_ms is None
         assert result.mean_rtt_ms is None
+
+
+# --- rated-path measurement: probe + sequential directions + convergence ------
+
+
+def _fake_measure(probe=(0.5, 0.6), upload=(940.0, (20.0, 24.0)), download=(930.0, (21.0, 25.0))):
+    """A measure() stub keyed on flow shape: capped→probe, reverse→download."""
+    calls: list[tuple[ThroughputFlow, int]] = []
+
+    def _fn(flows, *, duration_s, **_kw):
+        (flow,) = flows
+        calls.append((flow, duration_s))
+        if flow.bandwidth_mbps is not None:
+            return [
+                FlowThroughput(port=flow.port, mbps=1.0, min_rtt_ms=probe[0], mean_rtt_ms=probe[1])
+            ]
+        mbps, rtt = download if flow.reverse else upload
+        return [FlowThroughput(port=flow.port, mbps=mbps, min_rtt_ms=rtt[0], mean_rtt_ms=rtt[1])]
+
+    return _fn, calls
+
+
+class TestMeasurePathRtt:
+    def test_builds_capped_probe_and_returns_rtt_pair(self) -> None:
+        measure, calls = _fake_measure(probe=(0.7, 0.9))
+        got = measure_path_rtt(
+            MagicMock(), MagicMock(), "10.0.0.9", 5401, rate_mbps=2, duration_s=4, measure=measure
+        )
+        assert got == (0.7, 0.9)
+        (flow, duration_s) = calls[0]
+        assert flow.bandwidth_mbps == 2 and flow.port == 5401 and duration_s == 4
+        assert flow.reverse is False and flow.dest_host == "10.0.0.9"
+
+
+class TestMeasureOneDirection:
+    def test_forward_flow_shape(self) -> None:
+        measure, calls = _fake_measure(upload=(500.0, (2.0, 3.0)))
+        got = measure_one_direction(
+            MagicMock(),
+            MagicMock(),
+            "10.0.0.9",
+            5402,
+            reverse=False,
+            duration_s=10,
+            omit_s=3,
+            measure=measure,
+        )
+        assert got.mbps == 500.0
+        (flow, duration_s) = calls[0]
+        assert flow.reverse is False and flow.omit_s == 3 and duration_s == 10
+        assert flow.bandwidth_mbps is None  # saturating, not capped
+
+    def test_reverse_flow_shape(self) -> None:
+        measure, calls = _fake_measure(download=(450.0, (2.0, 3.0)))
+        got = measure_one_direction(
+            MagicMock(), MagicMock(), "10.0.0.9", 5403, reverse=True, measure=measure
+        )
+        assert got.mbps == 450.0
+        assert calls[0][0].reverse is True
+
+
+def _ports_from(start: int = 5401):
+    counter = iter(range(start, start + 1000))
+    return lambda: next(counter)
+
+
+class TestMeasurePathUntil:
+    _DIRS = (
+        DirectionSpec("upload", reverse=False),
+        DirectionSpec("download", reverse=True),
+    )
+
+    def _run(self, stop_when, **kw):
+        defaults = dict(
+            sender=MagicMock(),
+            receiver=MagicMock(),
+            dest_host="10.0.0.9",
+            directions=self._DIRS,
+            allocate_port=_ports_from(),
+            stop_when=stop_when,
+            budget_s=180,
+            monotonic=lambda: 0.0,
+        )
+        defaults.update(kw)
+        return measure_path_until(**defaults)
+
+    def test_stops_when_stop_when_returns_true_and_reports_findings(self) -> None:
+        # stop after the caller has collected 2 rounds — the op reports both,
+        # in order, and never judges them.
+        measure, calls = _fake_measure()
+        findings = self._run(lambda rounds: len(rounds) >= 2, measure=measure)
+        assert isinstance(findings, list)
+        assert [type(f).__name__ for f in findings] == ["PathMeasurement"] * 2
+        assert findings[0].by_direction["download"].mbps == 930.0
+        # 2 rounds x (probe + 2 directions) = 6 flows, distinct ports; each
+        # round's first flow is the rate-capped probe, the rest saturate.
+        ports = [flow.port for flow, _ in calls]
+        assert len(ports) == 6 and len(set(ports)) == 6
+        assert [flow.bandwidth_mbps for flow, _ in calls] == [1, None, None] * 2
+        assert [flow.reverse for flow, _ in calls] == [False, False, True] * 2
+
+    def test_stops_on_the_first_round_when_asked(self) -> None:
+        measure, calls = _fake_measure()
+        findings = self._run(lambda _rounds: True, measure=measure)
+        assert len(findings) == 1
+        assert len(calls) == 3  # exactly one round of flows
+
+    def test_runs_to_budget_when_never_told_to_stop(self) -> None:
+        measure, _ = _fake_measure()
+        # deadline init (0) -> 150; round-1 check (0) < 150 continues; round-2
+        # check (200) >= 150 stops. Two rounds ran, both reported.
+        clock = iter([0.0, 0.0, 200.0])
+        findings = self._run(
+            lambda _rounds: False,  # never settled per the caller
+            measure=measure,
+            budget_s=150,
+            monotonic=lambda: next(clock),
+        )
+        assert len(findings) == 2
+
+    def test_stop_when_terminal_exception_propagates_without_retry(self) -> None:
+        measure, calls = _fake_measure(probe=(None, None))
+
+        def _stop_when(_rounds):
+            raise AssertionError("no TCP-RTT samples")
+
+        with pytest.raises(AssertionError, match="no TCP-RTT samples"):
+            self._run(_stop_when, measure=measure)
+        assert len(calls) == 3  # exactly one round ran; no retry
+
+    def test_on_round_called_for_every_round_in_order(self) -> None:
+        measure, _ = _fake_measure()
+        seen: list[PathMeasurement] = []
+        findings = self._run(
+            lambda rounds: len(rounds) >= 3, measure=measure, on_round=seen.append
+        )
+        assert len(seen) == 3
+        assert seen == findings  # same objects, same order
+        assert all(isinstance(f, PathMeasurement) for f in seen)
+
+    def test_stop_when_receives_the_growing_findings_list(self) -> None:
+        # The predicate sees every round so far — it can look back N rounds to
+        # implement a consecutive-pass policy without the op knowing about it.
+        measure, _ = _fake_measure()
+        lengths: list[int] = []
+
+        def _stop_when(rounds):
+            lengths.append(len(rounds))
+            return len(rounds) >= 3
+
+        self._run(_stop_when, measure=measure)
+        assert lengths == [1, 2, 3]
