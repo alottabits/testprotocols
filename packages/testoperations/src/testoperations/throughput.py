@@ -34,25 +34,55 @@ _POLL_INTERVAL_S = 1.0
 
 @dataclass(frozen=True)
 class ThroughputFlow:
-    """One measured flow: *sender* pushes TCP to *dest_host*:*port*, *receiver* listens.
+    """One measured flow: *sender* connects to *dest_host*:*port*, *receiver* listens.
 
     ``port`` must be unique across the flows of one measurement call — each
     flow gets its own iperf3 server instance (and per-port logfile) on the
     receiving device.
+
+    ``reverse`` runs the session in iperf3 reverse mode (``-R``): the *sender*
+    still initiates the connection, but the listening *receiver* transmits the
+    data (a download, from the initiating side's point of view). The reported
+    rate stays receive-side goodput either way — iperf3 exchanges end-of-test
+    summaries, so ``end.sum_received`` in the receiver's log is what the
+    data-receiving side actually got in both directions.
+
+    ``omit_s`` skips the first N seconds of the session (iperf3 ``-O``: the
+    TCP slow-start ramp) — omitted seconds extend the wall-clock run and are
+    excluded from the reported summary, so the rate is steady-state by
+    construction.
+
+    ``bandwidth_mbps`` caps the sender's offered rate (iperf3 ``-b Nm``). A
+    low value turns the flow into a **non-saturating path-RTT probe**: it
+    never fills the bottleneck queue, so its ``min_rtt_ms``/``mean_rtt_ms``
+    read the path's idle round-trip time instead of the standing queue a
+    saturating flow builds.
     """
 
     sender: IperfClient
     receiver: IperfServer
     dest_host: str
     port: int
+    reverse: bool = False
+    omit_s: int = 0
+    bandwidth_mbps: int | None = None
 
 
 @dataclass(frozen=True)
 class FlowThroughput:
-    """The measured receive-side rate of one flow."""
+    """The measured receive-side rate (and sending-socket RTT) of one flow.
+
+    ``min_rtt_ms`` / ``mean_rtt_ms`` are the loaded connection's TCP round-trip
+    time as sampled by the kernel of the data-sending side (iperf3 stamps
+    ``TCP_INFO`` into ``end.streams[*].sender``), in milliseconds. ``None``
+    when the session carried no RTT samples (UDP, or an iperf3 build that does
+    not exchange them).
+    """
 
     port: int
     mbps: float
+    min_rtt_ms: float | None = None
+    mean_rtt_ms: float | None = None
 
 
 def iter_json_docs(text: str) -> list[Any]:
@@ -100,6 +130,57 @@ def count_sessions(log_text: str) -> int:
     return len(iter_json_docs(log_text))
 
 
+def _direction_fragment(flow: ThroughputFlow) -> str | None:
+    """The iperf3 CLI fragment realizing *flow*'s reverse/omit options.
+
+    The ``IperfClient.start_traffic_sender`` ``direction`` parameter is a raw
+    command-line fragment appended verbatim by the implementations; reverse
+    mode and the slow-start omit ride on it, so no protocol change is needed.
+    """
+    parts: list[str] = []
+    if flow.reverse:
+        parts.append("-R")
+    if flow.omit_s:
+        parts.append(f"-O {flow.omit_s}")
+    # The sender's own log must be JSON: a forward flow's RTT lives ONLY in
+    # the data-sending (client) side's output — live-diagnosed 2026-07-06,
+    # the server-side log carries no sender RTT for client-sent sessions.
+    parts.append("--json")
+    return " ".join(parts)
+
+
+def last_session_rtt_ms(log_text: str) -> tuple[float | None, float | None]:
+    """``(min_rtt_ms, mean_rtt_ms)`` of the LAST completed session's sending side.
+
+    iperf3 stamps the data-sending socket's ``TCP_INFO`` round-trip stats into
+    ``end.streams[*].sender`` (``min_rtt`` / ``mean_rtt``, in microseconds) and
+    both sides exchange end-of-test summaries, so the receiver's ``--json``
+    log carries them for either direction. Multi-stream sessions aggregate as
+    the minimum of the minima and the mean of the means. The pair is
+    both-or-neither: ``(None, None)`` when no completed session carries a
+    complete set of RTT samples (UDP, an iperf3 build that does not exchange
+    ``TCP_INFO``, or a document with only one of the two fields) — callers
+    never see a half-populated pair.
+    """
+    docs = iter_json_docs(log_text)
+    if not docs or not isinstance(docs[-1], dict):
+        return (None, None)
+    streams = docs[-1].get("end", {}).get("streams", [])
+    mins: list[float] = []
+    means: list[float] = []
+    for stream in streams:
+        sender = stream.get("sender", {}) if isinstance(stream, dict) else {}
+        if not isinstance(sender, dict):
+            continue
+        if sender.get("min_rtt") is not None:
+            mins.append(float(sender["min_rtt"]))
+        if sender.get("mean_rtt") is not None:
+            means.append(float(sender["mean_rtt"]))
+    if not mins or not means:
+        return (None, None)
+    return (min(mins) / 1000.0, (sum(means) / len(means)) / 1000.0)
+
+
 def last_session_mbps(log_text: str) -> float | None:
     """The receive-side rate (Mbit/s) of the LAST completed session, or ``None``.
 
@@ -116,6 +197,31 @@ def last_session_mbps(log_text: str) -> float | None:
         if bps is not None:
             return float(bps) / 1e6
     return None
+
+
+def _await_session(
+    read_log: Callable[[str], str],
+    log_path: str,
+    prior_sessions: int,
+    deadline: float,
+    sleep: Callable[[float], None],
+    monotonic: Callable[[], float],
+) -> tuple[str, float] | None:
+    """Poll *log_path* for a NEW completed session carrying a rate summary.
+
+    Returns ``(log_text, last_session_mbps)`` once more than *prior_sessions*
+    completed documents are present and the last one has a rate summary;
+    ``None`` when *deadline* passes first.
+    """
+    while True:
+        text = read_log(log_path)
+        if count_sessions(text) > prior_sessions:
+            mbps = last_session_mbps(text)
+            if mbps is not None:
+                return (text, mbps)
+        if monotonic() >= deadline:
+            return None
+        sleep(_POLL_INTERVAL_S)
 
 
 def measure_concurrent_throughput(
@@ -136,13 +242,32 @@ def measure_concurrent_throughput(
     Raises ``ValueError`` on duplicate ports (two flows would share a server
     instance and logfile) and ``RuntimeError`` when a receiver produces no new
     completed session within *duration_s* + *result_timeout_s*.
+
+    Each quantity is read from the side that actually observed it — iperf3's
+    end-of-test exchange copies NEITHER across sides on real builds
+    (live-diagnosed 2026-07-06: the server-side log has no sender RTT for
+    client-sent sessions, and near-zero ``sum_received`` for reverse
+    sessions where the server transmitted):
+
+    - **rate** comes from the data-RECEIVING side's own log — the listening
+      receiver for a forward flow, the initiating sender device for a
+      reverse flow (its ``--json`` log; the launch shell-redirect truncates
+      the file, so the first completed document is this session);
+    - **RTT** comes from the data-SENDING side's own log (its socket's
+      ``TCP_INFO``) — the sender's log for a forward flow, the receiver's
+      log for a reverse flow.
+
+    A forward flow whose sender log yields no session by the deadline
+    degrades to RTT ``(None, None)`` (the rate was already confirmed); a
+    reverse flow in that state raises ``RuntimeError`` — its rate lives in
+    that log, so there is no result to report.
     """
     ports = [f.port for f in flows]
     if len(set(ports)) != len(ports):
         raise ValueError(f"flow ports must be unique per measurement, got {ports}")
 
     started: list[tuple[ThroughputFlow, int, str, int]] = []
-    sender_pids: list[tuple[IperfClient, int]] = []
+    senders: list[tuple[IperfClient, int, str]] = []  # (sender, pid, log) per flow
     try:
         for flow in flows:
             receiver_pid, receiver_log = flow.receiver.start_traffic_receiver(flow.port)
@@ -150,33 +275,66 @@ def measure_concurrent_throughput(
             started.append((flow, receiver_pid, receiver_log, prior_sessions))
 
         for flow, _, _, _ in started:
-            sender_pid, _ = flow.sender.start_traffic_sender(
-                flow.dest_host, flow.port, time=duration_s
+            sender_pid, sender_log = flow.sender.start_traffic_sender(
+                flow.dest_host,
+                flow.port,
+                bandwidth=flow.bandwidth_mbps,
+                time=duration_s,
+                direction=_direction_fragment(flow),
             )
-            sender_pids.append((flow.sender, sender_pid))
+            senders.append((flow.sender, sender_pid, sender_log))
 
-        sleep(float(duration_s))
+        # Omitted slow-start seconds extend the wall clock beyond duration_s.
+        sleep(float(duration_s + max((f.omit_s for f in flows), default=0)))
 
         results: list[FlowThroughput] = []
         deadline = monotonic() + result_timeout_s
-        for flow, _, receiver_log, prior_sessions in started:
-            while True:
-                log_text = flow.receiver.get_iperf_logs(receiver_log)
-                if count_sessions(log_text) > prior_sessions:
-                    mbps = last_session_mbps(log_text)
-                    if mbps is not None:
-                        results.append(FlowThroughput(port=flow.port, mbps=mbps))
-                        break
-                if monotonic() >= deadline:
+        for (flow, _, receiver_log, prior_sessions), (_, _, sender_log) in zip(
+            started, senders, strict=True
+        ):
+            rx = _await_session(
+                flow.receiver.get_iperf_logs,
+                receiver_log,
+                prior_sessions,
+                deadline,
+                sleep,
+                monotonic,
+            )
+            if rx is None:
+                raise RuntimeError(
+                    f"iperf receiver on port {flow.port} produced no completed "
+                    f"session within {result_timeout_s}s after the "
+                    f"{duration_s}s measurement window"
+                )
+            receiver_text, rx_mbps = rx
+            tx = _await_session(
+                flow.sender.get_iperf_logs, sender_log, 0, deadline, sleep, monotonic
+            )
+            if flow.reverse:
+                if tx is None:
                     raise RuntimeError(
-                        f"iperf receiver on port {flow.port} produced no completed "
-                        f"session within {result_timeout_s}s after the "
-                        f"{duration_s}s measurement window"
+                        f"reverse flow on port {flow.port}: the initiating "
+                        f"(data-receiving) side produced no completed session "
+                        f"within {result_timeout_s}s — no receive-side rate"
                     )
-                sleep(_POLL_INTERVAL_S)
+                _, mbps = tx
+                min_rtt_ms, mean_rtt_ms = last_session_rtt_ms(receiver_text)
+            else:
+                mbps = rx_mbps
+                min_rtt_ms, mean_rtt_ms = (
+                    last_session_rtt_ms(tx[0]) if tx is not None else (None, None)
+                )
+            results.append(
+                FlowThroughput(
+                    port=flow.port,
+                    mbps=mbps,
+                    min_rtt_ms=min_rtt_ms,
+                    mean_rtt_ms=mean_rtt_ms,
+                )
+            )
         return results
     finally:
-        for sender, sender_pid in sender_pids:
+        for sender, sender_pid, _ in senders:
             try:
                 sender.stop_traffic(sender_pid)
             except Exception:
@@ -186,3 +344,182 @@ def measure_concurrent_throughput(
                 flow.receiver.stop_traffic(receiver_pid)
             except Exception:
                 pass
+
+
+# --- rated-path measurement: unloaded RTT probe + sequential directions -------
+#
+# The framing owned here (the reason it is a testoperations function and not a
+# step loop): a rated-performance check of a forwarding path is one unloaded
+# path-RTT probe plus each direction measured on its own — the directions run
+# SEQUENTIALLY, not concurrently, because each must own the path to reach its
+# rated figure (unlike measure_concurrent_throughput's overlapping flows). A
+# freshly-written policy converges eventually, so the round repeats until the
+# caller's stop predicate is satisfied or a time budget lapses. This is a
+# MECHANIC, not a policy: it reports every round's findings and never decides
+# whether they are acceptable — per-round thresholds, what "settled" means
+# (e.g. reproducibility across N rounds), and any pass/fail verdict all live
+# with the caller. Aside from operational failures it raises nothing.
+
+DEFAULT_PROBE_RATE_MBPS = 1
+DEFAULT_PROBE_DURATION_S = 3
+DEFAULT_MEASURE_DURATION_S = 10
+
+
+@dataclass(frozen=True)
+class DirectionSpec:
+    """One measurement round: a *name* label and its iperf3 direction.
+
+    ``reverse`` runs the round in iperf3 reverse mode (the listening receiver
+    transmits — a download from the initiating side). The caller owns the
+    name↔direction convention (e.g. ``upload``→forward, ``download``→reverse);
+    this operation only carries it through to the flow.
+    """
+
+    name: str
+    reverse: bool
+
+
+@dataclass(frozen=True)
+class PathMeasurement:
+    """Facts from one probe+directions round (assertion-free).
+
+    ``probe_min_rtt_ms`` / ``probe_mean_rtt_ms`` are the path's UNLOADED RTT
+    from the rate-capped probe (``(None, None)`` if the probe carried no RTT
+    samples). ``by_direction`` maps each :class:`DirectionSpec` name to its
+    measured :class:`FlowThroughput` (loaded rate + loaded-RTT evidence).
+    """
+
+    probe_min_rtt_ms: float | None
+    probe_mean_rtt_ms: float | None
+    by_direction: dict[str, FlowThroughput]
+
+
+def measure_path_rtt(
+    sender: IperfClient,
+    receiver: IperfServer,
+    dest_host: str,
+    port: int,
+    *,
+    rate_mbps: int = DEFAULT_PROBE_RATE_MBPS,
+    duration_s: int = DEFAULT_PROBE_DURATION_S,
+    measure: Callable[..., list[FlowThroughput]] = measure_concurrent_throughput,
+) -> tuple[float | None, float | None]:
+    """The path's unloaded ``(min, mean)`` RTT via one rate-capped probe flow.
+
+    The flow is capped far below the path's capacity (``rate_mbps``) so it never
+    builds a bottleneck queue — its RTT reads the idle path, not the standing
+    queue a saturating flow keeps. Returns the probe's ``(min_rtt_ms,
+    mean_rtt_ms)`` pair (both-or-neither, per :func:`last_session_rtt_ms`).
+    """
+    flow = ThroughputFlow(
+        sender=sender,
+        receiver=receiver,
+        dest_host=dest_host,
+        port=port,
+        bandwidth_mbps=rate_mbps,
+    )
+    (result,) = measure([flow], duration_s=duration_s)
+    return result.min_rtt_ms, result.mean_rtt_ms
+
+
+def measure_one_direction(
+    sender: IperfClient,
+    receiver: IperfServer,
+    dest_host: str,
+    port: int,
+    *,
+    reverse: bool,
+    duration_s: int = DEFAULT_MEASURE_DURATION_S,
+    omit_s: int = 0,
+    measure: Callable[..., list[FlowThroughput]] = measure_concurrent_throughput,
+) -> FlowThroughput:
+    """Measure a single saturating flow in one direction (forward or reverse).
+
+    ``reverse=False`` sends *sender*→*receiver* (an upload from the sender's
+    side); ``reverse=True`` runs iperf3 reverse mode so the receiver transmits
+    (a download). The reported rate is receive-side goodput either way.
+    """
+    flow = ThroughputFlow(
+        sender=sender,
+        receiver=receiver,
+        dest_host=dest_host,
+        port=port,
+        reverse=reverse,
+        omit_s=omit_s,
+    )
+    (result,) = measure([flow], duration_s=duration_s)
+    return result
+
+
+def measure_path_until(
+    *,
+    sender: IperfClient,
+    receiver: IperfServer,
+    dest_host: str,
+    directions: Sequence[DirectionSpec],
+    allocate_port: Callable[[], int],
+    stop_when: Callable[[list[PathMeasurement]], bool],
+    budget_s: float,
+    probe_rate_mbps: int = DEFAULT_PROBE_RATE_MBPS,
+    probe_duration_s: int = DEFAULT_PROBE_DURATION_S,
+    measure_duration_s: int = DEFAULT_MEASURE_DURATION_S,
+    omit_s: int = 0,
+    on_round: Callable[[PathMeasurement], None] | None = None,
+    measure: Callable[..., list[FlowThroughput]] = measure_concurrent_throughput,
+    monotonic: Callable[[], float] = time.monotonic,
+) -> list[PathMeasurement]:
+    """Measure probe+directions rounds until *stop_when* or *budget_s*; report all.
+
+    One round is: a single unloaded RTT probe, then each *directions* entry
+    measured sequentially (each owns the path). ``allocate_port`` hands out a
+    fresh, collision-free port for every flow (probe and each direction, every
+    round). ``on_round`` — if given — is called with each round's facts as they
+    are produced (a logging seam).
+
+    After each round, *stop_when* receives the findings so far (the ordered list
+    of every round's :class:`PathMeasurement`) and returns ``True`` to stop. This
+    is where the CALLER's acceptability policy lives — per-round thresholds, what
+    "settled" means (e.g. N consecutive passing rounds), when to give up. The
+    loop also stops when ``budget_s`` lapses. ``stop_when`` MAY raise to signal a
+    terminal, non-retryable condition; that exception propagates without a retry.
+
+    Returns every round's findings in order — never a verdict. Whether those
+    findings are acceptable (settled, marginal, or a failure) is entirely the
+    caller's decision. Operational failures from the underlying measurement
+    (duplicate ports, a receiver that never completes) propagate as they do from
+    :func:`measure_concurrent_throughput`.
+    """
+    deadline = monotonic() + budget_s
+    findings: list[PathMeasurement] = []
+    while True:
+        probe_min, probe_mean = measure_path_rtt(
+            sender,
+            receiver,
+            dest_host,
+            allocate_port(),
+            rate_mbps=probe_rate_mbps,
+            duration_s=probe_duration_s,
+            measure=measure,
+        )
+        by_direction: dict[str, FlowThroughput] = {}
+        for spec in directions:
+            by_direction[spec.name] = measure_one_direction(
+                sender,
+                receiver,
+                dest_host,
+                allocate_port(),
+                reverse=spec.reverse,
+                duration_s=measure_duration_s,
+                omit_s=omit_s,
+                measure=measure,
+            )
+        facts = PathMeasurement(
+            probe_min_rtt_ms=probe_min,
+            probe_mean_rtt_ms=probe_mean,
+            by_direction=by_direction,
+        )
+        findings.append(facts)
+        if on_round is not None:
+            on_round(facts)
+        if stop_when(findings) or monotonic() >= deadline:
+            return findings
