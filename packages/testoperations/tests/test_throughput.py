@@ -7,6 +7,7 @@ from unittest.mock import MagicMock
 
 import pytest
 from testoperations.throughput import (
+    DEFAULT_PROBE_RATE_MBPS,
     DirectionSpec,
     FlowThroughput,
     PathMeasurement,
@@ -159,15 +160,24 @@ class TestMeasureConcurrentThroughput:
             port: int,
             time: int,
             bandwidth: int | None = None,
-            direction: str | None = None,
+            reverse: bool = False,
+            omit_s: int | None = None,
+            json_output: bool = False,
+            window: str | None = None,
         ) -> tuple[int, str]:
-            order.append(f"tx:{host}:{port}:t={time}:b={bandwidth}:d={direction}")
+            order.append(
+                f"tx:{host}:{port}:t={time}:b={bandwidth}:r={reverse}"
+                f":o={omit_s}:j={json_output}:w={window}"
+            )
             return (4001, "/tmp/tx.log")
 
         receiver.start_traffic_receiver.side_effect = _rx
         sender.start_traffic_sender.side_effect = _tx
         measure_concurrent_throughput([flow], duration_s=7, sleep=lambda _s: None)
-        assert order == ["rx:5301", "tx:192.168.32.3:5301:t=7:b=None:d=--json"]
+        assert order == [
+            "rx:5301",
+            "tx:192.168.32.3:5301:t=7:b=None:r=False:o=None:j=True:w=None",
+        ]
 
     def test_bandwidth_cap_passed_to_the_sender(self) -> None:
         base, sender, _ = _flow(5301, mbps=1.0)
@@ -250,16 +260,20 @@ class TestMeasureConcurrentThroughput:
         assert results[0].mbps == pytest.approx(5.0)
 
 
-class TestDirectionAndRtt:
+class TestSenderOptionsAndRtt:
     def test_default_flow_sends_json_only(self) -> None:
         # --json is unconditional: the sender's own log is the forward-flow
         # RTT source, so it must always be machine-readable.
         flow, sender, _ = _flow(5301, mbps=5.0)
         measure_concurrent_throughput([flow], duration_s=10, sleep=lambda _s: None)
         kwargs = sender.start_traffic_sender.call_args.kwargs
-        assert kwargs["direction"] == "--json"
+        assert kwargs["json_output"] is True
+        assert kwargs["reverse"] is False
+        assert kwargs["omit_s"] is None
+        assert kwargs["window"] is None
+        assert "direction" not in kwargs  # the fragment seam is gone
 
-    def test_reverse_flow_sends_dash_r(self) -> None:
+    def test_reverse_flow_sets_reverse(self) -> None:
         base, sender, _ = _flow(5301, mbps=5.0)
         flow = ThroughputFlow(
             sender=base.sender,
@@ -269,9 +283,9 @@ class TestDirectionAndRtt:
             reverse=True,
         )
         measure_concurrent_throughput([flow], duration_s=10, sleep=lambda _s: None)
-        assert sender.start_traffic_sender.call_args.kwargs["direction"] == "-R --json"
+        assert sender.start_traffic_sender.call_args.kwargs["reverse"] is True
 
-    def test_omit_composes_with_reverse_and_extends_the_wait(self) -> None:
+    def test_omit_passed_typed_and_extends_the_wait(self) -> None:
         base, sender, _ = _flow(5301, mbps=5.0)
         flow = ThroughputFlow(
             sender=base.sender,
@@ -283,8 +297,22 @@ class TestDirectionAndRtt:
         )
         sleeps: list[float] = []
         measure_concurrent_throughput([flow], duration_s=10, sleep=sleeps.append)
-        assert sender.start_traffic_sender.call_args.kwargs["direction"] == "-R -O 3 --json"
+        assert sender.start_traffic_sender.call_args.kwargs["omit_s"] == 3
         assert sleeps.count(13.0) == 1
+
+    def test_window_passed_to_the_sender(self) -> None:
+        # Pinned socket buffer (-w): disables receive autotuning stalls on
+        # high-BDP paths (UC-010 dip class A, live-diagnosed 2026-07-11).
+        base, sender, _ = _flow(5301, mbps=5.0)
+        flow = ThroughputFlow(
+            sender=base.sender,
+            receiver=base.receiver,
+            dest_host=base.dest_host,
+            port=base.port,
+            window="8M",
+        )
+        measure_concurrent_throughput([flow], duration_s=10, sleep=lambda _s: None)
+        assert sender.start_traffic_sender.call_args.kwargs["window"] == "8M"
 
     def test_forward_flow_rtt_comes_from_the_senders_own_log(self) -> None:
         # Live-diagnosed 2026-07-06: the server-side log carries NO sender RTT
@@ -434,6 +462,19 @@ class TestMeasureOneDirection:
         assert got.mbps == 450.0
         assert calls[0][0].reverse is True
 
+    def test_measure_one_direction_pins_window_on_the_flow(self) -> None:
+        captured: list[ThroughputFlow] = []
+
+        def _measure(flows, **_kw):  # type: ignore[no-untyped-def]
+            captured.extend(flows)
+            return [FlowThroughput(port=f.port, mbps=800.0) for f in flows]
+
+        measure_one_direction(
+            MagicMock(), MagicMock(), "10.1.30.50", 5401,
+            reverse=True, window="8M", measure=_measure,
+        )
+        assert [f.window for f in captured] == ["8M"]
+
 
 def _ports_from(start: int = 5401):
     counter = iter(range(start, start + 1000))
@@ -526,3 +567,28 @@ class TestMeasurePathUntil:
 
         self._run(_stop_when, measure=measure)
         assert lengths == [1, 2, 3]
+
+    def test_measure_path_until_windows_directions_but_not_the_probe(self) -> None:
+        captured: list[ThroughputFlow] = []
+
+        def _measure(flows, **_kw):  # type: ignore[no-untyped-def]
+            captured.extend(flows)
+            return [FlowThroughput(port=f.port, mbps=800.0) for f in flows]
+
+        ports = iter(range(5401, 5410))
+        measure_path_until(
+            sender=MagicMock(),
+            receiver=MagicMock(),
+            dest_host="10.1.30.50",
+            directions=[DirectionSpec("upload", reverse=False)],
+            allocate_port=lambda: next(ports),
+            stop_when=lambda findings: True,
+            budget_s=60.0,
+            window="8M",
+            measure=_measure,
+        )
+        # Round = probe flow first, then the direction flow.
+        probe, direction = captured
+        assert probe.bandwidth_mbps == DEFAULT_PROBE_RATE_MBPS
+        assert probe.window is None       # probes stay unpinned
+        assert direction.window == "8M"   # saturating flows are pinned
