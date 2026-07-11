@@ -57,6 +57,12 @@ class ThroughputFlow:
     never fills the bottleneck queue, so its ``min_rtt_ms``/``mean_rtt_ms``
     read the path's idle round-trip time instead of the standing queue a
     saturating flow builds.
+
+    ``window`` pins the socket buffer on both ends (iperf3 ``-w``, e.g.
+    ``"8M"``), disabling OS autotuning — the standard measurement-rig remedy
+    for receive-window autotuning stalls on high-BDP paths. ``None`` keeps
+    autotuning. The effective value is capped by ``net.core.rmem_max`` /
+    ``wmem_max`` on the endpoint hosts.
     """
 
     sender: IperfClient
@@ -66,6 +72,7 @@ class ThroughputFlow:
     reverse: bool = False
     omit_s: int = 0
     bandwidth_mbps: int | None = None
+    window: str | None = None
 
 
 @dataclass(frozen=True)
@@ -128,25 +135,6 @@ def iter_json_docs(text: str) -> list[Any]:
 def count_sessions(log_text: str) -> int:
     """The number of completed iperf3 session documents in *log_text*."""
     return len(iter_json_docs(log_text))
-
-
-def _direction_fragment(flow: ThroughputFlow) -> str | None:
-    """The iperf3 CLI fragment realizing *flow*'s reverse/omit options.
-
-    The ``IperfClient.start_traffic_sender`` ``direction`` parameter is a raw
-    command-line fragment appended verbatim by the implementations; reverse
-    mode and the slow-start omit ride on it, so no protocol change is needed.
-    """
-    parts: list[str] = []
-    if flow.reverse:
-        parts.append("-R")
-    if flow.omit_s:
-        parts.append(f"-O {flow.omit_s}")
-    # The sender's own log must be JSON: a forward flow's RTT lives ONLY in
-    # the data-sending (client) side's output — live-diagnosed 2026-07-06,
-    # the server-side log carries no sender RTT for client-sent sessions.
-    parts.append("--json")
-    return " ".join(parts)
 
 
 def last_session_rtt_ms(log_text: str) -> tuple[float | None, float | None]:
@@ -280,7 +268,13 @@ def measure_concurrent_throughput(
                 flow.port,
                 bandwidth=flow.bandwidth_mbps,
                 time=duration_s,
-                direction=_direction_fragment(flow),
+                reverse=flow.reverse,
+                omit_s=flow.omit_s or None,
+                # The sender's own log must be JSON: a forward flow's RTT
+                # lives ONLY in the data-sending (client) side's output —
+                # live-diagnosed 2026-07-06.
+                json_output=True,
+                window=flow.window,
             )
             senders.append((flow.sender, sender_pid, sender_log))
 

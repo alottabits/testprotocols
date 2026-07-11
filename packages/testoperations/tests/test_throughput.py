@@ -159,15 +159,24 @@ class TestMeasureConcurrentThroughput:
             port: int,
             time: int,
             bandwidth: int | None = None,
-            direction: str | None = None,
+            reverse: bool = False,
+            omit_s: int | None = None,
+            json_output: bool = False,
+            window: str | None = None,
         ) -> tuple[int, str]:
-            order.append(f"tx:{host}:{port}:t={time}:b={bandwidth}:d={direction}")
+            order.append(
+                f"tx:{host}:{port}:t={time}:b={bandwidth}:r={reverse}"
+                f":o={omit_s}:j={json_output}:w={window}"
+            )
             return (4001, "/tmp/tx.log")
 
         receiver.start_traffic_receiver.side_effect = _rx
         sender.start_traffic_sender.side_effect = _tx
         measure_concurrent_throughput([flow], duration_s=7, sleep=lambda _s: None)
-        assert order == ["rx:5301", "tx:192.168.32.3:5301:t=7:b=None:d=--json"]
+        assert order == [
+            "rx:5301",
+            "tx:192.168.32.3:5301:t=7:b=None:r=False:o=None:j=True:w=None",
+        ]
 
     def test_bandwidth_cap_passed_to_the_sender(self) -> None:
         base, sender, _ = _flow(5301, mbps=1.0)
@@ -257,9 +266,13 @@ class TestDirectionAndRtt:
         flow, sender, _ = _flow(5301, mbps=5.0)
         measure_concurrent_throughput([flow], duration_s=10, sleep=lambda _s: None)
         kwargs = sender.start_traffic_sender.call_args.kwargs
-        assert kwargs["direction"] == "--json"
+        assert kwargs["json_output"] is True
+        assert kwargs["reverse"] is False
+        assert kwargs["omit_s"] is None
+        assert kwargs["window"] is None
+        assert "direction" not in kwargs  # the fragment seam is gone
 
-    def test_reverse_flow_sends_dash_r(self) -> None:
+    def test_reverse_flow_sets_reverse(self) -> None:
         base, sender, _ = _flow(5301, mbps=5.0)
         flow = ThroughputFlow(
             sender=base.sender,
@@ -269,9 +282,9 @@ class TestDirectionAndRtt:
             reverse=True,
         )
         measure_concurrent_throughput([flow], duration_s=10, sleep=lambda _s: None)
-        assert sender.start_traffic_sender.call_args.kwargs["direction"] == "-R --json"
+        assert sender.start_traffic_sender.call_args.kwargs["reverse"] is True
 
-    def test_omit_composes_with_reverse_and_extends_the_wait(self) -> None:
+    def test_omit_passed_typed_and_extends_the_wait(self) -> None:
         base, sender, _ = _flow(5301, mbps=5.0)
         flow = ThroughputFlow(
             sender=base.sender,
@@ -283,8 +296,22 @@ class TestDirectionAndRtt:
         )
         sleeps: list[float] = []
         measure_concurrent_throughput([flow], duration_s=10, sleep=sleeps.append)
-        assert sender.start_traffic_sender.call_args.kwargs["direction"] == "-R -O 3 --json"
+        assert sender.start_traffic_sender.call_args.kwargs["omit_s"] == 3
         assert sleeps.count(13.0) == 1
+
+    def test_window_passed_to_the_sender(self) -> None:
+        # Pinned socket buffer (-w): disables receive autotuning stalls on
+        # high-BDP paths (UC-010 dip class A, live-diagnosed 2026-07-11).
+        base, sender, _ = _flow(5301, mbps=5.0)
+        flow = ThroughputFlow(
+            sender=base.sender,
+            receiver=base.receiver,
+            dest_host=base.dest_host,
+            port=base.port,
+            window="8M",
+        )
+        measure_concurrent_throughput([flow], duration_s=10, sleep=lambda _s: None)
+        assert sender.start_traffic_sender.call_args.kwargs["window"] == "8M"
 
     def test_forward_flow_rtt_comes_from_the_senders_own_log(self) -> None:
         # Live-diagnosed 2026-07-06: the server-side log carries NO sender RTT
