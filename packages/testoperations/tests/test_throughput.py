@@ -260,7 +260,7 @@ class TestMeasureConcurrentThroughput:
         assert results[0].mbps == pytest.approx(5.0)
 
 
-class TestDirectionAndRtt:
+class TestSenderOptionsAndRtt:
     def test_default_flow_sends_json_only(self) -> None:
         # --json is unconditional: the sender's own log is the forward-flow
         # RTT source, so it must always be machine-readable.
