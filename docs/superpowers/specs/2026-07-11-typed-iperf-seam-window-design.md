@@ -65,11 +65,17 @@ ENG-003 row's assumed "twin wiring" does not exist; correct the row on close.
 
 ### 4. Policy: the window value (kpn-sdwan suite)
 
-The suite's shared throughput steps set `window="8M"` on **saturating**
+The suite's shared throughput steps set `window="4M"` on **saturating**
 measurement flows only (UC-009/010 family); the 1 Mbps RTT probes stay
-unpinned (non-saturating; autotuning irrelevant). Rationale, recorded at the
-constant: BDP ≈ 870 Mbps × ~40 ms queue-inflated RTT ≈ 4.3 MB; 8M ≈ 2×
-margin; the kernel doubles the setsockopt value; fleet
+unpinned (non-saturating; autotuning irrelevant). The value is a two-sided
+fit, both bounds live-measured 2026-07-11: above the idle BDP (~870 Mbps ×
+~15.5 ms ≈ 1.7 MB) so the window never caps the rated figure, and at or
+below the path's loss-free standing level (~4 MB observed, 0 retr) — the
+pin also disables sender-side ramp throttling, so TCP slow start bursts to
+the full pinned window, and the originally-specified 8M overflowed the
+shallower Ams→Rot bottleneck queue every round (G4 falsified 8M: 5 upload
+settle failures in the 13-cell sweep; the 4M baseline probe passed with
+uploads 867/851/798). The kernel doubles the setsockopt value; fleet
 `net.core.rmem_max`/`wmem_max` = 16 MB (verified live — `setsockopt` is
 capped by `net.core.*mem_max`, **not** `tcp_rmem`/`tcp_wmem`, so this
 pre-condition is load-bearing).
