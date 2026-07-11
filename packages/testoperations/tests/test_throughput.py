@@ -7,6 +7,7 @@ from unittest.mock import MagicMock
 
 import pytest
 from testoperations.throughput import (
+    DEFAULT_PROBE_RATE_MBPS,
     DirectionSpec,
     FlowThroughput,
     PathMeasurement,
@@ -461,6 +462,19 @@ class TestMeasureOneDirection:
         assert got.mbps == 450.0
         assert calls[0][0].reverse is True
 
+    def test_measure_one_direction_pins_window_on_the_flow(self) -> None:
+        captured: list[ThroughputFlow] = []
+
+        def _measure(flows, **_kw):  # type: ignore[no-untyped-def]
+            captured.extend(flows)
+            return [FlowThroughput(port=f.port, mbps=800.0) for f in flows]
+
+        measure_one_direction(
+            MagicMock(), MagicMock(), "10.1.30.50", 5401,
+            reverse=True, window="8M", measure=_measure,
+        )
+        assert [f.window for f in captured] == ["8M"]
+
 
 def _ports_from(start: int = 5401):
     counter = iter(range(start, start + 1000))
@@ -553,3 +567,28 @@ class TestMeasurePathUntil:
 
         self._run(_stop_when, measure=measure)
         assert lengths == [1, 2, 3]
+
+    def test_measure_path_until_windows_directions_but_not_the_probe(self) -> None:
+        captured: list[ThroughputFlow] = []
+
+        def _measure(flows, **_kw):  # type: ignore[no-untyped-def]
+            captured.extend(flows)
+            return [FlowThroughput(port=f.port, mbps=800.0) for f in flows]
+
+        ports = iter(range(5401, 5410))
+        measure_path_until(
+            sender=MagicMock(),
+            receiver=MagicMock(),
+            dest_host="10.1.30.50",
+            directions=[DirectionSpec("upload", reverse=False)],
+            allocate_port=lambda: next(ports),
+            stop_when=lambda findings: True,
+            budget_s=60.0,
+            window="8M",
+            measure=_measure,
+        )
+        # Round = probe flow first, then the direction flow.
+        probe, direction = captured
+        assert probe.bandwidth_mbps == DEFAULT_PROBE_RATE_MBPS
+        assert probe.window is None       # probes stay unpinned
+        assert direction.window == "8M"   # saturating flows are pinned
