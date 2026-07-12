@@ -30,7 +30,7 @@ archetype. NetemController stays on `TrafficControllerDevice` where it
 actually lives.
 
 **Rationale:**
-- The source vitro-templates `linux_sdwan_router` registration listed
+- The predecessor templates pool's `linux_sdwan_router` registration (since superseded by testprotocols device types) listed
   `NetemController` as a template, but no driver implemented it on the
   router itself. The verbatim Task 8 conversion preserved the over-broad
   shape; the cutover surfaced that no consumer actually expected the
@@ -80,7 +80,7 @@ Done as a separate commit on top of the Task 8 verbatim conversion.
   layer of "how does this BSS decide who gets in?".
 - `WifiStations` retains only truly station-scoped operations:
   `list_associated_stations`, `get_station`, `disconnect_station`.
-- Source ABCs in `vitro-templates` had this granularity wrong; preserved
+- Source ABCs in the predecessor templates pool (superseded by testprotocols device types) had this granularity wrong; preserved
   verbatim by Task 8's mechanical conversion. The migration is the
   natural place to correct it before consumers depend on the bad shape.
 
@@ -119,7 +119,7 @@ for the rationale."*
 `docs/architecture/architecture-overview.md` describes a single `Firewall`
 protocol bundling packet rules, port forwards, and zones, with `Nat` /
 `Conntrack` as separate siblings; the actual code inherited the verbatim
-five-way split from the source vitro-templates ABCs — `PacketFilter`,
+five-way split from the predecessor templates-pool ABCs — `PacketFilter`,
 `PortForwarding`, `FirewallZones`, `Nat`, `Conntrack`). Design review
 landed on a four-bundle / five-symbol shape: bundle packet rules + port
 forwards by coherent telco domain, keep zones / NAT / conntrack split

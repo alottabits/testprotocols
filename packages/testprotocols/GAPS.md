@@ -179,7 +179,7 @@ or radar-detection-correctness verification beyond the synthetic injection
 already covered by `WifiRadioWhiteBox.inject_radar_event`.
 
 **Out of scope right now because:** The deferral is already documented in
-`wifi_rf.py`'s module docstring as an upstream design decision in vitro-templates.
+`wifi_rf.py`'s module docstring as an upstream design decision inherited from the predecessor templates pool (superseded by testprotocols device types).
 This entry exists only to ensure visibility once tests require it.
 
 **Design notes (when picked up):**
