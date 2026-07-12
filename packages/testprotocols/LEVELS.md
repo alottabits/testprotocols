@@ -158,7 +158,7 @@ kernel netfilter behind them.
   design-target Meraki MS225 / MS355 (no FDB API). Seed when the base `MacTable`
   capability is implemented. No L3-only WhiteBox candidate identified yet.
 
-The architecture doc (palco-bdd `palco-architecture.md` v2.0) initially listed
+The architecture doc (vitro-bdd `architecture-overview.md` v2.0) initially listed
 `FirewallWhiteBox`, `RoutingWhiteBox`, `SipPhoneWhiteBox`, `SipServerWhiteBox`
 as seed extensions. `FirewallWhiteBox` and `SipPhoneWhiteBox` are seeded. The remaining two — `RoutingWhiteBox` and `SipServerWhiteBox` — remain aspirational; future consumer signals will
 determine whether to seed them.
