@@ -1,7 +1,6 @@
 """Spoke-to-spoke segmentation operations — role selection + VPN-firewall deny.
 
-Pure, assertion-free helpers for a spoke-to-spoke segmentation test (e.g.
-UC-MERAKI-006):
+Pure, assertion-free helpers for a spoke-to-spoke segmentation test:
 
 * :func:`select_roles` resolves the three roles the test needs — a *source*
   spoke of a requested MX model, and a *destination* and *control* drawn
