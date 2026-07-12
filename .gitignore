@@ -9,5 +9,5 @@ dist/
 build/
 
 # local working documents — not shipped
-docs/superpowers/plans/
+docs/superpowers/
 action-document.md

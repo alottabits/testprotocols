@@ -30,7 +30,7 @@ archetype. NetemController stays on `TrafficControllerDevice` where it
 actually lives.
 
 **Rationale:**
-- The source palco-templates `linux_sdwan_router` registration listed
+- The predecessor templates pool's `linux_sdwan_router` registration (since superseded by testprotocols device types) listed
   `NetemController` as a template, but no driver implemented it on the
   router itself. The verbatim Task 8 conversion preserved the over-broad
   shape; the cutover surfaced that no consumer actually expected the
@@ -80,7 +80,7 @@ Done as a separate commit on top of the Task 8 verbatim conversion.
   layer of "how does this BSS decide who gets in?".
 - `WifiStations` retains only truly station-scoped operations:
   `list_associated_stations`, `get_station`, `disconnect_station`.
-- Source ABCs in `palco-templates` had this granularity wrong; preserved
+- Source ABCs in the predecessor templates pool (superseded by testprotocols device types) had this granularity wrong; preserved
   verbatim by Task 8's mechanical conversion. The migration is the
   natural place to correct it before consumers depend on the bad shape.
 
@@ -100,7 +100,7 @@ its only consumer from `wifi_stations.py` to `wifi_bss.py`.
 
 **Migration impact at this point in the migration:**
 - No drivers or operations consume these methods yet (testprotocols is
-  pre-1.0; consumers will be updated in Phase 4-5 when palco-bdd
+  pre-1.0; consumers will be updated in Phase 4-5 when vitro-bdd
   examples flip to the new stack).
 - Tests for `WifiStations` and `WifiBss` (Task 13's scope) will need to
   be split accordingly.
@@ -115,11 +115,11 @@ for the rationale."*
 
 ## 2026-05-11 — `PortForwarding` folded into a new `Firewall(PacketFilter, Protocol)` bundle
 
-**Signal:** Architecture / code divergence review (palco-bdd
-`docs/architecture/palco-architecture.md` describes a single `Firewall`
+**Signal:** Architecture / code divergence review (vitro-bdd
+`docs/architecture/architecture-overview.md` describes a single `Firewall`
 protocol bundling packet rules, port forwards, and zones, with `Nat` /
 `Conntrack` as separate siblings; the actual code inherited the verbatim
-five-way split from the source palco-templates ABCs — `PacketFilter`,
+five-way split from the predecessor templates-pool ABCs — `PacketFilter`,
 `PortForwarding`, `FirewallZones`, `Nat`, `Conntrack`). Design review
 landed on a four-bundle / five-symbol shape: bundle packet rules + port
 forwards by coherent telco domain, keep zones / NAT / conntrack split
@@ -174,14 +174,14 @@ No signature changes. The `PortMapping` data model in
   - `tests/test_firewall_templates.py` swapped `PortForwarding` row for `Firewall` row + added inheritance assertions.
   - `tests/test_device_types.py` updated for new CpeDevice attribute set.
   - Sibling-module docstring cross-references refreshed.
-- `palco-bdd`:
+- `vitro-bdd`:
   - Architecture doc edits per the design spec.
   - No driver in any example currently imported `PortForwarding` — zero-cost migration on the consumer side.
-- `palco-commons`, `palco`, `pytest-palco`, `boardfarm`, `boardfarm-bdd`,
-  `palco-linux-bases`: no references — out of scope.
+- `vitro-commons`, `vitro`, `pytest-vitro`, `boardfarm`, `boardfarm-bdd`,
+  `vitro-linux-bases`: no references — out of scope.
 
 **Design spec:**
-palco-bdd `docs/superpowers/specs/2026-05-11-firewall-protocol-bundling-design.md`.
+vitro-bdd `docs/superpowers/specs/2026-05-11-firewall-protocol-bundling-design.md`.
 
 ---
 

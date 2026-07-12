@@ -124,8 +124,8 @@ class TestBuildDenyRule:
         )
 
     def test_comment_passthrough(self):
-        r = build_deny_rule(scope="host", proto="tcp", comment="UC-MERAKI-006", **_ARGS)
-        assert r.comment == "UC-MERAKI-006"
+        r = build_deny_rule(scope="host", proto="tcp", comment="segmentation-deny", **_ARGS)
+        assert r.comment == "segmentation-deny"
 
     def test_unknown_scope_raises(self):
         with pytest.raises(ValueError, match="scope"):

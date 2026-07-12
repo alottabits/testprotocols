@@ -6,7 +6,7 @@ tx power / mode configuration, regulatory-domain control, and DFS-state
 read.
 
 The template is per-device with band-keyed methods (matching the
-existing palco pattern in IpInterface and WifiClient). A device with
+existing vitro pattern in IpInterface and WifiClient). A device with
 multiple radios on the same band (e.g. dual-5GHz) is not modelled in
 this release; band-string keying assumes one radio per band per device.
 

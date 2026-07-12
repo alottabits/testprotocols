@@ -31,7 +31,7 @@ ports to bridges, or managing STP/RSTP. This is a common requirement for
 CPEs."*
 
 **Trigger to act:** First commit on the planned CPE example (`examples/cpe-gateway/`,
-Domain #1 in palco-bdd README). A CPE without a bridge protocol is anomalous —
+Domain #1 in vitro-bdd README). A CPE without a bridge protocol is anomalous —
 LAN-side topology testing, port-isolation tests, and STP / loop-prevention
 validation all assume one. The CPE example's first BDD scenario that touches
 LAN-side bridging should drive the API shape.
@@ -91,7 +91,7 @@ protocol methods to manage or observe Multi-Link operations (e.g.,
 querying which links/bands an MLO-capable station is actively using, or
 setting primary/secondary links)."*
 
-**Trigger to act:** First Wi-Fi 7 testbed in palco-bdd, OR a customer
+**Trigger to act:** First Wi-Fi 7 testbed in vitro-bdd, OR a customer
 asking for MLO-related test coverage. Wi-Fi 7 stacks are still hardening
 across vendors as of 2026 H1; designing speculatively risks landing the
 wrong abstractions.
@@ -133,7 +133,7 @@ of Wi-Fi Multimedia (WMM) Access Categories (Voice, Video, Best Effort,
 Background). You may want to add methods to WifiBss to configure DSCP-to-AC
 mappings, and add per-AC packet statistics to WifiStation or WifiRadioStats."*
 
-**Trigger to act:** First palco-bdd test that asserts QoS behaviour — voice-
+**Trigger to act:** First vitro-bdd test that asserts QoS behaviour — voice-
 quality tests under contended Wi-Fi load, video-streaming AC prioritisation,
 or DSCP-marking-survives-bridge tests. The voice-telephony domain (Domain #3
 in README) is likely first: voice scenarios under contention need WMM
@@ -173,13 +173,13 @@ FFT/CleanAir spectral scanning to a future WifiSpectrum template. This is
 a good decision given vendor divergence, but ensures you don't forget it
 if deep RF testing is a requirement."*
 
-**Trigger to act:** First palco-bdd scenario that needs spectral analysis —
+**Trigger to act:** First vitro-bdd scenario that needs spectral analysis —
 typically interference-investigation tests, hidden-network discovery tests,
 or radar-detection-correctness verification beyond the synthetic injection
 already covered by `WifiRadioWhiteBox.inject_radar_event`.
 
 **Out of scope right now because:** The deferral is already documented in
-`wifi_rf.py`'s module docstring as an upstream design decision in palco-templates.
+`wifi_rf.py`'s module docstring as an upstream design decision inherited from the predecessor templates pool (superseded by testprotocols device types).
 This entry exists only to ensure visibility once tests require it.
 
 **Design notes (when picked up):**
@@ -207,7 +207,7 @@ three-tier scope rule, plugin-local until a second consumer materialises.
 
 **Trigger to act:** Second consumer (a different example or testbed) needing
 a streaming server. At that point lift the plugin-local definition from the
-sdwan-digital-twin example plugin (in the `palco-bdd` repo) into
+sdwan-digital-twin example plugin (in the `vitro-bdd` repo) into
 `testprotocols/devices/infra.py` (or a new `streaming.py`) and align
 both consumers on the same shape.
 
@@ -221,7 +221,7 @@ this tier. A second consumer may push for those; design when the evidence
 arrives.
 
 **Cross-references:** plugin-local definition in the sdwan-digital-twin
-example plugin (in the `palco-bdd` repo); `testprotocols/streaming_server.py`
+example plugin (in the `vitro-bdd` repo); `testprotocols/streaming_server.py`
 (the underlying capability protocol).
 
 ---
@@ -274,14 +274,14 @@ with its own SPLITS/LEVELS note as needed.
 
 *Why this is low-risk at runtime:* `StrEnum` **is** `str` (subclass), so members
 compare / hash / format / `isinstance`-check as their string value. The sole current
-consumer (`palco-bdd`) keeps working unchanged for `==` comparisons, str-keyed dict
+consumer (`vitro-bdd`) keeps working unchanged for `==` comparisons, str-keyed dict
 lookups (vendor-mapping tables), `.upper()`, `in (...)` membership, `isinstance(x, str)`,
 and `json.dumps`. The SD-WAN appliance testbed consumer only touches the
 appliance surface (already `StrEnum`) → **zero impact** there.
 
 *Where it actually breaks — static typing + vocabulary mismatches, not runtime:*
 - A dataclass does **not** coerce: a field typed `FooEnum` that receives a bare runtime
-  `str` is flagged by `mypy --strict` (palco-bdd runs mypy). Breakage is at **constructor
+  `str` is flagged by `mypy --strict` (vitro-bdd runs mypy). Breakage is at **constructor
   call sites** and **reverse-mapping reads** (`dict.get(...) -> str`), each needing the
   producer to wrap the value as `FooEnum(raw)` — which *adds* validation but introduces a
   new `ValueError`-on-unmapped-value failure mode.
@@ -329,7 +329,7 @@ incrementally, on evidence.
 **Cross-references:** `models/wan_edge.py`, `models/firewall.py`, `models/wifi.py`,
 `models/traffic.py`, `models/radius.py`, `models/sdwan_appliance.py` (the pattern to
 follow), `packet_filter.py` (`chain` / `policy` strings). Consumer blast-radius:
-`palco-bdd` examples `cpe-gateway` + `sdwan-digital-twin` (firewall steps, uci /
+`vitro-bdd` examples `cpe-gateway` + `sdwan-digital-twin` (firewall steps, uci /
 linux_firewall / frr_router impls, unit tests).
 
 ---

@@ -1,4 +1,4 @@
-"""Shared data models for palco-templates."""
+"""Shared data models for testprotocols."""
 
 from __future__ import annotations
 
