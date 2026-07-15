@@ -306,8 +306,8 @@ class TestSenderOptionsAndRtt:
         assert sleeps.count(13.0) == 1
 
     def test_window_passed_to_the_sender(self) -> None:
-        # Pinned socket buffer (-w): disables receive autotuning stalls on
-        # high-BDP paths (UC-010 dip class A, live-diagnosed 2026-07-11).
+        # Pinned socket buffer (-w): disables the receive-autotuning dip class
+        # on high-BDP paths (live-diagnosed on a real overlay path).
         base, sender, _ = _flow(5301, mbps=5.0)
         flow = ThroughputFlow(
             sender=base.sender,
