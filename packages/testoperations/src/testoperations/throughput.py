@@ -653,8 +653,9 @@ def measure_external_path_until(
         )
         by_direction: dict[str, FlowThroughput] = {}
         for spec in directions:
-            by_direction[spec.name] = _flow_with_busy_retry(
-                lambda port, spec=spec: ExternalFlow(
+
+            def _direction_flow(port: int, spec: DirectionSpec = spec) -> ExternalFlow:
+                return ExternalFlow(
                     sender=sender,
                     dest_host=dest_host,
                     port=port,
@@ -662,9 +663,9 @@ def measure_external_path_until(
                     parallel=parallel,
                     omit_s=omit_s,
                     window=window,
-                ),
-                measure_duration_s,
-            )
+                )
+
+            by_direction[spec.name] = _flow_with_busy_retry(_direction_flow, measure_duration_s)
         facts = PathMeasurement(
             probe_min_rtt_ms=probe.min_rtt_ms,
             probe_mean_rtt_ms=probe.mean_rtt_ms,
