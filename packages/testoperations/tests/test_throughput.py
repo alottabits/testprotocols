@@ -9,6 +9,7 @@ import pytest
 from testoperations.throughput import (
     DEFAULT_PROBE_RATE_MBPS,
     DirectionSpec,
+    EndpointBusyError,
     ExternalFlow,
     FlowThroughput,
     PathMeasurement,
@@ -808,3 +809,62 @@ class TestMeasureExternalPathUntil:
         with pytest.raises(AssertionError, match="terminal condition"):
             self._run(_stop, on_round=seen.append)
         assert len(seen) == 2
+
+
+class TestEndpointBusyRetry:
+    def _run(self, flow_results, clock=None):  # type: ignore[no-untyped-def]
+        calls: list[int] = []
+
+        def _measure(flow: ExternalFlow, *, duration_s: int) -> FlowThroughput:
+            calls.append(flow.port)
+            result = flow_results.pop(0)
+            if isinstance(result, Exception):
+                raise result
+            return FlowThroughput(port=flow.port, mbps=result)
+
+        ports = iter(range(5201, 5261))
+        findings = measure_external_path_until(
+            sender=MagicMock(),
+            dest_host="203.0.113.10",
+            directions=[DirectionSpec("upload", reverse=False)],
+            allocate_port=lambda: next(ports),
+            stop_when=lambda f: True,
+            budget_s=600.0,
+            measure_flow=_measure,
+            monotonic=clock or (lambda: 0.0),
+            sleep=lambda _s: None,
+        )
+        return findings, calls
+
+    def test_busy_probe_retries_on_the_next_pool_port(self) -> None:
+        findings, calls = self._run(
+            [EndpointBusyError("busy"), 1.0, 900.0]  # probe busy -> retry -> upload
+        )
+        assert len(findings) == 1
+        assert calls == [5201, 5202, 5203]  # busy port abandoned, rotation continues
+
+    def test_busy_direction_flow_retries_too(self) -> None:
+        findings, calls = self._run([1.0, EndpointBusyError("busy"), 905.0])
+        assert findings[0].by_direction["upload"].mbps == pytest.approx(905.0)
+        assert calls == [5201, 5202, 5203]
+
+    def test_busy_past_deadline_propagates(self) -> None:
+        clock = iter([0.0, 700.0, 800.0, 900.0, 1000.0])
+        with pytest.raises(EndpointBusyError):
+            self._run(
+                [EndpointBusyError("busy"), EndpointBusyError("busy")],
+                clock=lambda: next(clock),
+            )
+
+    def test_non_busy_endpoint_error_propagates_immediately(self) -> None:
+        with pytest.raises(RuntimeError, match="access denied"):
+            self._run([RuntimeError("iperf3 endpoint session failed: access denied")])
+
+    def test_busy_error_classified_from_log(self) -> None:
+        sender = _ext_sender(error="the server is busy running a test. try again later")
+        with pytest.raises(EndpointBusyError):
+            measure_external_flow(
+                ExternalFlow(sender=sender, dest_host="203.0.113.10", port=5201),
+                duration_s=10,
+                sleep=lambda _s: None,
+            )

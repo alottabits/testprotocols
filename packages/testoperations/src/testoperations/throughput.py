@@ -488,6 +488,17 @@ class ExternalFlow:
     window: str | None = None
 
 
+class EndpointBusyError(RuntimeError):
+    """A public endpoint refused the session because it is serving another test.
+
+    iperf3 surfaces this as an ``error`` document ("the server is busy
+    running a test. try again later"). On a shared public pool this is a
+    NORMAL transient condition, distinct from a real operational failure —
+    :func:`measure_external_path_until` retries it on the next pool port
+    within its budget; other endpoint errors propagate immediately.
+    """
+
+
 def last_session_error(log_text: str) -> str | None:
     """The ``error`` string of the LAST completed session document, or ``None``."""
     docs = iter_json_docs(log_text)
@@ -515,6 +526,8 @@ def _await_client_session(
         text = read_log(log_path)
         error = last_session_error(text)
         if error is not None:
+            if "busy" in error:
+                raise EndpointBusyError(f"iperf3 endpoint session failed: {error}")
             raise RuntimeError(f"iperf3 endpoint session failed: {error}")
         if count_sessions(text) > 0:
             mbps = last_session_mbps(text)
@@ -595,6 +608,8 @@ def measure_external_path_until(
     on_round: Callable[[PathMeasurement], None] | None = None,
     measure_flow: Callable[..., FlowThroughput] = measure_external_flow,
     monotonic: Callable[[], float] = time.monotonic,
+    sleep: Callable[[float], None] = time.sleep,
+    busy_backoff_s: float = 5.0,
 ) -> list[PathMeasurement]:
     """The :func:`measure_path_until` loop against an unmanaged endpoint.
 
@@ -606,32 +621,49 @@ def measure_external_path_until(
     (it must not saturate, and its forward direction is what makes the
     client-side RTT observable). ``window`` likewise applies to the
     direction flows only.
+
+    A **busy** endpoint (:class:`EndpointBusyError` — the shared public
+    pool serving someone else) is retried on the NEXT allocated pool port
+    after ``busy_backoff_s``, within the same budget; any other endpoint
+    error propagates immediately.
     """
     deadline = monotonic() + budget_s
+
+    def _flow_with_busy_retry(
+        build: Callable[[int], ExternalFlow], duration_s: int
+    ) -> FlowThroughput:
+        while True:
+            try:
+                return measure_flow(build(allocate_port()), duration_s=duration_s)
+            except EndpointBusyError:
+                if monotonic() >= deadline:
+                    raise
+                sleep(busy_backoff_s)
+
     findings: list[PathMeasurement] = []
     while True:
-        probe = measure_flow(
-            ExternalFlow(
+        probe = _flow_with_busy_retry(
+            lambda port: ExternalFlow(
                 sender=sender,
                 dest_host=dest_host,
-                port=allocate_port(),
+                port=port,
                 bandwidth_mbps=probe_rate_mbps,
             ),
-            duration_s=probe_duration_s,
+            probe_duration_s,
         )
         by_direction: dict[str, FlowThroughput] = {}
         for spec in directions:
-            by_direction[spec.name] = measure_flow(
-                ExternalFlow(
+            by_direction[spec.name] = _flow_with_busy_retry(
+                lambda port, spec=spec: ExternalFlow(
                     sender=sender,
                     dest_host=dest_host,
-                    port=allocate_port(),
+                    port=port,
                     reverse=spec.reverse,
                     parallel=parallel,
                     omit_s=omit_s,
                     window=window,
                 ),
-                duration_s=measure_duration_s,
+                measure_duration_s,
             )
         facts = PathMeasurement(
             probe_min_rtt_ms=probe.min_rtt_ms,
