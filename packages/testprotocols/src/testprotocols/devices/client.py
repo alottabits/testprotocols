@@ -134,6 +134,14 @@ class QoeMeasurementClientDevice(QoeClientDevice, Protocol):
     driver resolves from its homing config — read it here rather than reaching into
     a framework-specific config object."""
 
+    attachment_segment: str
+    """The declared segment LABEL of a guest-attached client (a client whose
+    test leg sits on a segment the testbed does not manage), empty for managed
+    homing or when undeclared. A stable role name (e.g. ``"provider-vpn"``),
+    never an address: it lets tests resolve "the client on segment X" by
+    declaration when address facts are foreign-owned or discovered late.
+    Vendor-neutral metadata from the driver's attachment config."""
+
 
 register_device_type("linux_lan_client", LanClientDevice)
 register_device_type("linux_wlan_client", WlanClientDevice)
