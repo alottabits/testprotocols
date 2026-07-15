@@ -449,6 +449,202 @@ def measure_one_direction(
     return result
 
 
+# --- external-endpoint measurement (client-log-only) --------------------------
+#
+# A public iperf3 endpoint is reachable but not DRIVEN: there is no
+# ``IperfServer`` capability behind it, no way to start/stop its listener, and
+# no server-side log to read. Every fact must come from the initiating
+# client's own ``--json`` log. That is sufficient for the rate in BOTH
+# directions: for a forward flow iperf3's end-of-test exchange places the
+# remote side's receive summary in the client log's ``end.sum_received``, and
+# for a reverse flow the client IS the data receiver, so ``end.sum_received``
+# is its own goodput. RTT is observable only when the client is the
+# data-SENDING side (its socket's ``TCP_INFO``): forward flows carry it;
+# reverse flows report ``(None, None)`` — callers judge latency on a forward
+# (probe) flow, exactly as :func:`measure_path_until` callers already do.
+#
+# A public endpoint can also REFUSE a session (typically "the server is busy
+# running a test"): iperf3 then writes an ``error`` document to the log.
+# That is surfaced as a ``RuntimeError`` naming the endpoint's reason —
+# an operational failure distinct from "no result within the timeout".
+
+
+@dataclass(frozen=True)
+class ExternalFlow:
+    """One client-driven flow toward an endpoint that is not testbed-managed.
+
+    Field semantics match :class:`ThroughputFlow` where they overlap;
+    ``parallel`` runs the session over N parallel streams (iperf3 ``-P``),
+    whose end-of-test summaries aggregate into ONE reported rate.
+    """
+
+    sender: IperfClient
+    dest_host: str
+    port: int
+    reverse: bool = False
+    parallel: int | None = None
+    omit_s: int = 0
+    bandwidth_mbps: int | None = None
+    window: str | None = None
+
+
+def last_session_error(log_text: str) -> str | None:
+    """The ``error`` string of the LAST completed session document, or ``None``."""
+    docs = iter_json_docs(log_text)
+    if not docs or not isinstance(docs[-1], dict):
+        return None
+    error = docs[-1].get("error")
+    return str(error) if error else None
+
+
+def _await_client_session(
+    read_log: Callable[[str], str],
+    log_path: str,
+    deadline: float,
+    sleep: Callable[[float], None],
+    monotonic: Callable[[], float],
+) -> tuple[str, float]:
+    """Poll the CLIENT log for a completed session; raise on endpoint errors.
+
+    The client launch truncates its own log (shell redirect), so the first
+    completed document is this session. An ``error`` document (endpoint
+    refused/aborted the session) raises immediately with the endpoint's
+    reason; a log that never completes raises when *deadline* passes.
+    """
+    while True:
+        text = read_log(log_path)
+        error = last_session_error(text)
+        if error is not None:
+            raise RuntimeError(f"iperf3 endpoint session failed: {error}")
+        if count_sessions(text) > 0:
+            mbps = last_session_mbps(text)
+            if mbps is not None:
+                return (text, mbps)
+        if monotonic() >= deadline:
+            raise RuntimeError(
+                f"external iperf session toward {log_path!r} produced no "
+                f"completed client-side result before the timeout"
+            )
+        sleep(_POLL_INTERVAL_S)
+
+
+def measure_external_flow(
+    flow: ExternalFlow,
+    *,
+    duration_s: int = DEFAULT_MEASURE_DURATION_S,
+    result_timeout_s: float = DEFAULT_RESULT_TIMEOUT_S,
+    sleep: Callable[[float], None] = time.sleep,
+    monotonic: Callable[[], float] = time.monotonic,
+) -> FlowThroughput:
+    """Run one client-driven flow against an unmanaged endpoint; report its facts.
+
+    The sender is stopped in a ``finally`` so no iperf process outlives the
+    call — also on failure. The reported rate is ``end.sum_received`` from the
+    client's own log (receive-side goodput in both directions — see the
+    section comment); RTT is client-side ``TCP_INFO`` for a forward flow and
+    ``(None, None)`` for a reverse flow (the data sender is the remote
+    endpoint, whose kernel we cannot read).
+    """
+    sender_pid, sender_log = flow.sender.start_traffic_sender(
+        flow.dest_host,
+        flow.port,
+        bandwidth=flow.bandwidth_mbps,
+        time=duration_s,
+        reverse=flow.reverse,
+        omit_s=flow.omit_s or None,
+        json_output=True,
+        window=flow.window,
+        parallel=flow.parallel,
+    )
+    try:
+        sleep(float(duration_s + flow.omit_s))
+        text, mbps = _await_client_session(
+            flow.sender.get_iperf_logs,
+            sender_log,
+            monotonic() + result_timeout_s,
+            sleep,
+            monotonic,
+        )
+    finally:
+        try:
+            flow.sender.stop_traffic(sender_pid)
+        except Exception:
+            pass
+    if flow.reverse:
+        min_rtt_ms: float | None = None
+        mean_rtt_ms: float | None = None
+    else:
+        min_rtt_ms, mean_rtt_ms = last_session_rtt_ms(text)
+    return FlowThroughput(port=flow.port, mbps=mbps, min_rtt_ms=min_rtt_ms, mean_rtt_ms=mean_rtt_ms)
+
+
+def measure_external_path_until(
+    *,
+    sender: IperfClient,
+    dest_host: str,
+    directions: Sequence[DirectionSpec],
+    allocate_port: Callable[[], int],
+    stop_when: Callable[[list[PathMeasurement]], bool],
+    budget_s: float,
+    parallel: int | None = None,
+    probe_rate_mbps: int = DEFAULT_PROBE_RATE_MBPS,
+    probe_duration_s: int = DEFAULT_PROBE_DURATION_S,
+    measure_duration_s: int = DEFAULT_MEASURE_DURATION_S,
+    omit_s: int = 0,
+    window: str | None = None,
+    on_round: Callable[[PathMeasurement], None] | None = None,
+    measure_flow: Callable[..., FlowThroughput] = measure_external_flow,
+    monotonic: Callable[[], float] = time.monotonic,
+) -> list[PathMeasurement]:
+    """The :func:`measure_path_until` loop against an unmanaged endpoint.
+
+    Identical framing and caller contract — one unloaded forward RTT probe,
+    then each direction measured sequentially, rounds repeating until
+    *stop_when* or *budget_s* — with every flow client-driven
+    (:func:`measure_external_flow`). ``parallel`` applies to the saturating
+    direction flows only; the probe is always a single rate-capped stream
+    (it must not saturate, and its forward direction is what makes the
+    client-side RTT observable). ``window`` likewise applies to the
+    direction flows only.
+    """
+    deadline = monotonic() + budget_s
+    findings: list[PathMeasurement] = []
+    while True:
+        probe = measure_flow(
+            ExternalFlow(
+                sender=sender,
+                dest_host=dest_host,
+                port=allocate_port(),
+                bandwidth_mbps=probe_rate_mbps,
+            ),
+            duration_s=probe_duration_s,
+        )
+        by_direction: dict[str, FlowThroughput] = {}
+        for spec in directions:
+            by_direction[spec.name] = measure_flow(
+                ExternalFlow(
+                    sender=sender,
+                    dest_host=dest_host,
+                    port=allocate_port(),
+                    reverse=spec.reverse,
+                    parallel=parallel,
+                    omit_s=omit_s,
+                    window=window,
+                ),
+                duration_s=measure_duration_s,
+            )
+        facts = PathMeasurement(
+            probe_min_rtt_ms=probe.min_rtt_ms,
+            probe_mean_rtt_ms=probe.mean_rtt_ms,
+            by_direction=by_direction,
+        )
+        findings.append(facts)
+        if on_round is not None:
+            on_round(facts)
+        if stop_when(findings) or monotonic() >= deadline:
+            return findings
+
+
 def measure_path_until(
     *,
     sender: IperfClient,
