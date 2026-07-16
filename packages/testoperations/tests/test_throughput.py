@@ -10,6 +10,8 @@ from testoperations.throughput import (
     DEFAULT_PROBE_RATE_MBPS,
     DirectionSpec,
     EndpointBusyError,
+    EndpointTerminatedError,
+    EndpointUnavailableError,
     ExternalFlow,
     FlowThroughput,
     PathMeasurement,
@@ -949,3 +951,79 @@ class TestSessionStalledRetry:
 
     def test_stall_is_a_runtimeerror_for_callers_that_predate_it(self) -> None:
         assert issubclass(SessionStalledError, RuntimeError)
+
+
+class TestEndpointAvailabilityClassification:
+    """Availability errors are re-drawn; path errors are findings and stand.
+
+    The distinction is the whole point: an endpoint that was busy or whose
+    server exited has told us about ITSELF, and a measurement must not report
+    that as the device's behaviour. An endpoint that cannot be reached may be
+    describing the device, and that must survive.
+    """
+
+    def _raise_from_log(self, error: str) -> None:
+        sender = _ext_sender(error=error)
+        measure_external_flow(
+            ExternalFlow(sender=sender, dest_host="203.0.113.10", port=5201),
+            duration_s=10,
+            sleep=lambda _s: None,
+        )
+
+    def test_terminated_server_is_an_availability_error(self) -> None:
+        # Observed live: a long-lived iperf3 server exits mid-session and the
+        # client reports this. The instrument stopped; the path did not.
+        with pytest.raises(EndpointTerminatedError):
+            self._raise_from_log("the server has terminated")
+
+    def test_busy_is_an_availability_error(self) -> None:
+        with pytest.raises(EndpointBusyError):
+            self._raise_from_log("the server is busy running a test. try again later")
+
+    def test_both_share_the_retryable_base(self) -> None:
+        assert issubclass(EndpointBusyError, EndpointUnavailableError)
+        assert issubclass(EndpointTerminatedError, EndpointUnavailableError)
+        assert issubclass(EndpointUnavailableError, RuntimeError)
+
+    def test_classification_is_case_insensitive(self) -> None:
+        with pytest.raises(EndpointTerminatedError):
+            self._raise_from_log("The Server Has Terminated")
+
+    def test_unreachable_endpoint_is_NOT_retryable(self) -> None:
+        # This one may BE the device blackholing the path. Retrying it within
+        # the budget would convert the defect we exist to find into silence.
+        with pytest.raises(RuntimeError) as exc:
+            self._raise_from_log("unable to connect to server: Connection refused")
+        assert not isinstance(exc.value, EndpointUnavailableError)
+        assert not isinstance(exc.value, SessionStalledError)
+
+    def test_access_denied_is_NOT_retryable(self) -> None:
+        with pytest.raises(RuntimeError) as exc:
+            self._raise_from_log("access denied")
+        assert not isinstance(exc.value, EndpointUnavailableError)
+
+    def test_terminated_endpoint_retries_on_the_next_pool_port(self) -> None:
+        calls: list[int] = []
+
+        def _measure(flow: ExternalFlow, *, duration_s: int) -> FlowThroughput:
+            calls.append(flow.port)
+            result = results.pop(0)
+            if isinstance(result, Exception):
+                raise result
+            return FlowThroughput(port=flow.port, mbps=result)
+
+        results: list[object] = [EndpointTerminatedError("terminated"), 1.0, 900.0]
+        ports = iter(range(5201, 5261))
+        findings = measure_external_path_until(
+            sender=MagicMock(),
+            dest_host="203.0.113.10",
+            directions=[DirectionSpec("upload", reverse=False)],
+            allocate_port=lambda: next(ports),
+            stop_when=lambda f: True,
+            budget_s=600.0,
+            measure_flow=_measure,
+            monotonic=lambda: 0.0,
+            sleep=lambda _s: None,
+        )
+        assert len(findings) == 1
+        assert calls == [5201, 5202, 5203]

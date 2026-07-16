@@ -488,14 +488,39 @@ class ExternalFlow:
     window: str | None = None
 
 
-class EndpointBusyError(RuntimeError):
-    """A public endpoint refused the session because it is serving another test.
+class EndpointUnavailableError(RuntimeError):
+    """The endpoint did not serve this round, and said so.
+
+    The dividing line this class draws: an endpoint error describes either the
+    ENDPOINT'S AVAILABILITY or the PATH. Only the second is a finding about
+    the device under test, and only the second may end a measurement.
+
+    Availability errors are transient properties of a shared instrument — it
+    was already serving someone, or its process went away. They say nothing
+    about the path, so :func:`measure_external_path_until` re-draws them on the
+    next pool port within its budget. Path errors (a connection that cannot be
+    established, for instance) may well BE the device's behaviour, and are
+    propagated at once: retrying those into silence would hide the very defect
+    the measurement exists to find.
+    """
+
+
+class EndpointBusyError(EndpointUnavailableError):
+    """The endpoint refused the session because it is serving another test.
 
     iperf3 surfaces this as an ``error`` document ("the server is busy
     running a test. try again later"). On a shared public pool this is a
-    NORMAL transient condition, distinct from a real operational failure —
-    :func:`measure_external_path_until` retries it on the next pool port
-    within its budget; other endpoint errors propagate immediately.
+    NORMAL transient condition, distinct from a real operational failure.
+    """
+
+
+class EndpointTerminatedError(EndpointUnavailableError):
+    """The endpoint's server process went away mid-session.
+
+    iperf3 reports this as "the server has terminated". A long-lived iperf3
+    server is not robust against every client teardown and can exit or crash
+    under repeated use, so on a shared endpoint this is an ordinary transient
+    condition — the instrument stopped, not the path.
     """
 
 
@@ -528,6 +553,27 @@ def last_session_error(log_text: str) -> str | None:
     return str(error) if error else None
 
 
+# Substrings of an iperf3 ``error`` document that describe the ENDPOINT'S
+# AVAILABILITY rather than the path. Deliberately a short, closed list: every
+# error not named here is assumed to be a statement about the path — and so a
+# possible finding about the device under test — because the cost of retrying
+# a real defect into silence is far higher than the cost of one honest failure
+# on an endpoint condition we have not met yet.
+_UNAVAILABLE_MARKERS: tuple[tuple[str, type[EndpointUnavailableError]], ...] = (
+    ("busy", EndpointBusyError),
+    ("the server has terminated", EndpointTerminatedError),
+)
+
+
+def _classify_endpoint_error(error: str) -> RuntimeError:
+    """Map an iperf3 ``error`` document to availability-transient, or a finding."""
+    lowered = error.lower()
+    for marker, exc in _UNAVAILABLE_MARKERS:
+        if marker in lowered:
+            return exc(f"iperf3 endpoint session failed: {error}")
+    return RuntimeError(f"iperf3 endpoint session failed: {error}")
+
+
 def _await_client_session(
     read_log: Callable[[str], str],
     log_path: str,
@@ -535,20 +581,19 @@ def _await_client_session(
     sleep: Callable[[float], None],
     monotonic: Callable[[], float],
 ) -> tuple[str, float]:
-    """Poll the CLIENT log for a completed session; raise on endpoint errors.
+    """Poll the CLIENT log for a completed session; classify endpoint errors.
 
     The client launch truncates its own log (shell redirect), so the first
-    completed document is this session. An ``error`` document (endpoint
-    refused/aborted the session) raises immediately with the endpoint's
-    reason; a log that never completes raises when *deadline* passes.
+    completed document is this session. An ``error`` document is classified by
+    what it describes — the endpoint's availability, or the path (see
+    :class:`EndpointUnavailableError`) — and a log that never completes raises
+    :class:`SessionStalledError` when *deadline* passes.
     """
     while True:
         text = read_log(log_path)
         error = last_session_error(text)
         if error is not None:
-            if "busy" in error:
-                raise EndpointBusyError(f"iperf3 endpoint session failed: {error}")
-            raise RuntimeError(f"iperf3 endpoint session failed: {error}")
+            raise _classify_endpoint_error(error)
         if count_sessions(text) > 0:
             mbps = last_session_mbps(text)
             if mbps is not None:
@@ -652,15 +697,15 @@ def measure_external_path_until(
     def _flow_with_retry(build: Callable[[int], ExternalFlow], duration_s: int) -> FlowThroughput:
         """Measure one flow, re-drawing transient non-verdicts within budget.
 
-        A refusal (busy) and a stall are both "this round observed nothing",
-        not "the path is bad" — see the two exception docstrings. Every other
-        error propagates at once: an endpoint that answers with a real fault
-        is a result, and must not be retried into silence.
+        An unavailable endpoint and a stalled session both mean "this round
+        observed nothing", not "the path is bad" — see the exception
+        docstrings. Every error that describes the PATH propagates at once: it
+        may be the device's behaviour, and must not be retried into silence.
         """
         while True:
             try:
                 return measure_flow(build(allocate_port()), duration_s=duration_s)
-            except (EndpointBusyError, SessionStalledError):
+            except (EndpointUnavailableError, SessionStalledError):
                 if monotonic() >= deadline:
                     raise
                 sleep(busy_backoff_s)
