@@ -499,6 +499,26 @@ class EndpointBusyError(RuntimeError):
     """
 
 
+class SessionStalledError(RuntimeError):
+    """A session produced no completed result, and no error explaining why.
+
+    The endpoint neither answered nor refused: the transfer simply never
+    finished inside the per-session timeout. On a path whose throughput is
+    not deterministic — a shared uplink at high utilisation, a saturated
+    link, cross traffic — this is the extreme tail of the same distribution
+    that elsewhere merely yields a round below the floor, and it says no more
+    about the device under test than that round does.
+
+    So :func:`measure_external_path_until` retries it on the next pool port
+    within its budget, exactly as it does a busy endpoint. Retrying a round
+    that lands under the floor while treating one that lands at zero as fatal
+    would be arbitrary: both mean only "this round did not demonstrate the
+    rate". A path that genuinely blackholes stalls every retry, exhausts the
+    budget, and still fails — so nothing real is masked; a single unlucky
+    draw is simply no longer allowed to decide.
+    """
+
+
 def last_session_error(log_text: str) -> str | None:
     """The ``error`` string of the LAST completed session document, or ``None``."""
     docs = iter_json_docs(log_text)
@@ -534,7 +554,7 @@ def _await_client_session(
             if mbps is not None:
                 return (text, mbps)
         if monotonic() >= deadline:
-            raise RuntimeError(
+            raise SessionStalledError(
                 f"external iperf session toward {log_path!r} produced no "
                 f"completed client-side result before the timeout"
             )
@@ -629,20 +649,25 @@ def measure_external_path_until(
     """
     deadline = monotonic() + budget_s
 
-    def _flow_with_busy_retry(
-        build: Callable[[int], ExternalFlow], duration_s: int
-    ) -> FlowThroughput:
+    def _flow_with_retry(build: Callable[[int], ExternalFlow], duration_s: int) -> FlowThroughput:
+        """Measure one flow, re-drawing transient non-verdicts within budget.
+
+        A refusal (busy) and a stall are both "this round observed nothing",
+        not "the path is bad" — see the two exception docstrings. Every other
+        error propagates at once: an endpoint that answers with a real fault
+        is a result, and must not be retried into silence.
+        """
         while True:
             try:
                 return measure_flow(build(allocate_port()), duration_s=duration_s)
-            except EndpointBusyError:
+            except (EndpointBusyError, SessionStalledError):
                 if monotonic() >= deadline:
                     raise
                 sleep(busy_backoff_s)
 
     findings: list[PathMeasurement] = []
     while True:
-        probe = _flow_with_busy_retry(
+        probe = _flow_with_retry(
             lambda port: ExternalFlow(
                 sender=sender,
                 dest_host=dest_host,
@@ -665,7 +690,7 @@ def measure_external_path_until(
                     window=window,
                 )
 
-            by_direction[spec.name] = _flow_with_busy_retry(_direction_flow, measure_duration_s)
+            by_direction[spec.name] = _flow_with_retry(_direction_flow, measure_duration_s)
         facts = PathMeasurement(
             probe_min_rtt_ms=probe.min_rtt_ms,
             probe_mean_rtt_ms=probe.mean_rtt_ms,

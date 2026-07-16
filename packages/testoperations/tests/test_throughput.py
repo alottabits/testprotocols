@@ -13,6 +13,7 @@ from testoperations.throughput import (
     ExternalFlow,
     FlowThroughput,
     PathMeasurement,
+    SessionStalledError,
     ThroughputFlow,
     count_sessions,
     iter_json_docs,
@@ -868,3 +869,83 @@ class TestEndpointBusyRetry:
                 duration_s=10,
                 sleep=lambda _s: None,
             )
+
+
+class TestSessionStalledRetry:
+    """A stall is a non-verdict, and is re-drawn exactly as a refusal is.
+
+    A round that lands under the floor is already retried within budget. A
+    round that lands at zero says no more about the path than that one does,
+    so it earns the same treatment — and a path that always stalls still
+    fails, once the budget is gone.
+    """
+
+    def _run(self, flow_results, clock=None):  # type: ignore[no-untyped-def]
+        calls: list[int] = []
+
+        def _measure(flow: ExternalFlow, *, duration_s: int) -> FlowThroughput:
+            calls.append(flow.port)
+            result = flow_results.pop(0)
+            if isinstance(result, Exception):
+                raise result
+            return FlowThroughput(port=flow.port, mbps=result)
+
+        ports = iter(range(5201, 5261))
+        findings = measure_external_path_until(
+            sender=MagicMock(),
+            dest_host="203.0.113.10",
+            directions=[DirectionSpec("upload", reverse=False)],
+            allocate_port=lambda: next(ports),
+            stop_when=lambda f: True,
+            budget_s=600.0,
+            measure_flow=_measure,
+            monotonic=clock or (lambda: 0.0),
+            sleep=lambda _s: None,
+        )
+        return findings, calls
+
+    def test_stalled_probe_retries_on_the_next_pool_port(self) -> None:
+        findings, calls = self._run([SessionStalledError("no result"), 1.0, 900.0])
+        assert len(findings) == 1
+        assert calls == [5201, 5202, 5203]
+
+    def test_stalled_direction_flow_retries_too(self) -> None:
+        findings, calls = self._run([1.0, SessionStalledError("no result"), 905.0])
+        assert findings[0].by_direction["upload"].mbps == pytest.approx(905.0)
+        assert calls == [5201, 5202, 5203]
+
+    def test_stalled_past_deadline_propagates(self) -> None:
+        # A path that never delivers is still a failure -- the budget bounds
+        # the re-drawing, so a genuine blackhole cannot be retried into a pass.
+        clock = iter([0.0, 700.0, 800.0, 900.0, 1000.0])
+        with pytest.raises(SessionStalledError):
+            self._run(
+                [SessionStalledError("no result"), SessionStalledError("no result")],
+                clock=lambda: next(clock),
+            )
+
+    def test_stall_and_busy_interleave_within_one_budget(self) -> None:
+        findings, calls = self._run(
+            [SessionStalledError("no result"), EndpointBusyError("busy"), 1.0, 900.0]
+        )
+        assert len(findings) == 1
+        assert calls == [5201, 5202, 5203, 5204]
+
+    def test_stall_classified_from_a_log_that_never_completes(self) -> None:
+        # No completed session AND no error document: the endpoint neither
+        # answered nor refused. That must surface as a stall, not a bare
+        # RuntimeError, or the retry above cannot see it.
+        sender = MagicMock()
+        sender.start_traffic_sender.return_value = (1234, "/tmp/iperf_client_5201.log")
+        sender.get_iperf_logs.return_value = ""
+        clock = iter([0.0, 1.0, 2.0, 999.0, 1000.0, 1001.0])
+        with pytest.raises(SessionStalledError, match="no completed client-side result"):
+            measure_external_flow(
+                ExternalFlow(sender=sender, dest_host="203.0.113.10", port=5201),
+                duration_s=1,
+                sleep=lambda _s: None,
+                monotonic=lambda: next(clock),
+            )
+
+    def test_stall_is_a_runtimeerror_for_callers_that_predate_it(self) -> None:
+        assert issubclass(SessionStalledError, RuntimeError)
