@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from testprotocols.models.dhcp import DHCPTraceData, DHCPV6TraceData
+from testprotocols.models.dhcp import DhcpLeaseObservation, DHCPTraceData, DHCPV6TraceData
 from testprotocols.models.firewall import (
     Connection,
     ConntrackStats,
@@ -172,6 +172,7 @@ __all__ = [
     # tr069
     "CpeConnectionStatus",
     # dhcp
+    "DhcpLeaseObservation",
     "DHCPTraceData",
     "DHCPV6TraceData",
     "DhcpLease",
