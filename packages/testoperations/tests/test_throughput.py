@@ -16,8 +16,10 @@ from testoperations.throughput import (
     ExternalFlow,
     FlowThroughput,
     PathMeasurement,
+    SessionRefusedError,
     SessionStalledError,
     ThroughputFlow,
+    _classify_endpoint_error,
     count_sessions,
     iter_json_docs,
     last_session_error,
@@ -985,6 +987,85 @@ class TestEndpointBusyRetry:
                 duration_s=10,
                 sleep=lambda _s: None,
             )
+
+
+class TestSessionRefusedRetry:
+    """A session refused before it measured anything is a non-verdict, and is re-drawn.
+
+    The error names a reset; it does not name who sent it. The endpoint, a
+    middlebox, or the device under test could each produce the identical text —
+    so the classification claims only what is knowable: no observation was
+    obtained. A path that genuinely refuses every session refuses every retry
+    too, exhausts the budget, and still fails.
+    """
+
+    def _run(self, flow_results, clock=None, on_retry=None):  # type: ignore[no-untyped-def]
+        calls: list[int] = []
+
+        def _measure(flow: ExternalFlow, *, duration_s: int) -> FlowThroughput:
+            calls.append(flow.port)
+            result = flow_results.pop(0)
+            if isinstance(result, Exception):
+                raise result
+            return FlowThroughput(port=flow.port, mbps=result)
+
+        ports = iter(range(5201, 5261))
+        findings = measure_external_path_until(
+            sender=MagicMock(),
+            dest_host="203.0.113.10",
+            directions=[DirectionSpec("upload", reverse=False)],
+            allocate_port=lambda: next(ports),
+            stop_when=lambda f: True,
+            budget_s=600.0,
+            measure_flow=_measure,
+            monotonic=clock or (lambda: 0.0),
+            sleep=lambda _s: None,
+            on_retry=on_retry,
+        )
+        return findings, calls
+
+    def test_a_refused_session_is_re_drawn_on_the_next_pool_port(self) -> None:
+        findings, calls = self._run(
+            [SessionRefusedError("refused"), 1.0, 900.0]  # probe refused -> retry -> upload
+        )
+        assert len(findings) == 1
+        assert calls == [5201, 5202, 5203]  # refused port abandoned, rotation continues
+
+    def test_a_refusal_past_the_deadline_still_fails(self) -> None:
+        # Nothing is masked: a path that refuses everything runs out of budget.
+        clock = iter([0.0, 700.0, 800.0, 900.0, 1000.0])
+        with pytest.raises(SessionRefusedError):
+            self._run(
+                [SessionRefusedError("refused"), SessionRefusedError("refused")],
+                clock=lambda: next(clock),
+            )
+
+    def test_a_re_drawn_refusal_is_reported_to_the_caller(self) -> None:
+        seen: list[tuple[str, int]] = []
+        self._run(
+            [SessionRefusedError("connection reset"), 1.0, 900.0],
+            on_retry=lambda exc, port: seen.append((str(exc), port)),
+        )
+        assert seen == [("connection reset", 5201)]
+
+    def test_the_control_message_reset_classifies_as_refused(self) -> None:
+        # The exact text a shared iperf3 endpoint produced in the field.
+        err = (
+            "unable to receive control message - port may not be available, "
+            "the other side may have stopped running, etc.: Connection reset by peer"
+        )
+        assert isinstance(_classify_endpoint_error(err), SessionRefusedError)
+
+    def test_a_refusal_is_not_claimed_to_be_an_endpoint_condition(self) -> None:
+        # It must NOT masquerade as EndpointUnavailableError: that class asserts
+        # the endpoint said so, and a reset says nothing about who sent it.
+        err = "unable to receive control message - etc.: Connection reset by peer"
+        assert not isinstance(_classify_endpoint_error(err), EndpointUnavailableError)
+
+    def test_an_error_that_describes_the_path_is_still_not_retried(self) -> None:
+        # The guard: only an unobtainable session is a non-verdict. Anything that
+        # says something about the path remains a finding, propagated at once.
+        assert type(_classify_endpoint_error("access denied")) is RuntimeError
 
 
 class TestSessionStalledRetry:

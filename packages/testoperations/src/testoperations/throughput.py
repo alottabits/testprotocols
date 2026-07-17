@@ -560,6 +560,37 @@ class EndpointTerminatedError(EndpointUnavailableError):
     """
 
 
+class SessionRefusedError(RuntimeError):
+    """A session was refused before it produced any result.
+
+    The endpoint answered, but with a reset rather than a measurement: iperf3
+    reports it as being unable to receive the control message. Nothing was
+    transferred, so nothing was observed.
+
+    **This class deliberately claims less than :class:`EndpointUnavailableError`.**
+    That one asserts the endpoint said something about itself — "busy",
+    "terminated" — and can be believed. A reset says only that *somebody* closed
+    the connection: the endpoint, a middlebox along the way, or the device under
+    test, each producing byte-identical text. Attributing it from the text is not
+    possible, so this class does not try.
+
+    What it does assert is the thing that IS knowable: this round observed
+    nothing. That makes it a non-verdict, exactly like
+    :class:`SessionStalledError`, and it earns the same treatment —
+    :func:`measure_external_path_until` re-draws it on the next pool port within
+    its budget. Refusing a round that yields no observation while retrying one
+    that merely lands under the floor would be arbitrary: neither has told us
+    anything about the path.
+
+    Nothing real is masked. A path that genuinely refuses sessions refuses every
+    retry, exhausts the budget, and still fails — and every re-draw is announced
+    through ``on_retry``, so a refusal that is intermittent rather than absolute
+    is visible in the record instead of being quietly absorbed. Callers who need
+    to know WHO refused must measure it (from a vantage point off the path under
+    test) rather than read it from this error.
+    """
+
+
 class SessionStalledError(RuntimeError):
     """A session produced no completed result, and no error explaining why.
 
@@ -600,13 +631,23 @@ _UNAVAILABLE_MARKERS: tuple[tuple[str, type[EndpointUnavailableError]], ...] = (
     ("the server has terminated", EndpointTerminatedError),
 )
 
+# Substrings of an iperf3 ``error`` document that describe a session REFUSED
+# before it measured anything — see :class:`SessionRefusedError`. Kept separate
+# from the markers above on purpose: those assert the endpoint said something
+# about itself, and a reset asserts nothing about who sent it. Equally short and
+# equally closed: an error not named here still describes the path.
+_REFUSAL_MARKERS: tuple[str, ...] = ("unable to receive control message",)
+
 
 def _classify_endpoint_error(error: str) -> RuntimeError:
-    """Map an iperf3 ``error`` document to availability-transient, or a finding."""
+    """Map an iperf3 ``error`` document to a non-verdict, or to a finding."""
     lowered = error.lower()
     for marker, exc in _UNAVAILABLE_MARKERS:
         if marker in lowered:
             return exc(f"iperf3 endpoint session failed: {error}")
+    for marker in _REFUSAL_MARKERS:
+        if marker in lowered:
+            return SessionRefusedError(f"iperf3 endpoint session failed: {error}")
     return RuntimeError(f"iperf3 endpoint session failed: {error}")
 
 
@@ -763,7 +804,7 @@ def measure_external_path_until(
             flow = build(allocate_port())
             try:
                 return measure_flow(flow, duration_s=duration_s)
-            except (EndpointUnavailableError, SessionStalledError) as exc:
+            except (EndpointUnavailableError, SessionStalledError, SessionRefusedError) as exc:
                 if monotonic() >= deadline:
                     raise
                 if on_retry is not None:
