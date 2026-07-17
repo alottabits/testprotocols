@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from dataclasses import replace
 from unittest.mock import MagicMock
 
 import pytest
@@ -21,6 +22,7 @@ from testoperations.throughput import (
     iter_json_docs,
     last_session_error,
     last_session_mbps,
+    last_session_retransmits,
     last_session_rtt_ms,
     measure_concurrent_throughput,
     measure_external_flow,
@@ -35,6 +37,7 @@ def _session_doc(
     rx_bps: float | None = None,
     sum_bps: float | None = None,
     rtt_us: list[tuple[float, float]] | None = None,
+    retransmits: int | None = None,
 ) -> str:
     """One iperf3 session JSON; *rtt_us* adds streams with (min_rtt, mean_rtt) µs."""
     end: dict[str, object] = {}
@@ -44,6 +47,8 @@ def _session_doc(
         end["sum"] = {"bits_per_second": sum_bps}
     if rtt_us is not None:
         end["streams"] = [{"sender": {"min_rtt": mn, "mean_rtt": mean}} for mn, mean in rtt_us]
+    if retransmits is not None:
+        end["sum_sent"] = {"retransmits": retransmits}
     return json.dumps({"start": {"test_start": {}}, "end": end}, indent=2)
 
 
@@ -78,6 +83,23 @@ class TestLogParsing:
     def test_last_session_mbps_none_when_no_summary(self) -> None:
         assert last_session_mbps("") is None
         assert last_session_mbps(json.dumps({"end": {}})) is None
+
+    def test_last_session_retransmits_reads_the_senders_summary(self) -> None:
+        text = (
+            _session_doc(rx_bps=1e6, retransmits=0)
+            + "\n"
+            + _session_doc(rx_bps=1e6, retransmits=203)
+        )
+        assert last_session_retransmits(text) == 203
+
+    def test_last_session_retransmits_none_when_absent(self) -> None:
+        # UDP sessions and reverse flows whose sender summary is not present
+        # carry no retransmit count — absence is not zero.
+        assert last_session_retransmits(_session_doc(rx_bps=1e6)) is None
+        assert last_session_retransmits("") is None
+
+    def test_last_session_retransmits_distinguishes_zero_from_absent(self) -> None:
+        assert last_session_retransmits(_session_doc(rx_bps=1e6, retransmits=0)) == 0
 
     def test_last_session_rtt_converts_microseconds_to_ms(self) -> None:
         text = _session_doc(rx_bps=1e6, rtt_us=[(480.0, 1250.0)])
@@ -120,7 +142,12 @@ class TestLogParsing:
 
 
 def _flow(
-    port: int, mbps: float, *, stale_docs: int = 0
+    port: int,
+    mbps: float,
+    *,
+    stale_docs: int = 0,
+    sender_retransmits: int | None = None,
+    receiver_retransmits: int | None = None,
 ) -> tuple[ThroughputFlow, MagicMock, MagicMock]:
     """A flow over mocked capabilities; returns (flow, sender_mock, receiver_mock).
 
@@ -129,7 +156,7 @@ def _flow(
     real sequencing (session completes only after the measurement window).
     """
     stale = "\n".join(_session_doc(rx_bps=1e6) for _ in range(stale_docs))
-    fresh = stale + "\n" + _session_doc(rx_bps=mbps * 1e6)
+    fresh = stale + "\n" + _session_doc(rx_bps=mbps * 1e6, retransmits=receiver_retransmits)
 
     sender = MagicMock()
     sender.start_traffic_sender.return_value = (4000 + port, f"/tmp/cl_{port}.log")
@@ -142,13 +169,35 @@ def _flow(
     # The sender's own --json log (forward-flow RTT source): a completed
     # session without RTT samples, so RTT resolution terminates immediately.
     sender.get_iperf_logs.side_effect = lambda _log: (
-        _session_doc(rx_bps=mbps * 1e6) if sender.start_traffic_sender.called else ""
+        _session_doc(rx_bps=mbps * 1e6, retransmits=sender_retransmits)
+        if sender.start_traffic_sender.called
+        else ""
     )
     flow = ThroughputFlow(sender=sender, receiver=receiver, dest_host="192.168.32.3", port=port)
     return flow, sender, receiver
 
 
 class TestMeasureConcurrentThroughput:
+    def test_forward_flow_takes_retransmits_from_the_sending_client(self) -> None:
+        flow, _, _ = _flow(5301, mbps=47.5, sender_retransmits=203, receiver_retransmits=99)
+        results = measure_concurrent_throughput([flow], duration_s=10, sleep=lambda _s: None)
+        # Our client sends, so its own log owns the loss count — never the
+        # receiver's, whose summary describes the other direction.
+        assert results[0].retransmits == 203
+
+    def test_reverse_flow_takes_retransmits_from_the_remote_sender(self) -> None:
+        flow, _, _ = _flow(5302, mbps=47.5, sender_retransmits=7, receiver_retransmits=1507)
+        flow = replace(flow, reverse=True)
+        results = measure_concurrent_throughput([flow], duration_s=10, sleep=lambda _s: None)
+        # Under -R the REMOTE side sends the data, so the loss count belongs
+        # to it — the local client sent nothing worth counting.
+        assert results[0].retransmits == 1507
+
+    def test_flow_without_a_sender_summary_reports_no_retransmits(self) -> None:
+        flow, _, _ = _flow(5303, mbps=47.5)
+        results = measure_concurrent_throughput([flow], duration_s=10, sleep=lambda _s: None)
+        assert results[0].retransmits is None
+
     def test_single_flow_returns_receive_rate(self) -> None:
         flow, _, _ = _flow(5301, mbps=47.5)
         results = measure_concurrent_throughput([flow], duration_s=10, sleep=lambda _s: None)
@@ -613,12 +662,13 @@ def _ext_sender(
     rtt_us: list[tuple[float, float]] | None = None,
     error: str | None = None,
     complete: bool = True,
+    retransmits: int | None = None,
 ) -> MagicMock:
     """A fake IperfClient whose --json log appears once the sender started."""
     if error is not None:
         doc = json.dumps({"start": {}, "error": error})
     elif complete:
-        doc = _session_doc(rx_bps=mbps * 1e6, rtt_us=rtt_us)
+        doc = _session_doc(rx_bps=mbps * 1e6, rtt_us=rtt_us, retransmits=retransmits)
     else:
         doc = '{"start": {"test_start"'  # forever-incomplete document
     sender = MagicMock()
@@ -640,6 +690,25 @@ class TestLastSessionError:
 
 
 class TestMeasureExternalFlow:
+    def test_forward_flow_reports_sender_retransmits_beside_the_rate(self) -> None:
+        sender = _ext_sender(mbps=588.0, retransmits=688)
+        result = measure_external_flow(
+            ExternalFlow(sender=sender, dest_host="203.0.113.10", port=5201),
+            duration_s=10,
+            sleep=lambda _s: None,
+        )
+        assert result.mbps == pytest.approx(588.0)
+        assert result.retransmits == 688
+
+    def test_flow_without_a_sender_summary_reports_no_retransmits(self) -> None:
+        sender = _ext_sender(mbps=875.0)
+        result = measure_external_flow(
+            ExternalFlow(sender=sender, dest_host="203.0.113.10", port=5201),
+            duration_s=10,
+            sleep=lambda _s: None,
+        )
+        assert result.retransmits is None
+
     def test_forward_flow_rate_and_rtt_from_client_log(self) -> None:
         sender = _ext_sender(mbps=875.0, rtt_us=[(480.0, 1250.0)])
         result = measure_external_flow(

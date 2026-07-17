@@ -84,12 +84,20 @@ class FlowThroughput:
     ``TCP_INFO`` into ``end.streams[*].sender``), in milliseconds. ``None``
     when the session carried no RTT samples (UDP, or an iperf3 build that does
     not exchange them).
+
+    ``retransmits`` is the data sender's TCP retransmit count for the session
+    (``end.sum_sent.retransmits``). It travels beside the rate because the two
+    are only meaningful together: the same rate with and without loss says
+    different things about a path, and a rate reported alone cannot tell them
+    apart. ``None`` when the session carried no sender summary — which is not
+    the same as ``0``.
     """
 
     port: int
     mbps: float
     min_rtt_ms: float | None = None
     mean_rtt_ms: float | None = None
+    retransmits: int | None = None
 
 
 def iter_json_docs(text: str) -> list[Any]:
@@ -167,6 +175,29 @@ def last_session_rtt_ms(log_text: str) -> tuple[float | None, float | None]:
     if not mins or not means:
         return (None, None)
     return (min(mins) / 1000.0, (sum(means) / len(means)) / 1000.0)
+
+
+def last_session_retransmits(log_text: str) -> int | None:
+    """TCP retransmits of the LAST completed session's SENDER, or ``None``.
+
+    Read from ``end.sum_sent.retransmits`` — the count belongs to whichever
+    side sent the data, which for a reverse flow is the remote endpoint, not
+    the caller. ``None`` means the session carried no sender summary at all
+    (a UDP session, or a flow whose sending side is not the one logging);
+    that is distinct from ``0``, which means the sender lost nothing.
+
+    Retransmits are the cheapest available discriminator between a rate that
+    was limited by loss and one that was limited without it, so a rate is
+    worth little as evidence unless this travels beside it.
+    """
+    docs = iter_json_docs(log_text)
+    if not docs or not isinstance(docs[-1], dict):
+        return None
+    end = docs[-1].get("end", {})
+    if not isinstance(end, dict):
+        return None
+    retransmits = end.get("sum_sent", {}).get("retransmits")
+    return None if retransmits is None else int(retransmits)
 
 
 def last_session_mbps(log_text: str) -> float | None:
@@ -313,17 +344,22 @@ def measure_concurrent_throughput(
                     )
                 _, mbps = tx
                 min_rtt_ms, mean_rtt_ms = last_session_rtt_ms(receiver_text)
+                # Under -R the REMOTE side sends the data, so the loss count
+                # — like the RTT above — belongs to its log, not ours.
+                retransmits = last_session_retransmits(receiver_text)
             else:
                 mbps = rx_mbps
                 min_rtt_ms, mean_rtt_ms = (
                     last_session_rtt_ms(tx[0]) if tx is not None else (None, None)
                 )
+                retransmits = last_session_retransmits(tx[0]) if tx is not None else None
             results.append(
                 FlowThroughput(
                     port=flow.port,
                     mbps=mbps,
                     min_rtt_ms=min_rtt_ms,
                     mean_rtt_ms=mean_rtt_ms,
+                    retransmits=retransmits,
                 )
             )
         return results
@@ -653,7 +689,13 @@ def measure_external_flow(
         mean_rtt_ms: float | None = None
     else:
         min_rtt_ms, mean_rtt_ms = last_session_rtt_ms(text)
-    return FlowThroughput(port=flow.port, mbps=mbps, min_rtt_ms=min_rtt_ms, mean_rtt_ms=mean_rtt_ms)
+    return FlowThroughput(
+        port=flow.port,
+        mbps=mbps,
+        min_rtt_ms=min_rtt_ms,
+        mean_rtt_ms=mean_rtt_ms,
+        retransmits=last_session_retransmits(text),
+    )
 
 
 def measure_external_path_until(
