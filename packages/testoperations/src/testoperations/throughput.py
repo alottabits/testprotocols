@@ -713,6 +713,7 @@ def measure_external_path_until(
     omit_s: int = 0,
     window: str | None = None,
     on_round: Callable[[PathMeasurement], None] | None = None,
+    on_retry: Callable[[Exception, int], None] | None = None,
     measure_flow: Callable[..., FlowThroughput] = measure_external_flow,
     monotonic: Callable[[], float] = time.monotonic,
     sleep: Callable[[float], None] = time.sleep,
@@ -733,6 +734,12 @@ def measure_external_path_until(
     pool serving someone else) is retried on the NEXT allocated pool port
     after ``busy_backoff_s``, within the same budget; any other endpoint
     error propagates immediately.
+
+    ``on_retry`` — if given — is called with ``(error, abandoned_port)`` before
+    each re-draw (the sibling of ``on_round``: a reporting seam, since this
+    module logs nothing itself). Pass it whenever the run's record matters: a
+    silent retry loop can absorb an endpoint condition many times over and
+    leave a contended endpoint looking exactly like a quiet one afterwards.
     """
     deadline = monotonic() + budget_s
 
@@ -743,13 +750,24 @@ def measure_external_path_until(
         observed nothing", not "the path is bad" — see the exception
         docstrings. Every error that describes the PATH propagates at once: it
         may be the device's behaviour, and must not be retried into silence.
+
+        Each re-draw is announced through ``on_retry`` before it is taken. A
+        re-draw absorbs a REAL endpoint condition, and absorbing it silently
+        leaves a contended endpoint and a quiet one identical in the record —
+        so a run can rely on a retry loop dozens of times and show no trace of
+        it. The seam reports the error and the ABANDONED port; a re-draw that
+        the budget refuses is not announced, because it was not absorbed — it
+        propagates and fails the caller instead.
         """
         while True:
+            flow = build(allocate_port())
             try:
-                return measure_flow(build(allocate_port()), duration_s=duration_s)
-            except (EndpointUnavailableError, SessionStalledError):
+                return measure_flow(flow, duration_s=duration_s)
+            except (EndpointUnavailableError, SessionStalledError) as exc:
                 if monotonic() >= deadline:
                     raise
+                if on_retry is not None:
+                    on_retry(exc, flow.port)
                 sleep(busy_backoff_s)
 
     findings: list[PathMeasurement] = []

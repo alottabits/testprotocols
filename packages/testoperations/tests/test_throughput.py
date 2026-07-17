@@ -884,7 +884,7 @@ class TestMeasureExternalPathUntil:
 
 
 class TestEndpointBusyRetry:
-    def _run(self, flow_results, clock=None):  # type: ignore[no-untyped-def]
+    def _run(self, flow_results, clock=None, on_retry=None):  # type: ignore[no-untyped-def]
         calls: list[int] = []
 
         def _measure(flow: ExternalFlow, *, duration_s: int) -> FlowThroughput:
@@ -905,8 +905,53 @@ class TestEndpointBusyRetry:
             measure_flow=_measure,
             monotonic=clock or (lambda: 0.0),
             sleep=lambda _s: None,
+            on_retry=on_retry,
         )
         return findings, calls
+
+    def test_every_re_draw_is_reported_to_the_caller(self) -> None:
+        # A re-draw absorbs a real endpoint condition. Absorbing it silently
+        # makes a contended endpoint indistinguishable from a quiet one in the
+        # record, so the caller is told each time — it owns the logging.
+        seen: list[tuple[str, int]] = []
+        busy = EndpointBusyError("the server is busy running a test")
+        self._run(
+            [busy, 1.0, 900.0],
+            on_retry=lambda exc, port: seen.append((str(exc), port)),
+        )
+        assert seen == [("the server is busy running a test", 5201)]
+
+    def test_the_abandoned_port_is_reported_not_the_next_one(self) -> None:
+        seen: list[int] = []
+        self._run(
+            [1.0, EndpointBusyError("busy"), 905.0],
+            on_retry=lambda exc, port: seen.append(port),
+        )
+        # The direction flow drew 5202 and was refused; 5203 carried the retry.
+        assert seen == [5202]
+
+    def test_a_settled_round_reports_no_re_draws(self) -> None:
+        seen: list[int] = []
+        self._run([1.0, 900.0], on_retry=lambda exc, port: seen.append(port))
+        assert seen == []
+
+    def test_a_re_draw_past_the_deadline_is_not_reported_as_absorbed(self) -> None:
+        # It was not absorbed — it propagates and fails the caller, so the
+        # caller must not also be told it was re-drawn.
+        seen: list[int] = []
+        clock = iter([0.0, 700.0, 800.0, 900.0, 1000.0])
+        with pytest.raises(EndpointBusyError):
+            self._run(
+                [EndpointBusyError("busy"), EndpointBusyError("busy")],
+                clock=lambda: next(clock),
+                on_retry=lambda exc, port: seen.append(port),
+            )
+        assert seen == []
+
+    def test_without_the_seam_the_retry_still_works(self) -> None:
+        findings, calls = self._run([EndpointBusyError("busy"), 1.0, 900.0])
+        assert len(findings) == 1
+        assert calls == [5201, 5202, 5203]
 
     def test_busy_probe_retries_on_the_next_pool_port(self) -> None:
         findings, calls = self._run(
