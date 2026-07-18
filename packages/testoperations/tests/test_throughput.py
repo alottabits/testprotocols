@@ -884,8 +884,11 @@ class TestExternalFlowNonCompletion:
     def test_endpoint_error_document_surfaces_as_endpoint_nonc(self) -> None:
         sender = _ext_sender(error="the server is busy running a test. try again later")
         with pytest.raises(NonCompletion) as ei:
-            measure_external_flow(ExternalFlow(sender=sender, dest_host="203.0.113.10", port=5201),
-                                  duration_s=10, sleep=lambda _s: None)
+            measure_external_flow(
+                ExternalFlow(sender=sender, dest_host="203.0.113.10", port=5201),
+                duration_s=10,
+                sleep=lambda _s: None,
+            )
         assert ei.value.which_side == "endpoint"
         assert ei.value.what == "error_document"
         assert "busy running a test" in ei.value.detail
@@ -894,8 +897,12 @@ class TestExternalFlowNonCompletion:
     def test_a_stall_surfaces_as_unknown_no_completed_session(self) -> None:
         sender = _ext_sender(complete=False)
         with pytest.raises(NonCompletion) as ei:
-            measure_external_flow(ExternalFlow(sender=sender, dest_host="203.0.113.10", port=5207),
-                                  duration_s=1, sleep=lambda _s: None, result_timeout_s=0.0)
+            measure_external_flow(
+                ExternalFlow(sender=sender, dest_host="203.0.113.10", port=5207),
+                duration_s=1,
+                sleep=lambda _s: None,
+                result_timeout_s=0.0,
+            )
         assert ei.value.which_side == "unknown"
         assert ei.value.what == "no_completed_session"
         assert ei.value.port == 5207
@@ -904,20 +911,28 @@ class TestExternalFlowNonCompletion:
 class TestExternalRetryWhen:
     def _run(self, flow_results, retry_when, on_retry=None, clock=None):  # type: ignore[no-untyped-def]
         calls: list[int] = []
+
         def _measure(flow, *, duration_s):
             calls.append(flow.port)
             r = flow_results.pop(0)
             if isinstance(r, Exception):
                 raise r
             return FlowThroughput(port=flow.port, mbps=r)
+
         ports = iter(range(5201, 5261))
         findings = measure_external_path_until(
-            sender=MagicMock(), dest_host="203.0.113.10",
+            sender=MagicMock(),
+            dest_host="203.0.113.10",
             directions=[DirectionSpec("upload", reverse=False)],
-            allocate_port=lambda: next(ports), stop_when=lambda f: True,
-            budget_s=600.0, measure_flow=_measure,
-            monotonic=clock or (lambda: 0.0), sleep=lambda _s: None,
-            retry_when=retry_when, on_retry=on_retry)
+            allocate_port=lambda: next(ports),
+            stop_when=lambda f: True,
+            budget_s=600.0,
+            measure_flow=_measure,
+            monotonic=clock or (lambda: 0.0),
+            sleep=lambda _s: None,
+            retry_when=retry_when,
+            on_retry=on_retry,
+        )
         return findings, calls
 
     def _nonc(self):
@@ -944,8 +959,11 @@ class TestExternalRetryWhen:
 
     def test_on_retry_fires_once_per_absorbed_redraw_only(self) -> None:
         seen: list[int] = []
-        self._run([self._nonc(), 1.0, 900.0], retry_when=lambda f: True,
-                  on_retry=lambda exc, port: seen.append(port))
+        self._run(
+            [self._nonc(), 1.0, 900.0],
+            retry_when=lambda f: True,
+            on_retry=lambda exc, port: seen.append(port),
+        )
         assert seen == [5201]
 
     def test_a_path_statement_is_still_not_retried(self) -> None:
@@ -965,27 +983,41 @@ class TestConcurrentNonCompletion:
         flow, _, receiver = _flow(5301, mbps=10.0)
         receiver.get_iperf_logs.side_effect = lambda _log: ""
         with pytest.raises(NonCompletion) as ei:
-            measure_concurrent_throughput([flow], duration_s=10, sleep=lambda _s: None, result_timeout_s=0.0)
+            measure_concurrent_throughput(
+                [flow],
+                duration_s=10,
+                sleep=lambda _s: None,
+                result_timeout_s=0.0,
+            )
         assert ei.value.which_side == "local_receiver"
         assert ei.value.what == "no_completed_session"
         assert ei.value.port == 5301
 
     def test_reverse_flow_sender_no_show_is_also_local_receiver(self) -> None:
         # the initiating (data-receiving) side is OUR rig — never external
-        flow, sender, receiver = _flow(5302, mbps=10.0)
+        flow, sender, _receiver = _flow(5302, mbps=10.0)
         flow = replace(flow, reverse=True)
-        sender.get_iperf_logs.side_effect = lambda _log: ""   # our side never completes
+        sender.get_iperf_logs.side_effect = lambda _log: ""  # our side never completes
         with pytest.raises(NonCompletion) as ei:
-            measure_concurrent_throughput([flow], duration_s=10, sleep=lambda _s: None, result_timeout_s=0.0)
+            measure_concurrent_throughput(
+                [flow],
+                duration_s=10,
+                sleep=lambda _s: None,
+                result_timeout_s=0.0,
+            )
         assert ei.value.which_side == "local_receiver"
 
 
 class TestNonCompletion:
     def test_carries_provenance_fields_and_is_a_runtime_error(self) -> None:
-        f = NonCompletion(which_side="endpoint", what="error_document",
-                          detail="the server is busy running a test", port=5201)
-        assert isinstance(f, RuntimeError)         # catchable at the caller's RuntimeError seam
+        f = NonCompletion(
+            which_side="endpoint",
+            what="error_document",
+            detail="the server is busy running a test",
+            port=5201,
+        )
+        assert isinstance(f, RuntimeError)  # catchable at the caller's RuntimeError seam
         assert f.which_side == "endpoint"
         assert f.what == "error_document"
         assert f.port == 5201
-        assert "busy running a test" in str(f)     # detail survives into the message
+        assert "busy running a test" in str(f)  # detail survives into the message
