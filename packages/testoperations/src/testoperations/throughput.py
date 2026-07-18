@@ -20,7 +20,7 @@ import json
 import time
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Literal
 
 from testprotocols.iperf_client import IperfClient
 from testprotocols.iperf_server import IperfServer
@@ -534,6 +534,11 @@ class ExternalFlow:
     window: str | None = None
 
 
+# Closed provenance vocabularies for NonCompletion fields
+NonCompletionSide = Literal["endpoint", "local_receiver", "unknown"]
+NonCompletionKind = Literal["error_document", "no_completed_session"]
+
+
 class NonCompletion(RuntimeError):
     """A flow yielded no measurement — a FACT about what happened, not a verdict.
 
@@ -554,7 +559,14 @@ class NonCompletion(RuntimeError):
       port:       the port this attempt used
     """
 
-    def __init__(self, *, which_side: str, what: str, detail: str, port: int) -> None:
+    def __init__(
+        self,
+        *,
+        which_side: NonCompletionSide,
+        what: NonCompletionKind,
+        detail: str,
+        port: int,
+    ) -> None:
         super().__init__(f"iperf flow did not complete ({which_side}/{what}): {detail}")
         self.which_side = which_side
         self.what = what
