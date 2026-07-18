@@ -611,6 +611,34 @@ class SessionStalledError(RuntimeError):
     """
 
 
+class NonCompletion(RuntimeError):
+    """A flow yielded no measurement — a FACT about what happened, not a verdict.
+
+    The library raises this when a flow neither completed nor produced a rate. It
+    asserts nothing about fault or retryability: those are the caller's, via a
+    ``retry_when`` predicate (mid-loop) and reference-leg attribution (at final
+    failure). Subclasses ``RuntimeError`` to sit within this module's existing
+    operational-error model — this signals *operational non-completion, never a
+    test verdict*.
+
+    Fields are provenance, from WHERE the evidence was read, not who is at fault:
+      which_side: "endpoint"        the remote endpoint's log carried an error
+                  "local_receiver"  our own testbed rig produced no session
+                  "unknown"         a stall the library cannot attribute
+      what:       "error_document"       the log carried an iperf ``error`` string
+                  "no_completed_session" nothing completed within the window
+      detail:     the raw text, verbatim — never parsed for meaning here
+      port:       the port this attempt used
+    """
+
+    def __init__(self, *, which_side: str, what: str, detail: str, port: int) -> None:
+        super().__init__(f"iperf flow did not complete ({which_side}/{what}): {detail}")
+        self.which_side = which_side
+        self.what = what
+        self.detail = detail
+        self.port = port
+
+
 def last_session_error(log_text: str) -> str | None:
     """The ``error`` string of the LAST completed session document, or ``None``."""
     docs = iter_json_docs(log_text)

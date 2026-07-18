@@ -15,6 +15,7 @@ from testoperations.throughput import (
     EndpointUnavailableError,
     ExternalFlow,
     FlowThroughput,
+    NonCompletion,
     PathMeasurement,
     SessionRefusedError,
     SessionStalledError,
@@ -1222,3 +1223,17 @@ class TestEndpointAvailabilityClassification:
         )
         assert len(findings) == 1
         assert calls == [5201, 5202, 5203]
+
+
+# --- NonCompletion -------------------------------------------------------
+
+
+class TestNonCompletion:
+    def test_carries_provenance_fields_and_is_a_runtime_error(self) -> None:
+        f = NonCompletion(which_side="endpoint", what="error_document",
+                          detail="the server is busy running a test", port=5201)
+        assert isinstance(f, RuntimeError)         # catchable at the caller's RuntimeError seam
+        assert f.which_side == "endpoint"
+        assert f.what == "error_document"
+        assert f.port == 5201
+        assert "busy running a test" in str(f)     # detail survives into the message
