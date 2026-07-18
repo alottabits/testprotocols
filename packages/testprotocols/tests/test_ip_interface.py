@@ -18,6 +18,7 @@ def test_ip_interface_protocol_shape() -> None:
         "get_interface_macaddr",
         "get_interface_mask",
         "get_interface_mtu_size",
+        "set_interface_mtu_size",
         "is_link_up",
         "set_link_state",
         "enable_ipv6",

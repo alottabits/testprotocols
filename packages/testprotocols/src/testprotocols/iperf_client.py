@@ -29,6 +29,7 @@ class IperfClient(Protocol):
         omit_s: int | None = None,
         json_output: bool = False,
         window: str | None = None,
+        parallel: int | None = None,
     ) -> tuple[int, str]:
         """Start an iperf traffic sender towards *host* on *traffic_port*.
 
@@ -36,6 +37,9 @@ class IperfClient(Protocol):
 
         - ``reverse``: iperf3 reverse mode (``-R``) — the listening receiver
           transmits; the sender still initiates the connection.
+        - ``parallel``: run the session over N parallel streams (``-P <n>``).
+          The end-of-test ``sum``/``sum_received`` summaries aggregate across
+          the streams, so a multi-stream session reports ONE aggregate rate.
         - ``omit_s``: skip the first N seconds (``-O <n>``, the TCP slow-start
           ramp); omitted seconds extend the wall clock and are excluded from
           the end-of-test summary.

@@ -37,6 +37,18 @@ class IpInterface(Protocol):
         """Return the MTU size of *interface*."""
         ...
 
+    def set_interface_mtu_size(self, interface: str, mtu: int) -> None:
+        """Set the MTU of *interface* to *mtu* bytes.
+
+        The write counterpart to :meth:`get_interface_mtu_size`. Lowering the
+        MTU also lowers the MSS the host advertises on that interface, so it
+        governs TCP segment size in *both* directions of a flow — unlike a
+        per-socket ``TCP_MAXSEG``, which caps only the local send. Stateless
+        in contract: a caller that needs to revert captures the prior via
+        :meth:`get_interface_mtu_size` and restores it itself.
+        """
+        ...
+
     def is_link_up(self, interface: str, pattern: str = "BROADCAST,MULTICAST,UP") -> bool:
         """Return True if *interface* flags match *pattern*."""
         ...

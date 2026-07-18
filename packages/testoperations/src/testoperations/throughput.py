@@ -20,7 +20,7 @@ import json
 import time
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Literal
 
 from testprotocols.iperf_client import IperfClient
 from testprotocols.iperf_server import IperfServer
@@ -84,12 +84,20 @@ class FlowThroughput:
     ``TCP_INFO`` into ``end.streams[*].sender``), in milliseconds. ``None``
     when the session carried no RTT samples (UDP, or an iperf3 build that does
     not exchange them).
+
+    ``retransmits`` is the data sender's TCP retransmit count for the session
+    (``end.sum_sent.retransmits``). It travels beside the rate because the two
+    are only meaningful together: the same rate with and without loss says
+    different things about a path, and a rate reported alone cannot tell them
+    apart. ``None`` when the session carried no sender summary — which is not
+    the same as ``0``.
     """
 
     port: int
     mbps: float
     min_rtt_ms: float | None = None
     mean_rtt_ms: float | None = None
+    retransmits: int | None = None
 
 
 def iter_json_docs(text: str) -> list[Any]:
@@ -167,6 +175,29 @@ def last_session_rtt_ms(log_text: str) -> tuple[float | None, float | None]:
     if not mins or not means:
         return (None, None)
     return (min(mins) / 1000.0, (sum(means) / len(means)) / 1000.0)
+
+
+def last_session_retransmits(log_text: str) -> int | None:
+    """TCP retransmits of the LAST completed session's SENDER, or ``None``.
+
+    Read from ``end.sum_sent.retransmits`` — the count belongs to whichever
+    side sent the data, which for a reverse flow is the remote endpoint, not
+    the caller. ``None`` means the session carried no sender summary at all
+    (a UDP session, or a flow whose sending side is not the one logging);
+    that is distinct from ``0``, which means the sender lost nothing.
+
+    Retransmits are the cheapest available discriminator between a rate that
+    was limited by loss and one that was limited without it, so a rate is
+    worth little as evidence unless this travels beside it.
+    """
+    docs = iter_json_docs(log_text)
+    if not docs or not isinstance(docs[-1], dict):
+        return None
+    end = docs[-1].get("end", {})
+    if not isinstance(end, dict):
+        return None
+    retransmits = end.get("sum_sent", {}).get("retransmits")
+    return None if retransmits is None else int(retransmits)
 
 
 def last_session_mbps(log_text: str) -> float | None:
@@ -295,10 +326,15 @@ def measure_concurrent_throughput(
                 monotonic,
             )
             if rx is None:
-                raise RuntimeError(
-                    f"iperf receiver on port {flow.port} produced no completed "
-                    f"session within {result_timeout_s}s after the "
-                    f"{duration_s}s measurement window"
+                raise NonCompletion(
+                    which_side="local_receiver",
+                    what="no_completed_session",
+                    detail=(
+                        f"iperf receiver on port {flow.port} produced no completed "
+                        f"session within {result_timeout_s}s after the "
+                        f"{duration_s}s measurement window"
+                    ),
+                    port=flow.port,
                 )
             receiver_text, rx_mbps = rx
             tx = _await_session(
@@ -306,24 +342,34 @@ def measure_concurrent_throughput(
             )
             if flow.reverse:
                 if tx is None:
-                    raise RuntimeError(
-                        f"reverse flow on port {flow.port}: the initiating "
-                        f"(data-receiving) side produced no completed session "
-                        f"within {result_timeout_s}s — no receive-side rate"
+                    raise NonCompletion(
+                        which_side="local_receiver",
+                        what="no_completed_session",
+                        detail=(
+                            f"reverse flow on port {flow.port}: the initiating "
+                            f"(data-receiving) side produced no completed session "
+                            f"within {result_timeout_s}s — no receive-side rate"
+                        ),
+                        port=flow.port,
                     )
                 _, mbps = tx
                 min_rtt_ms, mean_rtt_ms = last_session_rtt_ms(receiver_text)
+                # Under -R the REMOTE side sends the data, so the loss count
+                # — like the RTT above — belongs to its log, not ours.
+                retransmits = last_session_retransmits(receiver_text)
             else:
                 mbps = rx_mbps
                 min_rtt_ms, mean_rtt_ms = (
                     last_session_rtt_ms(tx[0]) if tx is not None else (None, None)
                 )
+                retransmits = last_session_retransmits(tx[0]) if tx is not None else None
             results.append(
                 FlowThroughput(
                     port=flow.port,
                     mbps=mbps,
                     min_rtt_ms=min_rtt_ms,
                     mean_rtt_ms=mean_rtt_ms,
+                    retransmits=retransmits,
                 )
             )
         return results
@@ -447,6 +493,299 @@ def measure_one_direction(
     )
     (result,) = measure([flow], duration_s=duration_s)
     return result
+
+
+# --- external-endpoint measurement (client-log-only) --------------------------
+#
+# A public iperf3 endpoint is reachable but not DRIVEN: there is no
+# ``IperfServer`` capability behind it, no way to start/stop its listener, and
+# no server-side log to read. Every fact must come from the initiating
+# client's own ``--json`` log. That is sufficient for the rate in BOTH
+# directions: for a forward flow iperf3's end-of-test exchange places the
+# remote side's receive summary in the client log's ``end.sum_received``, and
+# for a reverse flow the client IS the data receiver, so ``end.sum_received``
+# is its own goodput. RTT is observable only when the client is the
+# data-SENDING side (its socket's ``TCP_INFO``): forward flows carry it;
+# reverse flows report ``(None, None)`` — callers judge latency on a forward
+# (probe) flow, exactly as :func:`measure_path_until` callers already do.
+#
+# A public endpoint can also REFUSE a session (typically "the server is busy
+# running a test"): iperf3 then writes an ``error`` document to the log.
+# That is surfaced as a ``RuntimeError`` naming the endpoint's reason —
+# an operational failure distinct from "no result within the timeout".
+
+
+@dataclass(frozen=True)
+class ExternalFlow:
+    """One client-driven flow toward an endpoint that is not testbed-managed.
+
+    Field semantics match :class:`ThroughputFlow` where they overlap;
+    ``parallel`` runs the session over N parallel streams (iperf3 ``-P``),
+    whose end-of-test summaries aggregate into ONE reported rate.
+    """
+
+    sender: IperfClient
+    dest_host: str
+    port: int
+    reverse: bool = False
+    parallel: int | None = None
+    omit_s: int = 0
+    bandwidth_mbps: int | None = None
+    window: str | None = None
+
+
+# Closed provenance vocabularies for NonCompletion fields
+NonCompletionSide = Literal["endpoint", "local_receiver", "unknown"]
+NonCompletionKind = Literal["error_document", "no_completed_session"]
+
+
+class NonCompletion(RuntimeError):
+    """A flow yielded no measurement — a FACT about what happened, not a verdict.
+
+    The library raises this when a flow neither completed nor produced a rate. It
+    asserts nothing about fault or retryability: those are the caller's, via a
+    ``retry_when`` predicate (mid-loop) and reference-leg attribution (at final
+    failure). Subclasses ``RuntimeError`` to sit within this module's existing
+    operational-error model — this signals *operational non-completion, never a
+    test verdict*.
+
+    Fields are provenance, from WHERE the evidence was read, not who is at fault:
+      which_side: "endpoint"        the remote endpoint's log carried an error
+                  "local_receiver"  our own testbed rig produced no session
+                  "unknown"         a stall the library cannot attribute
+      what:       "error_document"       the log carried an iperf ``error`` string
+                  "no_completed_session" nothing completed within the window
+      detail:     the raw text, verbatim — never parsed for meaning here
+      port:       the port this attempt used
+    """
+
+    def __init__(
+        self,
+        *,
+        which_side: NonCompletionSide,
+        what: NonCompletionKind,
+        detail: str,
+        port: int,
+    ) -> None:
+        super().__init__(f"iperf flow did not complete ({which_side}/{what}): {detail}")
+        self.which_side = which_side
+        self.what = what
+        self.detail = detail
+        self.port = port
+
+
+def last_session_error(log_text: str) -> str | None:
+    """The ``error`` string of the LAST completed session document, or ``None``."""
+    docs = iter_json_docs(log_text)
+    if not docs or not isinstance(docs[-1], dict):
+        return None
+    error = docs[-1].get("error")
+    return str(error) if error else None
+
+
+def _await_client_session(
+    read_log: Callable[[str], str],
+    log_path: str,
+    deadline: float,
+    sleep: Callable[[float], None],
+    monotonic: Callable[[], float],
+    port: int,
+) -> tuple[str, float]:
+    """Poll the CLIENT log for a completed session.
+
+    The client launch truncates its own log (shell redirect), so the first
+    completed document is this session. An ``error`` document raises
+    :class:`NonCompletion` (``which_side="endpoint"``, ``what="error_document"``,
+    the raw text as ``detail``); a log that never completes raises
+    :class:`NonCompletion` (``which_side="unknown"``, ``what="no_completed_session"``)
+    when *deadline* passes. Classifying either as retryable is the caller's
+    policy, not this function's.
+    """
+    while True:
+        text = read_log(log_path)
+        error = last_session_error(text)
+        if error is not None:
+            raise NonCompletion(
+                which_side="endpoint", what="error_document", detail=error, port=port
+            )
+        if count_sessions(text) > 0:
+            mbps = last_session_mbps(text)
+            if mbps is not None:
+                return (text, mbps)
+        if monotonic() >= deadline:
+            raise NonCompletion(
+                which_side="unknown",
+                what="no_completed_session",
+                detail=(
+                    f"external iperf session toward {log_path!r} produced no "
+                    f"completed client-side result before the timeout"
+                ),
+                port=port,
+            )
+        sleep(_POLL_INTERVAL_S)
+
+
+def measure_external_flow(
+    flow: ExternalFlow,
+    *,
+    duration_s: int = DEFAULT_MEASURE_DURATION_S,
+    result_timeout_s: float = DEFAULT_RESULT_TIMEOUT_S,
+    sleep: Callable[[float], None] = time.sleep,
+    monotonic: Callable[[], float] = time.monotonic,
+) -> FlowThroughput:
+    """Run one client-driven flow against an unmanaged endpoint; report its facts.
+
+    The sender is stopped in a ``finally`` so no iperf process outlives the
+    call — also on failure. The reported rate is ``end.sum_received`` from the
+    client's own log (receive-side goodput in both directions — see the
+    section comment); RTT is client-side ``TCP_INFO`` for a forward flow and
+    ``(None, None)`` for a reverse flow (the data sender is the remote
+    endpoint, whose kernel we cannot read).
+    """
+    sender_pid, sender_log = flow.sender.start_traffic_sender(
+        flow.dest_host,
+        flow.port,
+        bandwidth=flow.bandwidth_mbps,
+        time=duration_s,
+        reverse=flow.reverse,
+        omit_s=flow.omit_s or None,
+        json_output=True,
+        window=flow.window,
+        parallel=flow.parallel,
+    )
+    try:
+        sleep(float(duration_s + flow.omit_s))
+        text, mbps = _await_client_session(
+            flow.sender.get_iperf_logs,
+            sender_log,
+            monotonic() + result_timeout_s,
+            sleep,
+            monotonic,
+            flow.port,
+        )
+    finally:
+        try:
+            flow.sender.stop_traffic(sender_pid)
+        except Exception:
+            pass
+    if flow.reverse:
+        min_rtt_ms: float | None = None
+        mean_rtt_ms: float | None = None
+    else:
+        min_rtt_ms, mean_rtt_ms = last_session_rtt_ms(text)
+    return FlowThroughput(
+        port=flow.port,
+        mbps=mbps,
+        min_rtt_ms=min_rtt_ms,
+        mean_rtt_ms=mean_rtt_ms,
+        retransmits=last_session_retransmits(text),
+    )
+
+
+def measure_external_path_until(
+    *,
+    sender: IperfClient,
+    dest_host: str,
+    directions: Sequence[DirectionSpec],
+    allocate_port: Callable[[], int],
+    stop_when: Callable[[list[PathMeasurement]], bool],
+    budget_s: float,
+    parallel: int | None = None,
+    probe_rate_mbps: int = DEFAULT_PROBE_RATE_MBPS,
+    probe_duration_s: int = DEFAULT_PROBE_DURATION_S,
+    measure_duration_s: int = DEFAULT_MEASURE_DURATION_S,
+    omit_s: int = 0,
+    window: str | None = None,
+    on_round: Callable[[PathMeasurement], None] | None = None,
+    on_retry: Callable[[Exception, int], None] | None = None,
+    retry_when: Callable[[NonCompletion], bool] | None = None,
+    measure_flow: Callable[..., FlowThroughput] = measure_external_flow,
+    monotonic: Callable[[], float] = time.monotonic,
+    sleep: Callable[[float], None] = time.sleep,
+    busy_backoff_s: float = 5.0,
+) -> list[PathMeasurement]:
+    """The :func:`measure_path_until` loop against an unmanaged endpoint.
+
+    Identical framing and caller contract — one unloaded forward RTT probe,
+    then each direction measured sequentially, rounds repeating until
+    *stop_when* or *budget_s* — with every flow client-driven
+    (:func:`measure_external_flow`). ``parallel`` applies to the saturating
+    direction flows only; the probe is always a single rate-capped stream
+    (it must not saturate, and its forward direction is what makes the
+    client-side RTT observable). ``window`` likewise applies to the
+    direction flows only.
+
+    A flow that does not complete raises :class:`NonCompletion` — a fact,
+    not a verdict. Before each re-draw the loop asks the caller-supplied
+    ``retry_when(exc) -> bool`` (default ``None``: never retry); only a
+    ``True`` answer, within the remaining budget, re-draws on the next
+    allocated pool port after ``busy_backoff_s``. This function classifies
+    nothing itself — whether a given non-completion is worth retrying is
+    entirely the caller's policy.
+
+    ``on_retry`` — if given — is called with ``(error, abandoned_port)`` before
+    each re-draw (the sibling of ``on_round``: a reporting seam, since this
+    module logs nothing itself). Pass it whenever the run's record matters: a
+    silent retry loop can absorb a non-completion many times over and leave a
+    contended endpoint looking exactly like a quiet one afterwards.
+    """
+    deadline = monotonic() + budget_s
+
+    def _flow_with_retry(build: Callable[[int], ExternalFlow], duration_s: int) -> FlowThroughput:
+        """Measure one flow, re-drawing a non-completion only if the caller says so.
+
+        The library owns the mechanics — port, backoff, budget — and asks
+        ``retry_when`` before each re-draw. It classifies nothing: a NonCompletion
+        is a fact; whether it is retryable is the caller's policy (default: never).
+        A re-draw the budget refuses is raised, not announced through ``on_retry``.
+        """
+        while True:
+            flow = build(allocate_port())
+            try:
+                return measure_flow(flow, duration_s=duration_s)
+            except NonCompletion as exc:
+                if monotonic() >= deadline or retry_when is None or not retry_when(exc):
+                    raise
+                if on_retry is not None:
+                    on_retry(exc, flow.port)
+                sleep(busy_backoff_s)
+
+    findings: list[PathMeasurement] = []
+    while True:
+        probe = _flow_with_retry(
+            lambda port: ExternalFlow(
+                sender=sender,
+                dest_host=dest_host,
+                port=port,
+                bandwidth_mbps=probe_rate_mbps,
+            ),
+            probe_duration_s,
+        )
+        by_direction: dict[str, FlowThroughput] = {}
+        for spec in directions:
+
+            def _direction_flow(port: int, spec: DirectionSpec = spec) -> ExternalFlow:
+                return ExternalFlow(
+                    sender=sender,
+                    dest_host=dest_host,
+                    port=port,
+                    reverse=spec.reverse,
+                    parallel=parallel,
+                    omit_s=omit_s,
+                    window=window,
+                )
+
+            by_direction[spec.name] = _flow_with_retry(_direction_flow, measure_duration_s)
+        facts = PathMeasurement(
+            probe_min_rtt_ms=probe.min_rtt_ms,
+            probe_mean_rtt_ms=probe.mean_rtt_ms,
+            by_direction=by_direction,
+        )
+        findings.append(facts)
+        if on_round is not None:
+            on_round(facts)
+        if stop_when(findings) or monotonic() >= deadline:
+            return findings
 
 
 def measure_path_until(
