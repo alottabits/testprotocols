@@ -960,6 +960,26 @@ class TestExternalRetryWhen:
 # --- NonCompletion -------------------------------------------------------
 
 
+class TestConcurrentNonCompletion:
+    def test_receiver_no_show_is_local_receiver(self) -> None:
+        flow, _, receiver = _flow(5301, mbps=10.0)
+        receiver.get_iperf_logs.side_effect = lambda _log: ""
+        with pytest.raises(NonCompletion) as ei:
+            measure_concurrent_throughput([flow], duration_s=10, sleep=lambda _s: None, result_timeout_s=0.0)
+        assert ei.value.which_side == "local_receiver"
+        assert ei.value.what == "no_completed_session"
+        assert ei.value.port == 5301
+
+    def test_reverse_flow_sender_no_show_is_also_local_receiver(self) -> None:
+        # the initiating (data-receiving) side is OUR rig — never external
+        flow, sender, receiver = _flow(5302, mbps=10.0)
+        flow = replace(flow, reverse=True)
+        sender.get_iperf_logs.side_effect = lambda _log: ""   # our side never completes
+        with pytest.raises(NonCompletion) as ei:
+            measure_concurrent_throughput([flow], duration_s=10, sleep=lambda _s: None, result_timeout_s=0.0)
+        assert ei.value.which_side == "local_receiver"
+
+
 class TestNonCompletion:
     def test_carries_provenance_fields_and_is_a_runtime_error(self) -> None:
         f = NonCompletion(which_side="endpoint", what="error_document",

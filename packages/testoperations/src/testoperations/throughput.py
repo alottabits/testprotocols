@@ -326,10 +326,15 @@ def measure_concurrent_throughput(
                 monotonic,
             )
             if rx is None:
-                raise RuntimeError(
-                    f"iperf receiver on port {flow.port} produced no completed "
-                    f"session within {result_timeout_s}s after the "
-                    f"{duration_s}s measurement window"
+                raise NonCompletion(
+                    which_side="local_receiver",
+                    what="no_completed_session",
+                    detail=(
+                        f"iperf receiver on port {flow.port} produced no completed "
+                        f"session within {result_timeout_s}s after the "
+                        f"{duration_s}s measurement window"
+                    ),
+                    port=flow.port,
                 )
             receiver_text, rx_mbps = rx
             tx = _await_session(
@@ -337,10 +342,15 @@ def measure_concurrent_throughput(
             )
             if flow.reverse:
                 if tx is None:
-                    raise RuntimeError(
-                        f"reverse flow on port {flow.port}: the initiating "
-                        f"(data-receiving) side produced no completed session "
-                        f"within {result_timeout_s}s — no receive-side rate"
+                    raise NonCompletion(
+                        which_side="local_receiver",
+                        what="no_completed_session",
+                        detail=(
+                            f"reverse flow on port {flow.port}: the initiating "
+                            f"(data-receiving) side produced no completed session "
+                            f"within {result_timeout_s}s — no receive-side rate"
+                        ),
+                        port=flow.port,
                     )
                 _, mbps = tx
                 min_rtt_ms, mean_rtt_ms = last_session_rtt_ms(receiver_text)
