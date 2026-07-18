@@ -10,17 +10,11 @@ import pytest
 from testoperations.throughput import (
     DEFAULT_PROBE_RATE_MBPS,
     DirectionSpec,
-    EndpointBusyError,
-    EndpointTerminatedError,
-    EndpointUnavailableError,
     ExternalFlow,
     FlowThroughput,
     NonCompletion,
     PathMeasurement,
-    SessionRefusedError,
-    SessionStalledError,
     ThroughputFlow,
-    _classify_endpoint_error,
     count_sessions,
     iter_json_docs,
     last_session_error,
@@ -886,343 +880,81 @@ class TestMeasureExternalPathUntil:
         assert len(seen) == 2
 
 
-class TestEndpointBusyRetry:
-    def _run(self, flow_results, clock=None, on_retry=None):  # type: ignore[no-untyped-def]
-        calls: list[int] = []
-
-        def _measure(flow: ExternalFlow, *, duration_s: int) -> FlowThroughput:
-            calls.append(flow.port)
-            result = flow_results.pop(0)
-            if isinstance(result, Exception):
-                raise result
-            return FlowThroughput(port=flow.port, mbps=result)
-
-        ports = iter(range(5201, 5261))
-        findings = measure_external_path_until(
-            sender=MagicMock(),
-            dest_host="203.0.113.10",
-            directions=[DirectionSpec("upload", reverse=False)],
-            allocate_port=lambda: next(ports),
-            stop_when=lambda f: True,
-            budget_s=600.0,
-            measure_flow=_measure,
-            monotonic=clock or (lambda: 0.0),
-            sleep=lambda _s: None,
-            on_retry=on_retry,
-        )
-        return findings, calls
-
-    def test_every_re_draw_is_reported_to_the_caller(self) -> None:
-        # A re-draw absorbs a real endpoint condition. Absorbing it silently
-        # makes a contended endpoint indistinguishable from a quiet one in the
-        # record, so the caller is told each time — it owns the logging.
-        seen: list[tuple[str, int]] = []
-        busy = EndpointBusyError("the server is busy running a test")
-        self._run(
-            [busy, 1.0, 900.0],
-            on_retry=lambda exc, port: seen.append((str(exc), port)),
-        )
-        assert seen == [("the server is busy running a test", 5201)]
-
-    def test_the_abandoned_port_is_reported_not_the_next_one(self) -> None:
-        seen: list[int] = []
-        self._run(
-            [1.0, EndpointBusyError("busy"), 905.0],
-            on_retry=lambda exc, port: seen.append(port),
-        )
-        # The direction flow drew 5202 and was refused; 5203 carried the retry.
-        assert seen == [5202]
-
-    def test_a_settled_round_reports_no_re_draws(self) -> None:
-        seen: list[int] = []
-        self._run([1.0, 900.0], on_retry=lambda exc, port: seen.append(port))
-        assert seen == []
-
-    def test_a_re_draw_past_the_deadline_is_not_reported_as_absorbed(self) -> None:
-        # It was not absorbed — it propagates and fails the caller, so the
-        # caller must not also be told it was re-drawn.
-        seen: list[int] = []
-        clock = iter([0.0, 700.0, 800.0, 900.0, 1000.0])
-        with pytest.raises(EndpointBusyError):
-            self._run(
-                [EndpointBusyError("busy"), EndpointBusyError("busy")],
-                clock=lambda: next(clock),
-                on_retry=lambda exc, port: seen.append(port),
-            )
-        assert seen == []
-
-    def test_without_the_seam_the_retry_still_works(self) -> None:
-        findings, calls = self._run([EndpointBusyError("busy"), 1.0, 900.0])
-        assert len(findings) == 1
-        assert calls == [5201, 5202, 5203]
-
-    def test_busy_probe_retries_on_the_next_pool_port(self) -> None:
-        findings, calls = self._run(
-            [EndpointBusyError("busy"), 1.0, 900.0]  # probe busy -> retry -> upload
-        )
-        assert len(findings) == 1
-        assert calls == [5201, 5202, 5203]  # busy port abandoned, rotation continues
-
-    def test_busy_direction_flow_retries_too(self) -> None:
-        findings, calls = self._run([1.0, EndpointBusyError("busy"), 905.0])
-        assert findings[0].by_direction["upload"].mbps == pytest.approx(905.0)
-        assert calls == [5201, 5202, 5203]
-
-    def test_busy_past_deadline_propagates(self) -> None:
-        clock = iter([0.0, 700.0, 800.0, 900.0, 1000.0])
-        with pytest.raises(EndpointBusyError):
-            self._run(
-                [EndpointBusyError("busy"), EndpointBusyError("busy")],
-                clock=lambda: next(clock),
-            )
-
-    def test_non_busy_endpoint_error_propagates_immediately(self) -> None:
-        with pytest.raises(RuntimeError, match="access denied"):
-            self._run([RuntimeError("iperf3 endpoint session failed: access denied")])
-
-    def test_busy_error_classified_from_log(self) -> None:
+class TestExternalFlowNonCompletion:
+    def test_endpoint_error_document_surfaces_as_endpoint_nonc(self) -> None:
         sender = _ext_sender(error="the server is busy running a test. try again later")
-        with pytest.raises(EndpointBusyError):
-            measure_external_flow(
-                ExternalFlow(sender=sender, dest_host="203.0.113.10", port=5201),
-                duration_s=10,
-                sleep=lambda _s: None,
-            )
+        with pytest.raises(NonCompletion) as ei:
+            measure_external_flow(ExternalFlow(sender=sender, dest_host="203.0.113.10", port=5201),
+                                  duration_s=10, sleep=lambda _s: None)
+        assert ei.value.which_side == "endpoint"
+        assert ei.value.what == "error_document"
+        assert "busy running a test" in ei.value.detail
+        assert ei.value.port == 5201
+
+    def test_a_stall_surfaces_as_unknown_no_completed_session(self) -> None:
+        sender = _ext_sender(complete=False)
+        with pytest.raises(NonCompletion) as ei:
+            measure_external_flow(ExternalFlow(sender=sender, dest_host="203.0.113.10", port=5207),
+                                  duration_s=1, sleep=lambda _s: None, result_timeout_s=0.0)
+        assert ei.value.which_side == "unknown"
+        assert ei.value.what == "no_completed_session"
+        assert ei.value.port == 5207
 
 
-class TestSessionRefusedRetry:
-    """A session refused before it measured anything is a non-verdict, and is re-drawn.
-
-    The error names a reset; it does not name who sent it. The endpoint, a
-    middlebox, or the device under test could each produce the identical text —
-    so the classification claims only what is knowable: no observation was
-    obtained. A path that genuinely refuses every session refuses every retry
-    too, exhausts the budget, and still fails.
-    """
-
-    def _run(self, flow_results, clock=None, on_retry=None):  # type: ignore[no-untyped-def]
+class TestExternalRetryWhen:
+    def _run(self, flow_results, retry_when, on_retry=None, clock=None):  # type: ignore[no-untyped-def]
         calls: list[int] = []
-
-        def _measure(flow: ExternalFlow, *, duration_s: int) -> FlowThroughput:
+        def _measure(flow, *, duration_s):
             calls.append(flow.port)
-            result = flow_results.pop(0)
-            if isinstance(result, Exception):
-                raise result
-            return FlowThroughput(port=flow.port, mbps=result)
-
+            r = flow_results.pop(0)
+            if isinstance(r, Exception):
+                raise r
+            return FlowThroughput(port=flow.port, mbps=r)
         ports = iter(range(5201, 5261))
         findings = measure_external_path_until(
-            sender=MagicMock(),
-            dest_host="203.0.113.10",
+            sender=MagicMock(), dest_host="203.0.113.10",
             directions=[DirectionSpec("upload", reverse=False)],
-            allocate_port=lambda: next(ports),
-            stop_when=lambda f: True,
-            budget_s=600.0,
-            measure_flow=_measure,
-            monotonic=clock or (lambda: 0.0),
-            sleep=lambda _s: None,
-            on_retry=on_retry,
-        )
+            allocate_port=lambda: next(ports), stop_when=lambda f: True,
+            budget_s=600.0, measure_flow=_measure,
+            monotonic=clock or (lambda: 0.0), sleep=lambda _s: None,
+            retry_when=retry_when, on_retry=on_retry)
         return findings, calls
 
-    def test_a_refused_session_is_re_drawn_on_the_next_pool_port(self) -> None:
-        findings, calls = self._run(
-            [SessionRefusedError("refused"), 1.0, 900.0]  # probe refused -> retry -> upload
-        )
-        assert len(findings) == 1
-        assert calls == [5201, 5202, 5203]  # refused port abandoned, rotation continues
+    def _nonc(self):
+        return NonCompletion(which_side="endpoint", what="error_document", detail="busy", port=0)
 
-    def test_a_refusal_past_the_deadline_still_fails(self) -> None:
-        # Nothing is masked: a path that refuses everything runs out of budget.
+    def test_predicate_true_redraws_on_next_port(self) -> None:
+        _, calls = self._run([self._nonc(), 1.0, 900.0], retry_when=lambda f: True)
+        assert calls == [5201, 5202, 5203]
+
+    def test_predicate_false_raises_immediately(self) -> None:
+        with pytest.raises(NonCompletion):
+            self._run([self._nonc()], retry_when=lambda f: False)
+
+    def test_default_none_never_retries(self) -> None:
+        with pytest.raises(NonCompletion):
+            self._run([self._nonc()], retry_when=None)
+
+    def test_budget_exhaustion_raises_even_if_predicate_says_yes(self) -> None:
         clock = iter([0.0, 700.0, 800.0, 900.0, 1000.0])
-        with pytest.raises(SessionRefusedError):
+        with pytest.raises(NonCompletion):
             self._run(
-                [SessionRefusedError("refused"), SessionRefusedError("refused")],
-                clock=lambda: next(clock),
+                [self._nonc(), self._nonc()], retry_when=lambda f: True, clock=lambda: next(clock)
             )
 
-    def test_a_re_drawn_refusal_is_reported_to_the_caller(self) -> None:
-        seen: list[tuple[str, int]] = []
-        self._run(
-            [SessionRefusedError("connection reset"), 1.0, 900.0],
-            on_retry=lambda exc, port: seen.append((str(exc), port)),
+    def test_on_retry_fires_once_per_absorbed_redraw_only(self) -> None:
+        seen: list[int] = []
+        self._run([self._nonc(), 1.0, 900.0], retry_when=lambda f: True,
+                  on_retry=lambda exc, port: seen.append(port))
+        assert seen == [5201]
+
+    def test_a_path_statement_is_still_not_retried(self) -> None:
+        # guard: a predicate that returns False for a non-refusal fails honestly
+        nonc = NonCompletion(
+            which_side="endpoint", what="error_document", detail="access denied", port=0
         )
-        assert seen == [("connection reset", 5201)]
-
-    def test_the_control_message_reset_classifies_as_refused(self) -> None:
-        # The exact text a shared iperf3 endpoint produced in the field.
-        err = (
-            "unable to receive control message - port may not be available, "
-            "the other side may have stopped running, etc.: Connection reset by peer"
-        )
-        assert isinstance(_classify_endpoint_error(err), SessionRefusedError)
-
-    def test_a_refusal_is_not_claimed_to_be_an_endpoint_condition(self) -> None:
-        # It must NOT masquerade as EndpointUnavailableError: that class asserts
-        # the endpoint said so, and a reset says nothing about who sent it.
-        err = "unable to receive control message - etc.: Connection reset by peer"
-        assert not isinstance(_classify_endpoint_error(err), EndpointUnavailableError)
-
-    def test_an_error_that_describes_the_path_is_still_not_retried(self) -> None:
-        # The guard: only an unobtainable session is a non-verdict. Anything that
-        # says something about the path remains a finding, propagated at once.
-        assert type(_classify_endpoint_error("access denied")) is RuntimeError
-
-
-class TestSessionStalledRetry:
-    """A stall is a non-verdict, and is re-drawn exactly as a refusal is.
-
-    A round that lands under the floor is already retried within budget. A
-    round that lands at zero says no more about the path than that one does,
-    so it earns the same treatment — and a path that always stalls still
-    fails, once the budget is gone.
-    """
-
-    def _run(self, flow_results, clock=None):  # type: ignore[no-untyped-def]
-        calls: list[int] = []
-
-        def _measure(flow: ExternalFlow, *, duration_s: int) -> FlowThroughput:
-            calls.append(flow.port)
-            result = flow_results.pop(0)
-            if isinstance(result, Exception):
-                raise result
-            return FlowThroughput(port=flow.port, mbps=result)
-
-        ports = iter(range(5201, 5261))
-        findings = measure_external_path_until(
-            sender=MagicMock(),
-            dest_host="203.0.113.10",
-            directions=[DirectionSpec("upload", reverse=False)],
-            allocate_port=lambda: next(ports),
-            stop_when=lambda f: True,
-            budget_s=600.0,
-            measure_flow=_measure,
-            monotonic=clock or (lambda: 0.0),
-            sleep=lambda _s: None,
-        )
-        return findings, calls
-
-    def test_stalled_probe_retries_on_the_next_pool_port(self) -> None:
-        findings, calls = self._run([SessionStalledError("no result"), 1.0, 900.0])
-        assert len(findings) == 1
-        assert calls == [5201, 5202, 5203]
-
-    def test_stalled_direction_flow_retries_too(self) -> None:
-        findings, calls = self._run([1.0, SessionStalledError("no result"), 905.0])
-        assert findings[0].by_direction["upload"].mbps == pytest.approx(905.0)
-        assert calls == [5201, 5202, 5203]
-
-    def test_stalled_past_deadline_propagates(self) -> None:
-        # A path that never delivers is still a failure -- the budget bounds
-        # the re-drawing, so a genuine blackhole cannot be retried into a pass.
-        clock = iter([0.0, 700.0, 800.0, 900.0, 1000.0])
-        with pytest.raises(SessionStalledError):
-            self._run(
-                [SessionStalledError("no result"), SessionStalledError("no result")],
-                clock=lambda: next(clock),
-            )
-
-    def test_stall_and_busy_interleave_within_one_budget(self) -> None:
-        findings, calls = self._run(
-            [SessionStalledError("no result"), EndpointBusyError("busy"), 1.0, 900.0]
-        )
-        assert len(findings) == 1
-        assert calls == [5201, 5202, 5203, 5204]
-
-    def test_stall_classified_from_a_log_that_never_completes(self) -> None:
-        # No completed session AND no error document: the endpoint neither
-        # answered nor refused. That must surface as a stall, not a bare
-        # RuntimeError, or the retry above cannot see it.
-        sender = MagicMock()
-        sender.start_traffic_sender.return_value = (1234, "/tmp/iperf_client_5201.log")
-        sender.get_iperf_logs.return_value = ""
-        clock = iter([0.0, 1.0, 2.0, 999.0, 1000.0, 1001.0])
-        with pytest.raises(SessionStalledError, match="no completed client-side result"):
-            measure_external_flow(
-                ExternalFlow(sender=sender, dest_host="203.0.113.10", port=5201),
-                duration_s=1,
-                sleep=lambda _s: None,
-                monotonic=lambda: next(clock),
-            )
-
-    def test_stall_is_a_runtimeerror_for_callers_that_predate_it(self) -> None:
-        assert issubclass(SessionStalledError, RuntimeError)
-
-
-class TestEndpointAvailabilityClassification:
-    """Availability errors are re-drawn; path errors are findings and stand.
-
-    The distinction is the whole point: an endpoint that was busy or whose
-    server exited has told us about ITSELF, and a measurement must not report
-    that as the device's behaviour. An endpoint that cannot be reached may be
-    describing the device, and that must survive.
-    """
-
-    def _raise_from_log(self, error: str) -> None:
-        sender = _ext_sender(error=error)
-        measure_external_flow(
-            ExternalFlow(sender=sender, dest_host="203.0.113.10", port=5201),
-            duration_s=10,
-            sleep=lambda _s: None,
-        )
-
-    def test_terminated_server_is_an_availability_error(self) -> None:
-        # Observed live: a long-lived iperf3 server exits mid-session and the
-        # client reports this. The instrument stopped; the path did not.
-        with pytest.raises(EndpointTerminatedError):
-            self._raise_from_log("the server has terminated")
-
-    def test_busy_is_an_availability_error(self) -> None:
-        with pytest.raises(EndpointBusyError):
-            self._raise_from_log("the server is busy running a test. try again later")
-
-    def test_both_share_the_retryable_base(self) -> None:
-        assert issubclass(EndpointBusyError, EndpointUnavailableError)
-        assert issubclass(EndpointTerminatedError, EndpointUnavailableError)
-        assert issubclass(EndpointUnavailableError, RuntimeError)
-
-    def test_classification_is_case_insensitive(self) -> None:
-        with pytest.raises(EndpointTerminatedError):
-            self._raise_from_log("The Server Has Terminated")
-
-    def test_unreachable_endpoint_is_NOT_retryable(self) -> None:
-        # This one may BE the device blackholing the path. Retrying it within
-        # the budget would convert the defect we exist to find into silence.
-        with pytest.raises(RuntimeError) as exc:
-            self._raise_from_log("unable to connect to server: Connection refused")
-        assert not isinstance(exc.value, EndpointUnavailableError)
-        assert not isinstance(exc.value, SessionStalledError)
-
-    def test_access_denied_is_NOT_retryable(self) -> None:
-        with pytest.raises(RuntimeError) as exc:
-            self._raise_from_log("access denied")
-        assert not isinstance(exc.value, EndpointUnavailableError)
-
-    def test_terminated_endpoint_retries_on_the_next_pool_port(self) -> None:
-        calls: list[int] = []
-
-        def _measure(flow: ExternalFlow, *, duration_s: int) -> FlowThroughput:
-            calls.append(flow.port)
-            result = results.pop(0)
-            if isinstance(result, Exception):
-                raise result
-            return FlowThroughput(port=flow.port, mbps=result)
-
-        results: list[object] = [EndpointTerminatedError("terminated"), 1.0, 900.0]
-        ports = iter(range(5201, 5261))
-        findings = measure_external_path_until(
-            sender=MagicMock(),
-            dest_host="203.0.113.10",
-            directions=[DirectionSpec("upload", reverse=False)],
-            allocate_port=lambda: next(ports),
-            stop_when=lambda f: True,
-            budget_s=600.0,
-            measure_flow=_measure,
-            monotonic=lambda: 0.0,
-            sleep=lambda _s: None,
-        )
-        assert len(findings) == 1
-        assert calls == [5201, 5202, 5203]
+        with pytest.raises(NonCompletion):
+            self._run([nonc], retry_when=lambda f: "denied" not in f.detail)
 
 
 # --- NonCompletion -------------------------------------------------------

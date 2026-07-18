@@ -648,65 +648,44 @@ def last_session_error(log_text: str) -> str | None:
     return str(error) if error else None
 
 
-# Substrings of an iperf3 ``error`` document that describe the ENDPOINT'S
-# AVAILABILITY rather than the path. Deliberately a short, closed list: every
-# error not named here is assumed to be a statement about the path — and so a
-# possible finding about the device under test — because the cost of retrying
-# a real defect into silence is far higher than the cost of one honest failure
-# on an endpoint condition we have not met yet.
-_UNAVAILABLE_MARKERS: tuple[tuple[str, type[EndpointUnavailableError]], ...] = (
-    ("busy", EndpointBusyError),
-    ("the server has terminated", EndpointTerminatedError),
-)
-
-# Substrings of an iperf3 ``error`` document that describe a session REFUSED
-# before it measured anything — see :class:`SessionRefusedError`. Kept separate
-# from the markers above on purpose: those assert the endpoint said something
-# about itself, and a reset asserts nothing about who sent it. Equally short and
-# equally closed: an error not named here still describes the path.
-_REFUSAL_MARKERS: tuple[str, ...] = ("unable to receive control message",)
-
-
-def _classify_endpoint_error(error: str) -> RuntimeError:
-    """Map an iperf3 ``error`` document to a non-verdict, or to a finding."""
-    lowered = error.lower()
-    for marker, exc in _UNAVAILABLE_MARKERS:
-        if marker in lowered:
-            return exc(f"iperf3 endpoint session failed: {error}")
-    for marker in _REFUSAL_MARKERS:
-        if marker in lowered:
-            return SessionRefusedError(f"iperf3 endpoint session failed: {error}")
-    return RuntimeError(f"iperf3 endpoint session failed: {error}")
-
-
 def _await_client_session(
     read_log: Callable[[str], str],
     log_path: str,
     deadline: float,
     sleep: Callable[[float], None],
     monotonic: Callable[[], float],
+    port: int,
 ) -> tuple[str, float]:
-    """Poll the CLIENT log for a completed session; classify endpoint errors.
+    """Poll the CLIENT log for a completed session.
 
     The client launch truncates its own log (shell redirect), so the first
-    completed document is this session. An ``error`` document is classified by
-    what it describes — the endpoint's availability, or the path (see
-    :class:`EndpointUnavailableError`) — and a log that never completes raises
-    :class:`SessionStalledError` when *deadline* passes.
+    completed document is this session. An ``error`` document raises
+    :class:`NonCompletion` (``which_side="endpoint"``, ``what="error_document"``,
+    the raw text as ``detail``); a log that never completes raises
+    :class:`NonCompletion` (``which_side="unknown"``, ``what="no_completed_session"``)
+    when *deadline* passes. Classifying either as retryable is the caller's
+    policy, not this function's.
     """
     while True:
         text = read_log(log_path)
         error = last_session_error(text)
         if error is not None:
-            raise _classify_endpoint_error(error)
+            raise NonCompletion(
+                which_side="endpoint", what="error_document", detail=error, port=port
+            )
         if count_sessions(text) > 0:
             mbps = last_session_mbps(text)
             if mbps is not None:
                 return (text, mbps)
         if monotonic() >= deadline:
-            raise SessionStalledError(
-                f"external iperf session toward {log_path!r} produced no "
-                f"completed client-side result before the timeout"
+            raise NonCompletion(
+                which_side="unknown",
+                what="no_completed_session",
+                detail=(
+                    f"external iperf session toward {log_path!r} produced no "
+                    f"completed client-side result before the timeout"
+                ),
+                port=port,
             )
         sleep(_POLL_INTERVAL_S)
 
@@ -747,6 +726,7 @@ def measure_external_flow(
             monotonic() + result_timeout_s,
             sleep,
             monotonic,
+            flow.port,
         )
     finally:
         try:
@@ -783,6 +763,7 @@ def measure_external_path_until(
     window: str | None = None,
     on_round: Callable[[PathMeasurement], None] | None = None,
     on_retry: Callable[[Exception, int], None] | None = None,
+    retry_when: Callable[[NonCompletion], bool] | None = None,
     measure_flow: Callable[..., FlowThroughput] = measure_external_flow,
     monotonic: Callable[[], float] = time.monotonic,
     sleep: Callable[[float], None] = time.sleep,
@@ -799,41 +780,36 @@ def measure_external_path_until(
     client-side RTT observable). ``window`` likewise applies to the
     direction flows only.
 
-    A **busy** endpoint (:class:`EndpointBusyError` — the shared public
-    pool serving someone else) is retried on the NEXT allocated pool port
-    after ``busy_backoff_s``, within the same budget; any other endpoint
-    error propagates immediately.
+    A flow that does not complete raises :class:`NonCompletion` — a fact,
+    not a verdict. Before each re-draw the loop asks the caller-supplied
+    ``retry_when(exc) -> bool`` (default ``None``: never retry); only a
+    ``True`` answer, within the remaining budget, re-draws on the next
+    allocated pool port after ``busy_backoff_s``. This function classifies
+    nothing itself — whether a given non-completion is worth retrying is
+    entirely the caller's policy.
 
     ``on_retry`` — if given — is called with ``(error, abandoned_port)`` before
     each re-draw (the sibling of ``on_round``: a reporting seam, since this
     module logs nothing itself). Pass it whenever the run's record matters: a
-    silent retry loop can absorb an endpoint condition many times over and
-    leave a contended endpoint looking exactly like a quiet one afterwards.
+    silent retry loop can absorb a non-completion many times over and leave a
+    contended endpoint looking exactly like a quiet one afterwards.
     """
     deadline = monotonic() + budget_s
 
     def _flow_with_retry(build: Callable[[int], ExternalFlow], duration_s: int) -> FlowThroughput:
-        """Measure one flow, re-drawing transient non-verdicts within budget.
+        """Measure one flow, re-drawing a non-completion only if the caller says so.
 
-        An unavailable endpoint and a stalled session both mean "this round
-        observed nothing", not "the path is bad" — see the exception
-        docstrings. Every error that describes the PATH propagates at once: it
-        may be the device's behaviour, and must not be retried into silence.
-
-        Each re-draw is announced through ``on_retry`` before it is taken. A
-        re-draw absorbs a REAL endpoint condition, and absorbing it silently
-        leaves a contended endpoint and a quiet one identical in the record —
-        so a run can rely on a retry loop dozens of times and show no trace of
-        it. The seam reports the error and the ABANDONED port; a re-draw that
-        the budget refuses is not announced, because it was not absorbed — it
-        propagates and fails the caller instead.
+        The library owns the mechanics — port, backoff, budget — and asks
+        ``retry_when`` before each re-draw. It classifies nothing: a NonCompletion
+        is a fact; whether it is retryable is the caller's policy (default: never).
+        A re-draw the budget refuses is raised, not announced through ``on_retry``.
         """
         while True:
             flow = build(allocate_port())
             try:
                 return measure_flow(flow, duration_s=duration_s)
-            except (EndpointUnavailableError, SessionStalledError, SessionRefusedError) as exc:
-                if monotonic() >= deadline:
+            except NonCompletion as exc:
+                if monotonic() >= deadline or retry_when is None or not retry_when(exc):
                     raise
                 if on_retry is not None:
                     on_retry(exc, flow.port)
