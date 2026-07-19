@@ -215,6 +215,7 @@ class TestMeasureConcurrentThroughput:
             time: int,
             bandwidth: int | None = None,
             reverse: bool = False,
+            parallel: int | None = None,
             omit_s: int | None = None,
             json_output: bool = False,
             window: str | None = None,
@@ -367,6 +368,26 @@ class TestSenderOptionsAndRtt:
         )
         measure_concurrent_throughput([flow], duration_s=10, sleep=lambda _s: None)
         assert sender.start_traffic_sender.call_args.kwargs["window"] == "8M"
+
+    def test_parallel_passed_to_the_sender(self) -> None:
+        # N parallel streams (-P): decorrelates single-flow loss events on
+        # queue-limited paths; iperf3 reports ONE aggregate summary, which is
+        # what every parser here already reads.
+        base, sender, _ = _flow(5301, mbps=5.0)
+        flow = ThroughputFlow(
+            sender=base.sender,
+            receiver=base.receiver,
+            dest_host=base.dest_host,
+            port=base.port,
+            parallel=5,
+        )
+        measure_concurrent_throughput([flow], duration_s=10, sleep=lambda _s: None)
+        assert sender.start_traffic_sender.call_args.kwargs["parallel"] == 5
+
+    def test_default_flow_sends_a_single_stream(self) -> None:
+        flow, sender, _ = _flow(5301, mbps=5.0)
+        measure_concurrent_throughput([flow], duration_s=10, sleep=lambda _s: None)
+        assert sender.start_traffic_sender.call_args.kwargs["parallel"] is None
 
     def test_forward_flow_rtt_comes_from_the_senders_own_log(self) -> None:
         # Live-diagnosed 2026-07-06: the server-side log carries NO sender RTT

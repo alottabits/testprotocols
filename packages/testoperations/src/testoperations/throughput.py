@@ -63,6 +63,11 @@ class ThroughputFlow:
     for receive-window autotuning stalls on high-BDP paths. ``None`` keeps
     autotuning. The effective value is capped by ``net.core.rmem_max`` /
     ``wmem_max`` on the endpoint hosts.
+
+    ``parallel`` runs the session over N parallel streams (iperf3 ``-P``),
+    whose end-of-test summaries aggregate into ONE reported rate — the
+    aggregate stream is what the log parsers read, exactly as on
+    :class:`ExternalFlow`. ``None`` runs a single stream.
     """
 
     sender: IperfClient
@@ -72,6 +77,7 @@ class ThroughputFlow:
     reverse: bool = False
     omit_s: int = 0
     bandwidth_mbps: int | None = None
+    parallel: int | None = None
     window: str | None = None
 
 
@@ -300,6 +306,7 @@ def measure_concurrent_throughput(
                 bandwidth=flow.bandwidth_mbps,
                 time=duration_s,
                 reverse=flow.reverse,
+                parallel=flow.parallel,
                 omit_s=flow.omit_s or None,
                 # The sender's own log must be JSON: a forward flow's RTT
                 # lives ONLY in the data-sending (client) side's output —
