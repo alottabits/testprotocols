@@ -555,6 +555,26 @@ class TestMeasureOneDirection:
         )
         assert [f.window for f in captured] == ["8M"]
 
+    def test_parallel_threaded_into_the_flow(self) -> None:
+        captured: list[ThroughputFlow] = []
+
+        def fake_measure(flows, *, duration_s):  # type: ignore[no-untyped-def]
+            captured.extend(flows)
+            return [FlowThroughput(port=f.port, mbps=1.0) for f in flows]
+
+        measure_one_direction(
+            MagicMock(),
+            MagicMock(),
+            "10.0.0.9",
+            5401,
+            reverse=False,
+            parallel=5,
+            window="1M",
+            measure=fake_measure,
+        )
+        assert captured[0].parallel == 5
+        assert captured[0].window == "1M"
+
 
 def _ports_from(start: int = 5401):
     counter = iter(range(start, start + 1000))
@@ -670,6 +690,15 @@ class TestMeasurePathUntil:
         assert probe.bandwidth_mbps == DEFAULT_PROBE_RATE_MBPS
         assert probe.window is None  # probes stay unpinned
         assert direction.window == "8M"  # saturating flows are pinned
+
+    def test_parallel_applies_to_direction_flows_only(self) -> None:
+        measure, calls = _fake_measure()
+        self._run(lambda _rounds: True, measure=measure, parallel=5, window="1M")
+        flows = [flow for flow, _ in calls]
+        # round shape: probe, upload, download
+        assert flows[0].parallel is None and flows[0].window is None
+        assert [f.parallel for f in flows[1:]] == [5, 5]
+        assert [f.window for f in flows[1:]] == ["1M", "1M"]
 
 
 # --- external-endpoint measurement (client-log-only) ----------------------------

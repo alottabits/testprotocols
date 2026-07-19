@@ -479,6 +479,7 @@ def measure_one_direction(
     duration_s: int = DEFAULT_MEASURE_DURATION_S,
     omit_s: int = 0,
     window: str | None = None,
+    parallel: int | None = None,
     measure: Callable[..., list[FlowThroughput]] = measure_concurrent_throughput,
 ) -> FlowThroughput:
     """Measure a single saturating flow in one direction (forward or reverse).
@@ -488,6 +489,7 @@ def measure_one_direction(
     (a download). The reported rate is receive-side goodput either way.
 
     ``window`` pins the flow's socket buffers (see :class:`ThroughputFlow`).
+    ``parallel`` runs the flow over N parallel streams (see :class:`ThroughputFlow`).
     """
     flow = ThroughputFlow(
         sender=sender,
@@ -497,6 +499,7 @@ def measure_one_direction(
         reverse=reverse,
         omit_s=omit_s,
         window=window,
+        parallel=parallel,
     )
     (result,) = measure([flow], duration_s=duration_s)
     return result
@@ -809,6 +812,7 @@ def measure_path_until(
     measure_duration_s: int = DEFAULT_MEASURE_DURATION_S,
     omit_s: int = 0,
     window: str | None = None,
+    parallel: int | None = None,
     on_round: Callable[[PathMeasurement], None] | None = None,
     measure: Callable[..., list[FlowThroughput]] = measure_concurrent_throughput,
     monotonic: Callable[[], float] = time.monotonic,
@@ -828,9 +832,9 @@ def measure_path_until(
     loop also stops when ``budget_s`` lapses. ``stop_when`` MAY raise to signal a
     terminal, non-retryable condition; that exception propagates without a retry.
 
-    ``window`` applies to the saturating direction flows only; the unloaded
-    RTT probe never pins buffers (it must not saturate, so autotuning is
-    irrelevant and the probe stays representative of the idle path).
+    ``window`` and ``parallel`` apply to the saturating direction flows
+    only; the unloaded RTT probe never pins buffers or multiplies streams
+    (it must not saturate, so it stays representative of the idle path).
 
     Returns every round's findings in order — never a verdict. Whether those
     findings are acceptable (settled, marginal, or a failure) is entirely the
@@ -861,6 +865,7 @@ def measure_path_until(
                 duration_s=measure_duration_s,
                 omit_s=omit_s,
                 window=window,
+                parallel=parallel,
                 measure=measure,
             )
         facts = PathMeasurement(
