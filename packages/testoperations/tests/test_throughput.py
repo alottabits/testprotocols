@@ -15,6 +15,7 @@ from testoperations.throughput import (
     NonCompletion,
     PathMeasurement,
     ThroughputFlow,
+    _probe_flow,
     count_sessions,
     iter_json_docs,
     last_session_error,
@@ -530,6 +531,34 @@ class TestMeasurePathRtt:
         assert flow.bandwidth_mbps == 2 and flow.port == 5401 and duration_s == 4
         assert flow.reverse is False and flow.dest_host == "10.0.0.9"
 
+    def test_probe_flow_returns_the_whole_measurement(self) -> None:
+        # The round engine needs the probe as a FlowThroughput, not a tuple;
+        # measure_path_rtt is the tuple-returning view of the same call.
+        measure, _calls = _fake_measure(probe=(0.7, 0.9))
+        got = _probe_flow(MagicMock(), MagicMock(), "10.0.0.9", 5401, rate_mbps=2, measure=measure)
+        assert isinstance(got, FlowThroughput)
+        assert got.port == 5401
+        assert (got.min_rtt_ms, got.mean_rtt_ms) == (0.7, 0.9)
+
+    def test_pacing_reaches_the_measurement_call(self) -> None:
+        captured: list[dict[str, object]] = []
+
+        def _measure(flows, **kw):  # type: ignore[no-untyped-def]
+            captured.append(kw)
+            return [FlowThroughput(port=f.port, mbps=1.0) for f in flows]
+
+        measure_path_rtt(
+            MagicMock(),
+            MagicMock(),
+            "10.0.0.9",
+            5401,
+            result_timeout_s=45.0,
+            poll_interval_s=0.25,
+            measure=_measure,
+        )
+        assert captured[0]["result_timeout_s"] == 45.0
+        assert captured[0]["poll_interval_s"] == 0.25
+
 
 class TestMeasureOneDirection:
     def test_forward_flow_shape(self) -> None:
@@ -578,7 +607,7 @@ class TestMeasureOneDirection:
     def test_parallel_threaded_into_the_flow(self) -> None:
         captured: list[ThroughputFlow] = []
 
-        def fake_measure(flows, *, duration_s):  # type: ignore[no-untyped-def]
+        def fake_measure(flows, *, duration_s, **_kw):  # type: ignore[no-untyped-def]
             captured.extend(flows)
             return [FlowThroughput(port=f.port, mbps=1.0) for f in flows]
 
@@ -594,6 +623,26 @@ class TestMeasureOneDirection:
         )
         assert captured[0].parallel == 5
         assert captured[0].window == "1M"
+
+    def test_pacing_reaches_the_measurement_call(self) -> None:
+        captured: list[dict[str, object]] = []
+
+        def _measure(flows, **kw):  # type: ignore[no-untyped-def]
+            captured.append(kw)
+            return [FlowThroughput(port=f.port, mbps=1.0) for f in flows]
+
+        measure_one_direction(
+            MagicMock(),
+            MagicMock(),
+            "10.0.0.9",
+            5402,
+            reverse=False,
+            result_timeout_s=45.0,
+            poll_interval_s=0.25,
+            measure=_measure,
+        )
+        assert captured[0]["result_timeout_s"] == 45.0
+        assert captured[0]["poll_interval_s"] == 0.25
 
 
 def _ports_from(start: int = 5401):

@@ -458,7 +458,7 @@ class PathMeasurement:
     by_direction: dict[str, FlowThroughput]
 
 
-def measure_path_rtt(
+def _probe_flow(
     sender: IperfClient,
     receiver: IperfServer,
     dest_host: str,
@@ -466,14 +466,17 @@ def measure_path_rtt(
     *,
     rate_mbps: int = DEFAULT_PROBE_RATE_MBPS,
     duration_s: int = DEFAULT_PROBE_DURATION_S,
+    result_timeout_s: float = DEFAULT_RESULT_TIMEOUT_S,
+    poll_interval_s: float = DEFAULT_POLL_INTERVAL_S,
     measure: Callable[..., list[FlowThroughput]] = measure_concurrent_throughput,
-) -> tuple[float | None, float | None]:
-    """The path's unloaded ``(min, mean)`` RTT via one rate-capped probe flow.
+) -> FlowThroughput:
+    """One rate-capped probe flow's facts.
 
-    The flow is capped far below the path's capacity (``rate_mbps``) so it never
+    The flow is capped far below the path's capacity (*rate_mbps*) so it never
     builds a bottleneck queue — its RTT reads the idle path, not the standing
-    queue a saturating flow keeps. Returns the probe's ``(min_rtt_ms,
-    mean_rtt_ms)`` pair (both-or-neither, per :func:`last_session_rtt_ms`).
+    queue a saturating flow keeps. The probe is deliberately never pinned to a
+    socket-buffer size and never multiplied into parallel streams: either would
+    let it saturate, and an unloaded reading is the whole point.
     """
     flow = ThroughputFlow(
         sender=sender,
@@ -482,7 +485,43 @@ def measure_path_rtt(
         port=port,
         bandwidth_mbps=rate_mbps,
     )
-    (result,) = measure([flow], duration_s=duration_s)
+    (result,) = measure(
+        [flow],
+        duration_s=duration_s,
+        result_timeout_s=result_timeout_s,
+        poll_interval_s=poll_interval_s,
+    )
+    return result
+
+
+def measure_path_rtt(
+    sender: IperfClient,
+    receiver: IperfServer,
+    dest_host: str,
+    port: int,
+    *,
+    rate_mbps: int = DEFAULT_PROBE_RATE_MBPS,
+    duration_s: int = DEFAULT_PROBE_DURATION_S,
+    result_timeout_s: float = DEFAULT_RESULT_TIMEOUT_S,
+    poll_interval_s: float = DEFAULT_POLL_INTERVAL_S,
+    measure: Callable[..., list[FlowThroughput]] = measure_concurrent_throughput,
+) -> tuple[float | None, float | None]:
+    """The path's unloaded ``(min, mean)`` RTT via one rate-capped probe flow.
+
+    The ``(min_rtt_ms, mean_rtt_ms)`` view of :func:`_probe_flow` (both-or-
+    neither, per :func:`last_session_rtt_ms`).
+    """
+    result = _probe_flow(
+        sender,
+        receiver,
+        dest_host,
+        port,
+        rate_mbps=rate_mbps,
+        duration_s=duration_s,
+        result_timeout_s=result_timeout_s,
+        poll_interval_s=poll_interval_s,
+        measure=measure,
+    )
     return result.min_rtt_ms, result.mean_rtt_ms
 
 
@@ -497,6 +536,8 @@ def measure_one_direction(
     omit_s: int = 0,
     window: str | None = None,
     parallel: int | None = None,
+    result_timeout_s: float = DEFAULT_RESULT_TIMEOUT_S,
+    poll_interval_s: float = DEFAULT_POLL_INTERVAL_S,
     measure: Callable[..., list[FlowThroughput]] = measure_concurrent_throughput,
 ) -> FlowThroughput:
     """Measure a single saturating flow in one direction (forward or reverse).
@@ -518,7 +559,12 @@ def measure_one_direction(
         window=window,
         parallel=parallel,
     )
-    (result,) = measure([flow], duration_s=duration_s)
+    (result,) = measure(
+        [flow],
+        duration_s=duration_s,
+        result_timeout_s=result_timeout_s,
+        poll_interval_s=poll_interval_s,
+    )
     return result
 
 
