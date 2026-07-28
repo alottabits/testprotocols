@@ -8,6 +8,7 @@ from unittest.mock import MagicMock
 
 import pytest
 from testoperations.throughput import (
+    DEFAULT_BUSY_BACKOFF_S,
     DEFAULT_PROBE_RATE_MBPS,
     DirectionSpec,
     ExternalFlow,
@@ -1131,6 +1132,83 @@ class TestExternalRetryWhen:
         )
         with pytest.raises(NonCompletion):
             self._run([nonc], retry_when=lambda f: "denied" not in f.detail)
+
+
+class TestInternalRetryWhen:
+    """The sink-path mirror of TestExternalRetryWhen: same seam, same mechanics.
+
+    The DEFAULT policy differs and should — a local receiver no-show is testbed
+    territory, not a busy public endpoint — but the seam is now identical, so a
+    caller can treat both branches uniformly.
+    """
+
+    def _run(self, flow_results, retry_when, on_retry=None, clock=None, sleep=None):  # type: ignore[no-untyped-def]
+        calls: list[int] = []
+
+        def _measure(flows, **_kw):  # type: ignore[no-untyped-def]
+            (flow,) = flows
+            calls.append(flow.port)
+            r = flow_results.pop(0)
+            if isinstance(r, Exception):
+                raise r
+            return [FlowThroughput(port=flow.port, mbps=r)]
+
+        findings = measure_path_until(
+            sender=MagicMock(),
+            receiver=MagicMock(),
+            dest_host="10.0.0.9",
+            directions=[DirectionSpec("upload", reverse=False)],
+            allocate_port=_ports_from(),
+            stop_when=lambda f: True,
+            budget_s=600.0,
+            measure=_measure,
+            monotonic=clock or (lambda: 0.0),
+            sleep=sleep or (lambda _s: None),
+            retry_when=retry_when,
+            on_retry=on_retry,
+        )
+        return findings, calls
+
+    def _nonc(self) -> NonCompletion:
+        return NonCompletion(
+            which_side="local_receiver",
+            what="no_completed_session",
+            detail="receiver produced no completed session",
+            port=0,
+        )
+
+    def test_predicate_true_redraws_on_next_port(self) -> None:
+        _, calls = self._run([self._nonc(), 1.0, 900.0], retry_when=lambda f: True)
+        assert calls == [5401, 5402, 5403]  # abandoned probe, probe, direction
+
+    def test_predicate_false_raises_immediately(self) -> None:
+        with pytest.raises(NonCompletion):
+            self._run([self._nonc()], retry_when=lambda f: False)
+
+    def test_default_none_never_retries(self) -> None:
+        # The internal chain's default policy: a local receiver no-show is a
+        # testbed defect the caller should see, not something to absorb.
+        with pytest.raises(NonCompletion):
+            self._run([self._nonc()], retry_when=None)
+
+    def test_on_retry_receives_the_abandoned_port(self) -> None:
+        seen: list[int] = []
+        self._run(
+            [self._nonc(), 1.0, 900.0],
+            retry_when=lambda f: True,
+            on_retry=lambda exc, port: seen.append(port),
+        )
+        assert seen == [5401]
+
+    def test_budget_exhaustion_raises_even_if_predicate_says_yes(self) -> None:
+        clock = iter([0.0, 700.0])
+        with pytest.raises(NonCompletion):
+            self._run([self._nonc()], retry_when=lambda f: True, clock=lambda: next(clock))
+
+    def test_backoff_pauses_before_the_redraw(self) -> None:
+        slept: list[float] = []
+        self._run([self._nonc(), 1.0, 900.0], retry_when=lambda f: True, sleep=slept.append)
+        assert slept == [DEFAULT_BUSY_BACKOFF_S]
 
 
 # --- NonCompletion -------------------------------------------------------

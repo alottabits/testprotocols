@@ -938,8 +938,14 @@ def measure_path_until(
     window: str | None = None,
     parallel: int | None = None,
     on_round: Callable[[PathMeasurement], None] | None = None,
+    on_retry: Callable[[Exception, int], None] | None = None,
+    retry_when: Callable[[NonCompletion], bool] | None = None,
     measure: Callable[..., list[FlowThroughput]] = measure_concurrent_throughput,
     monotonic: Callable[[], float] = time.monotonic,
+    sleep: Callable[[float], None] = time.sleep,
+    busy_backoff_s: float = DEFAULT_BUSY_BACKOFF_S,
+    result_timeout_s: float = DEFAULT_RESULT_TIMEOUT_S,
+    poll_interval_s: float = DEFAULT_POLL_INTERVAL_S,
 ) -> list[PathMeasurement]:
     """Measure probe+directions rounds until *stop_when* or *budget_s*; report all.
 
@@ -960,45 +966,61 @@ def measure_path_until(
     only; the unloaded RTT probe never pins buffers or multiplies streams
     (it must not saturate, so it stays representative of the idle path).
 
+    A flow that does not complete raises :class:`NonCompletion`. Before each
+    re-draw the loop asks ``retry_when(exc) -> bool``, exactly as the endpoint
+    loop does — the seam is identical so a caller can treat both branches
+    uniformly. The DEFAULT here is ``None``: never retry. That default is
+    deliberate and differs from what an endpoint caller typically wants: the
+    receiver is our own rig, so a no-show is a testbed defect the caller should
+    see, not contention to absorb. A predicate supplied here must never
+    converge on the very observable the caller is asserting — a stuck condition
+    is a defect the test exists to catch, and absorbing it hides the signal.
+
     Returns every round's findings in order — never a verdict. Whether those
     findings are acceptable (settled, marginal, or a failure) is entirely the
     caller's decision. Operational failures from the underlying measurement
     (duplicate ports, a receiver that never completes) propagate as they do from
     :func:`measure_concurrent_throughput`.
     """
-    deadline = monotonic() + budget_s
-    findings: list[PathMeasurement] = []
-    while True:
-        probe_min, probe_mean = measure_path_rtt(
-            sender,
-            receiver,
-            dest_host,
-            allocate_port(),
-            rate_mbps=probe_rate_mbps,
-            duration_s=probe_duration_s,
-            measure=measure,
-        )
-        by_direction: dict[str, FlowThroughput] = {}
-        for spec in directions:
-            by_direction[spec.name] = measure_one_direction(
+
+    def _flow(port: int, spec: DirectionSpec | None) -> FlowThroughput:
+        if spec is None:
+            return _probe_flow(
                 sender,
                 receiver,
                 dest_host,
-                allocate_port(),
-                reverse=spec.reverse,
-                duration_s=measure_duration_s,
-                omit_s=omit_s,
-                window=window,
-                parallel=parallel,
+                port,
+                rate_mbps=probe_rate_mbps,
+                duration_s=probe_duration_s,
+                result_timeout_s=result_timeout_s,
+                poll_interval_s=poll_interval_s,
                 measure=measure,
             )
-        facts = PathMeasurement(
-            probe_min_rtt_ms=probe_min,
-            probe_mean_rtt_ms=probe_mean,
-            by_direction=by_direction,
+        return measure_one_direction(
+            sender,
+            receiver,
+            dest_host,
+            port,
+            reverse=spec.reverse,
+            duration_s=measure_duration_s,
+            omit_s=omit_s,
+            window=window,
+            parallel=parallel,
+            result_timeout_s=result_timeout_s,
+            poll_interval_s=poll_interval_s,
+            measure=measure,
         )
-        findings.append(facts)
-        if on_round is not None:
-            on_round(facts)
-        if stop_when(findings) or monotonic() >= deadline:
-            return findings
+
+    return _measure_rounds(
+        measure_flow=_flow,
+        directions=directions,
+        allocate_port=allocate_port,
+        stop_when=stop_when,
+        budget_s=budget_s,
+        on_round=on_round,
+        on_retry=on_retry,
+        retry_when=retry_when,
+        busy_backoff_s=busy_backoff_s,
+        monotonic=monotonic,
+        sleep=sleep,
+    )
