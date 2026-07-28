@@ -935,7 +935,7 @@ class TestMeasureExternalPathUntil:
     ) -> tuple[list[PathMeasurement], list[ExternalFlow]]:
         captured: list[ExternalFlow] = []
 
-        def _measure(flow: ExternalFlow, *, duration_s: int) -> FlowThroughput:
+        def _measure(flow: ExternalFlow, *, duration_s: int, **_kw: object) -> FlowThroughput:
             captured.append(flow)
             rtt = (0.5, 0.7) if flow.bandwidth_mbps else (None, None)
             return FlowThroughput(port=flow.port, mbps=930.0, min_rtt_ms=rtt[0], mean_rtt_ms=rtt[1])
@@ -986,7 +986,7 @@ class TestMeasureExternalPathUntil:
         clock = iter([0.0, 700.0, 800.0, 900.0])
         captured: list[ExternalFlow] = []
 
-        def _measure(flow: ExternalFlow, *, duration_s: int) -> FlowThroughput:
+        def _measure(flow: ExternalFlow, *, duration_s: int, **_kw: object) -> FlowThroughput:
             captured.append(flow)
             return FlowThroughput(port=flow.port, mbps=100.0)
 
@@ -1013,6 +1013,29 @@ class TestMeasureExternalPathUntil:
         with pytest.raises(AssertionError, match="terminal condition"):
             self._run(_stop, on_round=seen.append)
         assert len(seen) == 2
+
+    def test_pacing_reaches_the_flow_measurement(self) -> None:
+        captured: list[dict[str, object]] = []
+
+        def _measure(flow, **kw):  # type: ignore[no-untyped-def]
+            captured.append(kw)
+            return FlowThroughput(port=flow.port, mbps=100.0)
+
+        ports = iter(range(5201, 5261))
+        measure_external_path_until(
+            sender=MagicMock(),
+            dest_host="203.0.113.10",
+            directions=[DirectionSpec("upload", reverse=False)],
+            allocate_port=lambda: next(ports),
+            stop_when=lambda f: True,
+            budget_s=600.0,
+            result_timeout_s=45.0,
+            poll_interval_s=0.25,
+            measure_flow=_measure,
+        )
+        # Probe and direction alike carry the caller's pacing.
+        assert [kw["result_timeout_s"] for kw in captured] == [45.0, 45.0]
+        assert [kw["poll_interval_s"] for kw in captured] == [0.25, 0.25]
 
 
 class TestExternalFlowNonCompletion:
@@ -1047,7 +1070,7 @@ class TestExternalRetryWhen:
     def _run(self, flow_results, retry_when, on_retry=None, clock=None):  # type: ignore[no-untyped-def]
         calls: list[int] = []
 
-        def _measure(flow, *, duration_s):
+        def _measure(flow, *, duration_s, **_kw):
             calls.append(flow.port)
             r = flow_results.pop(0)
             if isinstance(r, Exception):

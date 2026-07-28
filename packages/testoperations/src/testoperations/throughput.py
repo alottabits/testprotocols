@@ -761,6 +761,77 @@ def measure_external_flow(
     )
 
 
+def _measure_rounds(
+    *,
+    measure_flow: Callable[[int, DirectionSpec | None], FlowThroughput],
+    directions: Sequence[DirectionSpec],
+    allocate_port: Callable[[], int],
+    stop_when: Callable[[list[PathMeasurement]], bool],
+    budget_s: float,
+    on_round: Callable[[PathMeasurement], None] | None,
+    on_retry: Callable[[Exception, int], None] | None,
+    retry_when: Callable[[NonCompletion], bool] | None,
+    busy_backoff_s: float,
+    monotonic: Callable[[], float],
+    sleep: Callable[[float], None],
+) -> list[PathMeasurement]:
+    """Repeat probe+directions rounds until *stop_when* or *budget_s*; report all.
+
+    The round loop both rated-path measurements share. *measure_flow* produces
+    one flow's facts on the given port; ``spec is None`` asks for the unloaded
+    probe, any other value for that direction's saturating flow. Everything
+    that differs between a testbed-managed path and an unmanaged endpoint —
+    how the flow is built, which side the evidence is read from — stays behind
+    that callable, so this function never names a flow type.
+
+    It is a MECHANIC and decides nothing. When to stop is *stop_when*'s; how
+    long at most is *budget_s*'s; whether a :class:`NonCompletion` is worth
+    another attempt is *retry_when*'s (``None`` — the default — never retries);
+    what reaches a log is *on_round*'s and *on_retry*'s. Only ``NonCompletion``
+    is caught: anything else, including a *stop_when* that raises to signal a
+    terminal condition, propagates untouched.
+
+    The clock is drawn exactly once to set the deadline and once per round in
+    the post-round check (which short-circuits when *stop_when* is satisfied);
+    a completing flow never draws it. Callers inject fake clocks that depend on
+    this.
+    """
+    deadline = monotonic() + budget_s
+
+    def _attempt(spec: DirectionSpec | None) -> FlowThroughput:
+        """Measure one flow, re-drawing a non-completion only if the caller says so.
+
+        The port is drawn per attempt, so a re-draw never reuses the abandoned
+        one. A re-draw the budget refuses is raised, not announced through
+        *on_retry*.
+        """
+        while True:
+            port = allocate_port()
+            try:
+                return measure_flow(port, spec)
+            except NonCompletion as exc:
+                if monotonic() >= deadline or retry_when is None or not retry_when(exc):
+                    raise
+                if on_retry is not None:
+                    on_retry(exc, port)
+                sleep(busy_backoff_s)
+
+    findings: list[PathMeasurement] = []
+    while True:
+        probe = _attempt(None)
+        by_direction = {spec.name: _attempt(spec) for spec in directions}
+        facts = PathMeasurement(
+            probe_min_rtt_ms=probe.min_rtt_ms,
+            probe_mean_rtt_ms=probe.mean_rtt_ms,
+            by_direction=by_direction,
+        )
+        findings.append(facts)
+        if on_round is not None:
+            on_round(facts)
+        if stop_when(findings) or monotonic() >= deadline:
+            return findings
+
+
 def measure_external_path_until(
     *,
     sender: IperfClient,
@@ -781,26 +852,25 @@ def measure_external_path_until(
     measure_flow: Callable[..., FlowThroughput] = measure_external_flow,
     monotonic: Callable[[], float] = time.monotonic,
     sleep: Callable[[float], None] = time.sleep,
-    busy_backoff_s: float = 5.0,
+    busy_backoff_s: float = DEFAULT_BUSY_BACKOFF_S,
+    result_timeout_s: float = DEFAULT_RESULT_TIMEOUT_S,
+    poll_interval_s: float = DEFAULT_POLL_INTERVAL_S,
 ) -> list[PathMeasurement]:
     """The :func:`measure_path_until` loop against an unmanaged endpoint.
 
     Identical framing and caller contract — one unloaded forward RTT probe,
     then each direction measured sequentially, rounds repeating until
     *stop_when* or *budget_s* — with every flow client-driven
-    (:func:`measure_external_flow`). ``parallel`` applies to the saturating
-    direction flows only; the probe is always a single rate-capped stream
-    (it must not saturate, and its forward direction is what makes the
-    client-side RTT observable). ``window`` likewise applies to the
-    direction flows only.
+    (:func:`measure_external_flow`). ``parallel`` and ``window`` apply to the
+    saturating direction flows only; the probe is always a single unpinned
+    rate-capped stream (it must not saturate, and its forward direction is what
+    makes the client-side RTT observable).
 
-    A flow that does not complete raises :class:`NonCompletion` — a fact,
-    not a verdict. Before each re-draw the loop asks the caller-supplied
-    ``retry_when(exc) -> bool`` (default ``None``: never retry); only a
-    ``True`` answer, within the remaining budget, re-draws on the next
-    allocated pool port after ``busy_backoff_s``. This function classifies
-    nothing itself — whether a given non-completion is worth retrying is
-    entirely the caller's policy.
+    A flow that does not complete raises :class:`NonCompletion` — a fact, not a
+    verdict. Before each re-draw the loop asks the caller-supplied
+    ``retry_when(exc) -> bool`` (default ``None``: never retry); only a ``True``
+    answer, within the remaining budget, re-draws on the next allocated pool
+    port after ``busy_backoff_s``. This function classifies nothing itself.
 
     ``on_retry`` — if given — is called with ``(error, abandoned_port)`` before
     each re-draw (the sibling of ``on_round``: a reporting seam, since this
@@ -808,63 +878,48 @@ def measure_external_path_until(
     silent retry loop can absorb a non-completion many times over and leave a
     contended endpoint looking exactly like a quiet one afterwards.
     """
-    deadline = monotonic() + budget_s
 
-    def _flow_with_retry(build: Callable[[int], ExternalFlow], duration_s: int) -> FlowThroughput:
-        """Measure one flow, re-drawing a non-completion only if the caller says so.
-
-        The library owns the mechanics — port, backoff, budget — and asks
-        ``retry_when`` before each re-draw. It classifies nothing: a NonCompletion
-        is a fact; whether it is retryable is the caller's policy (default: never).
-        A re-draw the budget refuses is raised, not announced through ``on_retry``.
-        """
-        while True:
-            flow = build(allocate_port())
-            try:
-                return measure_flow(flow, duration_s=duration_s)
-            except NonCompletion as exc:
-                if monotonic() >= deadline or retry_when is None or not retry_when(exc):
-                    raise
-                if on_retry is not None:
-                    on_retry(exc, flow.port)
-                sleep(busy_backoff_s)
-
-    findings: list[PathMeasurement] = []
-    while True:
-        probe = _flow_with_retry(
-            lambda port: ExternalFlow(
-                sender=sender,
-                dest_host=dest_host,
-                port=port,
-                bandwidth_mbps=probe_rate_mbps,
-            ),
-            probe_duration_s,
-        )
-        by_direction: dict[str, FlowThroughput] = {}
-        for spec in directions:
-
-            def _direction_flow(port: int, spec: DirectionSpec = spec) -> ExternalFlow:
-                return ExternalFlow(
+    def _flow(port: int, spec: DirectionSpec | None) -> FlowThroughput:
+        if spec is None:
+            return measure_flow(
+                ExternalFlow(
                     sender=sender,
                     dest_host=dest_host,
                     port=port,
-                    reverse=spec.reverse,
-                    parallel=parallel,
-                    omit_s=omit_s,
-                    window=window,
-                )
-
-            by_direction[spec.name] = _flow_with_retry(_direction_flow, measure_duration_s)
-        facts = PathMeasurement(
-            probe_min_rtt_ms=probe.min_rtt_ms,
-            probe_mean_rtt_ms=probe.mean_rtt_ms,
-            by_direction=by_direction,
+                    bandwidth_mbps=probe_rate_mbps,
+                ),
+                duration_s=probe_duration_s,
+                result_timeout_s=result_timeout_s,
+                poll_interval_s=poll_interval_s,
+            )
+        return measure_flow(
+            ExternalFlow(
+                sender=sender,
+                dest_host=dest_host,
+                port=port,
+                reverse=spec.reverse,
+                parallel=parallel,
+                omit_s=omit_s,
+                window=window,
+            ),
+            duration_s=measure_duration_s,
+            result_timeout_s=result_timeout_s,
+            poll_interval_s=poll_interval_s,
         )
-        findings.append(facts)
-        if on_round is not None:
-            on_round(facts)
-        if stop_when(findings) or monotonic() >= deadline:
-            return findings
+
+    return _measure_rounds(
+        measure_flow=_flow,
+        directions=directions,
+        allocate_port=allocate_port,
+        stop_when=stop_when,
+        budget_s=budget_s,
+        on_round=on_round,
+        on_retry=on_retry,
+        retry_when=retry_when,
+        busy_backoff_s=busy_backoff_s,
+        monotonic=monotonic,
+        sleep=sleep,
+    )
 
 
 def measure_path_until(
