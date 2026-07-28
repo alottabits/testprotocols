@@ -1257,3 +1257,153 @@ class TestNonCompletion:
         assert f.what == "error_document"
         assert f.port == 5201
         assert "busy running a test" in str(f)  # detail survives into the message
+
+
+# --- both chains, one engine ------------------------------------------------
+#
+# Every assertion below runs against BOTH loop entry points through one body.
+# They share a round engine, so any behaviour that diverges here is a
+# regression in the harmonization, not a difference the two paths are entitled
+# to. Each adapter normalizes its chain's flow into the same recorded shape.
+
+
+def _internal_chain(**kw):  # type: ignore[no-untyped-def]
+    recorded: list[dict[str, object]] = []
+
+    def _measure(flows, **_kw):  # type: ignore[no-untyped-def]
+        (flow,) = flows
+        recorded.append(
+            {"port": flow.port, "capped": flow.bandwidth_mbps is not None, "rev": flow.reverse}
+        )
+        return [FlowThroughput(port=flow.port, mbps=100.0, min_rtt_ms=0.5, mean_rtt_ms=0.6)]
+
+    findings = measure_path_until(
+        sender=MagicMock(),
+        receiver=MagicMock(),
+        dest_host="10.0.0.9",
+        measure=_measure,
+        **kw,
+    )
+    return findings, recorded
+
+
+def _external_chain(**kw):  # type: ignore[no-untyped-def]
+    recorded: list[dict[str, object]] = []
+
+    def _measure_flow(flow, **_kw):  # type: ignore[no-untyped-def]
+        recorded.append(
+            {"port": flow.port, "capped": flow.bandwidth_mbps is not None, "rev": flow.reverse}
+        )
+        return FlowThroughput(port=flow.port, mbps=100.0, min_rtt_ms=0.5, mean_rtt_ms=0.6)
+
+    findings = measure_external_path_until(
+        sender=MagicMock(),
+        dest_host="203.0.113.10",
+        measure_flow=_measure_flow,
+        **kw,
+    )
+    return findings, recorded
+
+
+both_chains = pytest.mark.parametrize(
+    "chain", [_internal_chain, _external_chain], ids=["internal", "external"]
+)
+
+_TWO_WAY = [DirectionSpec("upload", reverse=False), DirectionSpec("download", reverse=True)]
+
+
+class TestBothChainsShareOneEngine:
+    @both_chains
+    def test_round_is_probe_then_each_direction_on_a_fresh_port(self, chain) -> None:  # type: ignore[no-untyped-def]
+        findings, recorded = chain(
+            directions=_TWO_WAY,
+            allocate_port=_ports_from(),
+            stop_when=lambda f: True,
+            budget_s=180.0,
+            monotonic=lambda: 0.0,
+        )
+        assert len(findings) == 1
+        assert [r["capped"] for r in recorded] == [True, False, False]  # probe first
+        assert [r["rev"] for r in recorded] == [False, False, True]  # then each direction
+        assert len({r["port"] for r in recorded}) == 3  # every flow drew its own port
+        assert set(findings[0].by_direction) == {"upload", "download"}
+        assert findings[0].probe_min_rtt_ms == pytest.approx(0.5)
+
+    @both_chains
+    def test_on_round_sees_every_round_in_order_and_returns_the_same_objects(self, chain) -> None:  # type: ignore[no-untyped-def]
+        seen: list[PathMeasurement] = []
+        findings, _ = chain(
+            directions=_TWO_WAY,
+            allocate_port=_ports_from(),
+            stop_when=lambda f: len(f) >= 3,
+            budget_s=1000.0,
+            monotonic=lambda: 0.0,
+            on_round=seen.append,
+        )
+        assert len(seen) == 3
+        assert seen == findings
+
+    @both_chains
+    def test_stop_when_receives_the_growing_findings_list(self, chain) -> None:  # type: ignore[no-untyped-def]
+        lengths: list[int] = []
+
+        def _stop(rounds: list[PathMeasurement]) -> bool:
+            lengths.append(len(rounds))
+            return len(rounds) >= 3
+
+        chain(
+            directions=_TWO_WAY,
+            allocate_port=_ports_from(),
+            stop_when=_stop,
+            budget_s=1000.0,
+            monotonic=lambda: 0.0,
+        )
+        assert lengths == [1, 2, 3]
+
+    @both_chains
+    def test_budget_stops_the_loop(self, chain) -> None:  # type: ignore[no-untyped-def]
+        clock = iter([0.0, 700.0])
+        findings, _ = chain(
+            directions=[DirectionSpec("upload", reverse=False)],
+            allocate_port=_ports_from(),
+            stop_when=lambda f: False,  # never settled per the caller
+            budget_s=600.0,
+            monotonic=lambda: next(clock),
+        )
+        assert len(findings) == 1  # the first post-round check saw the budget spent
+
+    @both_chains
+    def test_a_raising_stop_when_propagates_without_another_round(self, chain) -> None:  # type: ignore[no-untyped-def]
+        def _stop(_rounds: list[PathMeasurement]) -> bool:
+            raise AssertionError("terminal condition")
+
+        with pytest.raises(AssertionError, match="terminal condition"):
+            chain(
+                directions=[DirectionSpec("upload", reverse=False)],
+                allocate_port=_ports_from(),
+                stop_when=_stop,
+                budget_s=1000.0,
+                monotonic=lambda: 0.0,
+            )
+
+    @both_chains
+    def test_happy_path_draws_the_clock_once_per_round_plus_one(self, chain) -> None:  # type: ignore[no-untyped-def]
+        # The engine's clock discipline, defended by name rather than only by a
+        # fake clock that happens to run dry: one draw to set the deadline, one
+        # per round in the post-round check, and none at all for a flow that
+        # completes. The final round short-circuits the `or`, so three rounds
+        # cost three draws.
+        draws: list[float] = []
+
+        def _clock() -> float:
+            draws.append(0.0)
+            return 0.0
+
+        chain(
+            directions=[DirectionSpec("upload", reverse=False)],
+            allocate_port=_ports_from(),
+            stop_when=lambda f: len(f) >= 3,
+            budget_s=1000.0,
+            monotonic=_clock,
+        )
+        assert len(draws) == 3
