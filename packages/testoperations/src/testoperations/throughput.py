@@ -29,7 +29,16 @@ from testprotocols.iperf_server import IperfServer
 # disconnects; allow a grace window after the nominal duration for that flush
 # (and for clock skew between controller and endpoints).
 DEFAULT_RESULT_TIMEOUT_S = 30.0
-_POLL_INTERVAL_S = 1.0
+# Cadence between log reads while waiting for a session to complete
+# (DEFAULT_POLL_INTERVAL_S), and the pause before a re-drawn flow attempt
+# (DEFAULT_BUSY_BACKOFF_S). Both are testbed PACING, not library constants, but
+# their reach differs: the poll interval is a keyword parameter on every
+# measuring entry point in this module, while the busy backoff is a keyword
+# parameter only on the two LOOP entry points (measure_path_until and
+# measure_external_path_until) — the single-shot measurement functions have no
+# retry to back off before.
+DEFAULT_POLL_INTERVAL_S = 1.0
+DEFAULT_BUSY_BACKOFF_S = 5.0
 
 
 @dataclass(frozen=True)
@@ -231,6 +240,7 @@ def _await_session(
     deadline: float,
     sleep: Callable[[float], None],
     monotonic: Callable[[], float],
+    poll_interval_s: float = DEFAULT_POLL_INTERVAL_S,
 ) -> tuple[str, float] | None:
     """Poll *log_path* for a NEW completed session carrying a rate summary.
 
@@ -246,7 +256,7 @@ def _await_session(
                 return (text, mbps)
         if monotonic() >= deadline:
             return None
-        sleep(_POLL_INTERVAL_S)
+        sleep(poll_interval_s)
 
 
 def measure_concurrent_throughput(
@@ -254,6 +264,7 @@ def measure_concurrent_throughput(
     *,
     duration_s: int = 10,
     result_timeout_s: float = DEFAULT_RESULT_TIMEOUT_S,
+    poll_interval_s: float = DEFAULT_POLL_INTERVAL_S,
     sleep: Callable[[float], None] = time.sleep,
     monotonic: Callable[[], float] = time.monotonic,
 ) -> list[FlowThroughput]:
@@ -267,6 +278,9 @@ def measure_concurrent_throughput(
     Raises ``ValueError`` on duplicate ports (two flows would share a server
     instance and logfile) and ``RuntimeError`` when a receiver produces no new
     completed session within *duration_s* + *result_timeout_s*.
+
+    ``poll_interval_s`` is the cadence between log reads while waiting — the
+    caller's pacing decision, not a library constant.
 
     Each quantity is read from the side that actually observed it — iperf3's
     end-of-test exchange copies NEITHER across sides on real builds
@@ -331,6 +345,7 @@ def measure_concurrent_throughput(
                 deadline,
                 sleep,
                 monotonic,
+                poll_interval_s,
             )
             if rx is None:
                 raise NonCompletion(
@@ -345,7 +360,13 @@ def measure_concurrent_throughput(
                 )
             receiver_text, rx_mbps = rx
             tx = _await_session(
-                flow.sender.get_iperf_logs, sender_log, 0, deadline, sleep, monotonic
+                flow.sender.get_iperf_logs,
+                sender_log,
+                0,
+                deadline,
+                sleep,
+                monotonic,
+                poll_interval_s,
             )
             if flow.reverse:
                 if tx is None:
@@ -441,7 +462,7 @@ class PathMeasurement:
     by_direction: dict[str, FlowThroughput]
 
 
-def measure_path_rtt(
+def _probe_flow(
     sender: IperfClient,
     receiver: IperfServer,
     dest_host: str,
@@ -449,14 +470,17 @@ def measure_path_rtt(
     *,
     rate_mbps: int = DEFAULT_PROBE_RATE_MBPS,
     duration_s: int = DEFAULT_PROBE_DURATION_S,
+    result_timeout_s: float = DEFAULT_RESULT_TIMEOUT_S,
+    poll_interval_s: float = DEFAULT_POLL_INTERVAL_S,
     measure: Callable[..., list[FlowThroughput]] = measure_concurrent_throughput,
-) -> tuple[float | None, float | None]:
-    """The path's unloaded ``(min, mean)`` RTT via one rate-capped probe flow.
+) -> FlowThroughput:
+    """One rate-capped probe flow's facts.
 
-    The flow is capped far below the path's capacity (``rate_mbps``) so it never
+    The flow is capped far below the path's capacity (*rate_mbps*) so it never
     builds a bottleneck queue — its RTT reads the idle path, not the standing
-    queue a saturating flow keeps. Returns the probe's ``(min_rtt_ms,
-    mean_rtt_ms)`` pair (both-or-neither, per :func:`last_session_rtt_ms`).
+    queue a saturating flow keeps. The probe is deliberately never pinned to a
+    socket-buffer size and never multiplied into parallel streams: either would
+    let it saturate, and an unloaded reading is the whole point.
     """
     flow = ThroughputFlow(
         sender=sender,
@@ -465,7 +489,46 @@ def measure_path_rtt(
         port=port,
         bandwidth_mbps=rate_mbps,
     )
-    (result,) = measure([flow], duration_s=duration_s)
+    (result,) = measure(
+        [flow],
+        duration_s=duration_s,
+        result_timeout_s=result_timeout_s,
+        poll_interval_s=poll_interval_s,
+    )
+    return result
+
+
+def measure_path_rtt(
+    sender: IperfClient,
+    receiver: IperfServer,
+    dest_host: str,
+    port: int,
+    *,
+    rate_mbps: int = DEFAULT_PROBE_RATE_MBPS,
+    duration_s: int = DEFAULT_PROBE_DURATION_S,
+    result_timeout_s: float = DEFAULT_RESULT_TIMEOUT_S,
+    poll_interval_s: float = DEFAULT_POLL_INTERVAL_S,
+    measure: Callable[..., list[FlowThroughput]] = measure_concurrent_throughput,
+) -> tuple[float | None, float | None]:
+    """The path's unloaded ``(min, mean)`` RTT via one rate-capped probe flow.
+
+    The flow is capped far below the path's capacity (*rate_mbps*) so it never
+    builds a bottleneck queue — its RTT reads the idle path, not the standing
+    queue a saturating flow keeps (see :func:`_probe_flow` for the full
+    rationale). The ``(min_rtt_ms, mean_rtt_ms)`` view of that measurement
+    (both-or-neither, per :func:`last_session_rtt_ms`).
+    """
+    result = _probe_flow(
+        sender,
+        receiver,
+        dest_host,
+        port,
+        rate_mbps=rate_mbps,
+        duration_s=duration_s,
+        result_timeout_s=result_timeout_s,
+        poll_interval_s=poll_interval_s,
+        measure=measure,
+    )
     return result.min_rtt_ms, result.mean_rtt_ms
 
 
@@ -480,6 +543,8 @@ def measure_one_direction(
     omit_s: int = 0,
     window: str | None = None,
     parallel: int | None = None,
+    result_timeout_s: float = DEFAULT_RESULT_TIMEOUT_S,
+    poll_interval_s: float = DEFAULT_POLL_INTERVAL_S,
     measure: Callable[..., list[FlowThroughput]] = measure_concurrent_throughput,
 ) -> FlowThroughput:
     """Measure a single saturating flow in one direction (forward or reverse).
@@ -501,7 +566,12 @@ def measure_one_direction(
         window=window,
         parallel=parallel,
     )
-    (result,) = measure([flow], duration_s=duration_s)
+    (result,) = measure(
+        [flow],
+        duration_s=duration_s,
+        result_timeout_s=result_timeout_s,
+        poll_interval_s=poll_interval_s,
+    )
     return result
 
 
@@ -600,6 +670,7 @@ def _await_client_session(
     sleep: Callable[[float], None],
     monotonic: Callable[[], float],
     port: int,
+    poll_interval_s: float = DEFAULT_POLL_INTERVAL_S,
 ) -> tuple[str, float]:
     """Poll the CLIENT log for a completed session.
 
@@ -632,7 +703,7 @@ def _await_client_session(
                 ),
                 port=port,
             )
-        sleep(_POLL_INTERVAL_S)
+        sleep(poll_interval_s)
 
 
 def measure_external_flow(
@@ -640,6 +711,7 @@ def measure_external_flow(
     *,
     duration_s: int = DEFAULT_MEASURE_DURATION_S,
     result_timeout_s: float = DEFAULT_RESULT_TIMEOUT_S,
+    poll_interval_s: float = DEFAULT_POLL_INTERVAL_S,
     sleep: Callable[[float], None] = time.sleep,
     monotonic: Callable[[], float] = time.monotonic,
 ) -> FlowThroughput:
@@ -651,6 +723,9 @@ def measure_external_flow(
     section comment); RTT is client-side ``TCP_INFO`` for a forward flow and
     ``(None, None)`` for a reverse flow (the data sender is the remote
     endpoint, whose kernel we cannot read).
+
+    ``poll_interval_s`` is the cadence between log reads while waiting — the
+    caller's pacing decision, not a library constant.
     """
     sender_pid, sender_log = flow.sender.start_traffic_sender(
         flow.dest_host,
@@ -672,6 +747,7 @@ def measure_external_flow(
             sleep,
             monotonic,
             flow.port,
+            poll_interval_s,
         )
     finally:
         try:
@@ -690,6 +766,85 @@ def measure_external_flow(
         mean_rtt_ms=mean_rtt_ms,
         retransmits=last_session_retransmits(text),
     )
+
+
+# --- the shared probe+directions round engine (both chains) ---------------------
+#
+# Parameterized entirely by a measure-one-flow callable; it names no flow type
+# on purpose, so it reads identically whether the caller below it is the
+# testbed-managed chain or the external-endpoint chain above it.
+
+
+def _measure_rounds(
+    *,
+    measure_flow: Callable[[int, DirectionSpec | None], FlowThroughput],
+    directions: Sequence[DirectionSpec],
+    allocate_port: Callable[[], int],
+    stop_when: Callable[[list[PathMeasurement]], bool],
+    budget_s: float,
+    on_round: Callable[[PathMeasurement], None] | None,
+    on_retry: Callable[[Exception, int], None] | None,
+    retry_when: Callable[[NonCompletion], bool] | None,
+    busy_backoff_s: float,
+    monotonic: Callable[[], float],
+    sleep: Callable[[float], None],
+) -> list[PathMeasurement]:
+    """Repeat probe+directions rounds until *stop_when* or *budget_s*; report all.
+
+    The round loop both rated-path measurements share. *measure_flow* produces
+    one flow's facts on the given port; ``spec is None`` asks for the unloaded
+    probe, any other value for that direction's saturating flow. Everything
+    that differs between a testbed-managed path and an unmanaged endpoint —
+    how the flow is built, which side the evidence is read from — stays behind
+    that callable, so this function never names a flow type.
+
+    It is a MECHANIC and decides nothing. When to stop is *stop_when*'s; how
+    long at most is *budget_s*'s; whether a :class:`NonCompletion` is worth
+    another attempt is *retry_when*'s (``None`` never retries); what reaches a
+    log is *on_round*'s and *on_retry*'s. Only ``NonCompletion`` is caught:
+    anything else, including a *stop_when* that raises to signal a terminal
+    condition, propagates untouched.
+
+    The clock is drawn exactly once to set the deadline and once per round in
+    the post-round check (which short-circuits when *stop_when* is satisfied);
+    a completing flow never draws it. The retry branch draws it once more per
+    absorbed non-completion, to check the remaining budget before backing off.
+    Callers inject fake clocks that depend on this.
+    """
+    deadline = monotonic() + budget_s
+
+    def _attempt(spec: DirectionSpec | None) -> FlowThroughput:
+        """Measure one flow, re-drawing a non-completion only if the caller says so.
+
+        The port is drawn per attempt, so a re-draw never reuses the abandoned
+        one. A re-draw the budget refuses is raised, not announced through
+        *on_retry*.
+        """
+        while True:
+            port = allocate_port()
+            try:
+                return measure_flow(port, spec)
+            except NonCompletion as exc:
+                if monotonic() >= deadline or retry_when is None or not retry_when(exc):
+                    raise
+                if on_retry is not None:
+                    on_retry(exc, port)
+                sleep(busy_backoff_s)
+
+    findings: list[PathMeasurement] = []
+    while True:
+        probe = _attempt(None)
+        by_direction = {spec.name: _attempt(spec) for spec in directions}
+        facts = PathMeasurement(
+            probe_min_rtt_ms=probe.min_rtt_ms,
+            probe_mean_rtt_ms=probe.mean_rtt_ms,
+            by_direction=by_direction,
+        )
+        findings.append(facts)
+        if on_round is not None:
+            on_round(facts)
+        if stop_when(findings) or monotonic() >= deadline:
+            return findings
 
 
 def measure_external_path_until(
@@ -712,90 +867,85 @@ def measure_external_path_until(
     measure_flow: Callable[..., FlowThroughput] = measure_external_flow,
     monotonic: Callable[[], float] = time.monotonic,
     sleep: Callable[[float], None] = time.sleep,
-    busy_backoff_s: float = 5.0,
+    busy_backoff_s: float = DEFAULT_BUSY_BACKOFF_S,
+    result_timeout_s: float = DEFAULT_RESULT_TIMEOUT_S,
+    poll_interval_s: float = DEFAULT_POLL_INTERVAL_S,
 ) -> list[PathMeasurement]:
     """The :func:`measure_path_until` loop against an unmanaged endpoint.
 
     Identical framing and caller contract — one unloaded forward RTT probe,
     then each direction measured sequentially, rounds repeating until
     *stop_when* or *budget_s* — with every flow client-driven
-    (:func:`measure_external_flow`). ``parallel`` applies to the saturating
-    direction flows only; the probe is always a single rate-capped stream
-    (it must not saturate, and its forward direction is what makes the
-    client-side RTT observable). ``window`` likewise applies to the
-    direction flows only.
+    (:func:`measure_external_flow`). ``parallel`` and ``window`` apply to the
+    saturating direction flows only; the probe is always a single unpinned
+    rate-capped stream (it must not saturate, and its forward direction is what
+    makes the client-side RTT observable).
 
-    A flow that does not complete raises :class:`NonCompletion` — a fact,
-    not a verdict. Before each re-draw the loop asks the caller-supplied
-    ``retry_when(exc) -> bool`` (default ``None``: never retry); only a
-    ``True`` answer, within the remaining budget, re-draws on the next
-    allocated pool port after ``busy_backoff_s``. This function classifies
-    nothing itself — whether a given non-completion is worth retrying is
-    entirely the caller's policy.
+    A flow that does not complete raises :class:`NonCompletion` — a fact, not a
+    verdict. Before each re-draw the loop asks the caller-supplied
+    ``retry_when(exc) -> bool`` (default ``None``: never retry); only a ``True``
+    answer, within the remaining budget, re-draws on the next allocated pool
+    port after ``busy_backoff_s``. This function classifies nothing itself.
 
     ``on_retry`` — if given — is called with ``(error, abandoned_port)`` before
     each re-draw (the sibling of ``on_round``: a reporting seam, since this
     module logs nothing itself). Pass it whenever the run's record matters: a
     silent retry loop can absorb a non-completion many times over and leave a
     contended endpoint looking exactly like a quiet one afterwards.
+
+    ``result_timeout_s`` and ``poll_interval_s`` reach the flow-level
+    measurement unchanged: both are forwarded, every round, to the probe call
+    and to every direction call (:func:`measure_external_flow`) — the
+    per-attempt wait for a completed session, and the cadence between log
+    reads while waiting for one.
+
+    ``sleep`` paces only the retry backoff (the pause before a re-draw); it
+    never reaches the flow measurement itself, which times its own wait.
+    Injecting ``sleep=`` to keep a test non-blocking still blocks inside
+    :func:`measure_external_flow` unless the caller also fakes ``measure_flow``.
     """
-    deadline = monotonic() + budget_s
 
-    def _flow_with_retry(build: Callable[[int], ExternalFlow], duration_s: int) -> FlowThroughput:
-        """Measure one flow, re-drawing a non-completion only if the caller says so.
-
-        The library owns the mechanics — port, backoff, budget — and asks
-        ``retry_when`` before each re-draw. It classifies nothing: a NonCompletion
-        is a fact; whether it is retryable is the caller's policy (default: never).
-        A re-draw the budget refuses is raised, not announced through ``on_retry``.
-        """
-        while True:
-            flow = build(allocate_port())
-            try:
-                return measure_flow(flow, duration_s=duration_s)
-            except NonCompletion as exc:
-                if monotonic() >= deadline or retry_when is None or not retry_when(exc):
-                    raise
-                if on_retry is not None:
-                    on_retry(exc, flow.port)
-                sleep(busy_backoff_s)
-
-    findings: list[PathMeasurement] = []
-    while True:
-        probe = _flow_with_retry(
-            lambda port: ExternalFlow(
-                sender=sender,
-                dest_host=dest_host,
-                port=port,
-                bandwidth_mbps=probe_rate_mbps,
-            ),
-            probe_duration_s,
-        )
-        by_direction: dict[str, FlowThroughput] = {}
-        for spec in directions:
-
-            def _direction_flow(port: int, spec: DirectionSpec = spec) -> ExternalFlow:
-                return ExternalFlow(
+    def _flow(port: int, spec: DirectionSpec | None) -> FlowThroughput:
+        if spec is None:
+            return measure_flow(
+                ExternalFlow(
                     sender=sender,
                     dest_host=dest_host,
                     port=port,
-                    reverse=spec.reverse,
-                    parallel=parallel,
-                    omit_s=omit_s,
-                    window=window,
-                )
-
-            by_direction[spec.name] = _flow_with_retry(_direction_flow, measure_duration_s)
-        facts = PathMeasurement(
-            probe_min_rtt_ms=probe.min_rtt_ms,
-            probe_mean_rtt_ms=probe.mean_rtt_ms,
-            by_direction=by_direction,
+                    bandwidth_mbps=probe_rate_mbps,
+                ),
+                duration_s=probe_duration_s,
+                result_timeout_s=result_timeout_s,
+                poll_interval_s=poll_interval_s,
+            )
+        return measure_flow(
+            ExternalFlow(
+                sender=sender,
+                dest_host=dest_host,
+                port=port,
+                reverse=spec.reverse,
+                parallel=parallel,
+                omit_s=omit_s,
+                window=window,
+            ),
+            duration_s=measure_duration_s,
+            result_timeout_s=result_timeout_s,
+            poll_interval_s=poll_interval_s,
         )
-        findings.append(facts)
-        if on_round is not None:
-            on_round(facts)
-        if stop_when(findings) or monotonic() >= deadline:
-            return findings
+
+    return _measure_rounds(
+        measure_flow=_flow,
+        directions=directions,
+        allocate_port=allocate_port,
+        stop_when=stop_when,
+        budget_s=budget_s,
+        on_round=on_round,
+        on_retry=on_retry,
+        retry_when=retry_when,
+        busy_backoff_s=busy_backoff_s,
+        monotonic=monotonic,
+        sleep=sleep,
+    )
 
 
 def measure_path_until(
@@ -814,8 +964,14 @@ def measure_path_until(
     window: str | None = None,
     parallel: int | None = None,
     on_round: Callable[[PathMeasurement], None] | None = None,
+    on_retry: Callable[[Exception, int], None] | None = None,
+    retry_when: Callable[[NonCompletion], bool] | None = None,
     measure: Callable[..., list[FlowThroughput]] = measure_concurrent_throughput,
     monotonic: Callable[[], float] = time.monotonic,
+    sleep: Callable[[float], None] = time.sleep,
+    busy_backoff_s: float = DEFAULT_BUSY_BACKOFF_S,
+    result_timeout_s: float = DEFAULT_RESULT_TIMEOUT_S,
+    poll_interval_s: float = DEFAULT_POLL_INTERVAL_S,
 ) -> list[PathMeasurement]:
     """Measure probe+directions rounds until *stop_when* or *budget_s*; report all.
 
@@ -836,45 +992,79 @@ def measure_path_until(
     only; the unloaded RTT probe never pins buffers or multiplies streams
     (it must not saturate, so it stays representative of the idle path).
 
+    A flow that does not complete raises :class:`NonCompletion`. Before each
+    re-draw the loop asks ``retry_when(exc) -> bool``, exactly as the endpoint
+    loop does — the seam is identical so a caller can treat both branches
+    uniformly. The DEFAULT here is ``None``: never retry. That default is
+    deliberate and differs from what an endpoint caller typically wants: the
+    receiver is our own rig, so a no-show is a testbed defect the caller should
+    see, not contention to absorb. A predicate supplied here must never
+    converge on the very observable the caller is asserting — a stuck condition
+    is a defect the test exists to catch, and absorbing it hides the signal.
+
+    ``on_retry`` — if given — is called with ``(error, abandoned_port)`` before
+    each re-draw (the sibling of ``on_round``: a reporting seam, since this
+    module logs nothing itself). Pass it whenever the run's record matters: a
+    silent retry loop can absorb a non-completion many times over and leave a
+    sick rig looking exactly like a healthy one afterwards — a risk that matters
+    MORE here than on the endpoint chain, where the same silence only masks a
+    contended public server rather than a defect in equipment the caller owns.
+
+    ``sleep`` and ``busy_backoff_s`` pace the retry backoff only — the pause
+    before a re-draw. Neither reaches the flow measurement itself: ``sleep``
+    never reaches :func:`measure_concurrent_throughput`, which times its own
+    wait, so injecting ``sleep=`` to keep a test non-blocking still blocks
+    inside the flow measurement unless the caller also fakes ``measure``.
+    ``result_timeout_s`` and ``poll_interval_s``, by contrast, DO reach the
+    flow-level measurement: both are forwarded, every round, to the probe call
+    and to every direction call — the per-attempt wait for a completed
+    session, and the cadence between log reads while waiting for one.
+
     Returns every round's findings in order — never a verdict. Whether those
     findings are acceptable (settled, marginal, or a failure) is entirely the
     caller's decision. Operational failures from the underlying measurement
     (duplicate ports, a receiver that never completes) propagate as they do from
     :func:`measure_concurrent_throughput`.
     """
-    deadline = monotonic() + budget_s
-    findings: list[PathMeasurement] = []
-    while True:
-        probe_min, probe_mean = measure_path_rtt(
-            sender,
-            receiver,
-            dest_host,
-            allocate_port(),
-            rate_mbps=probe_rate_mbps,
-            duration_s=probe_duration_s,
-            measure=measure,
-        )
-        by_direction: dict[str, FlowThroughput] = {}
-        for spec in directions:
-            by_direction[spec.name] = measure_one_direction(
+
+    def _flow(port: int, spec: DirectionSpec | None) -> FlowThroughput:
+        if spec is None:
+            return _probe_flow(
                 sender,
                 receiver,
                 dest_host,
-                allocate_port(),
-                reverse=spec.reverse,
-                duration_s=measure_duration_s,
-                omit_s=omit_s,
-                window=window,
-                parallel=parallel,
+                port,
+                rate_mbps=probe_rate_mbps,
+                duration_s=probe_duration_s,
+                result_timeout_s=result_timeout_s,
+                poll_interval_s=poll_interval_s,
                 measure=measure,
             )
-        facts = PathMeasurement(
-            probe_min_rtt_ms=probe_min,
-            probe_mean_rtt_ms=probe_mean,
-            by_direction=by_direction,
+        return measure_one_direction(
+            sender,
+            receiver,
+            dest_host,
+            port,
+            reverse=spec.reverse,
+            duration_s=measure_duration_s,
+            omit_s=omit_s,
+            window=window,
+            parallel=parallel,
+            result_timeout_s=result_timeout_s,
+            poll_interval_s=poll_interval_s,
+            measure=measure,
         )
-        findings.append(facts)
-        if on_round is not None:
-            on_round(facts)
-        if stop_when(findings) or monotonic() >= deadline:
-            return findings
+
+    return _measure_rounds(
+        measure_flow=_flow,
+        directions=directions,
+        allocate_port=allocate_port,
+        stop_when=stop_when,
+        budget_s=budget_s,
+        on_round=on_round,
+        on_retry=on_retry,
+        retry_when=retry_when,
+        busy_backoff_s=busy_backoff_s,
+        monotonic=monotonic,
+        sleep=sleep,
+    )

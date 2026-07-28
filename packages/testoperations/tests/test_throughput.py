@@ -8,6 +8,7 @@ from unittest.mock import MagicMock
 
 import pytest
 from testoperations.throughput import (
+    DEFAULT_BUSY_BACKOFF_S,
     DEFAULT_PROBE_RATE_MBPS,
     DirectionSpec,
     ExternalFlow,
@@ -15,6 +16,7 @@ from testoperations.throughput import (
     NonCompletion,
     PathMeasurement,
     ThroughputFlow,
+    _probe_flow,
     count_sessions,
     iter_json_docs,
     last_session_error,
@@ -286,6 +288,26 @@ class TestMeasureConcurrentThroughput:
                 monotonic=lambda: next(clock),
             )
 
+    def test_poll_interval_is_caller_settable(self) -> None:
+        # The polling cadence between log reads is testbed pacing, not a
+        # library constant: the caller sets it and the module default no
+        # longer governs.
+        flow, _, receiver = _flow(5301, mbps=42.0)
+        receiver.get_iperf_logs.side_effect = lambda _log: ""  # never completes
+        sleeps: list[float] = []
+        clock = iter(float(t) for t in range(0, 1000, 5))
+        with pytest.raises(NonCompletion):
+            measure_concurrent_throughput(
+                [flow],
+                duration_s=10,
+                result_timeout_s=20.0,
+                poll_interval_s=0.25,
+                sleep=sleeps.append,
+                monotonic=lambda: next(clock),
+            )
+        assert 0.25 in sleeps  # the caller's cadence reached the poll loop
+        assert 1.0 not in sleeps  # the old module constant no longer governs
+
     def test_both_sides_stopped_on_success(self) -> None:
         flow, sender, receiver = _flow(5301, mbps=5.0)
         measure_concurrent_throughput([flow], duration_s=10, sleep=lambda _s: None)
@@ -510,6 +532,34 @@ class TestMeasurePathRtt:
         assert flow.bandwidth_mbps == 2 and flow.port == 5401 and duration_s == 4
         assert flow.reverse is False and flow.dest_host == "10.0.0.9"
 
+    def test_probe_flow_returns_the_whole_measurement(self) -> None:
+        # The round engine needs the probe as a FlowThroughput, not a tuple;
+        # measure_path_rtt is the tuple-returning view of the same call.
+        measure, _calls = _fake_measure(probe=(0.7, 0.9))
+        got = _probe_flow(MagicMock(), MagicMock(), "10.0.0.9", 5401, rate_mbps=2, measure=measure)
+        assert isinstance(got, FlowThroughput)
+        assert got.port == 5401
+        assert (got.min_rtt_ms, got.mean_rtt_ms) == (0.7, 0.9)
+
+    def test_pacing_reaches_the_measurement_call(self) -> None:
+        captured: list[dict[str, object]] = []
+
+        def _measure(flows, **kw):  # type: ignore[no-untyped-def]
+            captured.append(kw)
+            return [FlowThroughput(port=f.port, mbps=1.0) for f in flows]
+
+        measure_path_rtt(
+            MagicMock(),
+            MagicMock(),
+            "10.0.0.9",
+            5401,
+            result_timeout_s=45.0,
+            poll_interval_s=0.25,
+            measure=_measure,
+        )
+        assert captured[0]["result_timeout_s"] == 45.0
+        assert captured[0]["poll_interval_s"] == 0.25
+
 
 class TestMeasureOneDirection:
     def test_forward_flow_shape(self) -> None:
@@ -558,7 +608,7 @@ class TestMeasureOneDirection:
     def test_parallel_threaded_into_the_flow(self) -> None:
         captured: list[ThroughputFlow] = []
 
-        def fake_measure(flows, *, duration_s):  # type: ignore[no-untyped-def]
+        def fake_measure(flows, *, duration_s, **_kw):  # type: ignore[no-untyped-def]
             captured.extend(flows)
             return [FlowThroughput(port=f.port, mbps=1.0) for f in flows]
 
@@ -574,6 +624,26 @@ class TestMeasureOneDirection:
         )
         assert captured[0].parallel == 5
         assert captured[0].window == "1M"
+
+    def test_pacing_reaches_the_measurement_call(self) -> None:
+        captured: list[dict[str, object]] = []
+
+        def _measure(flows, **kw):  # type: ignore[no-untyped-def]
+            captured.append(kw)
+            return [FlowThroughput(port=f.port, mbps=1.0) for f in flows]
+
+        measure_one_direction(
+            MagicMock(),
+            MagicMock(),
+            "10.0.0.9",
+            5402,
+            reverse=False,
+            result_timeout_s=45.0,
+            poll_interval_s=0.25,
+            measure=_measure,
+        )
+        assert captured[0]["result_timeout_s"] == 45.0
+        assert captured[0]["poll_interval_s"] == 0.25
 
 
 def _ports_from(start: int = 5401):
@@ -699,6 +769,25 @@ class TestMeasurePathUntil:
         assert flows[0].parallel is None and flows[0].window is None
         assert [f.parallel for f in flows[1:]] == [5, 5]
         assert [f.window for f in flows[1:]] == ["1M", "1M"]
+
+    def test_pacing_reaches_the_measurement_call(self) -> None:
+        # Mirrors the endpoint chain's guard. Without this, both forwarding
+        # pairs can be deleted from the closure and the suite stays green.
+        captured: list[dict[str, object]] = []
+
+        def _measure(flows, **kw):  # type: ignore[no-untyped-def]
+            captured.append(kw)
+            return [FlowThroughput(port=f.port, mbps=100.0) for f in flows]
+
+        self._run(
+            lambda _rounds: True,
+            measure=_measure,
+            result_timeout_s=45.0,
+            poll_interval_s=0.25,
+        )
+        # Probe and direction alike carry the caller's pacing.
+        assert [kw["result_timeout_s"] for kw in captured] == [45.0, 45.0, 45.0]
+        assert [kw["poll_interval_s"] for kw in captured] == [0.25, 0.25, 0.25]
 
 
 # --- external-endpoint measurement (client-log-only) ----------------------------
@@ -837,6 +926,22 @@ class TestMeasureExternalFlow:
         )
         assert result.mbps == pytest.approx(500.0)
 
+    def test_poll_interval_is_caller_settable(self) -> None:
+        sender = _ext_sender(complete=False)
+        sleeps: list[float] = []
+        clock = iter(float(t) for t in range(0, 1000, 5))
+        with pytest.raises(NonCompletion):
+            measure_external_flow(
+                ExternalFlow(sender=sender, dest_host="203.0.113.10", port=5208),
+                duration_s=10,
+                result_timeout_s=20.0,
+                poll_interval_s=0.25,
+                sleep=sleeps.append,
+                monotonic=lambda: next(clock),
+            )
+        assert 0.25 in sleeps
+        assert 1.0 not in sleeps
+
 
 class TestMeasureExternalPathUntil:
     def _run(
@@ -850,7 +955,7 @@ class TestMeasureExternalPathUntil:
     ) -> tuple[list[PathMeasurement], list[ExternalFlow]]:
         captured: list[ExternalFlow] = []
 
-        def _measure(flow: ExternalFlow, *, duration_s: int) -> FlowThroughput:
+        def _measure(flow: ExternalFlow, *, duration_s: int, **_kw: object) -> FlowThroughput:
             captured.append(flow)
             rtt = (0.5, 0.7) if flow.bandwidth_mbps else (None, None)
             return FlowThroughput(port=flow.port, mbps=930.0, min_rtt_ms=rtt[0], mean_rtt_ms=rtt[1])
@@ -901,7 +1006,7 @@ class TestMeasureExternalPathUntil:
         clock = iter([0.0, 700.0, 800.0, 900.0])
         captured: list[ExternalFlow] = []
 
-        def _measure(flow: ExternalFlow, *, duration_s: int) -> FlowThroughput:
+        def _measure(flow: ExternalFlow, *, duration_s: int, **_kw: object) -> FlowThroughput:
             captured.append(flow)
             return FlowThroughput(port=flow.port, mbps=100.0)
 
@@ -928,6 +1033,29 @@ class TestMeasureExternalPathUntil:
         with pytest.raises(AssertionError, match="terminal condition"):
             self._run(_stop, on_round=seen.append)
         assert len(seen) == 2
+
+    def test_pacing_reaches_the_flow_measurement(self) -> None:
+        captured: list[dict[str, object]] = []
+
+        def _measure(flow, **kw):  # type: ignore[no-untyped-def]
+            captured.append(kw)
+            return FlowThroughput(port=flow.port, mbps=100.0)
+
+        ports = iter(range(5201, 5261))
+        measure_external_path_until(
+            sender=MagicMock(),
+            dest_host="203.0.113.10",
+            directions=[DirectionSpec("upload", reverse=False)],
+            allocate_port=lambda: next(ports),
+            stop_when=lambda f: True,
+            budget_s=600.0,
+            result_timeout_s=45.0,
+            poll_interval_s=0.25,
+            measure_flow=_measure,
+        )
+        # Probe and direction alike carry the caller's pacing.
+        assert [kw["result_timeout_s"] for kw in captured] == [45.0, 45.0]
+        assert [kw["poll_interval_s"] for kw in captured] == [0.25, 0.25]
 
 
 class TestExternalFlowNonCompletion:
@@ -962,7 +1090,7 @@ class TestExternalRetryWhen:
     def _run(self, flow_results, retry_when, on_retry=None, clock=None):  # type: ignore[no-untyped-def]
         calls: list[int] = []
 
-        def _measure(flow, *, duration_s):
+        def _measure(flow, *, duration_s, **_kw):
             calls.append(flow.port)
             r = flow_results.pop(0)
             if isinstance(r, Exception):
@@ -1025,6 +1153,83 @@ class TestExternalRetryWhen:
             self._run([nonc], retry_when=lambda f: "denied" not in f.detail)
 
 
+class TestInternalRetryWhen:
+    """The sink-path mirror of TestExternalRetryWhen: same seam, same mechanics.
+
+    The DEFAULT policy differs and should — a local receiver no-show is testbed
+    territory, not a busy public endpoint — but the seam is now identical, so a
+    caller can treat both branches uniformly.
+    """
+
+    def _run(self, flow_results, retry_when, on_retry=None, clock=None, sleep=None):  # type: ignore[no-untyped-def]
+        calls: list[int] = []
+
+        def _measure(flows, **_kw):  # type: ignore[no-untyped-def]
+            (flow,) = flows
+            calls.append(flow.port)
+            r = flow_results.pop(0)
+            if isinstance(r, Exception):
+                raise r
+            return [FlowThroughput(port=flow.port, mbps=r)]
+
+        findings = measure_path_until(
+            sender=MagicMock(),
+            receiver=MagicMock(),
+            dest_host="10.0.0.9",
+            directions=[DirectionSpec("upload", reverse=False)],
+            allocate_port=_ports_from(),
+            stop_when=lambda f: True,
+            budget_s=600.0,
+            measure=_measure,
+            monotonic=clock or (lambda: 0.0),
+            sleep=sleep or (lambda _s: None),
+            retry_when=retry_when,
+            on_retry=on_retry,
+        )
+        return findings, calls
+
+    def _nonc(self) -> NonCompletion:
+        return NonCompletion(
+            which_side="local_receiver",
+            what="no_completed_session",
+            detail="receiver produced no completed session",
+            port=0,
+        )
+
+    def test_predicate_true_redraws_on_next_port(self) -> None:
+        _, calls = self._run([self._nonc(), 1.0, 900.0], retry_when=lambda f: True)
+        assert calls == [5401, 5402, 5403]  # abandoned probe, probe, direction
+
+    def test_predicate_false_raises_immediately(self) -> None:
+        with pytest.raises(NonCompletion):
+            self._run([self._nonc()], retry_when=lambda f: False)
+
+    def test_default_none_never_retries(self) -> None:
+        # The internal chain's default policy: a local receiver no-show is a
+        # testbed defect the caller should see, not something to absorb.
+        with pytest.raises(NonCompletion):
+            self._run([self._nonc()], retry_when=None)
+
+    def test_on_retry_receives_the_abandoned_port(self) -> None:
+        seen: list[int] = []
+        self._run(
+            [self._nonc(), 1.0, 900.0],
+            retry_when=lambda f: True,
+            on_retry=lambda exc, port: seen.append(port),
+        )
+        assert seen == [5401]
+
+    def test_budget_exhaustion_raises_even_if_predicate_says_yes(self) -> None:
+        clock = iter([0.0, 700.0])
+        with pytest.raises(NonCompletion):
+            self._run([self._nonc()], retry_when=lambda f: True, clock=lambda: next(clock))
+
+    def test_backoff_pauses_before_the_redraw(self) -> None:
+        slept: list[float] = []
+        self._run([self._nonc(), 1.0, 900.0], retry_when=lambda f: True, sleep=slept.append)
+        assert slept == [DEFAULT_BUSY_BACKOFF_S]
+
+
 # --- NonCompletion -------------------------------------------------------
 
 
@@ -1071,3 +1276,153 @@ class TestNonCompletion:
         assert f.what == "error_document"
         assert f.port == 5201
         assert "busy running a test" in str(f)  # detail survives into the message
+
+
+# --- both chains, one engine ------------------------------------------------
+#
+# Every assertion below runs against BOTH loop entry points through one body.
+# They share a round engine, so any behaviour that diverges here is a
+# regression in the harmonization, not a difference the two paths are entitled
+# to. Each adapter normalizes its chain's flow into the same recorded shape.
+
+
+def _internal_chain(**kw):  # type: ignore[no-untyped-def]
+    recorded: list[dict[str, object]] = []
+
+    def _measure(flows, **_kw):  # type: ignore[no-untyped-def]
+        (flow,) = flows
+        recorded.append(
+            {"port": flow.port, "capped": flow.bandwidth_mbps is not None, "rev": flow.reverse}
+        )
+        return [FlowThroughput(port=flow.port, mbps=100.0, min_rtt_ms=0.5, mean_rtt_ms=0.6)]
+
+    findings = measure_path_until(
+        sender=MagicMock(),
+        receiver=MagicMock(),
+        dest_host="10.0.0.9",
+        measure=_measure,
+        **kw,
+    )
+    return findings, recorded
+
+
+def _external_chain(**kw):  # type: ignore[no-untyped-def]
+    recorded: list[dict[str, object]] = []
+
+    def _measure_flow(flow, **_kw):  # type: ignore[no-untyped-def]
+        recorded.append(
+            {"port": flow.port, "capped": flow.bandwidth_mbps is not None, "rev": flow.reverse}
+        )
+        return FlowThroughput(port=flow.port, mbps=100.0, min_rtt_ms=0.5, mean_rtt_ms=0.6)
+
+    findings = measure_external_path_until(
+        sender=MagicMock(),
+        dest_host="203.0.113.10",
+        measure_flow=_measure_flow,
+        **kw,
+    )
+    return findings, recorded
+
+
+both_chains = pytest.mark.parametrize(
+    "chain", [_internal_chain, _external_chain], ids=["internal", "external"]
+)
+
+_TWO_WAY = [DirectionSpec("upload", reverse=False), DirectionSpec("download", reverse=True)]
+
+
+class TestBothChainsShareOneEngine:
+    @both_chains
+    def test_round_is_probe_then_each_direction_on_a_fresh_port(self, chain) -> None:  # type: ignore[no-untyped-def]
+        findings, recorded = chain(
+            directions=_TWO_WAY,
+            allocate_port=_ports_from(),
+            stop_when=lambda f: True,
+            budget_s=180.0,
+            monotonic=lambda: 0.0,
+        )
+        assert len(findings) == 1
+        assert [r["capped"] for r in recorded] == [True, False, False]  # probe first
+        assert [r["rev"] for r in recorded] == [False, False, True]  # then each direction
+        assert len({r["port"] for r in recorded}) == 3  # every flow drew its own port
+        assert set(findings[0].by_direction) == {"upload", "download"}
+        assert findings[0].probe_min_rtt_ms == pytest.approx(0.5)
+
+    @both_chains
+    def test_on_round_sees_every_round_in_order_and_returns_the_same_objects(self, chain) -> None:  # type: ignore[no-untyped-def]
+        seen: list[PathMeasurement] = []
+        findings, _ = chain(
+            directions=_TWO_WAY,
+            allocate_port=_ports_from(),
+            stop_when=lambda f: len(f) >= 3,
+            budget_s=1000.0,
+            monotonic=lambda: 0.0,
+            on_round=seen.append,
+        )
+        assert len(seen) == 3
+        assert seen == findings
+
+    @both_chains
+    def test_stop_when_receives_the_growing_findings_list(self, chain) -> None:  # type: ignore[no-untyped-def]
+        lengths: list[int] = []
+
+        def _stop(rounds: list[PathMeasurement]) -> bool:
+            lengths.append(len(rounds))
+            return len(rounds) >= 3
+
+        chain(
+            directions=_TWO_WAY,
+            allocate_port=_ports_from(),
+            stop_when=_stop,
+            budget_s=1000.0,
+            monotonic=lambda: 0.0,
+        )
+        assert lengths == [1, 2, 3]
+
+    @both_chains
+    def test_budget_stops_the_loop(self, chain) -> None:  # type: ignore[no-untyped-def]
+        clock = iter([0.0, 700.0])
+        findings, _ = chain(
+            directions=[DirectionSpec("upload", reverse=False)],
+            allocate_port=_ports_from(),
+            stop_when=lambda f: False,  # never settled per the caller
+            budget_s=600.0,
+            monotonic=lambda: next(clock),
+        )
+        assert len(findings) == 1  # the first post-round check saw the budget spent
+
+    @both_chains
+    def test_a_raising_stop_when_propagates_without_another_round(self, chain) -> None:  # type: ignore[no-untyped-def]
+        def _stop(_rounds: list[PathMeasurement]) -> bool:
+            raise AssertionError("terminal condition")
+
+        with pytest.raises(AssertionError, match="terminal condition"):
+            chain(
+                directions=[DirectionSpec("upload", reverse=False)],
+                allocate_port=_ports_from(),
+                stop_when=_stop,
+                budget_s=1000.0,
+                monotonic=lambda: 0.0,
+            )
+
+    @both_chains
+    def test_happy_path_draws_the_clock_once_per_round_plus_one(self, chain) -> None:  # type: ignore[no-untyped-def]
+        # The engine's clock discipline, defended by name rather than only by a
+        # fake clock that happens to run dry: one draw to set the deadline, one
+        # per round in the post-round check, and none at all for a flow that
+        # completes. The final round short-circuits the `or`, so three rounds
+        # cost three draws.
+        draws: list[float] = []
+
+        def _clock() -> float:
+            draws.append(0.0)
+            return 0.0
+
+        chain(
+            directions=[DirectionSpec("upload", reverse=False)],
+            allocate_port=_ports_from(),
+            stop_when=lambda f: len(f) >= 3,
+            budget_s=1000.0,
+            monotonic=_clock,
+        )
+        assert len(draws) == 3
