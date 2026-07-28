@@ -29,7 +29,12 @@ from testprotocols.iperf_server import IperfServer
 # disconnects; allow a grace window after the nominal duration for that flush
 # (and for clock skew between controller and endpoints).
 DEFAULT_RESULT_TIMEOUT_S = 30.0
-_POLL_INTERVAL_S = 1.0
+# Cadence between log reads while waiting for a session to complete, and the
+# pause before a re-drawn flow attempt. Both are testbed PACING, not library
+# constants — every entry point takes them as keyword parameters and these are
+# only the defaults.
+DEFAULT_POLL_INTERVAL_S = 1.0
+DEFAULT_BUSY_BACKOFF_S = 5.0
 
 
 @dataclass(frozen=True)
@@ -231,6 +236,7 @@ def _await_session(
     deadline: float,
     sleep: Callable[[float], None],
     monotonic: Callable[[], float],
+    poll_interval_s: float = DEFAULT_POLL_INTERVAL_S,
 ) -> tuple[str, float] | None:
     """Poll *log_path* for a NEW completed session carrying a rate summary.
 
@@ -246,7 +252,7 @@ def _await_session(
                 return (text, mbps)
         if monotonic() >= deadline:
             return None
-        sleep(_POLL_INTERVAL_S)
+        sleep(poll_interval_s)
 
 
 def measure_concurrent_throughput(
@@ -254,6 +260,7 @@ def measure_concurrent_throughput(
     *,
     duration_s: int = 10,
     result_timeout_s: float = DEFAULT_RESULT_TIMEOUT_S,
+    poll_interval_s: float = DEFAULT_POLL_INTERVAL_S,
     sleep: Callable[[float], None] = time.sleep,
     monotonic: Callable[[], float] = time.monotonic,
 ) -> list[FlowThroughput]:
@@ -267,6 +274,9 @@ def measure_concurrent_throughput(
     Raises ``ValueError`` on duplicate ports (two flows would share a server
     instance and logfile) and ``RuntimeError`` when a receiver produces no new
     completed session within *duration_s* + *result_timeout_s*.
+
+    ``poll_interval_s`` is the cadence between log reads while waiting — the
+    caller's pacing decision, not a library constant.
 
     Each quantity is read from the side that actually observed it — iperf3's
     end-of-test exchange copies NEITHER across sides on real builds
@@ -331,6 +341,7 @@ def measure_concurrent_throughput(
                 deadline,
                 sleep,
                 monotonic,
+                poll_interval_s,
             )
             if rx is None:
                 raise NonCompletion(
@@ -345,7 +356,13 @@ def measure_concurrent_throughput(
                 )
             receiver_text, rx_mbps = rx
             tx = _await_session(
-                flow.sender.get_iperf_logs, sender_log, 0, deadline, sleep, monotonic
+                flow.sender.get_iperf_logs,
+                sender_log,
+                0,
+                deadline,
+                sleep,
+                monotonic,
+                poll_interval_s,
             )
             if flow.reverse:
                 if tx is None:
@@ -600,6 +617,7 @@ def _await_client_session(
     sleep: Callable[[float], None],
     monotonic: Callable[[], float],
     port: int,
+    poll_interval_s: float = DEFAULT_POLL_INTERVAL_S,
 ) -> tuple[str, float]:
     """Poll the CLIENT log for a completed session.
 
@@ -632,7 +650,7 @@ def _await_client_session(
                 ),
                 port=port,
             )
-        sleep(_POLL_INTERVAL_S)
+        sleep(poll_interval_s)
 
 
 def measure_external_flow(
@@ -640,6 +658,7 @@ def measure_external_flow(
     *,
     duration_s: int = DEFAULT_MEASURE_DURATION_S,
     result_timeout_s: float = DEFAULT_RESULT_TIMEOUT_S,
+    poll_interval_s: float = DEFAULT_POLL_INTERVAL_S,
     sleep: Callable[[float], None] = time.sleep,
     monotonic: Callable[[], float] = time.monotonic,
 ) -> FlowThroughput:
@@ -651,6 +670,9 @@ def measure_external_flow(
     section comment); RTT is client-side ``TCP_INFO`` for a forward flow and
     ``(None, None)`` for a reverse flow (the data sender is the remote
     endpoint, whose kernel we cannot read).
+
+    ``poll_interval_s`` is the cadence between log reads while waiting — the
+    caller's pacing decision, not a library constant.
     """
     sender_pid, sender_log = flow.sender.start_traffic_sender(
         flow.dest_host,
@@ -672,6 +694,7 @@ def measure_external_flow(
             sleep,
             monotonic,
             flow.port,
+            poll_interval_s,
         )
     finally:
         try:

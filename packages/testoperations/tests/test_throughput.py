@@ -286,6 +286,26 @@ class TestMeasureConcurrentThroughput:
                 monotonic=lambda: next(clock),
             )
 
+    def test_poll_interval_is_caller_settable(self) -> None:
+        # The polling cadence between log reads is testbed pacing, not a
+        # library constant: the caller sets it and the module default no
+        # longer governs.
+        flow, _, receiver = _flow(5301, mbps=42.0)
+        receiver.get_iperf_logs.side_effect = lambda _log: ""  # never completes
+        sleeps: list[float] = []
+        clock = iter(float(t) for t in range(0, 1000, 5))
+        with pytest.raises(NonCompletion):
+            measure_concurrent_throughput(
+                [flow],
+                duration_s=10,
+                result_timeout_s=20.0,
+                poll_interval_s=0.25,
+                sleep=sleeps.append,
+                monotonic=lambda: next(clock),
+            )
+        assert 0.25 in sleeps  # the caller's cadence reached the poll loop
+        assert 1.0 not in sleeps  # the old module constant no longer governs
+
     def test_both_sides_stopped_on_success(self) -> None:
         flow, sender, receiver = _flow(5301, mbps=5.0)
         measure_concurrent_throughput([flow], duration_s=10, sleep=lambda _s: None)
@@ -836,6 +856,22 @@ class TestMeasureExternalFlow:
             sleep=lambda _s: None,
         )
         assert result.mbps == pytest.approx(500.0)
+
+    def test_poll_interval_is_caller_settable(self) -> None:
+        sender = _ext_sender(complete=False)
+        sleeps: list[float] = []
+        clock = iter(float(t) for t in range(0, 1000, 5))
+        with pytest.raises(NonCompletion):
+            measure_external_flow(
+                ExternalFlow(sender=sender, dest_host="203.0.113.10", port=5208),
+                duration_s=10,
+                result_timeout_s=20.0,
+                poll_interval_s=0.25,
+                sleep=sleeps.append,
+                monotonic=lambda: next(clock),
+            )
+        assert 0.25 in sleeps
+        assert 1.0 not in sleeps
 
 
 class TestMeasureExternalPathUntil:
