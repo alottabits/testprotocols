@@ -29,10 +29,14 @@ from testprotocols.iperf_server import IperfServer
 # disconnects; allow a grace window after the nominal duration for that flush
 # (and for clock skew between controller and endpoints).
 DEFAULT_RESULT_TIMEOUT_S = 30.0
-# Cadence between log reads while waiting for a session to complete, and the
-# pause before a re-drawn flow attempt. Both are testbed PACING, not library
-# constants — every entry point takes them as keyword parameters and these are
-# only the defaults.
+# Cadence between log reads while waiting for a session to complete
+# (DEFAULT_POLL_INTERVAL_S), and the pause before a re-drawn flow attempt
+# (DEFAULT_BUSY_BACKOFF_S). Both are testbed PACING, not library constants, but
+# their reach differs: the poll interval is a keyword parameter on every
+# measuring entry point in this module, while the busy backoff is a keyword
+# parameter only on the two LOOP entry points (measure_path_until and
+# measure_external_path_until) — the single-shot measurement functions have no
+# retry to back off before.
 DEFAULT_POLL_INTERVAL_S = 1.0
 DEFAULT_BUSY_BACKOFF_S = 5.0
 
@@ -508,8 +512,11 @@ def measure_path_rtt(
 ) -> tuple[float | None, float | None]:
     """The path's unloaded ``(min, mean)`` RTT via one rate-capped probe flow.
 
-    The ``(min_rtt_ms, mean_rtt_ms)`` view of :func:`_probe_flow` (both-or-
-    neither, per :func:`last_session_rtt_ms`).
+    The flow is capped far below the path's capacity (*rate_mbps*) so it never
+    builds a bottleneck queue — its RTT reads the idle path, not the standing
+    queue a saturating flow keeps (see :func:`_probe_flow` for the full
+    rationale). The ``(min_rtt_ms, mean_rtt_ms)`` view of that measurement
+    (both-or-neither, per :func:`last_session_rtt_ms`).
     """
     result = _probe_flow(
         sender,
@@ -761,6 +768,13 @@ def measure_external_flow(
     )
 
 
+# --- the shared probe+directions round engine (both chains) ---------------------
+#
+# Parameterized entirely by a measure-one-flow callable; it names no flow type
+# on purpose, so it reads identically whether the caller below it is the
+# testbed-managed chain or the external-endpoint chain above it.
+
+
 def _measure_rounds(
     *,
     measure_flow: Callable[[int, DirectionSpec | None], FlowThroughput],
@@ -786,15 +800,16 @@ def _measure_rounds(
 
     It is a MECHANIC and decides nothing. When to stop is *stop_when*'s; how
     long at most is *budget_s*'s; whether a :class:`NonCompletion` is worth
-    another attempt is *retry_when*'s (``None`` — the default — never retries);
-    what reaches a log is *on_round*'s and *on_retry*'s. Only ``NonCompletion``
-    is caught: anything else, including a *stop_when* that raises to signal a
-    terminal condition, propagates untouched.
+    another attempt is *retry_when*'s (``None`` never retries); what reaches a
+    log is *on_round*'s and *on_retry*'s. Only ``NonCompletion`` is caught:
+    anything else, including a *stop_when* that raises to signal a terminal
+    condition, propagates untouched.
 
     The clock is drawn exactly once to set the deadline and once per round in
     the post-round check (which short-circuits when *stop_when* is satisfied);
-    a completing flow never draws it. Callers inject fake clocks that depend on
-    this.
+    a completing flow never draws it. The retry branch draws it once more per
+    absorbed non-completion, to check the remaining budget before backing off.
+    Callers inject fake clocks that depend on this.
     """
     deadline = monotonic() + budget_s
 
@@ -877,6 +892,17 @@ def measure_external_path_until(
     module logs nothing itself). Pass it whenever the run's record matters: a
     silent retry loop can absorb a non-completion many times over and leave a
     contended endpoint looking exactly like a quiet one afterwards.
+
+    ``result_timeout_s`` and ``poll_interval_s`` reach the flow-level
+    measurement unchanged: both are forwarded, every round, to the probe call
+    and to every direction call (:func:`measure_external_flow`) — the
+    per-attempt wait for a completed session, and the cadence between log
+    reads while waiting for one.
+
+    ``sleep`` paces only the retry backoff (the pause before a re-draw); it
+    never reaches the flow measurement itself, which times its own wait.
+    Injecting ``sleep=`` to keep a test non-blocking still blocks inside
+    :func:`measure_external_flow` unless the caller also fakes ``measure_flow``.
     """
 
     def _flow(port: int, spec: DirectionSpec | None) -> FlowThroughput:
@@ -975,6 +1001,24 @@ def measure_path_until(
     see, not contention to absorb. A predicate supplied here must never
     converge on the very observable the caller is asserting — a stuck condition
     is a defect the test exists to catch, and absorbing it hides the signal.
+
+    ``on_retry`` — if given — is called with ``(error, abandoned_port)`` before
+    each re-draw (the sibling of ``on_round``: a reporting seam, since this
+    module logs nothing itself). Pass it whenever the run's record matters: a
+    silent retry loop can absorb a non-completion many times over and leave a
+    sick rig looking exactly like a healthy one afterwards — a risk that matters
+    MORE here than on the endpoint chain, where the same silence only masks a
+    contended public server rather than a defect in equipment the caller owns.
+
+    ``sleep`` and ``busy_backoff_s`` pace the retry backoff only — the pause
+    before a re-draw. Neither reaches the flow measurement itself: ``sleep``
+    never reaches :func:`measure_concurrent_throughput`, which times its own
+    wait, so injecting ``sleep=`` to keep a test non-blocking still blocks
+    inside the flow measurement unless the caller also fakes ``measure``.
+    ``result_timeout_s`` and ``poll_interval_s``, by contrast, DO reach the
+    flow-level measurement: both are forwarded, every round, to the probe call
+    and to every direction call — the per-attempt wait for a completed
+    session, and the cadence between log reads while waiting for one.
 
     Returns every round's findings in order — never a verdict. Whether those
     findings are acceptable (settled, marginal, or a failure) is entirely the

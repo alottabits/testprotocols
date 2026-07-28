@@ -770,6 +770,25 @@ class TestMeasurePathUntil:
         assert [f.parallel for f in flows[1:]] == [5, 5]
         assert [f.window for f in flows[1:]] == ["1M", "1M"]
 
+    def test_pacing_reaches_the_measurement_call(self) -> None:
+        # Mirrors the endpoint chain's guard. Without this, both forwarding
+        # pairs can be deleted from the closure and the suite stays green.
+        captured: list[dict[str, object]] = []
+
+        def _measure(flows, **kw):  # type: ignore[no-untyped-def]
+            captured.append(kw)
+            return [FlowThroughput(port=f.port, mbps=100.0) for f in flows]
+
+        self._run(
+            lambda _rounds: True,
+            measure=_measure,
+            result_timeout_s=45.0,
+            poll_interval_s=0.25,
+        )
+        # Probe and direction alike carry the caller's pacing.
+        assert [kw["result_timeout_s"] for kw in captured] == [45.0, 45.0, 45.0]
+        assert [kw["poll_interval_s"] for kw in captured] == [0.25, 0.25, 0.25]
+
 
 # --- external-endpoint measurement (client-log-only) ----------------------------
 
