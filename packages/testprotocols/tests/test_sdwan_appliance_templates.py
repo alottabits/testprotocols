@@ -112,6 +112,8 @@ PROTOCOLS = [
             "set_vpn_config",
             "get_vpn_config",
             "get_vpn_peers",
+            "get_vpn_exclusions",
+            "set_vpn_exclusions",
         },
     ),
 ]

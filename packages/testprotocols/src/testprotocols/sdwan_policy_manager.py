@@ -5,7 +5,9 @@ policy application, SLA policies, and application-flow visibility.
 
 Firewall-rule administration is **not** here — it moved to the dedicated
 ``l3_firewall`` / ``l7_firewall`` capabilities (coherent-domain split; see
-SPLITS.md). Typed path steering (``set_uplink_selection`` /
+SPLITS.md). Also not here: moving flows between the overlay and internet
+domains (overlay membership carve-outs) — see ``site_to_site_vpn``. Typed
+path steering (``set_uplink_selection`` /
 ``get_uplink_selection`` over ordered ``UplinkSelectionRule``s; performance
 classes reuse ``SLAPolicy`` by name) landed 2026-06-12; the default
 (primary) uplink pair (``get_default_uplink`` / ``set_default_uplink``)
