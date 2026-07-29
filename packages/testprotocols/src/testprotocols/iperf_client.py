@@ -19,7 +19,6 @@ class IperfClient(Protocol):
         traffic_port: int,
         bandwidth: int | None = None,
         bind_to_ip: str | None = None,
-        direction: str | None = None,
         ip_version: int | None = None,
         udp_protocol: bool = False,
         time: int = 10,
@@ -50,10 +49,6 @@ class IperfClient(Protocol):
           value is capped by ``net.core.rmem_max``/``wmem_max`` (NOT
           ``tcp_rmem``/``tcp_wmem``), so the host must be provisioned
           accordingly.
-
-        ``direction`` is DEPRECATED: a raw CLI fragment appended verbatim
-        after the typed flags. Kept as an escape hatch only; use the typed
-        parameters instead.
 
         Returns a tuple of (pid, log_file_path).
         """
