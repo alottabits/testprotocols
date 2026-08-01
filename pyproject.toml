@@ -35,3 +35,9 @@ python_version = "3.12"
 [tool.pyright]
 typeCheckingMode = "strict"
 pythonVersion = "3.12"
+# Type-check the workspace packages from source rather than through whatever
+# copy the selected interpreter happens to expose (a stale non-editable install
+# would otherwise win). Third-party deps still come from the environment, so
+# pyright needs the project interpreter: `uv run pyright`, or
+# `pyright --pythonpath .venv/bin/python`.
+extraPaths = ["packages/testprotocols/src", "packages/testoperations/src"]
