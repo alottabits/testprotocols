@@ -10,6 +10,7 @@ from __future__ import annotations
 import importlib
 
 import pytest
+from _helpers import protocol_attrs
 
 PROTOCOLS = [
     (
@@ -17,40 +18,65 @@ PROTOCOLS = [
         "testprotocols.switch_ports",
         {"list_ports", "get_port", "set_port"},
     ),
-    ("SwitchVlans", "testprotocols.switch_vlans",
-     {"list_vlans", "create_vlan", "delete_vlan"}),
-    ("SpanningTree", "testprotocols.spanning_tree",
-     {"set_mode", "get_mode", "set_bridge_priority",
-      "set_port_config", "get_port_config", "get_port_state"}),
-    ("LinkAggregation", "testprotocols.link_aggregation",
-     {"list_groups", "set_group", "remove_group"}),
-    ("PortPoe", "testprotocols.port_poe",
-     {"set_enabled", "set_priority", "get_status"}),
-    ("PortSecurity", "testprotocols.port_security",
-     {"set_access_policy", "get_access_policy"}),
-    ("FirstHopSecurity", "testprotocols.first_hop_security",
-     {"set_dhcp_snooping", "set_dhcp_snooping_trust", "get_dhcp_bindings",
-      "set_dai", "set_arp_trust"}),
-    ("StormControl", "testprotocols.storm_control",
-     {"set_config", "get_config"}),
-    ("SwitchAcl", "testprotocols.switch_acl",
-     {"set_acl", "get_acl"}),
+    ("SwitchVlans", "testprotocols.switch_vlans", {"list_vlans", "create_vlan", "delete_vlan"}),
+    (
+        "SpanningTree",
+        "testprotocols.spanning_tree",
+        {
+            "set_mode",
+            "get_mode",
+            "set_bridge_priority",
+            "set_port_config",
+            "get_port_config",
+            "get_port_state",
+        },
+    ),
+    (
+        "LinkAggregation",
+        "testprotocols.link_aggregation",
+        {"list_groups", "set_group", "remove_group"},
+    ),
+    ("PortPoe", "testprotocols.port_poe", {"set_enabled", "set_priority", "get_status"}),
+    ("PortSecurity", "testprotocols.port_security", {"set_access_policy", "get_access_policy"}),
+    (
+        "FirstHopSecurity",
+        "testprotocols.first_hop_security",
+        {
+            "set_dhcp_snooping",
+            "set_dhcp_snooping_trust",
+            "get_dhcp_bindings",
+            "set_dai",
+            "set_arp_trust",
+        },
+    ),
+    ("StormControl", "testprotocols.storm_control", {"set_config", "get_config"}),
+    ("SwitchAcl", "testprotocols.switch_acl", {"set_acl", "get_acl"}),
     ("Discovery", "testprotocols.discovery", {"get_neighbors"}),
     ("MacTable", "testprotocols.mac_table", {"get_mac_table"}),
-    ("PortStatus", "testprotocols.port_status",
-     {"list_port_status", "get_port_status"}),
-    ("SwitchQos", "testprotocols.switch_qos",
-     {"set_trust_mode", "set_dscp_cos_map", "set_rules", "get_rules"}),
-    ("NtpConfig", "testprotocols.ntp_config",
-     {"set_ntp_servers", "get_ntp_servers"}),
-    ("RoutedInterfaces", "testprotocols.routed_interfaces",
-     {"list_interfaces", "get_interface", "set_interface"}),
+    ("PortStatus", "testprotocols.port_status", {"list_port_status", "get_port_status"}),
+    (
+        "SwitchQos",
+        "testprotocols.switch_qos",
+        {"set_trust_mode", "set_dscp_cos_map", "set_rules", "get_rules"},
+    ),
+    ("NtpConfig", "testprotocols.ntp_config", {"set_ntp_servers", "get_ntp_servers"}),
+    (
+        "RoutedInterfaces",
+        "testprotocols.routed_interfaces",
+        {"list_interfaces", "get_interface", "set_interface"},
+    ),
     ("RoutingRead", "testprotocols.routing_read", {"get_routing_table"}),
     ("Ospf", "testprotocols.ospf", {"set_ospf_config", "get_ospf_config"}),
-    ("InterfaceDhcp", "testprotocols.interface_dhcp",
-     {"set_interface_dhcp", "get_interface_dhcp", "get_dhcp_leases"}),
-    ("GatewayRedundancy", "testprotocols.gateway_redundancy",
-     {"list_groups", "get_group", "set_group"}),
+    (
+        "InterfaceDhcp",
+        "testprotocols.interface_dhcp",
+        {"set_interface_dhcp", "get_interface_dhcp", "get_dhcp_leases"},
+    ),
+    (
+        "GatewayRedundancy",
+        "testprotocols.gateway_redundancy",
+        {"list_groups", "get_group", "set_group"},
+    ),
 ]
 
 
@@ -65,5 +91,5 @@ def test_is_runtime_checkable(class_name: str, module: str, expected_methods: se
 @pytest.mark.parametrize(("class_name", "module", "expected_methods"), PROTOCOLS)
 def test_protocol_shape(class_name: str, module: str, expected_methods: set[str]) -> None:
     cls = getattr(importlib.import_module(module), class_name)
-    actual = set(cls.__protocol_attrs__)
+    actual = protocol_attrs(cls)
     assert expected_methods <= actual, f"{class_name} missing: {expected_methods - actual}"

@@ -10,6 +10,7 @@ inventory-string -> Protocol binding and the per-archetype capability set
 from __future__ import annotations
 
 import pytest
+from _helpers import protocol_attrs
 from testprotocols.devices import DeviceTypeSpec, all_device_types, get_device_type
 from testprotocols.devices.base import BaseDeviceProtocol
 from testprotocols.devices.client import (
@@ -195,7 +196,7 @@ def test_sdwan_router_aggregates_expected_capabilities() -> None:
         "nat",
         "conntrack",
     }
-    actual = set(SdwanRouterDevice.__protocol_attrs__)
+    actual = protocol_attrs(SdwanRouterDevice)
     assert expected <= actual, f"missing: {expected - actual}"
     assert "netem" not in actual, "netem should not be on SdwanRouterDevice"
 
@@ -220,7 +221,7 @@ def test_sdwan_appliance_aggregates_expected_capabilities() -> None:
         "syslog",
         "vpn",
     }
-    actual = set(SdwanApplianceDevice.__protocol_attrs__)
+    actual = protocol_attrs(SdwanApplianceDevice)
     assert expected <= actual, f"missing: {expected - actual}"
     # device_management is Linux-host-shaped (ps/memory/board-logs/file-content)
     # and intentionally NOT on the managed-appliance archetype — see GAPS.md.
@@ -257,7 +258,7 @@ def test_cpe_aggregates_expected_capabilities() -> None:
         "firewall_zones",
         "ntp_client",
     }
-    actual = set(CpeDevice.__protocol_attrs__)
+    actual = protocol_attrs(CpeDevice)
     assert expected <= actual, f"missing: {expected - actual}"
 
 
@@ -281,7 +282,7 @@ def test_lan_client_aggregates_expected_capabilities() -> None:
         "arp_client",
         "vlan_client",
     }
-    actual = set(LanClientDevice.__protocol_attrs__)
+    actual = protocol_attrs(LanClientDevice)
     assert expected <= actual, f"missing: {expected - actual}"
 
 
@@ -301,13 +302,13 @@ def test_wlan_client_aggregates_expected_capabilities() -> None:
         "nmap_scanner",
         "file_transfer",
     }
-    actual = set(WlanClientDevice.__protocol_attrs__)
+    actual = protocol_attrs(WlanClientDevice)
     assert expected <= actual, f"missing: {expected - actual}"
 
 
 def test_qoe_client_aggregates_expected_capabilities() -> None:
     expected = {"qoe_browser", "ip_interface", "dhcp_client", "syslog"}
-    actual = set(QoeClientDevice.__protocol_attrs__)
+    actual = protocol_attrs(QoeClientDevice)
     assert expected <= actual, f"missing: {expected - actual}"
 
 
@@ -323,15 +324,13 @@ def test_qoe_measurement_client_aggregates_expected_capabilities() -> None:
         "pcap",
         "syslog",
     }
-    actual = set(QoeMeasurementClientDevice.__protocol_attrs__)
+    actual = protocol_attrs(QoeMeasurementClientDevice)
     assert expected <= actual, f"missing: {expected - actual}"
 
 
 def test_qoe_measurement_client_is_a_qoe_client() -> None:
     """Strict-superset invariant: the measurement client subsumes QoeClientDevice."""
-    assert set(QoeClientDevice.__protocol_attrs__) <= set(
-        QoeMeasurementClientDevice.__protocol_attrs__
-    )
+    assert protocol_attrs(QoeClientDevice) <= protocol_attrs(QoeMeasurementClientDevice)
 
 
 def test_acs_aggregates_expected_capabilities() -> None:
@@ -341,43 +340,43 @@ def test_acs_aggregates_expected_capabilities() -> None:
         "file_transfer",
         "packet_filter",
     }
-    actual = set(AcsDevice.__protocol_attrs__)
+    actual = protocol_attrs(AcsDevice)
     assert expected <= actual, f"missing: {expected - actual}"
 
 
 def test_provisioner_aggregates_expected_capabilities() -> None:
     expected = {"dhcp_server", "pcap", "file_transfer", "packet_filter"}
-    actual = set(ProvisionerDevice.__protocol_attrs__)
+    actual = protocol_attrs(ProvisionerDevice)
     assert expected <= actual, f"missing: {expected - actual}"
 
 
 def test_tftp_aggregates_expected_capabilities() -> None:
     expected = {"tftp_server"}
-    actual = set(TftpDevice.__protocol_attrs__)
+    actual = protocol_attrs(TftpDevice)
     assert expected <= actual, f"missing: {expected - actual}"
 
 
 def test_traffic_controller_aggregates_expected_capabilities() -> None:
     expected = {"netem", "ip_interface", "pcap", "syslog"}
-    actual = set(TrafficControllerDevice.__protocol_attrs__)
+    actual = protocol_attrs(TrafficControllerDevice)
     assert expected <= actual, f"missing: {expected - actual}"
 
 
 def test_iperf_traffic_generator_aggregates_expected_capabilities() -> None:
     expected = {"iperf_generator", "ip_interface"}
-    actual = set(IperfTrafficGeneratorDevice.__protocol_attrs__)
+    actual = protocol_attrs(IperfTrafficGeneratorDevice)
     assert expected <= actual, f"missing: {expected - actual}"
 
 
 def test_sip_phone_device_aggregates_expected_capabilities() -> None:
     expected = {"sip_phone", "ip_interface", "dhcp_client", "number"}
-    actual = set(SipPhoneDevice.__protocol_attrs__)
+    actual = protocol_attrs(SipPhoneDevice)
     assert expected <= actual, f"missing: {expected - actual}"
 
 
 def test_sip_server_device_aggregates_expected_capabilities() -> None:
     expected = {"sip_server", "pcap", "file_transfer"}
-    actual = set(SipServerDevice.__protocol_attrs__)
+    actual = protocol_attrs(SipServerDevice)
     assert expected <= actual, f"missing: {expected - actual}"
 
 
@@ -400,7 +399,7 @@ def test_wan_server_aggregates_expected_capabilities() -> None:
         "nat",
         "conntrack",
     }
-    actual = set(WanServerDevice.__protocol_attrs__)
+    actual = protocol_attrs(WanServerDevice)
     assert expected <= actual, f"missing: {expected - actual}"
 
 
@@ -411,7 +410,7 @@ def test_wan_server_aggregates_expected_capabilities() -> None:
 
 def test_acs_firewall_facets() -> None:
     """ACS aggregates packet_filter only — no NAT / port-forwarding / conntrack / zones."""
-    attrs = set(AcsDevice.__protocol_attrs__)
+    attrs = protocol_attrs(AcsDevice)
     assert "packet_filter" in attrs
     for absent in ("nat", "port_forwarding", "conntrack", "firewall_zones"):
         assert absent not in attrs, f"AcsDevice unexpectedly aggregates {absent}"
@@ -419,13 +418,13 @@ def test_acs_firewall_facets() -> None:
 
 def test_provisioner_firewall_facets() -> None:
     """Provisioner aggregates packet_filter."""
-    attrs = set(ProvisionerDevice.__protocol_attrs__)
+    attrs = protocol_attrs(ProvisionerDevice)
     assert "packet_filter" in attrs
 
 
 def test_lan_client_firewall_facets() -> None:
     """LanClientDevice aggregates packet_filter only."""
-    attrs = set(LanClientDevice.__protocol_attrs__)
+    attrs = protocol_attrs(LanClientDevice)
     assert "packet_filter" in attrs
     for absent in ("nat", "port_forwarding", "conntrack", "firewall_zones"):
         assert absent not in attrs, f"LanClientDevice unexpectedly aggregates {absent}"
@@ -433,7 +432,7 @@ def test_lan_client_firewall_facets() -> None:
 
 def test_wan_server_firewall_facets() -> None:
     """WanServerDevice aggregates packet_filter, nat, conntrack — no port-forwarding / zones."""
-    attrs = set(WanServerDevice.__protocol_attrs__)
+    attrs = protocol_attrs(WanServerDevice)
     for present in ("packet_filter", "nat", "conntrack"):
         assert present in attrs
     for absent in ("port_forwarding", "firewall_zones"):
@@ -442,7 +441,7 @@ def test_wan_server_firewall_facets() -> None:
 
 def test_cpe_full_firewall_surface() -> None:
     """CpeDevice aggregates the complete firewall surface."""
-    attrs = set(CpeDevice.__protocol_attrs__)
+    attrs = protocol_attrs(CpeDevice)
     for present in ("firewall", "nat", "conntrack", "firewall_zones"):
         assert present in attrs
     # PortForwarding is no longer a separate attribute — it's bundled into firewall.
@@ -455,7 +454,12 @@ def test_cpe_full_firewall_surface() -> None:
 def test_devices_without_firewall() -> None:
     """These archetypes must not pull in any of the firewall capabilities."""
     firewall_attrs = (
-        "packet_filter", "firewall", "nat", "port_forwarding", "conntrack", "firewall_zones"
+        "packet_filter",
+        "firewall",
+        "nat",
+        "port_forwarding",
+        "conntrack",
+        "firewall_zones",
     )
     for archetype in (
         TftpDevice,
@@ -466,7 +470,7 @@ def test_devices_without_firewall() -> None:
         TrafficControllerDevice,
         IperfTrafficGeneratorDevice,
     ):
-        attrs = set(archetype.__protocol_attrs__)
+        attrs = protocol_attrs(archetype)
         for absent in firewall_attrs:
             assert absent not in attrs, f"{archetype.__name__} unexpectedly aggregates {absent}"
 
@@ -497,10 +501,10 @@ def test_archetype_inherits_base_device_protocol(archetype: type) -> None:
 @pytest.mark.parametrize("archetype", _ALL_ARCHETYPES, ids=lambda a: a.__name__)
 def test_archetype_carries_universal_identity(archetype: type) -> None:
     """Every archetype's protocol-attrs include device_name and device_type."""
-    attrs = set(archetype.__protocol_attrs__)
+    attrs = protocol_attrs(archetype)
     assert {"device_name", "device_type"} <= attrs, (
         f"{archetype.__name__} missing universal-identity attrs: "
-        f"{ {'device_name', 'device_type'} - attrs}"
+        f"{ {'device_name', 'device_type'} - attrs }"
     )
 
 
@@ -529,36 +533,57 @@ def test_l3_switch_routed_registered() -> None:
 
 def test_l3_switch_is_strict_superset_of_l2() -> None:
     # Protocol inheritance: every L3 attribute set includes the full L2 set.
-    l2_attrs = set(L2Switch.__protocol_attrs__)
-    l3_attrs = set(L3Switch.__protocol_attrs__)
+    l2_attrs = protocol_attrs(L2Switch)
+    l3_attrs = protocol_attrs(L3Switch)
     assert l2_attrs <= l3_attrs, f"L3Switch missing L2 attrs: {l2_attrs - l3_attrs}"
     expected_l3 = {
-        "routed_interfaces", "static_routes", "routing_read",
-        "ospf", "interface_dhcp", "gateway_redundancy",
+        "routed_interfaces",
+        "static_routes",
+        "routing_read",
+        "ospf",
+        "interface_dhcp",
+        "gateway_redundancy",
     }
     assert expected_l3 <= l3_attrs, f"missing: {expected_l3 - l3_attrs}"
     assert "bgp" not in l3_attrs, "bgp belongs only on L3SwitchRouted"
 
 
 def test_l3_switch_routed_adds_bgp() -> None:
-    attrs = set(L3SwitchRouted.__protocol_attrs__)
+    attrs = protocol_attrs(L3SwitchRouted)
     assert "bgp" in attrs
-    assert set(L3Switch.__protocol_attrs__) <= attrs  # still a superset of L3Switch
+    assert protocol_attrs(L3Switch) <= attrs  # still a superset of L3Switch
 
 
 def test_l2_switch_aggregates_expected_capabilities() -> None:
     expected = {
-        "switch_ports", "switch_vlans", "spanning_tree", "link_aggregation",
-        "port_poe", "port_security", "radius", "first_hop_security",
-        "storm_control", "switch_acl", "discovery", "mac_table",
-        "port_status", "switch_qos", "syslog", "ntp",
+        "switch_ports",
+        "switch_vlans",
+        "spanning_tree",
+        "link_aggregation",
+        "port_poe",
+        "port_security",
+        "radius",
+        "first_hop_security",
+        "storm_control",
+        "switch_acl",
+        "discovery",
+        "mac_table",
+        "port_status",
+        "switch_qos",
+        "syslog",
+        "ntp",
     }
-    actual = set(L2Switch.__protocol_attrs__)
+    actual = protocol_attrs(L2Switch)
     assert expected <= actual, f"missing: {expected - actual}"
     # host-substrate levers stay on the Linux twins, never on a managed switch
     for host_lever in (
-        "conntrack", "pcap", "ip_interface", "nat",
-        "packet_filter", "firewall_zones", "wan_admin",
+        "conntrack",
+        "pcap",
+        "ip_interface",
+        "nat",
+        "packet_filter",
+        "firewall_zones",
+        "wan_admin",
     ):
         assert host_lever not in actual, f"{host_lever} must not be on L2Switch"
 
@@ -570,19 +595,29 @@ def test_l3_switch_excludes_host_substrate_levers() -> None:
     Linux-host-shaped ``ip_interface``; firewall / NAT / conntrack belong on the
     CPE/router archetypes; wan_admin is a Linux-only forced link-down lever.
     """
-    actual = set(L3Switch.__protocol_attrs__)
+    actual = protocol_attrs(L3Switch)
     for host_lever in (
-        "conntrack", "pcap", "ip_interface", "nat",
-        "packet_filter", "firewall_zones", "wan_admin",
+        "conntrack",
+        "pcap",
+        "ip_interface",
+        "nat",
+        "packet_filter",
+        "firewall_zones",
+        "wan_admin",
     ):
         assert host_lever not in actual, f"{host_lever} must not be on L3Switch"
 
 
 def test_l3_switch_routed_excludes_host_substrate_levers() -> None:
     """L3SwitchRouted (the BGP-capable variant) likewise excludes host-substrate levers."""
-    actual = set(L3SwitchRouted.__protocol_attrs__)
+    actual = protocol_attrs(L3SwitchRouted)
     for host_lever in (
-        "conntrack", "pcap", "ip_interface", "nat",
-        "packet_filter", "firewall_zones", "wan_admin",
+        "conntrack",
+        "pcap",
+        "ip_interface",
+        "nat",
+        "packet_filter",
+        "firewall_zones",
+        "wan_admin",
     ):
         assert host_lever not in actual, f"{host_lever} must not be on L3SwitchRouted"

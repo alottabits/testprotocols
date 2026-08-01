@@ -9,6 +9,7 @@ from __future__ import annotations
 import importlib
 
 import pytest
+from _helpers import protocol_attrs
 
 PROTOCOLS = [
     (
@@ -70,5 +71,5 @@ def test_is_runtime_checkable(class_name: str, module: str, expected_methods: se
 @pytest.mark.parametrize(("class_name", "module", "expected_methods"), PROTOCOLS)
 def test_protocol_shape(class_name: str, module: str, expected_methods: set[str]) -> None:
     cls = getattr(importlib.import_module(module), class_name)
-    actual = set(cls.__protocol_attrs__)
+    actual = protocol_attrs(cls)
     assert expected_methods <= actual, f"{class_name} missing: {expected_methods - actual}"

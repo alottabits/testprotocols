@@ -11,6 +11,7 @@ from __future__ import annotations
 import importlib
 
 import pytest
+from _helpers import protocol_attrs, protocol_mro
 
 PROTOCOLS = [
     (
@@ -110,7 +111,7 @@ def test_is_runtime_checkable(class_name: str, module: str, expected_methods: se
 def test_protocol_shape(class_name: str, module: str, expected_methods: set[str]) -> None:
     """Each Protocol declares at least the expected method set."""
     cls = getattr(importlib.import_module(module), class_name)
-    actual = set(cls.__protocol_attrs__)
+    actual = protocol_attrs(cls)
     assert expected_methods <= actual, f"{class_name} missing: {expected_methods - actual}"
 
 
@@ -119,7 +120,7 @@ def test_firewall_extends_packet_filter() -> None:
     from testprotocols.firewall import Firewall
     from testprotocols.packet_filter import PacketFilter
 
-    assert PacketFilter in Firewall.__mro__, (
+    assert PacketFilter in protocol_mro(Firewall), (
         "Firewall must extend PacketFilter via Protocol inheritance"
     )
 
@@ -128,7 +129,7 @@ def test_firewall_whitebox_extends_firewall() -> None:
     """FirewallWhiteBox MUST be a Protocol subclass of Firewall."""
     from testprotocols.firewall import Firewall, FirewallWhiteBox
 
-    assert Firewall in FirewallWhiteBox.__mro__, (
+    assert Firewall in protocol_mro(FirewallWhiteBox), (
         "FirewallWhiteBox must extend Firewall via Protocol inheritance"
     )
 
@@ -138,5 +139,5 @@ def test_firewall_whitebox_shape() -> None:
     from testprotocols.firewall import FirewallWhiteBox
 
     expected = {"get_kernel_iptables_dump", "get_nftables_ruleset"}
-    actual = set(FirewallWhiteBox.__protocol_attrs__)
+    actual = protocol_attrs(FirewallWhiteBox)
     assert expected <= actual, f"FirewallWhiteBox missing: {expected - actual}"

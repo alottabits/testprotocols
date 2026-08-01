@@ -10,6 +10,7 @@ from __future__ import annotations
 from enum import StrEnum
 
 import pytest
+from _helpers import assert_str_value
 from testprotocols.models.sdwan_appliance import (
     ApplicationCategory,
     BgpConfig,
@@ -59,9 +60,9 @@ def test_normalized_vocabularies_are_strenums() -> None:
 
 
 def test_members_are_strings_for_clean_serialization() -> None:
-    assert RuleAction.ALLOW == "allow"
+    assert_str_value(RuleAction.ALLOW, "allow")
     assert isinstance(RuleAction.DENY, str)
-    assert RuleProtocol.ICMP6 == "icmp6"
+    assert_str_value(RuleProtocol.ICMP6, "icmp6")
 
 
 def test_construction_validates_at_the_boundary() -> None:
@@ -84,8 +85,8 @@ def test_l3rule_uses_the_normalized_vocabulary() -> None:
 
 def test_content_category_is_a_normalized_strenum_taxonomy() -> None:
     assert issubclass(ContentCategory, StrEnum)
-    assert ContentCategory.GAMBLING == "gambling"
-    assert ContentCategory.SPORTS == "sports"
+    assert_str_value(ContentCategory.GAMBLING, "gambling")
+    assert_str_value(ContentCategory.SPORTS, "sports")
     # a fuller standard set is seeded (not just the evidenced two)
     assert len(ContentCategory) >= 20
     with pytest.raises(ValueError):
@@ -94,9 +95,9 @@ def test_content_category_is_a_normalized_strenum_taxonomy() -> None:
 
 def test_application_category_is_a_normalized_strenum_taxonomy() -> None:
     assert issubclass(ApplicationCategory, StrEnum)
-    assert ApplicationCategory.VIDEO_STREAMING == "video_streaming"
+    assert_str_value(ApplicationCategory.VIDEO_STREAMING, "video_streaming")
     # evidence-driven member: L7 block-by-app-category acceptance test (sports)
-    assert ApplicationCategory.SPORTS == "sports"
+    assert_str_value(ApplicationCategory.SPORTS, "sports")
     assert len(ApplicationCategory) >= 15
     with pytest.raises(ValueError):
         ApplicationCategory("not_a_category")
@@ -145,7 +146,11 @@ def test_syslog_role_and_server() -> None:
 
 def test_threat_prevention_vocabularies() -> None:
     vocabularies = (
-        IntrusionMode, IntrusionSensitivity, MalwareMode, SecurityAction, ThreatCategory
+        IntrusionMode,
+        IntrusionSensitivity,
+        MalwareMode,
+        SecurityAction,
+        ThreatCategory,
     )
     for enum_cls in vocabularies:
         assert issubclass(enum_cls, StrEnum)
@@ -185,9 +190,9 @@ def test_vpn_vocabularies_are_normalized_strenums() -> None:
     assert issubclass(VpnRole, StrEnum)
     assert issubclass(VpnPeerState, StrEnum)
     # members are strings; construction validates at the vendor-ingest boundary
-    assert VpnRole.SPOKE == "spoke"
+    assert_str_value(VpnRole.SPOKE, "spoke")
     assert VpnRole("hub") is VpnRole.HUB
-    assert VpnPeerState.REACHABLE == "reachable"
+    assert_str_value(VpnPeerState.REACHABLE, "reachable")
     with pytest.raises(ValueError):
         VpnRole("mesh")  # not seeded — grows on evidence
     with pytest.raises(ValueError):
@@ -218,7 +223,7 @@ def test_vpn_peer_status_model() -> None:
 def test_steering_scope_and_flow_match() -> None:
     assert issubclass(SteeringScope, StrEnum)
     assert SteeringScope("internet") is SteeringScope.INTERNET
-    assert SteeringScope.OVERLAY == "overlay"
+    assert_str_value(SteeringScope.OVERLAY, "overlay")
     with pytest.raises(ValueError):
         SteeringScope("any")  # deliberately not seeded — intent must be explicit
     m = FlowMatch()
@@ -244,9 +249,7 @@ def test_uplink_selection_rule_defaults() -> None:
 
 
 def test_static_route_model() -> None:
-    route = StaticRoute(
-        name="to-lan", destination_cidr="172.16.5.0/24", next_hop="10.0.100.2"
-    )
+    route = StaticRoute(name="to-lan", destination_cidr="172.16.5.0/24", next_hop="10.0.100.2")
     assert (route.name, route.destination_cidr, route.next_hop) == (
         "to-lan",
         "172.16.5.0/24",

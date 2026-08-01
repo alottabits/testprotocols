@@ -3,14 +3,15 @@
 from __future__ import annotations
 
 import pytest
+from _helpers import assert_str_value
 
 
 def test_l2_common_enums_are_str() -> None:
     from testprotocols.models.l2_common import StpGuard, StpMode, StpPortState
 
-    assert StpMode.RSTP == "rstp"
-    assert StpGuard.ROOT == "root"
-    assert StpPortState.FORWARDING == "forwarding"
+    assert_str_value(StpMode.RSTP, "rstp")
+    assert_str_value(StpGuard.ROOT, "root")
+    assert_str_value(StpPortState.FORWARDING, "forwarding")
     with pytest.raises(ValueError):
         StpMode("pvst")  # vendor-proprietary value is rejected
 
@@ -41,21 +42,21 @@ def test_switch_enums_values() -> None:
         StormControlType,
     )
 
-    assert PortMode.TRUNK == "trunk"
-    assert PortAdminState.ENABLED == "enabled"
-    assert LinkState.UP == "up"
-    assert Duplex.FULL == "full"
-    assert AggregationMode.LACP == "lacp"
-    assert PoeStatus.DELIVERING == "delivering"
-    assert PoePriority.CRITICAL == "critical"
-    assert AccessPolicyType.DOT1X == "dot1x"
-    assert AclDirection.INGRESS == "ingress"
-    assert DiscoveryProtocol.LLDP == "lldp"
-    assert StormControlType.BROADCAST == "broadcast"
-    assert QosTrustMode.DSCP == "dscp"
-    assert FhsTrustState.TRUSTED == "trusted"
-    assert FhsScope.PER_VLAN == "per_vlan"
-    assert BindingSource.STATIC == "static"
+    assert_str_value(PortMode.TRUNK, "trunk")
+    assert_str_value(PortAdminState.ENABLED, "enabled")
+    assert_str_value(LinkState.UP, "up")
+    assert_str_value(Duplex.FULL, "full")
+    assert_str_value(AggregationMode.LACP, "lacp")
+    assert_str_value(PoeStatus.DELIVERING, "delivering")
+    assert_str_value(PoePriority.CRITICAL, "critical")
+    assert_str_value(AccessPolicyType.DOT1X, "dot1x")
+    assert_str_value(AclDirection.INGRESS, "ingress")
+    assert_str_value(DiscoveryProtocol.LLDP, "lldp")
+    assert_str_value(StormControlType.BROADCAST, "broadcast")
+    assert_str_value(QosTrustMode.DSCP, "dscp")
+    assert_str_value(FhsTrustState.TRUSTED, "trusted")
+    assert_str_value(FhsScope.PER_VLAN, "per_vlan")
+    assert_str_value(BindingSource.STATIC, "static")
     with pytest.raises(ValueError):
         DiscoveryProtocol("cdp")  # CDP normalizes onto LLDP; not a member
 

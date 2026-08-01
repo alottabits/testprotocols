@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from _helpers import protocol_attrs
 from testprotocols.ip_interface import IpInterface
 
 
@@ -26,5 +27,5 @@ def test_ip_interface_protocol_shape() -> None:
         "set_static_ip",
         "remove_static_ip",
     }
-    actual = set(IpInterface.__protocol_attrs__)
+    actual = protocol_attrs(IpInterface)
     assert expected <= actual, f"missing: {expected - actual}"
