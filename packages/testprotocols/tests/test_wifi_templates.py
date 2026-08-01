@@ -19,6 +19,7 @@ from __future__ import annotations
 import importlib
 
 import pytest
+from _helpers import protocol_attrs
 
 PROTOCOLS = [
     (
@@ -181,7 +182,7 @@ def test_is_runtime_checkable(class_name: str, module: str, expected_methods: se
 @pytest.mark.parametrize(("class_name", "module", "expected_methods"), PROTOCOLS)
 def test_protocol_shape(class_name: str, module: str, expected_methods: set[str]) -> None:
     cls = getattr(importlib.import_module(module), class_name)
-    actual = set(cls.__protocol_attrs__)
+    actual = protocol_attrs(cls)
     assert expected_methods <= actual, f"{class_name} missing: {expected_methods - actual}"
 
 
@@ -197,8 +198,8 @@ def test_acl_methods_live_on_wifi_bss_not_stations() -> None:
         "clear_acl",
         "get_acl",
     }
-    bss_attrs = set(WifiBss.__protocol_attrs__)
-    stations_attrs = set(WifiStations.__protocol_attrs__)
+    bss_attrs = protocol_attrs(WifiBss)
+    stations_attrs = protocol_attrs(WifiStations)
     assert acl_methods <= bss_attrs, f"WifiBss missing ACL methods: {acl_methods - bss_attrs}"
     assert acl_methods.isdisjoint(stations_attrs), (
         f"WifiStations unexpectedly declares ACL methods: {acl_methods & stations_attrs}"
@@ -209,8 +210,8 @@ def test_inject_radar_event_lives_on_white_box_not_base() -> None:
     """``inject_radar_event`` is white-box-only; the base WifiRadio Protocol must not declare it."""
     from testprotocols.wifi_radio import WifiRadio, WifiRadioWhiteBox
 
-    base_attrs = set(WifiRadio.__protocol_attrs__)
-    wb_attrs = set(WifiRadioWhiteBox.__protocol_attrs__)
+    base_attrs = protocol_attrs(WifiRadio)
+    wb_attrs = protocol_attrs(WifiRadioWhiteBox)
     assert "inject_radar_event" not in base_attrs, (
         "inject_radar_event must not be on base WifiRadio Protocol"
     )

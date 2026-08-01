@@ -16,7 +16,7 @@ from testoperations.dhcp_client import (
 
 
 class TestDhcpRenewIpv4:
-    def test_releases_and_renews(self):
+    def test_releases_and_renews(self) -> None:
         dhcp = MagicMock()
         ip = MagicMock()
         ip.get_interface_ipv4addr.return_value = "192.168.1.100"
@@ -28,7 +28,7 @@ class TestDhcpRenewIpv4:
         ip.get_interface_ipv4addr.assert_called_once_with("eth1")
         assert result == "192.168.1.100"
 
-    def test_returns_new_ip(self):
+    def test_returns_new_ip(self) -> None:
         dhcp = MagicMock()
         ip = MagicMock()
         ip.get_interface_ipv4addr.return_value = "10.0.0.50"
@@ -43,7 +43,7 @@ class TestDhcpRenewIpv4:
 
 
 class TestDhcpRenewStatefulIpv6:
-    def test_releases_and_renews_ipv6(self):
+    def test_releases_and_renews_ipv6(self) -> None:
         dhcp = MagicMock()
         ip = MagicMock()
         ip.get_interface_ipv6addr.return_value = "2001:db8::1"
@@ -62,7 +62,7 @@ class TestDhcpRenewStatefulIpv6:
 
 
 class TestDhcpRenewStatelessIpv6:
-    def test_renews_with_stateless_flag(self):
+    def test_renews_with_stateless_flag(self) -> None:
         dhcp = MagicMock()
         ip = MagicMock()
         ip.get_interface_ipv6addr.return_value = "fe80::1"

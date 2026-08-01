@@ -12,7 +12,7 @@ from testoperations.tr069_server import is_cpe_online
 
 
 class TestIsCpeOnline:
-    def test_returns_true_when_gpv_succeeds(self):
+    def test_returns_true_when_gpv_succeeds(self) -> None:
         acs = MagicMock()
         result = is_cpe_online(acs, "cpe-001")
         assert result is True
@@ -21,7 +21,7 @@ class TestIsCpeOnline:
             cpe_id="cpe-001",
         )
 
-    def test_returns_false_when_gpv_raises(self):
+    def test_returns_false_when_gpv_raises(self) -> None:
         acs = MagicMock()
         acs.GPV.side_effect = Exception("unreachable")
         result = is_cpe_online(acs, "cpe-001")

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from _helpers import protocol_attrs
 from testprotocols.dhcp_client import DhcpClient
 from testprotocols.dhcp_server import DhcpServer
 from testprotocols.models.dhcp import DhcpLeaseObservation
@@ -25,7 +26,7 @@ def test_dhcp_client_protocol_shape() -> None:
         "observe_lease",
         "release_observed_lease",
     }
-    actual = set(DhcpClient.__protocol_attrs__)
+    actual = protocol_attrs(DhcpClient)
     assert expected <= actual, f"missing: {expected - actual}"
 
 
@@ -53,5 +54,5 @@ def test_dhcp_server_is_runtime_checkable() -> None:
 def test_dhcp_server_protocol_shape() -> None:
     """DhcpServer declares the expected method set."""
     expected = {"provision_cpe"}
-    actual = set(DhcpServer.__protocol_attrs__)
+    actual = protocol_attrs(DhcpServer)
     assert expected <= actual, f"missing: {expected - actual}"

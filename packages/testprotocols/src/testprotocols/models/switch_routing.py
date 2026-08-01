@@ -81,11 +81,11 @@ class InterfaceDhcpConfig:
     interface: str
     mode: DhcpMode = DhcpMode.DISABLED
     lease_seconds: int = 86400
-    dns_servers: list[str] = field(default_factory=list)
-    options: list[DhcpOption] = field(default_factory=list)
-    reservations: list[DhcpReservation] = field(default_factory=list)
-    reserved_ranges: list[tuple[str, str]] = field(default_factory=list)
-    relay_targets: list[str] = field(default_factory=list)
+    dns_servers: list[str] = field(default_factory=list[str])
+    options: list[DhcpOption] = field(default_factory=list[DhcpOption])
+    reservations: list[DhcpReservation] = field(default_factory=list[DhcpReservation])
+    reserved_ranges: list[tuple[str, str]] = field(default_factory=list[tuple[str, str]])
+    relay_targets: list[str] = field(default_factory=list[str])
 
 
 @dataclass
@@ -105,8 +105,8 @@ class OspfConfig:
     enabled: bool
     router_id: str
     version: OspfVersion = OspfVersion.V2
-    areas: list[str] = field(default_factory=list)
-    interfaces: list[OspfInterfaceSettings] = field(default_factory=list)
+    areas: list[str] = field(default_factory=list[str])
+    interfaces: list[OspfInterfaceSettings] = field(default_factory=list[OspfInterfaceSettings])
 
 
 @dataclass

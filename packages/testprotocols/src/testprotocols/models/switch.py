@@ -145,7 +145,7 @@ class SwitchPort:
     mode: PortMode
     enabled: bool = True
     native_vlan: int | None = None
-    allowed_vlans: list[int] = field(default_factory=list)
+    allowed_vlans: list[int] = field(default_factory=list[int])
     description: str = ""
     voice_vlan: int | None = None
     isolated: bool = False
@@ -195,7 +195,7 @@ class AccessPolicy:
 
     port: str
     policy_type: AccessPolicyType
-    allowed_macs: list[str] = field(default_factory=list)
+    allowed_macs: list[str] = field(default_factory=list[str])
     max_macs: int | None = None
     sticky: bool = False
 
@@ -209,7 +209,7 @@ class StormControlConfig:
     """
 
     port: str
-    thresholds: dict[StormControlType, float] = field(default_factory=dict)
+    thresholds: dict[StormControlType, float] = field(default_factory=dict[StormControlType, float])
 
 
 @dataclass

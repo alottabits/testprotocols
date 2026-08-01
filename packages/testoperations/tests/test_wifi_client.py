@@ -16,7 +16,7 @@ from testoperations.wifi_client import (
 
 
 class TestConnectWifiClient:
-    def test_fetches_ssid_from_bss_config_and_connects(self):
+    def test_fetches_ssid_from_bss_config_and_connects(self) -> None:
         wifi = MagicMock()
         bss = MagicMock()
         bss.get_bss_config.return_value = SimpleNamespace(ssid="AutoSSID")
@@ -26,7 +26,7 @@ class TestConnectWifiClient:
         bss.get_bss_config.assert_called_once_with("home")
         wifi.wifi_client_connect.assert_called_once_with("AutoSSID", "pass", bssid=None)
 
-    def test_passes_bssid(self):
+    def test_passes_bssid(self) -> None:
         wifi = MagicMock()
         bss = MagicMock()
         bss.get_bss_config.return_value = SimpleNamespace(ssid="Net")
@@ -42,17 +42,17 @@ class TestConnectWifiClient:
 
 
 class TestScanSsid:
-    def test_returns_true_when_ssid_found(self):
+    def test_returns_true_when_ssid_found(self) -> None:
         wifi = MagicMock()
         wifi.list_wifi_ssids.return_value = ["HomeNetwork", "GuestNetwork"]
         assert scan_ssid(wifi, "HomeNetwork") is True
 
-    def test_returns_false_when_ssid_not_found(self):
+    def test_returns_false_when_ssid_not_found(self) -> None:
         wifi = MagicMock()
         wifi.list_wifi_ssids.return_value = ["HomeNetwork"]
         assert scan_ssid(wifi, "GuestNetwork") is False
 
-    def test_calls_list_wifi_ssids(self):
+    def test_calls_list_wifi_ssids(self) -> None:
         wifi = MagicMock()
         wifi.list_wifi_ssids.return_value = []
         scan_ssid(wifi, "AnySSID")

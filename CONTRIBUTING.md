@@ -54,7 +54,15 @@ uv run pytest           # run the test suite
 uv run ruff check .     # lint
 uv run ruff format .    # format
 uv run mypy .           # type-check (strict)
+uv run pyright          # type-check (strict, second checker)
 ```
 
 Please make sure tests, linting, and type checks pass before opening a pull
-request, and add tests for new behavior.
+request, and add tests for new behavior. The `Lint` workflow runs exactly these
+commands on every pull request, so anything that fails locally fails there too.
+
+Both type checkers are run because they disagree usefully: pyright reports
+implicitly-`Any` ("unknown") types that mypy accepts, which is what keeps the
+test fakes and the JSON-parsing helpers honestly typed. Both are pinned by
+`uv.lock`; bump them deliberately in their own pull request rather than letting
+a release change what CI enforces.

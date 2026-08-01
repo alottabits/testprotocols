@@ -18,9 +18,7 @@ from testprotocols.models.switch import BindingSource, FhsBinding, FhsScope, Fhs
 class FirstHopSecurity(Protocol):
     """Abstract contract for DHCP snooping + Dynamic ARP Inspection."""
 
-    def set_dhcp_snooping(
-        self, scope: FhsScope, enabled: bool, vlan: int | None = None
-    ) -> None:
+    def set_dhcp_snooping(self, scope: FhsScope, enabled: bool, vlan: int | None = None) -> None:
         """Enable/disable DHCP snooping globally or per-VLAN. A switch-wide-only
         product maps ``PER_VLAN`` to ``GLOBAL`` or raises unsupported-capability."""
         ...

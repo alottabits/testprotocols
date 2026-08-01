@@ -17,7 +17,7 @@ from testprotocols.network_endpoint import NetworkEndpoint
 
 def wait_for_endpoint_ready(
     endpoint: NetworkEndpoint,
-    timeout_s: int,
+    timeout_s: float,
     poll_s: float = 1.0,
 ) -> str:
     """Poll *endpoint* until ``get_ipv4_addr()`` returns a non-empty string.

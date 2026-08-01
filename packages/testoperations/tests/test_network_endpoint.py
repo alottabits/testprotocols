@@ -9,7 +9,7 @@ from testoperations.network_endpoint import wait_for_endpoint_ready
 
 
 class TestWaitForEndpointReady:
-    def test_returns_first_non_empty_ip(self):
+    def test_returns_first_non_empty_ip(self) -> None:
         endpoint = MagicMock()
         endpoint.get_ipv4_addr.side_effect = ["", "", "192.168.10.234"]
 
@@ -18,7 +18,7 @@ class TestWaitForEndpointReady:
         assert result == "192.168.10.234"
         assert endpoint.get_ipv4_addr.call_count == 3
 
-    def test_returns_immediately_when_already_ready(self):
+    def test_returns_immediately_when_already_ready(self) -> None:
         endpoint = MagicMock()
         endpoint.get_ipv4_addr.return_value = "192.168.10.234"
 
@@ -27,14 +27,14 @@ class TestWaitForEndpointReady:
         assert result == "192.168.10.234"
         assert endpoint.get_ipv4_addr.call_count == 1
 
-    def test_raises_timeout_when_only_empty_strings(self):
+    def test_raises_timeout_when_only_empty_strings(self) -> None:
         endpoint = MagicMock()
         endpoint.get_ipv4_addr.return_value = ""
 
         with pytest.raises(TimeoutError, match="kept returning empty"):
             wait_for_endpoint_ready(endpoint, timeout_s=0.05, poll_s=0.01)
 
-    def test_swallows_transient_errors_and_keeps_polling(self):
+    def test_swallows_transient_errors_and_keeps_polling(self) -> None:
         """The interface query may glitch mid-recovery (console not back
         yet, DHCP-client process restarting, etc.); we shouldn't abort
         the whole wait on a single bad poll."""
@@ -50,7 +50,7 @@ class TestWaitForEndpointReady:
         assert result == "192.168.10.234"
         assert endpoint.get_ipv4_addr.call_count == 3
 
-    def test_timeout_message_carries_last_error_when_present(self):
+    def test_timeout_message_carries_last_error_when_present(self) -> None:
         endpoint = MagicMock()
         endpoint.get_ipv4_addr.side_effect = RuntimeError("console lost")
 

@@ -1,0 +1,55 @@
+name: Lint
+
+# Runs the checks CONTRIBUTING.md asks contributors to run before opening a PR:
+# ruff (lint + format), mypy and pyright (both strict), and the test suite.
+#
+# Every tool is pinned by `uv.lock`, so `uv sync` makes this gate deterministic —
+# a new ruff/mypy/pyright release cannot turn CI red on its own. Bump them by
+# updating the lock in a PR, where the new findings are reviewable.
+#
+# `uv run` puts the synced environment on PATH, which is how pyright resolves
+# third-party deps; the workspace packages themselves come from `extraPaths` in
+# the root pyproject.toml.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install uv
+        # Pin to a released version; check for newer at
+        # https://github.com/astral-sh/setup-uv/releases
+        uses: astral-sh/setup-uv@v7
+
+      - name: Sync workspace + dev tools
+        run: uv sync
+
+      # Each check runs even if an earlier one failed, so a single CI run
+      # reports every problem rather than only the first.
+      - name: ruff check
+        run: uv run ruff check .
+
+      - name: ruff format
+        if: ${{ !cancelled() }}
+        run: uv run ruff format --check .
+
+      - name: mypy (strict)
+        if: ${{ !cancelled() }}
+        run: uv run mypy .
+
+      - name: pyright (strict)
+        if: ${{ !cancelled() }}
+        run: uv run pyright
+
+      - name: pytest
+        if: ${{ !cancelled() }}
+        run: uv run pytest

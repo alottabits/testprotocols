@@ -12,7 +12,7 @@ from testoperations.sdwan import measure_failover_convergence
 
 
 class TestMeasureFailoverConvergence:
-    def test_calls_inject_transient_on_netem(self):
+    def test_calls_inject_transient_on_netem(self) -> None:
         netem = MagicMock()
         router = MagicMock()
         # First call returns original wan, subsequent calls return new wan
@@ -23,7 +23,7 @@ class TestMeasureFailoverConvergence:
         netem.inject_transient.assert_called_once_with("blackout", 3000)
         assert isinstance(result, (int, float))
 
-    def test_returns_elapsed_ms(self):
+    def test_returns_elapsed_ms(self) -> None:
         netem = MagicMock()
         router = MagicMock()
         router.get_active_wan_interface.side_effect = ["wan0", "wan1"]

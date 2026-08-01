@@ -227,7 +227,7 @@ class OneToOneNatRule:
     public_ip: str
     lan_ip: str
     uplink: str = "any"
-    allowed_inbound: list[NatInboundAllow] = field(default_factory=list)
+    allowed_inbound: list[NatInboundAllow] = field(default_factory=list[NatInboundAllow])
 
 
 @dataclass
@@ -236,7 +236,7 @@ class OneToManyNatRule:
 
     public_ip: str
     uplink: str = "any"
-    port_forwards: list[PortForwardRule] = field(default_factory=list)
+    port_forwards: list[PortForwardRule] = field(default_factory=list[PortForwardRule])
 
 
 # --- WAN uplinks ---
@@ -287,7 +287,7 @@ class SyslogServer:
 
     host: str
     port: int = 514
-    roles: list[SyslogRole] = field(default_factory=list)
+    roles: list[SyslogRole] = field(default_factory=list[SyslogRole])
 
 
 # --- Threat prevention (IDS / IPS + malware) ---
@@ -423,10 +423,10 @@ class VlanConfig:
     appliance_ip: str
     dhcp_mode: DhcpMode = DhcpMode.SERVER
     dhcp_lease_seconds: int = 86400
-    dns_servers: list[str] = field(default_factory=list)
-    dhcp_options: list[DhcpOption] = field(default_factory=list)
-    reservations: list[DhcpReservation] = field(default_factory=list)
-    reserved_ranges: list[tuple[str, str]] = field(default_factory=list)
+    dns_servers: list[str] = field(default_factory=list[str])
+    dhcp_options: list[DhcpOption] = field(default_factory=list[DhcpOption])
+    reservations: list[DhcpReservation] = field(default_factory=list[DhcpReservation])
+    reserved_ranges: list[tuple[str, str]] = field(default_factory=list[tuple[str, str]])
 
 
 @dataclass
@@ -489,8 +489,8 @@ class SiteToSiteVpnConfig:
     """
 
     role: VpnRole
-    hubs: list[VpnHub] = field(default_factory=list)
-    subnets: list[VpnSubnet] = field(default_factory=list)
+    hubs: list[VpnHub] = field(default_factory=list[VpnHub])
+    subnets: list[VpnSubnet] = field(default_factory=list[VpnSubnet])
 
 
 @dataclass
@@ -619,8 +619,8 @@ class BgpConfig:
 
     enabled: bool
     as_number: int
-    neighbors: list[BgpNeighbor] = field(default_factory=list)
-    advertised_networks: list[str] = field(default_factory=list)
+    neighbors: list[BgpNeighbor] = field(default_factory=list[BgpNeighbor])
+    advertised_networks: list[str] = field(default_factory=list[str])
 
 
 @dataclass

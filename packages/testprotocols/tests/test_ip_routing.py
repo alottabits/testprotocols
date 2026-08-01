@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from _helpers import protocol_attrs
 from testprotocols.ip_routing import IpRouting
 
 
@@ -20,5 +21,5 @@ def test_ip_routing_protocol_shape() -> None:
         "del_default_route",
         "set_default_gw",
     }
-    actual = set(IpRouting.__protocol_attrs__)
+    actual = protocol_attrs(IpRouting)
     assert expected <= actual, f"missing: {expected - actual}"

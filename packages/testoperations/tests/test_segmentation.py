@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import TypedDict
+
 import pytest
 from testoperations.segmentation import (
     NoEligibleSelectionError,
@@ -32,31 +34,31 @@ class TestSelectRoles:
             _spoke("Ermelo", "MX85", subnet="10.1.40.0/24"),
         ]
 
-    def test_source_selected_by_model(self):
+    def test_source_selected_by_model(self) -> None:
         a = select_roles(self._three(), "MX85")
         assert isinstance(a, RoleAssignment)
         assert a.source.name == "Ermelo"
         assert a.source.mx_model == "MX85"
 
-    def test_destination_and_control_are_the_other_two(self):
+    def test_destination_and_control_are_the_other_two(self) -> None:
         a = select_roles(self._three(), "MX85")
         roles = {a.source.name, a.destination.name, a.control.name}
         assert roles == {"Ermelo", "Amsterdam", "Rotterdam"}
         assert a.destination.name != a.control.name
         assert a.source.name not in (a.destination.name, a.control.name)
 
-    def test_dest_control_deterministic_by_name(self):
+    def test_dest_control_deterministic_by_name(self) -> None:
         # Source MX85=Ermelo; remaining sorted by name -> Amsterdam, Rotterdam.
         a = select_roles(self._three(), "MX85")
         assert a.destination.name == "Amsterdam"
         assert a.control.name == "Rotterdam"
 
-    def test_repeatable(self):
+    def test_repeatable(self) -> None:
         a1 = select_roles(self._three(), "MX450")
         a2 = select_roles(self._three(), "MX450")
         assert a1 == a2
 
-    def test_source_is_first_by_name_when_model_duplicated(self):
+    def test_source_is_first_by_name_when_model_duplicated(self) -> None:
         cands = [
             _spoke("Zwolle", "MX250"),
             _spoke("Apeldoorn", "MX250"),
@@ -65,11 +67,11 @@ class TestSelectRoles:
         a = select_roles(cands, "MX250")
         assert a.source.name == "Apeldoorn"  # first by name among the MX250s
 
-    def test_raises_when_model_absent(self):
+    def test_raises_when_model_absent(self) -> None:
         with pytest.raises(NoEligibleSelectionError, match="MX999"):
             select_roles(self._three(), "MX999")
 
-    def test_raises_when_too_few_same_domain_peers(self):
+    def test_raises_when_too_few_same_domain_peers(self) -> None:
         # Source's hub has only the source; the others home to a different hub.
         cands = [
             _spoke("Source", "MX85", hub="HUB-A"),
@@ -79,7 +81,7 @@ class TestSelectRoles:
         with pytest.raises(NoEligibleSelectionError, match="HUB-A"):
             select_roles(cands, "MX85")
 
-    def test_only_same_domain_peers_are_eligible(self):
+    def test_only_same_domain_peers_are_eligible(self) -> None:
         # Two share the source's hub; a third in another domain is ignored.
         cands = [
             _spoke("Amsterdam", "MX450", hub="HUB-A"),
@@ -93,7 +95,22 @@ class TestSelectRoles:
 
 # --- build_deny_rule ---------------------------------------------------------
 
-_ARGS = {
+
+class _Endpoints(TypedDict):
+    """The four address arguments every build_deny_rule case shares.
+
+    A TypedDict rather than a plain dict so ``**_ARGS`` keeps its per-key types
+    at the call site; a ``dict[str, str]`` would collapse them and collide with
+    the keyword-only ``syslog_enabled: bool``.
+    """
+
+    source_subnet: str
+    source_host: str
+    dest_subnet: str
+    dest_host: str
+
+
+_ARGS: _Endpoints = {
     "source_subnet": "10.1.40.0/24",
     "source_host": "10.1.40.50",
     "dest_subnet": "10.1.41.0/24",
@@ -102,36 +119,34 @@ _ARGS = {
 
 
 class TestBuildDenyRule:
-    def test_host_scope_uses_slash32_hosts(self):
+    def test_host_scope_uses_slash32_hosts(self) -> None:
         r = build_deny_rule(scope="host", proto="icmp", **_ARGS)
         assert r.src_cidr == "10.1.40.50/32"
         assert r.dst_cidr == "10.1.41.50/32"
 
-    def test_subnet_scope_uses_subnets(self):
+    def test_subnet_scope_uses_subnets(self) -> None:
         r = build_deny_rule(scope="subnet", proto="any", **_ARGS)
         assert r.src_cidr == "10.1.40.0/24"
         assert r.dst_cidr == "10.1.41.0/24"
 
-    def test_action_is_deny_and_syslog_on_by_default(self):
+    def test_action_is_deny_and_syslog_on_by_default(self) -> None:
         r = build_deny_rule(scope="host", proto="icmp", **_ARGS)
         assert r.action is RuleAction.DENY
         assert r.syslog_enabled is True
 
-    def test_protocol_maps_from_string(self):
+    def test_protocol_maps_from_string(self) -> None:
         assert build_deny_rule(scope="host", proto="udp", **_ARGS).protocol is RuleProtocol.UDP
-        assert (
-            build_deny_rule(scope="subnet", proto="any", **_ARGS).protocol is RuleProtocol.ANY
-        )
+        assert build_deny_rule(scope="subnet", proto="any", **_ARGS).protocol is RuleProtocol.ANY
 
-    def test_comment_passthrough(self):
+    def test_comment_passthrough(self) -> None:
         r = build_deny_rule(scope="host", proto="tcp", comment="segmentation-deny", **_ARGS)
         assert r.comment == "segmentation-deny"
 
-    def test_unknown_scope_raises(self):
+    def test_unknown_scope_raises(self) -> None:
         with pytest.raises(ValueError, match="scope"):
             build_deny_rule(scope="vlan", proto="icmp", **_ARGS)
 
-    def test_invalid_protocol_raises(self):
+    def test_invalid_protocol_raises(self) -> None:
         with pytest.raises(ValueError):
             build_deny_rule(scope="host", proto="sctp", **_ARGS)
 
@@ -153,7 +168,7 @@ class TestFindMatchingDeny:
             ),
         ]
 
-    def test_finds_matching_deny(self):
+    def test_finds_matching_deny(self) -> None:
         found = find_matching_deny(
             self._rules(),
             protocol=RuleProtocol.ICMP,
@@ -163,7 +178,7 @@ class TestFindMatchingDeny:
         assert found is not None
         assert found.action is RuleAction.DENY
 
-    def test_returns_none_when_protocol_differs(self):
+    def test_returns_none_when_protocol_differs(self) -> None:
         assert (
             find_matching_deny(
                 self._rules(),
@@ -174,7 +189,7 @@ class TestFindMatchingDeny:
             is None
         )
 
-    def test_returns_none_when_cidr_differs(self):
+    def test_returns_none_when_cidr_differs(self) -> None:
         assert (
             find_matching_deny(
                 self._rules(),
@@ -185,7 +200,7 @@ class TestFindMatchingDeny:
             is None
         )
 
-    def test_ignores_allow_rule_with_same_tuple(self):
+    def test_ignores_allow_rule_with_same_tuple(self) -> None:
         rules = [
             L3Rule(
                 action=RuleAction.ALLOW,

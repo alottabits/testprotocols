@@ -26,7 +26,7 @@ def _peer(server_ip: str, flow_id: str) -> MagicMock:
 
 
 class TestSaturateLink:
-    def test_returns_flow_ids_keyed_by_direction(self):
+    def test_returns_flow_ids_keyed_by_direction(self) -> None:
         peer_a = _peer("PEER_A_ADDR", "flow-a")
         peer_b = _peer("PEER_B_ADDR", "flow-b")
 
@@ -36,7 +36,7 @@ class TestSaturateLink:
         peer_b.start_traffic.assert_called_once()
         assert result == {"a_to_b": "flow-a", "b_to_a": "flow-b"}
 
-    def test_each_peer_targets_the_other_peers_server_ip(self):
+    def test_each_peer_targets_the_other_peers_server_ip(self) -> None:
         peer_a = _peer("PEER_A_ADDR", "flow-a")
         peer_b = _peer("PEER_B_ADDR", "flow-b")
 
@@ -47,7 +47,7 @@ class TestSaturateLink:
         assert a_spec.destination == "PEER_B_ADDR"  # a -> b
         assert b_spec.destination == "PEER_A_ADDR"  # b -> a
 
-    def test_symmetric_load_applies_same_bandwidth_to_both_directions(self):
+    def test_symmetric_load_applies_same_bandwidth_to_both_directions(self) -> None:
         peer_a = _peer("PEER_A_ADDR", "flow-a")
         peer_b = _peer("PEER_B_ADDR", "flow-b")
 
@@ -61,7 +61,7 @@ class TestSaturateLink:
         assert a_spec.dscp == 0
         assert a_spec.duration_s == 120
 
-    def test_asymmetric_load_applies_independent_bandwidths(self):
+    def test_asymmetric_load_applies_independent_bandwidths(self) -> None:
         peer_a = _peer("PEER_A_ADDR", "flow-a")
         peer_b = _peer("PEER_B_ADDR", "flow-b")
 
@@ -72,7 +72,7 @@ class TestSaturateLink:
         assert a_spec.bandwidth_mbps == 10.0
         assert b_spec.bandwidth_mbps == 100.0
 
-    def test_honours_non_default_kwargs(self):
+    def test_honours_non_default_kwargs(self) -> None:
         peer_a = _peer("PEER_A_ADDR", "flow-a")
         peer_b = _peer("PEER_B_ADDR", "flow-b")
 
@@ -90,7 +90,7 @@ class TestSaturateLink:
         assert a_spec.duration_s == 30
         assert a_spec.protocol == "tcp"
 
-    def test_rejects_peers_resolving_to_same_ip(self):
+    def test_rejects_peers_resolving_to_same_ip(self) -> None:
         peer_a = _peer("PEER_A_ADDR", "flow-a")
         peer_b = _peer("PEER_A_ADDR", "flow-b")
 
@@ -107,7 +107,7 @@ class TestSaturateLink:
 
 
 class TestStopAllGenerators:
-    def test_stops_all_listed_generators(self):
+    def test_stops_all_listed_generators(self) -> None:
         gen1 = MagicMock()
         gen2 = MagicMock()
         gen3 = MagicMock()
@@ -122,7 +122,7 @@ class TestStopAllGenerators:
         gen3.stop_all_traffic.assert_called_once_with()
         assert len(result) == 3
 
-    def test_returns_per_generator_results(self):
+    def test_returns_per_generator_results(self) -> None:
         gen1 = MagicMock()
         r1 = TrafficResult(sent_mbps=100.0)
         gen1.stop_all_traffic.return_value = {"flow-a": r1}

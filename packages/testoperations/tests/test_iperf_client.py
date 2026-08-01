@@ -12,7 +12,7 @@ from testoperations.iperf_client import start_iperf
 
 
 class TestStartIperf:
-    def test_starts_receiver_and_sender(self):
+    def test_starts_receiver_and_sender(self) -> None:
         client = MagicMock()
         server = MagicMock()
 
@@ -21,7 +21,7 @@ class TestStartIperf:
         server.start_receiver.assert_called_once()
         client.start_sender.assert_called_once()
 
-    def test_returns_dict_with_pids_and_logs(self):
+    def test_returns_dict_with_pids_and_logs(self) -> None:
         client = MagicMock()
         server = MagicMock()
         client.start_sender.return_value = ("pid_s", "log_s.txt")
@@ -34,7 +34,7 @@ class TestStartIperf:
         assert result["receiver_pid"] == "pid_r"
         assert result["receiver_log"] == "log_r.txt"
 
-    def test_passes_port_and_options(self):
+    def test_passes_port_and_options(self) -> None:
         client = MagicMock()
         server = MagicMock()
 
@@ -43,7 +43,7 @@ class TestStartIperf:
         server.start_receiver.assert_called_once_with(5201, time=30, udp=True, ip_version=6)
         client.start_sender.assert_called_once_with(5201, time=30, udp=True, ip_version=6)
 
-    def test_handles_non_tuple_return(self):
+    def test_handles_non_tuple_return(self) -> None:
         client = MagicMock()
         server = MagicMock()
         client.start_sender.return_value = "raw_pid"
