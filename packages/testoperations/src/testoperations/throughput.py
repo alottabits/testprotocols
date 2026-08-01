@@ -18,9 +18,9 @@ from __future__ import annotations
 
 import json
 import time
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
-from typing import Any, Literal
+from typing import Any, Literal, cast
 
 from testprotocols.iperf_client import IperfClient
 from testprotocols.iperf_server import IperfServer
@@ -115,6 +115,31 @@ class FlowThroughput:
     retransmits: int | None = None
 
 
+JsonObj = Mapping[str, object]
+
+# iperf3's --json log is untrusted input: a document may be truncated, or a
+# field may be absent or of an unexpected shape. These three narrowers turn any
+# parsed value into the shape the accessors below expect, so a malformed
+# document reads as "field absent" instead of raising mid-measurement.
+
+
+def _obj(value: object) -> JsonObj:
+    """*value* as a JSON object, or an empty one."""
+    return cast("JsonObj", value) if isinstance(value, dict) else {}
+
+
+def _seq(value: object) -> Sequence[object]:
+    """*value* as a JSON array, or an empty one."""
+    return cast("Sequence[object]", value) if isinstance(value, list) else ()
+
+
+def _num(value: object) -> float | None:
+    """*value* as a JSON number, or ``None`` (``bool`` is not a number here)."""
+    if isinstance(value, bool) or not isinstance(value, int | float):
+        return None
+    return float(value)
+
+
 def iter_json_docs(text: str) -> list[Any]:
     """Parse the top-level JSON documents concatenated in *text*, in order.
 
@@ -174,19 +199,18 @@ def last_session_rtt_ms(log_text: str) -> tuple[float | None, float | None]:
     never see a half-populated pair.
     """
     docs = iter_json_docs(log_text)
-    if not docs or not isinstance(docs[-1], dict):
+    if not docs:
         return (None, None)
-    streams = docs[-1].get("end", {}).get("streams", [])
+    streams = _seq(_obj(_obj(docs[-1]).get("end")).get("streams"))
     mins: list[float] = []
     means: list[float] = []
     for stream in streams:
-        sender = stream.get("sender", {}) if isinstance(stream, dict) else {}
-        if not isinstance(sender, dict):
-            continue
-        if sender.get("min_rtt") is not None:
-            mins.append(float(sender["min_rtt"]))
-        if sender.get("mean_rtt") is not None:
-            means.append(float(sender["mean_rtt"]))
+        sender = _obj(_obj(stream).get("sender"))
+        min_rtt, mean_rtt = _num(sender.get("min_rtt")), _num(sender.get("mean_rtt"))
+        if min_rtt is not None:
+            mins.append(min_rtt)
+        if mean_rtt is not None:
+            means.append(mean_rtt)
     if not mins or not means:
         return (None, None)
     return (min(mins) / 1000.0, (sum(means) / len(means)) / 1000.0)
@@ -206,12 +230,10 @@ def last_session_retransmits(log_text: str) -> int | None:
     worth little as evidence unless this travels beside it.
     """
     docs = iter_json_docs(log_text)
-    if not docs or not isinstance(docs[-1], dict):
+    if not docs:
         return None
-    end = docs[-1].get("end", {})
-    if not isinstance(end, dict):
-        return None
-    retransmits = end.get("sum_sent", {}).get("retransmits")
+    end = _obj(_obj(docs[-1]).get("end"))
+    retransmits = _num(_obj(end.get("sum_sent")).get("retransmits"))
     return None if retransmits is None else int(retransmits)
 
 
@@ -225,11 +247,11 @@ def last_session_mbps(log_text: str) -> float | None:
     docs = iter_json_docs(log_text)
     if not docs:
         return None
-    end = docs[-1].get("end", {}) if isinstance(docs[-1], dict) else {}
+    end = _obj(_obj(docs[-1]).get("end"))
     for key in ("sum_received", "sum"):
-        bps = end.get(key, {}).get("bits_per_second")
+        bps = _num(_obj(end.get(key)).get("bits_per_second"))
         if bps is not None:
-            return float(bps) / 1e6
+            return bps / 1e6
     return None
 
 
@@ -657,9 +679,9 @@ class NonCompletion(RuntimeError):
 def last_session_error(log_text: str) -> str | None:
     """The ``error`` string of the LAST completed session document, or ``None``."""
     docs = iter_json_docs(log_text)
-    if not docs or not isinstance(docs[-1], dict):
+    if not docs:
         return None
-    error = docs[-1].get("error")
+    error = _obj(docs[-1]).get("error")
     return str(error) if error else None
 
 

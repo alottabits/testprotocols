@@ -41,7 +41,7 @@ class DhcpLeaseObservation:
     server: str = ""
     """The DHCP server identifier, option 54 (dotted quad; empty if absent)."""
 
-    options: Mapping[int, str] = field(default_factory=dict)
+    options: Mapping[int, str] = field(default_factory=dict[int, str])
     """Raw received value per option code, as reported by the client."""
 
 
