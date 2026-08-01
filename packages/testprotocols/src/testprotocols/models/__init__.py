@@ -172,10 +172,10 @@ __all__ = [
     # tr069
     "CpeConnectionStatus",
     # dhcp
-    "DhcpLeaseObservation",
     "DHCPTraceData",
     "DHCPV6TraceData",
     "DhcpLease",
+    "DhcpLeaseObservation",
     "DhcpMode",
     "DhcpOption",
     "DhcpOptionType",

@@ -17,9 +17,7 @@ from testprotocols.models.switch import AclDirection, SwitchAclRule
 class SwitchAcl(Protocol):
     """Abstract contract for the switch ACL."""
 
-    def set_acl(
-        self, binding: str, direction: AclDirection, rules: list[SwitchAclRule]
-    ) -> None:
+    def set_acl(self, binding: str, direction: AclDirection, rules: list[SwitchAclRule]) -> None:
         """Replace the ordered ACL bound to *binding* (a port or ``vlan:<id>``)
         in *direction*."""
         ...

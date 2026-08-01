@@ -62,22 +62,16 @@ def verify_home(
     """
     try:
         defined = target_lan.get_vlan(vlan.vlan_id)
-        vlan_defined = (
-            defined.subnet == vlan.subnet and defined.appliance_ip == vlan.appliance_ip
-        )
+        vlan_defined = defined.subnet == vlan.subnet and defined.appliance_ip == vlan.appliance_ip
     except KeyError:
         defined = None
         vlan_defined = False
 
     cfg = target_vpn.get_vpn_config()
-    subnet_advertised = any(
-        s.subnet == vlan.subnet and s.advertise for s in cfg.subnets
-    )
+    subnet_advertised = any(s.subnet == vlan.subnet and s.advertise for s in cfg.subnets)
 
     peers = target_vpn.get_vpn_peers()
-    peers_reachable = bool(peers) and all(
-        p.state is VpnPeerState.REACHABLE for p in peers
-    )
+    peers_reachable = bool(peers) and all(p.state is VpnPeerState.REACHABLE for p in peers)
 
     return {
         "vlan_defined": vlan_defined,
