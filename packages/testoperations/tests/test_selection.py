@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 
 import pytest
@@ -23,7 +24,7 @@ class Site:
     clients: int
 
 
-VOCAB = {
+VOCAB: Mapping[str, Callable[[Site], str]] = {
     "color": lambda s: s.color,
     "clients": lambda s: str(s.clients),
 }

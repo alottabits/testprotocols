@@ -19,7 +19,7 @@ def _mapping(name: str) -> PortMapping:
 
 
 class TestResetToFactoryDefault:
-    def test_removes_every_listed_port_mapping(self):
+    def test_removes_every_listed_port_mapping(self) -> None:
         firewall = MagicMock()
         firewall.list_port_mappings.return_value = [
             _mapping("lan_http"),
@@ -34,7 +34,7 @@ class TestResetToFactoryDefault:
             call("nas_web"),
         ]
 
-    def test_no_op_when_no_port_mappings(self):
+    def test_no_op_when_no_port_mappings(self) -> None:
         firewall = MagicMock()
         firewall.list_port_mappings.return_value = []
 
@@ -43,7 +43,7 @@ class TestResetToFactoryDefault:
         firewall.list_port_mappings.assert_called_once_with()
         firewall.remove_port_mapping.assert_not_called()
 
-    def test_does_not_touch_packet_filter_chains(self):
+    def test_does_not_touch_packet_filter_chains(self) -> None:
         firewall = MagicMock()
         firewall.list_port_mappings.return_value = []
 
@@ -52,7 +52,7 @@ class TestResetToFactoryDefault:
         firewall.flush_chain.assert_not_called()
         firewall.remove_rule.assert_not_called()
 
-    def test_propagates_remove_failures(self):
+    def test_propagates_remove_failures(self) -> None:
         firewall = MagicMock()
         firewall.list_port_mappings.return_value = [_mapping("lan_http")]
         firewall.remove_port_mapping.side_effect = RuntimeError("UCI commit failed")

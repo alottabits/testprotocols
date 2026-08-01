@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable, Iterable
 from unittest.mock import MagicMock
 
 from testoperations.homing import HomeAssignment, home_client, realize, verify_home
@@ -24,7 +25,20 @@ def _vlan() -> VlanConfig:
     )
 
 
-def _vpn_mock(subnets=None):
+def _note(order: list[str], label: str) -> Callable[..., None]:
+    """A mock side_effect that records *label* in *order* and ignores its args.
+
+    Ordering is the assertion these tests make, so the arguments themselves do
+    not matter — but a bare lambda leaves its parameter untyped.
+    """
+
+    def _record(*_args: object, **_kw: object) -> None:
+        order.append(label)
+
+    return _record
+
+
+def _vpn_mock(subnets: Iterable[VpnSubnet] | None = None) -> MagicMock:
     vpn = MagicMock()
     vpn.get_vpn_config.return_value = SiteToSiteVpnConfig(
         role=VpnRole.SPOKE, hubs=[], subnets=list(subnets or [])
@@ -32,7 +46,7 @@ def _vpn_mock(subnets=None):
     return vpn
 
 
-def test_home_client_defines_and_advertises_on_target():
+def test_home_client_defines_and_advertises_on_target() -> None:
     vlan = _vlan()
     target_lan = MagicMock()
     target_vpn = _vpn_mock()
@@ -44,21 +58,20 @@ def test_home_client_defines_and_advertises_on_target():
     assert any(s.subnet == "10.1.30.0/24" and s.advertise for s in new_cfg.subnets)
 
 
-def test_home_client_withdraws_from_previous_before_defining():
+def test_home_client_withdraws_from_previous_before_defining() -> None:
     vlan = _vlan()
     order: list[str] = []
     target_lan = MagicMock()
-    target_lan.set_vlan.side_effect = lambda c: order.append("define")
+    target_lan.set_vlan.side_effect = _note(order, "define")
     target_vpn = _vpn_mock()
-    target_vpn.set_vpn_config.side_effect = lambda c: order.append("vpn-advertise")
+    target_vpn.set_vpn_config.side_effect = _note(order, "vpn-advertise")
     previous_lan = MagicMock()
     previous_lan.get_vlan.return_value = vlan  # present on previous
-    previous_lan.delete_vlan.side_effect = lambda vid: order.append("withdraw")
+    previous_lan.delete_vlan.side_effect = _note(order, "withdraw")
     previous_vpn = _vpn_mock([VpnSubnet(subnet="10.1.30.0/24", advertise=True)])
-    previous_vpn.set_vpn_config.side_effect = lambda c: order.append("vpn-withdraw")
+    previous_vpn.set_vpn_config.side_effect = _note(order, "vpn-withdraw")
 
-    home_client(vlan, target_lan, target_vpn,
-                previous_lan=previous_lan, previous_vpn=previous_vpn)
+    home_client(vlan, target_lan, target_vpn, previous_lan=previous_lan, previous_vpn=previous_vpn)
 
     previous_lan.delete_vlan.assert_called_once_with(2639)
     # previous advertisement withdrawn (subnet removed from previous vpn config)
@@ -68,7 +81,7 @@ def test_home_client_withdraws_from_previous_before_defining():
     assert order == ["withdraw", "vpn-withdraw", "define", "vpn-advertise"]
 
 
-def test_home_client_skips_withdraw_when_vlan_absent_on_previous():
+def test_home_client_skips_withdraw_when_vlan_absent_on_previous() -> None:
     vlan = _vlan()
     target_lan = MagicMock()
     target_vpn = _vpn_mock()
@@ -76,13 +89,12 @@ def test_home_client_skips_withdraw_when_vlan_absent_on_previous():
     previous_lan.get_vlan.side_effect = KeyError(2639)  # not present
     previous_vpn = _vpn_mock()
 
-    home_client(vlan, target_lan, target_vpn,
-                previous_lan=previous_lan, previous_vpn=previous_vpn)
+    home_client(vlan, target_lan, target_vpn, previous_lan=previous_lan, previous_vpn=previous_vpn)
 
     previous_lan.delete_vlan.assert_not_called()
 
 
-def test_verify_home_all_true_when_defined_advertised_and_peers_reachable():
+def test_verify_home_all_true_when_defined_advertised_and_peers_reachable() -> None:
     vlan = _vlan()
     target_lan = MagicMock()
     target_lan.get_vlan.return_value = vlan
@@ -99,7 +111,7 @@ def test_verify_home_all_true_when_defined_advertised_and_peers_reachable():
     assert v["peers_reachable"] is True
 
 
-def test_verify_home_false_when_vlan_absent():
+def test_verify_home_false_when_vlan_absent() -> None:
     vlan = _vlan()
     target_lan = MagicMock()
     target_lan.get_vlan.side_effect = KeyError(2639)
@@ -113,7 +125,7 @@ def test_verify_home_false_when_vlan_absent():
     assert v["peers_reachable"] is False
 
 
-def test_verify_home_peers_reachable_false_when_any_unreachable():
+def test_verify_home_peers_reachable_false_when_any_unreachable() -> None:
     vlan = _vlan()
     target_lan = MagicMock()
     target_lan.get_vlan.return_value = vlan
@@ -127,27 +139,33 @@ def test_verify_home_peers_reachable_false_when_any_unreachable():
     assert v["peers_reachable"] is False
 
 
-def _appliance(name: str, defined_vlan_ids=()):
+def _appliance(name: str, defined_vlan_ids: Iterable[int] = ()) -> MagicMock:
     """Fake SdwanApplianceDevice exposing .lan and .vpn."""
     ap = MagicMock()
     ap.name = name
     present = set(defined_vlan_ids)
 
-    def get_vlan(vid):
+    def get_vlan(vid: int) -> VlanConfig:
         if vid in present:
             return _vlan()
         raise KeyError(vid)
 
+    def delete_vlan(vid: int) -> None:
+        present.discard(vid)
+
+    def set_vlan(config: VlanConfig) -> None:
+        present.add(config.vlan_id)
+
     ap.lan.get_vlan.side_effect = get_vlan
-    ap.lan.delete_vlan.side_effect = lambda vid: present.discard(vid)
-    ap.lan.set_vlan.side_effect = lambda c: present.add(c.vlan_id)
+    ap.lan.delete_vlan.side_effect = delete_vlan
+    ap.lan.set_vlan.side_effect = set_vlan
     ap.vpn.get_vpn_config.return_value = SiteToSiteVpnConfig(
         role=VpnRole.SPOKE, hubs=[], subnets=[]
     )
     return ap
 
 
-def test_realize_defines_on_target_and_withdraws_elsewhere():
+def test_realize_defines_on_target_and_withdraws_elsewhere() -> None:
     rotterdam = _appliance("rotterdam")
     amsterdam = _appliance("amsterdam", defined_vlan_ids=[2639])  # stray definition
     vlan = _vlan()
@@ -158,7 +176,7 @@ def test_realize_defines_on_target_and_withdraws_elsewhere():
     amsterdam.lan.delete_vlan.assert_called_once_with(2639)  # single-definer enforced
 
 
-def test_realize_is_idempotent_on_clean_apply():
+def test_realize_is_idempotent_on_clean_apply() -> None:
     rotterdam = _appliance("rotterdam")
     amsterdam = _appliance("amsterdam")
     vlan = _vlan()
@@ -172,7 +190,7 @@ def test_realize_is_idempotent_on_clean_apply():
     amsterdam.lan.delete_vlan.assert_not_called()
 
 
-def test_realize_restores_default_after_a_rehome():
+def test_realize_restores_default_after_a_rehome() -> None:
     rotterdam = _appliance("rotterdam")
     amsterdam = _appliance("amsterdam", defined_vlan_ids=[2639])  # moved here by a scenario
     vlan = _vlan()

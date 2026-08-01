@@ -12,7 +12,7 @@ from testoperations.device_management import wait_for_reboot_completion
 
 
 class TestWaitForRebootCompletion:
-    def test_polls_until_online_returns_true_after_false(self):
+    def test_polls_until_online_returns_true_after_false(self) -> None:
         mgmt = MagicMock()
         # First goes offline, then comes back online
         mgmt.is_online.side_effect = [True, False, False, True]
@@ -20,7 +20,7 @@ class TestWaitForRebootCompletion:
         wait_for_reboot_completion(mgmt, timeout=5)
         assert mgmt.is_online.call_count >= 3
 
-    def test_returns_when_starting_offline_then_online(self):
+    def test_returns_when_starting_offline_then_online(self) -> None:
         mgmt = MagicMock()
         mgmt.is_online.side_effect = [False, True]
 

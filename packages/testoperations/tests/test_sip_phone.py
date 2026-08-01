@@ -15,7 +15,7 @@ from testoperations.sip_phone import (
 
 
 class TestCallAPhone:
-    def test_calls_off_hook_and_dial(self):
+    def test_calls_off_hook_and_dial(self) -> None:
         caller = MagicMock()
 
         call_a_phone(caller, "2002")
@@ -23,7 +23,7 @@ class TestCallAPhone:
         caller.off_hook.assert_called_once_with()
         caller.dial.assert_called_once_with("2002")
 
-    def test_dials_callee_number(self):
+    def test_dials_callee_number(self) -> None:
         caller = MagicMock()
 
         call_a_phone(caller, "3003")
@@ -36,7 +36,7 @@ class TestCallAPhone:
 
 
 class TestShutdownPhone:
-    def test_calls_on_hook_and_kill(self):
+    def test_calls_on_hook_and_kill(self) -> None:
         sip = MagicMock()
 
         shutdown_phone(sip)

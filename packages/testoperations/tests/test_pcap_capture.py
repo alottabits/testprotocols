@@ -13,25 +13,25 @@ from testoperations.pcap_capture import read_tcpdump, tcpdump
 
 
 class TestTcpdump:
-    def test_starts_and_stops_tcpdump(self):
+    def test_starts_and_stops_tcpdump(self) -> None:
         pcap = MagicMock()
         with tcpdump(pcap, "capture.pcap", "eth0"):
             pcap.start_tcpdump.assert_called_once()
         pcap.stop_tcpdump.assert_called_once_with("capture.pcap")
 
-    def test_stops_on_exception(self):
+    def test_stops_on_exception(self) -> None:
         pcap = MagicMock()
         with pytest.raises(RuntimeError):
             with tcpdump(pcap, "capture.pcap", "eth0"):
                 raise RuntimeError("oops")
         pcap.stop_tcpdump.assert_called_once_with("capture.pcap")
 
-    def test_passes_filters(self):
+    def test_passes_filters(self) -> None:
         pcap = MagicMock()
         with tcpdump(pcap, "capture.pcap", "eth0", filters="port 80"):
             pcap.start_tcpdump.assert_called_once_with("capture.pcap", "eth0", filters="port 80")
 
-    def test_no_filters(self):
+    def test_no_filters(self) -> None:
         pcap = MagicMock()
         with tcpdump(pcap, "capture.pcap", "eth0"):
             pcap.start_tcpdump.assert_called_once_with("capture.pcap", "eth0")
@@ -43,7 +43,7 @@ class TestTcpdump:
 
 
 class TestReadTcpdump:
-    def test_delegates_to_pcap_tshark_read(self):
+    def test_delegates_to_pcap_tshark_read(self) -> None:
         pcap = MagicMock()
         pcap.tshark_read_pcap.return_value = "frame data"
 
@@ -54,7 +54,7 @@ class TestReadTcpdump:
         )
         assert result == "frame data"
 
-    def test_passes_opts_and_rm_pcap(self):
+    def test_passes_opts_and_rm_pcap(self) -> None:
         pcap = MagicMock()
         read_tcpdump(pcap, "capture.pcap", opts="-T fields", rm_pcap=False)
         pcap.tshark_read_pcap.assert_called_once_with(
