@@ -99,5 +99,11 @@ class SdwanApplianceDevice(BaseDeviceProtocol, Protocol):
     model-parameterised tests; read it here rather than reaching into a
     framework-specific config object."""
 
+    manages_network: bool
+    """Whether this session owns the device's network configuration. False for
+    a warm-spare member whose primary owns the writes. Vendor-neutral metadata
+    from the driver's config — read it here rather than reaching into a
+    framework-specific config object."""
+
 
 register_device_type("sdwan_appliance", SdwanApplianceDevice)

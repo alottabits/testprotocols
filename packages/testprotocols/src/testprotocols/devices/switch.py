@@ -68,6 +68,12 @@ class L2Switch(BaseDeviceProtocol, Protocol):
     syslog: SyslogConfig
     ntp: NtpConfig
 
+    placement_ports: tuple[str, ...]
+    """Designated ports a testbed may re-VLAN to place a client; empty means
+    no placement write is permitted on this switch. Independent of which
+    device's pipe enters a port: pipe ownership is topology, this is write
+    authorization — declared by the switch, the resource's owner."""
+
 
 register_device_type("managed_switch_l2", L2Switch)
 
