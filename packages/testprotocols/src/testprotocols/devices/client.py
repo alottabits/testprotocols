@@ -142,6 +142,24 @@ class QoeMeasurementClientDevice(QoeClientDevice, Protocol):
     declaration when address facts are foreign-owned or discovered late.
     Vendor-neutral metadata from the driver's attachment config."""
 
+    attachment_subnet: str
+    """The declared subnet (CIDR) of a guest attachment, empty when undeclared.
+    Vendor-neutral metadata from the driver's attachment config — read it here
+    rather than reaching into a framework-specific config object."""
+
+    mgmt_ip: str
+    """The client's management-plane address, empty when undeclared. Published
+    by the driver from its own config so isolation checks never consume a
+    framework-specific config object."""
+
+    pipe_switch: str
+    """Name of the switch carrying this client's dedicated access port (its
+    placement pipe), empty when the client has no declared pipe."""
+
+    pipe_port: str
+    """The dedicated access port whose VLAN is this client's placement knob,
+    empty when the client has no declared pipe."""
+
 
 register_device_type("linux_lan_client", LanClientDevice)
 register_device_type("linux_wlan_client", WlanClientDevice)

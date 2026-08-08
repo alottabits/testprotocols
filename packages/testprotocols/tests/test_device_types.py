@@ -220,6 +220,7 @@ def test_sdwan_appliance_aggregates_expected_capabilities() -> None:
         "lan",
         "syslog",
         "vpn",
+        "manages_network",
     }
     actual = protocol_attrs(SdwanApplianceDevice)
     assert expected <= actual, f"missing: {expected - actual}"
@@ -323,6 +324,10 @@ def test_qoe_measurement_client_aggregates_expected_capabilities() -> None:
         "responder",
         "pcap",
         "syslog",
+        "attachment_subnet",
+        "mgmt_ip",
+        "pipe_switch",
+        "pipe_port",
     }
     actual = protocol_attrs(QoeMeasurementClientDevice)
     assert expected <= actual, f"missing: {expected - actual}"
@@ -572,6 +577,7 @@ def test_l2_switch_aggregates_expected_capabilities() -> None:
         "switch_qos",
         "syslog",
         "ntp",
+        "placement_ports",
     }
     actual = protocol_attrs(L2Switch)
     assert expected <= actual, f"missing: {expected - actual}"
