@@ -324,13 +324,20 @@ def test_qoe_measurement_client_aggregates_expected_capabilities() -> None:
         "responder",
         "pcap",
         "syslog",
+        "attachment",
+        "pipe",
+    }
+    actual = protocol_attrs(QoeMeasurementClientDevice)
+    assert expected <= actual, f"missing: {expected - actual}"
+    for scalar in (
+        "test_ip",
+        "attachment_segment",
         "attachment_subnet",
         "mgmt_ip",
         "pipe_switch",
         "pipe_port",
-    }
-    actual = protocol_attrs(QoeMeasurementClientDevice)
-    assert expected <= actual, f"missing: {expected - actual}"
+    ):
+        assert scalar not in actual, f"device-level scalar {scalar} must be gone"
 
 
 def test_qoe_measurement_client_is_a_qoe_client() -> None:

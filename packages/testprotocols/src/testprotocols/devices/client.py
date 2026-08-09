@@ -17,12 +17,14 @@ from testprotocols.ip_routing import IpRouting
 from testprotocols.iperf_client import IperfClient
 from testprotocols.iperf_server import IperfServer
 from testprotocols.multicast_client import MulticastClient
+from testprotocols.network_attachment import NetworkAttachment
 from testprotocols.network_endpoint import NetworkEndpoint
 from testprotocols.network_probe import NetworkProbe
 from testprotocols.nmap_scanner import NmapScanner
 from testprotocols.ntp_client import NtpClient
 from testprotocols.packet_filter import PacketFilter
 from testprotocols.pcap_capture import PcapCapture
+from testprotocols.placement import PlacementPipe
 from testprotocols.qoe_browser import QoeBrowser
 from testprotocols.reachability_responder import ReachabilityResponder
 from testprotocols.syslog_config import SyslogConfig
@@ -128,37 +130,14 @@ class QoeMeasurementClientDevice(QoeClientDevice, Protocol):
     responder: ReachabilityResponder
     pcap: PcapCapture
 
-    test_ip: str
-    """The client's test-plane address as a CIDR (e.g. ``"10.1.30.50/24"``), empty
-    if the client is not homed to a test segment. Vendor-neutral metadata the
-    driver resolves from its homing config — read it here rather than reaching into
-    a framework-specific config object."""
+    attachment: NetworkAttachment
+    """Homing metadata — test/mgmt plane addresses and the declared guest
+    attachment (segment label + subnet). See ``NetworkAttachment`` for the
+    boundary against ``NetworkEndpoint``."""
 
-    attachment_segment: str
-    """The declared segment LABEL of a guest-attached client (a client whose
-    test leg sits on a segment the testbed does not manage), empty for managed
-    homing or when undeclared. A stable role name (e.g. ``"provider-vpn"``),
-    never an address: it lets tests resolve "the client on segment X" by
-    declaration when address facts are foreign-owned or discovered late.
-    Vendor-neutral metadata from the driver's attachment config."""
-
-    attachment_subnet: str
-    """The declared subnet (CIDR) of a guest attachment, empty when undeclared.
-    Vendor-neutral metadata from the driver's attachment config — read it here
-    rather than reaching into a framework-specific config object."""
-
-    mgmt_ip: str
-    """The client's management-plane address, empty when undeclared. Published
-    by the driver from its own config so isolation checks never consume a
-    framework-specific config object."""
-
-    pipe_switch: str
-    """Name of the switch carrying this client's dedicated access port (its
-    placement pipe), empty when the client has no declared pipe."""
-
-    pipe_port: str
-    """The dedicated access port whose VLAN is this client's placement knob,
-    empty when the client has no declared pipe."""
+    pipe: PlacementPipe
+    """This client's declared placement pipe (dedicated access port on a
+    managed switch); counterpart of the switch's ``placement`` authorization."""
 
 
 register_device_type("linux_lan_client", LanClientDevice)
