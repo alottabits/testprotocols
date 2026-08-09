@@ -584,10 +584,12 @@ def test_l2_switch_aggregates_expected_capabilities() -> None:
         "switch_qos",
         "syslog",
         "ntp",
-        "placement_ports",
+        "placement",
+        "info",
     }
     actual = protocol_attrs(L2Switch)
     assert expected <= actual, f"missing: {expected - actual}"
+    assert "placement_ports" not in actual, "device-level scalar placement_ports must be gone"
     # host-substrate levers stay on the Linux twins, never on a managed switch
     for host_lever in (
         "conntrack",
