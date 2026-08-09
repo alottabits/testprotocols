@@ -220,10 +220,13 @@ def test_sdwan_appliance_aggregates_expected_capabilities() -> None:
         "lan",
         "syslog",
         "vpn",
-        "manages_network",
+        "info",
+        "ownership",
     }
     actual = protocol_attrs(SdwanApplianceDevice)
     assert expected <= actual, f"missing: {expected - actual}"
+    for scalar in ("model", "manages_network"):
+        assert scalar not in actual, f"device-level scalar {scalar} must be gone"
     # device_management is Linux-host-shaped (ps/memory/board-logs/file-content)
     # and intentionally NOT on the managed-appliance archetype — see GAPS.md.
     # wan_admin (forced link-down) is likewise host-substrate-only: an
