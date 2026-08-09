@@ -384,15 +384,18 @@ def test_iperf_traffic_generator_aggregates_expected_capabilities() -> None:
 
 
 def test_sip_phone_device_aggregates_expected_capabilities() -> None:
-    expected = {"sip_phone", "ip_interface", "dhcp_client", "number"}
+    expected = {"sip_phone", "ip_interface", "dhcp_client"}
     actual = protocol_attrs(SipPhoneDevice)
     assert expected <= actual, f"missing: {expected - actual}"
+    for scalar in ("number", "aors"):
+        assert scalar not in actual, f"device-level scalar {scalar} must be gone"
 
 
 def test_sip_server_device_aggregates_expected_capabilities() -> None:
     expected = {"sip_server", "pcap", "file_transfer"}
     actual = protocol_attrs(SipServerDevice)
     assert expected <= actual, f"missing: {expected - actual}"
+    assert "aor_domain" not in actual, "device-level scalar aor_domain must be gone"
 
 
 def test_wan_server_aggregates_expected_capabilities() -> None:
