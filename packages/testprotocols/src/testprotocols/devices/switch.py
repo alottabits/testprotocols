@@ -12,6 +12,7 @@ from __future__ import annotations
 from typing import Protocol, runtime_checkable
 
 from testprotocols.bgp import Bgp
+from testprotocols.device_info import DeviceInfo
 from testprotocols.devices import register_device_type
 from testprotocols.devices.base import BaseDeviceProtocol
 from testprotocols.discovery import Discovery
@@ -22,6 +23,7 @@ from testprotocols.link_aggregation import LinkAggregation
 from testprotocols.mac_table import MacTable
 from testprotocols.ntp_config import NtpConfig
 from testprotocols.ospf import Ospf
+from testprotocols.placement import PlacementPorts
 from testprotocols.port_poe import PortPoe
 from testprotocols.port_security import PortSecurity
 from testprotocols.port_status import PortStatus
@@ -68,11 +70,13 @@ class L2Switch(BaseDeviceProtocol, Protocol):
     syslog: SyslogConfig
     ntp: NtpConfig
 
-    placement_ports: tuple[str, ...]
-    """Designated ports a testbed may re-VLAN to place a client; empty means
-    no placement write is permitted on this switch. Independent of which
-    device's pipe enters a port: pipe ownership is topology, this is write
-    authorization — declared by the switch, the resource's owner."""
+    placement: PlacementPorts
+    """Placement-write authorization — which ports a testbed may re-VLAN to
+    place a client; counterpart of a client's ``pipe`` declaration."""
+
+    info: DeviceInfo
+    """Inventory identity (hardware model) — the coverage axis for
+    model-parameterised switch tests."""
 
 
 register_device_type("managed_switch_l2", L2Switch)

@@ -1,6 +1,6 @@
 """testprotocols — capability and device Protocols for telco resources under test."""
 
-__version__ = "0.7.2"
+__version__ = "0.8.0"
 
 from testprotocols.aftr_gateway import AftrGateway
 from testprotocols.appliance_nat import ApplianceNat
@@ -8,8 +8,10 @@ from testprotocols.appliance_uplinks import ApplianceUplinks
 from testprotocols.appliance_vlans import ApplianceVlans
 from testprotocols.arp_client import ArpClient
 from testprotocols.bgp import Bgp
+from testprotocols.config_ownership import ConfigOwnership
 from testprotocols.conntrack import Conntrack, ConntrackWhiteBox
 from testprotocols.content_filtering import ContentFiltering
+from testprotocols.device_info import DeviceInfo
 from testprotocols.device_lifecycle import DeviceLifecycle
 from testprotocols.device_management import DeviceManagement
 from testprotocols.devices.base import BaseDeviceProtocol
@@ -60,6 +62,7 @@ from testprotocols.mac_table import MacTable
 from testprotocols.multicast_client import MulticastClient
 from testprotocols.nat import Nat
 from testprotocols.netem_controller import NetemController
+from testprotocols.network_attachment import NetworkAttachment
 from testprotocols.nmap_scanner import NmapScanner
 from testprotocols.ntp_client import NtpClient
 from testprotocols.ntp_config import NtpConfig
@@ -67,6 +70,7 @@ from testprotocols.ospf import Ospf
 from testprotocols.packet_filter import PacketFilter, PacketFilterWhiteBox
 from testprotocols.pcap_capture import PcapCapture
 from testprotocols.pdu_controller import PduController
+from testprotocols.placement import PlacementPipe, PlacementPorts
 from testprotocols.port_poe import PortPoe
 from testprotocols.port_security import PortSecurity
 from testprotocols.port_status import PortStatus
@@ -116,10 +120,12 @@ __all__ = [
     "ArpClient",
     "BaseDeviceProtocol",
     "Bgp",
+    "ConfigOwnership",
     "Conntrack",
     "ConntrackWhiteBox",
     "ContentFiltering",
     "CpeDevice",
+    "DeviceInfo",
     "DeviceLifecycle",
     "DeviceManagement",
     "DhcpClient",
@@ -153,6 +159,7 @@ __all__ = [
     "MulticastClient",
     "Nat",
     "NetemController",
+    "NetworkAttachment",
     "NmapScanner",
     "NtpClient",
     "NtpConfig",
@@ -161,6 +168,8 @@ __all__ = [
     "PacketFilterWhiteBox",
     "PcapCapture",
     "PduController",
+    "PlacementPipe",
+    "PlacementPorts",
     "PortPoe",
     "PortSecurity",
     "PortStatus",

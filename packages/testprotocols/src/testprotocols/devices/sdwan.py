@@ -8,8 +8,10 @@ from testprotocols.appliance_nat import ApplianceNat
 from testprotocols.appliance_uplinks import ApplianceUplinks
 from testprotocols.appliance_vlans import ApplianceVlans
 from testprotocols.bgp import Bgp
+from testprotocols.config_ownership import ConfigOwnership
 from testprotocols.conntrack import Conntrack
 from testprotocols.content_filtering import ContentFiltering
+from testprotocols.device_info import DeviceInfo
 from testprotocols.devices import register_device_type
 from testprotocols.devices.base import BaseDeviceProtocol
 from testprotocols.ip_interface import IpInterface
@@ -93,17 +95,14 @@ class SdwanApplianceDevice(BaseDeviceProtocol, Protocol):
     lan: ApplianceVlans
     syslog: SyslogConfig
 
-    model: str
-    """Hardware model identifier (e.g. ``"MX250"``) — vendor-neutral metadata the
-    driver resolves from its management API / inventory. The coverage axis for
-    model-parameterised tests; read it here rather than reaching into a
-    framework-specific config object."""
+    info: DeviceInfo
+    """Inventory identity (hardware model, e.g. ``"MX250"``) — the coverage
+    axis for model-parameterised tests, resolved by the driver from its
+    management API / inventory."""
 
-    manages_network: bool
-    """Whether this session owns the device's network configuration. False for
-    a warm-spare member whose primary owns the writes. Vendor-neutral metadata
-    from the driver's config — read it here rather than reaching into a
-    framework-specific config object."""
+    ownership: ConfigOwnership
+    """Whether this session owns the appliance's network configuration —
+    False for a warm-spare member whose primary owns the writes."""
 
 
 register_device_type("sdwan_appliance", SdwanApplianceDevice)

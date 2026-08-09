@@ -220,10 +220,13 @@ def test_sdwan_appliance_aggregates_expected_capabilities() -> None:
         "lan",
         "syslog",
         "vpn",
-        "manages_network",
+        "info",
+        "ownership",
     }
     actual = protocol_attrs(SdwanApplianceDevice)
     assert expected <= actual, f"missing: {expected - actual}"
+    for scalar in ("model", "manages_network"):
+        assert scalar not in actual, f"device-level scalar {scalar} must be gone"
     # device_management is Linux-host-shaped (ps/memory/board-logs/file-content)
     # and intentionally NOT on the managed-appliance archetype — see GAPS.md.
     # wan_admin (forced link-down) is likewise host-substrate-only: an
@@ -324,13 +327,20 @@ def test_qoe_measurement_client_aggregates_expected_capabilities() -> None:
         "responder",
         "pcap",
         "syslog",
+        "attachment",
+        "pipe",
+    }
+    actual = protocol_attrs(QoeMeasurementClientDevice)
+    assert expected <= actual, f"missing: {expected - actual}"
+    for scalar in (
+        "test_ip",
+        "attachment_segment",
         "attachment_subnet",
         "mgmt_ip",
         "pipe_switch",
         "pipe_port",
-    }
-    actual = protocol_attrs(QoeMeasurementClientDevice)
-    assert expected <= actual, f"missing: {expected - actual}"
+    ):
+        assert scalar not in actual, f"device-level scalar {scalar} must be gone"
 
 
 def test_qoe_measurement_client_is_a_qoe_client() -> None:
@@ -374,15 +384,18 @@ def test_iperf_traffic_generator_aggregates_expected_capabilities() -> None:
 
 
 def test_sip_phone_device_aggregates_expected_capabilities() -> None:
-    expected = {"sip_phone", "ip_interface", "dhcp_client", "number"}
+    expected = {"sip_phone", "ip_interface", "dhcp_client"}
     actual = protocol_attrs(SipPhoneDevice)
     assert expected <= actual, f"missing: {expected - actual}"
+    for scalar in ("number", "aors"):
+        assert scalar not in actual, f"device-level scalar {scalar} must be gone"
 
 
 def test_sip_server_device_aggregates_expected_capabilities() -> None:
     expected = {"sip_server", "pcap", "file_transfer"}
     actual = protocol_attrs(SipServerDevice)
     assert expected <= actual, f"missing: {expected - actual}"
+    assert "aor_domain" not in actual, "device-level scalar aor_domain must be gone"
 
 
 def test_wan_server_aggregates_expected_capabilities() -> None:
@@ -577,10 +590,12 @@ def test_l2_switch_aggregates_expected_capabilities() -> None:
         "switch_qos",
         "syslog",
         "ntp",
-        "placement_ports",
+        "placement",
+        "info",
     }
     actual = protocol_attrs(L2Switch)
     assert expected <= actual, f"missing: {expected - actual}"
+    assert "placement_ports" not in actual, "device-level scalar placement_ports must be gone"
     # host-substrate levers stay on the Linux twins, never on a managed switch
     for host_lever in (
         "conntrack",

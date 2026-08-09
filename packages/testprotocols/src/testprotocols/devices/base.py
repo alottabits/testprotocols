@@ -21,7 +21,9 @@ class BaseDeviceProtocol(Protocol):
     Deliberately scoped to the universal pair — name + type. Anything a
     specific framework wants to expose (vitro's ``config`` /
     ``get_interactive_consoles``, boardfarm's lifecycle hooks, etc.) is
-    the framework's own concern. Frameworks declare a connector Protocol
+    the framework's own concern. Every other archetype member must be a
+    capability Protocol — enforced by ``register_device_type``; see
+    docs/architecture/capability-only-archetypes.md. Frameworks declare a connector Protocol
     on their side that extends this base; testbed plugins compose
     archetype + framework-connector into a combined Protocol where step
     defs need both.
