@@ -1,6 +1,6 @@
 """testprotocols — capability and device Protocols for telco resources under test."""
 
-__version__ = "0.7.2"
+__version__ = "0.8.0"
 
 from testprotocols.aftr_gateway import AftrGateway
 from testprotocols.appliance_nat import ApplianceNat
@@ -8,8 +8,8 @@ from testprotocols.appliance_uplinks import ApplianceUplinks
 from testprotocols.appliance_vlans import ApplianceVlans
 from testprotocols.arp_client import ArpClient
 from testprotocols.bgp import Bgp
-from testprotocols.conntrack import Conntrack, ConntrackWhiteBox
 from testprotocols.config_ownership import ConfigOwnership
+from testprotocols.conntrack import Conntrack, ConntrackWhiteBox
 from testprotocols.content_filtering import ContentFiltering
 from testprotocols.device_info import DeviceInfo
 from testprotocols.device_lifecycle import DeviceLifecycle
