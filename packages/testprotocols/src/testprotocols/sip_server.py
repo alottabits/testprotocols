@@ -32,6 +32,14 @@ class SipServer(Protocol):
         """IPv6 address of the SIP server, or None if not configured."""
         ...
 
+    @property
+    def aor_domain(self) -> str:
+        """The host part callers should embed in SIP AORs targeting this
+        server (``sip:user@<aor_domain>``). May be an FQDN, an IPv4 literal,
+        or an IPv6 bracketed literal — the driver decides which form matches
+        its testbed's address-resolution context."""
+        ...
+
     # ------------------------------------------------------------------
     # Abstract methods
     # ------------------------------------------------------------------

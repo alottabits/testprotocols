@@ -13,6 +13,24 @@ from typing import Protocol, runtime_checkable
 class SipPhone(Protocol):
     """Abstract contract for SIP phone operations."""
 
+    @property
+    def number(self) -> str:
+        """The user-part of ``aors[0]`` — the phone's E.164 / dial-string
+        identifier for its primary line. A convenience so single-line callers
+        don't have to parse SIP URIs."""
+        ...
+
+    @property
+    def aors(self) -> list[str]:
+        """Registered SIP URIs in RFC 3261 §6 address-of-record form
+        (``sip:user@host`` with optional ``;params``). ``host`` may be an FQDN,
+        an IPv4 literal, or an IPv6 bracketed literal — the driver decides
+        which form matches its testbed's address-resolution context. Never
+        empty once configured; ``aors[0]`` is the primary line that single-line
+        operations (``dial``, ``answer``, MWI subscriptions, …) act on.
+        Multi-line phones expose additional entries."""
+        ...
+
     def phone_start(self) -> None:
         """Start the SIP phone software."""
         ...

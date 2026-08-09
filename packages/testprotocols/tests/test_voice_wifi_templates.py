@@ -15,6 +15,9 @@ PROTOCOLS = [
         "SipPhone",
         "testprotocols.sip_phone",
         {
+            # Line identity (moved off the SipPhoneDevice archetype)
+            "number",
+            "aors",
             "phone_start",
             "phone_config",
             "phone_kill",
@@ -65,6 +68,7 @@ PROTOCOLS = [
             "name",
             "ipv4_addr",
             "ipv6_addr",
+            "aor_domain",
             # Lifecycle
             "start",
             "stop",
@@ -133,3 +137,16 @@ def test_protocol_shape(class_name: str, module: str, expected_methods: set[str]
     cls = getattr(importlib.import_module(module), class_name)
     actual = protocol_attrs(cls)
     assert expected_methods <= actual, f"{class_name} missing: {expected_methods - actual}"
+
+
+def test_sip_phone_carries_line_identity() -> None:
+    """number / aors are SipPhone capability members (moved off the archetype)."""
+    from testprotocols.sip_phone import SipPhone
+
+    assert {"number", "aors"} <= protocol_attrs(SipPhone)
+
+
+def test_sip_server_carries_aor_domain() -> None:
+    from testprotocols.sip_server import SipServer
+
+    assert "aor_domain" in protocol_attrs(SipServer)
