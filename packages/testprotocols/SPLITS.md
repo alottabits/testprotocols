@@ -561,3 +561,30 @@ example TC (netem + ip_interface only) was updated to compose its existing
 `LinuxPcapCaptureImpl`. `tests/test_device_types.py` expected-attrs updated.
 
 ---
+
+## 2026-08-10 — overlay path metrics landed on `SiteToSiteVpn`, kept separate from `Router.get_wan_path_metrics`
+
+**Signal:** SD-WAN uplink-steering tests need the path quality the product's
+own overlay steering evaluates — per-uplink latency/jitter/loss measured
+**inside the overlay tunnels**. `Router.get_wan_path_metrics` already returns
+per-uplink `PathMetrics`, and a driver was observed implementing it off the
+management plane's **underlay probe** surface (uplink loss/latency probes to
+external targets). Reusing the same member for the tunnel quantity would have
+left one signature with two meanings, chosen silently per driver.
+
+**Decision:** two members, one model. The **underlay probe** quantity stays
+on `Router.get_wan_path_metrics`; the **overlay tunnel** quantity lands as
+`SiteToSiteVpn.get_vpn_path_metrics(timespan_s, peer=None)`. Both return
+per-uplink `PathMetrics` — the split is by *what is measured*, not by shape.
+
+**Rationale:**
+- The two quantities disagree exactly when it matters: an impairment applied
+  on the WAN wire moves tunnel metrics while external probes may ride another
+  route (and vice versa). A test asserting steering behaviour against the
+  probe quantity can pass for the wrong reason.
+- Overlay membership and peer status already live on `SiteToSiteVpn`; the
+  tunnel metrics are facts *about that overlay*, so the capability owning the
+  overlay owns its observed path quality.
+- `timespan_s` is explicit on the overlay read because products report it as
+  a windowed aggregate — the freshness trade belongs to the caller, and a
+  hidden default would bake one test's window into the contract.

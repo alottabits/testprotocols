@@ -12,16 +12,23 @@ path steering (``set_uplink_selection`` /
 classes reuse ``SLAPolicy`` by name) landed 2026-06-12; the default
 (primary) uplink pair (``get_default_uplink`` / ``set_default_uplink``)
 landed 2026-07-03 — the network-wide "which uplink carries default-routed
-traffic" knob, distinct from per-flow steering. ``apply_policy`` remains
-the generic escape hatch for vendor-shaped policies beyond that surface.
-Application-match steering grows on evidence.
+traffic" knob, distinct from per-flow steering. The SLA read-back
+(``get_sla_policies``), the scalar-settings snapshot
+(``get_uplink_selection_settings``) and the concurrent-overlay-tunnels
+write (``set_active_active_vpn``) landed 2026-08-10 — the read-back and
+converge surface for the settings the rule list rides on. ``apply_policy``
+remains the generic escape hatch for vendor-shaped policies beyond that
+surface. Application-match steering grows on evidence.
 """
 
 from __future__ import annotations
 
 from typing import Any, Protocol, runtime_checkable
 
-from testprotocols.models.sdwan_appliance import UplinkSelectionRule
+from testprotocols.models.sdwan_appliance import (
+    UplinkSelectionRule,
+    UplinkSelectionSettings,
+)
 from testprotocols.models.wan_edge import AppFlow, SLAPolicy
 
 
@@ -85,4 +92,35 @@ class SdwanPolicyManager(Protocol):
 
     def get_uplink_selection(self) -> list[UplinkSelectionRule]:
         """Return the uplink-selection rules in evaluation order."""
+        ...
+
+    def get_sla_policies(self) -> list[SLAPolicy]:
+        """Return the configured SLA policies (performance classes).
+
+        The read-back for ``configure_sla_policy`` / ``remove_sla_policy``:
+        thresholds as the product stores them, names as configured. Policies
+        the product created outside this session are included — a caller
+        arranging classes captures this read as its restore reference and
+        removes only what it configured.
+        """
+        ...
+
+    def get_uplink_selection_settings(self) -> UplinkSelectionSettings:
+        """Return the scalar settings framing the uplink-selection rule list.
+
+        One snapshot of the network-wide knobs — default uplink, load
+        balancing, concurrent overlay tunnels — read together so a caller
+        converging or restoring them works from a single consistent capture.
+        """
+        ...
+
+    def set_active_active_vpn(self, enabled: bool) -> None:
+        """Enable or disable concurrent overlay tunnels over all active uplinks.
+
+        On products where performance-class steering only evaluates with
+        concurrent tunnels enabled, this is the gate a testbed converges
+        before arranging classes. Read-back via
+        ``get_uplink_selection_settings``; the ordered rule list and the
+        default uplink are left untouched.
+        """
         ...

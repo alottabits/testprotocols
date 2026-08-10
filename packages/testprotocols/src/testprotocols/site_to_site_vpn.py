@@ -22,8 +22,11 @@ write registers/dereferences the device in the relevant site configs. The
 round-trip is intent-preserving even where the stored shape differs.
 
 In scope: overlay participation (role, hubs + default route, subnets),
-overlay exclusions (flow-level membership carve-outs — local breakout), and
-peer status. Overlay *membership* — which flows are in the overlay at all
+overlay exclusions (flow-level membership carve-outs — local breakout),
+peer status, and observed overlay path quality per local uplink
+(``get_vpn_path_metrics`` — the *tunnel* quantity, distinct from the
+underlay probe metrics on ``Router.get_wan_path_metrics``; see SPLITS.md).
+Overlay *membership* — which flows are in the overlay at all
 (role, hubs + default route, subnets, exclusions) — lives here; path
 selection *within* a domain (e.g. which overlay uplink, or which internet
 uplink) lives in ``sdwan_policy_manager``.
@@ -43,6 +46,7 @@ from testprotocols.models.sdwan_appliance import (
     SiteToSiteVpnConfig,
     VpnPeerStatus,
 )
+from testprotocols.models.wan_edge import PathMetrics
 
 
 @runtime_checkable
@@ -86,5 +90,26 @@ class SiteToSiteVpn(Protocol):
         matches) raise rather than approximate. Vendor rule kinds outside
         this contract (e.g. application-based exclusions) are preserved
         unchanged by the driver.
+        """
+        ...
+
+    def get_vpn_path_metrics(
+        self, timespan_s: int, peer: str | None = None
+    ) -> dict[str, PathMetrics]:
+        """Return observed overlay path quality per local uplink.
+
+        Keyed by local uplink name (``PathMetrics.link_name`` repeats the
+        key); aggregated over every overlay peer, or over the single peer
+        named by *peer* (its testbed-level site name, as ``get_vpn_peers``
+        reports it). This is the **tunnel** quantity — the path quality the
+        product's own overlay steering evaluates — not the underlay probe
+        metrics of ``Router.get_wan_path_metrics``.
+
+        *timespan_s* is explicit because products report this as a windowed
+        aggregate: the caller owns the freshness/staleness trade and sizes
+        its observation intervals beyond the product's reporting lag. An
+        uplink absent from the result carried no measured overlay path in
+        the window — presence is itself evidence a tunnel rode that uplink.
+        Empty dict when the device participates in no overlay.
         """
         ...

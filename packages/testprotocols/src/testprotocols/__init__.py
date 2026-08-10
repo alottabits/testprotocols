@@ -1,6 +1,6 @@
 """testprotocols — capability and device Protocols for telco resources under test."""
 
-__version__ = "0.8.0"
+__version__ = "0.9.0"
 
 from testprotocols.aftr_gateway import AftrGateway
 from testprotocols.appliance_nat import ApplianceNat
@@ -99,6 +99,7 @@ from testprotocols.threat_prevention import ThreatPrevention
 from testprotocols.tr069_client import Tr069Client
 from testprotocols.tr069_server import Tr069Server
 from testprotocols.traffic_shaping import TrafficShaping
+from testprotocols.uplink_ports import UplinkPortRef, UplinkPorts
 from testprotocols.upnp_client import UpnpClient
 from testprotocols.vlan_client import VlanClient
 from testprotocols.wan_link_admin import WanLinkAdmin
@@ -206,6 +207,8 @@ __all__ = [
     "Tr069Server",
     "TrafficControllerDevice",
     "TrafficShaping",
+    "UplinkPortRef",
+    "UplinkPorts",
     "UpnpClient",
     "VlanClient",
     "WanLinkAdmin",

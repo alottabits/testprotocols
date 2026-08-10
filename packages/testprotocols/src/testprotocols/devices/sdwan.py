@@ -26,6 +26,7 @@ from testprotocols.static_routes import StaticRoutes
 from testprotocols.syslog_config import SyslogConfig
 from testprotocols.threat_prevention import ThreatPrevention
 from testprotocols.traffic_shaping import TrafficShaping
+from testprotocols.uplink_ports import UplinkPorts
 from testprotocols.wan_link_admin import WanLinkAdmin
 
 
@@ -103,6 +104,12 @@ class SdwanApplianceDevice(BaseDeviceProtocol, Protocol):
     ownership: ConfigOwnership
     """Whether this session owns the appliance's network configuration —
     False for a warm-spare member whose primary owns the writes."""
+
+    uplink_ports: UplinkPorts
+    """Declared uplink→switch-port wiring — which managed-switch ports carry
+    each WAN uplink, one entry per pair member (see ``uplink_ports``). A
+    testbed that splices or re-VLANs an uplink resolves the ports here; the
+    switch's ``PlacementPorts`` stays the write authorization."""
 
 
 register_device_type("sdwan_appliance", SdwanApplianceDevice)
