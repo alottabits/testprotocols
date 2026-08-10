@@ -555,6 +555,23 @@ class UplinkSelectionRule:
     performance_class: str | None = None
 
 
+@dataclass(frozen=True)
+class UplinkSelectionSettings:
+    """The scalar half of the uplink-selection surface (read-only snapshot).
+
+    The network-wide settings that frame the ordered rule list: which uplink
+    carries default-routed traffic, whether load balancing across uplinks is
+    on, and whether the overlay runs tunnels over all active uplinks
+    concurrently (``active_active_vpn`` — a prerequisite on some products for
+    performance-class steering to evaluate at all). Frozen: a captured
+    snapshot is a restore target, so it must not mutate after capture.
+    """
+
+    default_uplink: str
+    load_balancing_enabled: bool
+    active_active_vpn: bool
+
+
 # --- Static routes ---
 
 

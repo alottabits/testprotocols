@@ -49,3 +49,7 @@ and their triggers:
   model-parameterised test on that archetype (CPE is the likely next).
 - `ConfigOwnership` beyond the appliance — trigger: first
   monitored-but-not-managed switch/CPE in an inventory.
+- `UplinkPorts` beyond the SD-WAN appliance — trigger: first other WAN-edge
+  archetype whose uplinks a testbed instruments through declared switch
+  ports (composed on `SdwanApplianceDevice` 2026-08-10 for impairment-path
+  splicing).

@@ -13,6 +13,7 @@ from testprotocols.config_ownership import ConfigOwnership
 from testprotocols.device_info import DeviceInfo
 from testprotocols.network_attachment import NetworkAttachment
 from testprotocols.placement import PlacementPipe, PlacementPorts
+from testprotocols.uplink_ports import UplinkPortRef, UplinkPorts
 
 
 def test_network_attachment_members() -> None:
@@ -33,6 +34,27 @@ def test_device_info_members() -> None:
 
 def test_config_ownership_members() -> None:
     assert protocol_attrs(ConfigOwnership) == {"manages_network"}
+
+
+def test_uplink_ports_members() -> None:
+    assert protocol_attrs(UplinkPorts) == {"wan_ports"}
+
+
+def test_uplink_ports_view_satisfies_runtime_check() -> None:
+    """A driver view exposing the wiring mapping satisfies the runtime check."""
+
+    class _View:
+        @property
+        def wan_ports(self) -> dict[str, tuple[UplinkPortRef, ...]]:
+            return {
+                "wan1": (
+                    UplinkPortRef(member="edge-a", switch="dist-1", port="7"),
+                    UplinkPortRef(member="edge-b", switch="dist-1", port="8"),
+                ),
+            }
+
+    assert isinstance(_View(), UplinkPorts)
+    assert _View().wan_ports["wan1"][0].switch == "dist-1"
 
 
 def test_runtime_checkable_with_plain_attributes() -> None:
