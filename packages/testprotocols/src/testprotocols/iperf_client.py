@@ -29,10 +29,22 @@ class IperfClient(Protocol):
         json_output: bool = False,
         window: str | None = None,
         parallel: int | None = None,
+        datagram_bytes: int | None = None,
+        report_interval_s: int | None = None,
     ) -> tuple[int, str]:
         """Start an iperf traffic sender towards *host* on *traffic_port*.
 
         Typed option parameters (each defaults to "absent": no flag emitted):
+
+        - ``datagram_bytes``: the send buffer / datagram length (``-l <n>``).
+          For UDP this fixes the on-wire datagram size — the knob a test uses
+          to give concurrent streams distinct packet-size signatures that
+          survive encrypted encapsulation (overhead is added, separation is
+          preserved).
+        - ``report_interval_s``: periodic interval reports (``-i <n>``). A
+          sender log with per-interval lines is what continuity judgments
+          parse (``testoperations.iperf_client.sender_life_record``); without
+          it only the end-of-run summary exists.
 
         - ``reverse``: iperf3 reverse mode (``-R``) — the listening receiver
           transmits; the sender still initiates the connection.
