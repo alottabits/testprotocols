@@ -290,7 +290,7 @@ wheels = [
 
 [[package]]
 name = "testoperations"
-version = "0.10.0"
+version = "0.11.0"
 source = { editable = "packages/testoperations" }
 dependencies = [
     { name = "testprotocols" },
