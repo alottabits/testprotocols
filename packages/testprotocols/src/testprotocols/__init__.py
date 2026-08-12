@@ -1,6 +1,6 @@
 """testprotocols — capability and device Protocols for telco resources under test."""
 
-__version__ = "0.10.0"
+__version__ = "0.11.0"
 
 from testprotocols.aftr_gateway import AftrGateway
 from testprotocols.appliance_nat import ApplianceNat
