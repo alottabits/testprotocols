@@ -679,6 +679,30 @@ entry).
 
 ---
 
+## 2026-08-12 — ECN observation (capture-analysis sibling) [priority: low]
+
+**Signal:** Proposal review of the flow-marking observation operation
+(`testoperations.marking_observation`, accepted 2026-08-12): "ECN or other
+markings arrive as siblings on evidence" — an intent-named operation over
+the family's shared private bracket, never a field-parameterized public
+generalization.
+**Trigger to act:** a test that needs ECN (or another marking) read at a
+wire vantage.
+**Out of scope right now because:** no consumer exists; the family grows
+on evidence by convention.
+**Design notes (when picked up):** sibling operation in `testoperations`
+composing `_capture` (not a capability change — `PcapCapture` stays
+lifecycle-plus-raw-read); occurrence-pinned field extraction and
+outermost-header-wins merge per the family rules; selector reuse from
+`marking_observation` where the selection semantics match.
+**Cross-references:**
+`docs/architecture/capture-analysis-operations-design.md` (family rules);
+`testoperations/path_placement.py`, `testoperations/marking_observation.py`
+(existing members). Note: this is an *operations-family* sibling logged
+here for tracking continuity, not a missing capability protocol.
+
+---
+
 ## Workflow
 
 When picking up a deferred capability:

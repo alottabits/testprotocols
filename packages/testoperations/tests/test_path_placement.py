@@ -53,8 +53,11 @@ class TestCountSignatureOnPath:
         assert args.kwargs["rm_pcap"] is True
 
     def test_capture_stopped_even_if_wait_interrupted(self) -> None:
+        # The wait lives in the family's shared bracket (_capture) since the
+        # re-base — the patch target moved with it; the test's substance is
+        # unchanged.
         pcap = _pcap()
-        with patch("testoperations.path_placement.time.sleep", side_effect=KeyboardInterrupt):
+        with patch("testoperations._capture.time.sleep", side_effect=KeyboardInterrupt):
             try:
                 count_signature_on_path(pcap, "north0", BAND, window_s=1)
             except KeyboardInterrupt:

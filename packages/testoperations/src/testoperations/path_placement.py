@@ -19,6 +19,11 @@ from dataclasses import dataclass
 
 from testprotocols.pcap_capture import PcapCapture
 
+from testoperations._capture import capture_shared_window, read_fields
+
+#: The family's frame-length field read (the size-signature mechanic).
+_LENGTH_FIELDS = "-T fields -e frame.len"
+
 
 @dataclass(frozen=True)
 class SizeBand:
@@ -63,17 +68,9 @@ def count_signature_on_path(
     count — a caller judging "this path carries the flow" interprets the
     count against its own floor (a known burst size, a rate, non-zero).
     """
-    process_id = pcap.start_tcpdump(interface, None, output_file=capture_file)
-    try:
-        time.sleep(window_s)
-    finally:
-        pcap.stop_tcpdump(process_id)
-    out = pcap.tshark_read_pcap(
-        capture_file,
-        additional_args=f'-Y "{_band_filter(signature)}" -T fields -e frame.len',
-        rm_pcap=True,
-    )
-    return sum(1 for line in out.splitlines() if line.strip())
+    capture_shared_window([(pcap, interface, capture_file)], window_s)
+    (lines,) = read_fields(pcap, capture_file, [(_band_filter(signature), _LENGTH_FIELDS)])
+    return len(lines)
 
 
 def locate_streams_by_size(
@@ -91,31 +88,17 @@ def locate_streams_by_size(
     ``{path: {stream: frame_count}}``; the placement judgment (which counts
     constitute presence) stays with the caller.
     """
-    processes: dict[str, tuple[str, str]] = {}
-    for path, pcap in paths.items():
-        capture_file = f"{capture_dir}/placement_{path}.pcap"
-        process_id = pcap.start_tcpdump(interfaces[path], None, output_file=capture_file)
-        processes[path] = (process_id, capture_file)
-    try:
-        time.sleep(window_s)
-    finally:
-        for path, pcap in paths.items():
-            process_id, _ = processes[path]
-            pcap.stop_tcpdump(process_id)
-
+    files = {path: f"{capture_dir}/placement_{path}.pcap" for path in paths}
+    capture_shared_window(
+        [(pcap, interfaces[path], files[path]) for path, pcap in paths.items()], window_s
+    )
     counts: dict[str, dict[str, int]] = {}
+    reads = [(_band_filter(band), _LENGTH_FIELDS) for band in signatures.values()]
     for path, pcap in paths.items():
-        _, capture_file = processes[path]
-        per_stream: dict[str, int] = {}
-        for index, (stream, band) in enumerate(signatures.items()):
-            last = index == len(signatures) - 1
-            out = pcap.tshark_read_pcap(
-                capture_file,
-                additional_args=f'-Y "{_band_filter(band)}" -T fields -e frame.len',
-                rm_pcap=last,
-            )
-            per_stream[stream] = sum(1 for line in out.splitlines() if line.strip())
-        counts[path] = per_stream
+        outputs = read_fields(pcap, files[path], reads)
+        counts[path] = {
+            stream: len(lines) for stream, lines in zip(signatures, outputs, strict=True)
+        }
     return counts
 
 
