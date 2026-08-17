@@ -588,3 +588,31 @@ per-uplink `PathMetrics` — the split is by *what is measured*, not by shape.
 - `timespan_s` is explicit on the overlay read because products report it as
   a windowed aggregate — the freshness trade belongs to the caller, and a
   hidden default would bake one test's window into the contract.
+
+---
+
+## 2026-08-17 — scan/fetch kept on `NmapScanner` / `HttpClient` (not folded into `PacketInjector`)
+
+**Signal:** Landing the `PacketInjector` substrate capability (packet emission /
+replay) raised whether the adjacent offensive-host verbs — port/host scan and
+attacker-originated HTTP fetch — should be bundled into the same capability for the
+threat-source role.
+
+**Decision:** keep. Scan stays on `NmapScanner`, fetch on `HttpClient`;
+`PacketInjector` carries only `emit_signature` / `replay_pcap`.
+
+**Rationale:**
+- Both already exist and are composed on `LanClientDevice`; folding them in would
+  duplicate live surfaces — the same redundancy the `PortForwarding`→`Firewall` and
+  `SdwanPolicyManager` firewall-method removals corrected.
+- A threat-source archetype composes the existing capabilities alongside
+  `PacketInjector` rather than re-homing them.
+- Emission (craft/send, pcap replay) is the one offensive verb-set with no home; that
+  is exactly what `PacketInjector` adds.
+
+**Migration impact:** none — pure addition. `NmapScanner` / `HttpClient` unchanged; no
+consumer changes.
+
+**Cross-references:** `packet_injector.py`,
+`docs/architecture/packet-injection-substrate-design.md`; `nmap_scanner.py`,
+`http_client.py`.

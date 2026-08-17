@@ -703,6 +703,60 @@ here for tracking continuity, not a missing capability protocol.
 
 ---
 
+## 2026-08-17 — `MaliciousHostDevice` (threat-source archetype) [priority: MEDIUM]
+
+**Signal:** The `PacketInjector` capability landed
+(`docs/architecture/packet-injection-substrate-design.md`). The placed *threat-source*
+role that composes it with existing host capabilities (`nmap_scanner`, `http_client`,
+`pcap`, `network_probe`, `ip_interface`, `dhcp_client`, `syslog`, and — as a placed
+floater — `attachment` / `pipe`) is a real archetype, requested by the first
+security-detection consumer.
+
+**Trigger to act:** a second, distinct consumer needing a placed threat-source role,
+aligned on the composed shape.
+
+**Out of scope right now because:** fully derivable plugin-local today — register
+`MaliciousHostDevice(Protocol)` downstream via `register_device_type` (the import-time
+purity gate runs downstream too), the `StreamingServerDevice` playbook — so it fails
+the "can't be done without a commons change" test.
+
+**Design notes (when picked up):** Option A (lean, purpose-built) composing only what a
+threat source actually implements; on lift, decide explicitly whether it fires the
+commons `PlacementPipe` / `NetworkAttachment` deferral triggers
+(`capability-only-archetypes.md`); land in `devices/security.py`, registered
+`linux_threat_source`.
+
+**Cross-references:** `packet_injector.py`,
+`docs/architecture/packet-injection-substrate-design.md`; the `StreamingServerDevice`
+deferral (this file); `capability-only-archetypes.md`.
+
+---
+
+## 2026-08-17 — `StrikeLibrary` (named-strike catalogue selection) [priority: LOW]
+
+**Signal:** Surveying commercial security appliances for the `PacketInjector` substrate
+list surfaced a second mode beyond raw-packet / pcap emission: curated **strike
+catalogues** — named CVE/malware/DDoS strikes selected by vendor id (libraries of tens
+of thousands of entries). A test that must drive a *named* strike cannot express it
+through `PacketInjector` ("put caller-supplied bytes on the wire").
+
+**Trigger to act:** the first test that must drive a named vendor strike (not just
+caller-supplied bytes).
+
+**Out of scope right now because:** a named-strike catalogue is a different contract
+shape that would leak vendor strike taxonomy (strike ids) into the neutral surface —
+the anti-pattern `ThreatPrevention` / the appliance design forbid. Caller-supplied
+emission covers the substrate-universal case.
+
+**Design notes (when picked up):** model as a separate capability (a catalogue query +
+a neutral strike descriptor); never inline a vendor's strike-id namespace; resolve the
+neutrality question (can a strike be named without a vendor id?) before freezing.
+
+**Cross-references:** `docs/architecture/packet-injection-substrate-design.md` (§4 scope
+boundary); `packet_injector.py`; `threat_prevention.py`.
+
+---
+
 ## Workflow
 
 When picking up a deferred capability:

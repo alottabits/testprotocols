@@ -68,6 +68,7 @@ from testprotocols.ntp_client import NtpClient
 from testprotocols.ntp_config import NtpConfig
 from testprotocols.ospf import Ospf
 from testprotocols.packet_filter import PacketFilter, PacketFilterWhiteBox
+from testprotocols.packet_injector import PacketInjector
 from testprotocols.pcap_capture import PcapCapture
 from testprotocols.pdu_controller import PduController
 from testprotocols.placement import PlacementPipe, PlacementPorts
@@ -167,6 +168,7 @@ __all__ = [
     "Ospf",
     "PacketFilter",
     "PacketFilterWhiteBox",
+    "PacketInjector",
     "PcapCapture",
     "PduController",
     "PlacementPipe",

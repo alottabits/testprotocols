@@ -1,7 +1,7 @@
 """Tests for network-tool Protocol shapes.
 
-Covers: HttpClient, HttpServer, DnsClient, NmapScanner, SnmpClient,
-NtpClient, UpnpClient, ArpClient, VlanClient.
+Covers: HttpClient, HttpServer, DnsClient, NmapScanner, PacketInjector,
+SnmpClient, NtpClient, UpnpClient, ArpClient, VlanClient.
 """
 
 from __future__ import annotations
@@ -31,6 +31,11 @@ PROTOCOLS = [
         "NmapScanner",
         "testprotocols.nmap_scanner",
         {"nmap"},
+    ),
+    (
+        "PacketInjector",
+        "testprotocols.packet_injector",
+        {"emit_signature", "replay_pcap"},
     ),
     (
         "SnmpClient",

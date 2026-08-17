@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from testprotocols.models.dhcp import DhcpLeaseObservation, DHCPTraceData, DHCPV6TraceData
+from testprotocols.models.emission import EmitResult, ReplayResult
 from testprotocols.models.firewall import (
     Connection,
     ConntrackStats,
@@ -182,6 +183,8 @@ __all__ = [
     "DhcpReservation",
     "DiscoveryProtocol",
     "Duplex",
+    # emission
+    "EmitResult",
     "FhsBinding",
     "FhsScope",
     "FhsTrustState",
@@ -247,6 +250,7 @@ __all__ = [
     "RadiusUser",
     "RedundancyGroup",
     "RedundancyRole",
+    "ReplayResult",
     "RouteEntry",
     "RouteOrigin",
     "RoutedInterface",
