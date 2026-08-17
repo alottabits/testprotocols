@@ -33,13 +33,20 @@ class PacketInjector(Protocol):
         payload: bytes,
         target: str,
         *,
-        port: int,
+        port: int | None = None,
         protocol: RuleProtocol = RuleProtocol.TCP,
     ) -> EmitResult:
-        """Craft and send *payload* to *target*:*port* over *protocol*.
+        """Craft and send *payload* to *target* over *protocol*.
 
-        The payload is the caller's data — the contract carries no notion of
-        which detection rule it is meant to match.
+        *port* is required for the port-bearing transports (``TCP`` / ``UDP``) and
+        must be ``None`` for the portless ones (``ICMP`` / ``ICMP6`` — e.g. an
+        ICMP-tunnel or oversized-ICMP signature). An implementation validates that
+        pairing **loudly at the call** rather than silently ignoring a mis-declared
+        port ("ports only on port-bearing transports"); ``ANY`` is not a meaningful
+        emit transport, as a concrete one must be chosen to put bytes on the wire.
+
+        The payload is the caller's data — the contract carries no notion of which
+        detection rule it is meant to match.
         """
         ...
 

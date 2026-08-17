@@ -15,8 +15,12 @@ reinventing a private emitter per testbed.
 
 Two members, one coherent domain (offensive emission for detection testing):
 
-- `emit_signature(payload, target, *, port, protocol=RuleProtocol.TCP) -> EmitResult`
+- `emit_signature(payload, target, *, port=None, protocol=RuleProtocol.TCP) -> EmitResult`
   — craft and send caller-supplied bytes to a target (the content-match class).
+  `port` is required for port-bearing transports (TCP/UDP) and must be `None` for
+  portless ones (ICMP/ICMP6 — e.g. ICMP-tunnel / oversized-ICMP signatures); the
+  impl validates the pairing loudly (rule #5, "ports only on port-bearing
+  transports"), and `ANY` is not a valid emit transport.
 - `replay_pcap(pcap_path, *, iface=None) -> ReplayResult` — put a caller-supplied
   capture on the wire (the flow/session class).
 
