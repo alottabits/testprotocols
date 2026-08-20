@@ -2,7 +2,7 @@
 
 | Field   | Value                                                                                                                                                                                                                                                                                       |
 | ------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Status  | **Proposed — exploratory.** No code exists yet; this document is the design + evaluation framework, to be reviewed before any implementation and before the branch (`explore/cisco-ios-router-archetype`) is considered for merge.                                                            |
+| Status  | **Proposed — exploratory.** No code exists yet; this document is the design + evaluation framework, to be reviewed before any implementation and before the branch (`explore/managed-router-archetype`) is considered for merge.                                                            |
 | Author  | rjvisser                                                                                                                                                                                                                                                                                    |
 | Date    | 2026-08-20                                                                                                                                                                                                                                                                                  |
 | Related | `docs/architecture/sdwan-appliance-protocol-design.md` (the precedent this follows), `docs/architecture/capability-only-archetypes.md`, `packages/testprotocols/SPLITS.md`, `packages/testprotocols/GAPS.md`, `packages/testprotocols/LEVELS.md`, `devices/sdwan.py`, `devices/switch.py`, `router.py`, `wan_link_admin.py`, `appliance_nat.py`, `switch_acl.py`, `site_to_site_vpn.py`, `gateway_redundancy.py` |
@@ -15,11 +15,11 @@ appliance design as its template: a cross-vendor concept check drives every
 baseline capability, product names appear here only to evidence that a concept
 is genuinely shared, and nothing vendor-specific leaks into the contract.
 
-The **trigger** is a concrete test environment built from Cisco IOS / IOS-XE
-routers (inventory in §2). As with the SD-WAN appliance, the Cisco products are
-the trigger, not the target: the deliverable is a **portable, vendor-neutral
-test interface** that competing families — Juniper, Nokia, Huawei, HPE,
-Fortinet, MikroTik — satisfy equally.
+The **trigger** is a concrete estate of on-box-managed enterprise and
+carrier/aggregation routers under test. As with the SD-WAN appliance, that
+estate is the trigger, not the target: the deliverable is a **portable,
+vendor-neutral test interface** that the major on-box-managed router families
+(the reviewed set in §2) satisfy equally.
 
 ---
 
@@ -38,8 +38,8 @@ Fortinet, MikroTik — satisfy equally.
   surface, link administration is excluded — see the appliance doc and
   `SPLITS.md` 2026-06-12).
 
-A traditional Cisco IOS/IOS-XE router — and its Juniper/Nokia/Huawei/HPE/
-Fortinet/MikroTik peers — is **neither**. It is a closed product like the
+A traditional on-box-managed router — running IOS-XE, Junos, SR OS, VRP,
+Comware, FortiOS, or RouterOS — is **neither**. It is a closed product like the
 appliance, but it **manages itself on-box** through its own management plane
 (CLI, and increasingly NETCONF/YANG, RESTCONF, or gNMI). Two consequences make
 it a distinct archetype:
@@ -86,25 +86,30 @@ at L3, and runs traditional routing. Not a general-purpose Linux host (rules out
 the twin); not a cloud-only controller-managed edge (rules out the appliance
 class and, for the router review, Meraki/Cradlepoint/Peplink/Versa).
 
-### Trigger inventory (Cisco), bucketed
+### Device classes in scope
 
-| Bucket | Representative SKUs | Character |
-| --- | --- | --- |
-| Carrier / aggregation edge | ASR-920-12SZ-A/-12CZ-A/-12SZ-D/-24TZ-M, ASR1001(-X), ASR1002-HX, ASR1009-X | IOS-XE aggregation; lean L3 core, **no** LAN switching / voice / DSL |
-| Enterprise branch (IOS-XE) | ISR4321/4331/4431/4451-X, C8200(-1N-4T/L), C8300-1N1S-4T2X, C8570-G2 | Full routing + security + services |
-| Classic branch (IOS G1/G2) | CISCO1841/1921, 2811/2821/2851, 2911/2921/2951, 3845, 3925/3945 | CLI-managed branch routers |
-| Teleworker / small branch | C88x/C89x/C90x/C92x/C93x (881/887VA/896VAG/897VA/898EAG/921-4P/926-4P/927-*/931-4P …), C1113-8PLTEEA, C1117-4P | **Integrated switch**, **xDSL** (VA/VAB), **cellular** (LTE-GA/GB), voice on some |
-| Industrial | IR1101-K9 (IOS-XE), IR809G-LTE-GA-K9 (IOS) | Ruggedized subset of the above |
+The archetype must cover the full on-box-managed router range, from the lean
+carrier core to the feature-dense teleworker unit. Four broad classes recur
+across every vendor's line-up:
 
-Standalone switches in the same environment (C9200L-24T-4G, WS-C3650-48TD-E,
-ME-3600X-24TS-M, ME-C3750-24TE-M, SM-X-ES3-24-P) are **out of scope** for this
-archetype; see §10.
+- **Carrier / aggregation edge** — high-throughput L3 aggregation; a lean
+  routing core with **no** LAN switching, voice, or access modems.
+- **Enterprise branch** — full routing plus on-box security and services (NAT,
+  firewall, QoS, VPN).
+- **Teleworker / small branch** — the branch feature set plus an **integrated
+  switch**, **xDSL** and/or **cellular** access WAN, and voice on some models.
+- **Industrial** — a ruggedized subset of the branch / teleworker classes.
+
+Standalone switches sometimes present in the same estate — enterprise
+access/distribution switches, carrier Metro-Ethernet switches, and EtherSwitch
+service modules — are **out of scope** for this archetype; see §10.
 
 ### Competitor families reviewed
 
-Cisco IOS/IOS-XE is the reference column. Six competitor families were selected
-as the genuinely comparable, on-box-managed set (the router-class analogue of
-the appliance review's five families):
+Seven families were reviewed as the genuinely comparable, on-box-managed set
+(the router-class analogue of the appliance review's five families). The
+IOS/IOS-XE line — the market reference for the class — is the matrix's reference
+column (§3); the six competitor families are:
 
 - **Juniper Junos** — MX (carrier edge), ACX (aggregation/metro), SRX
   (branch/security router incl. switching, LTE, VDSL modules).
@@ -120,15 +125,16 @@ the appliance review's five families):
   low end of the neutrality envelope.
 
 **Excluded and why:** Arista EOS (aggregation/DC routing; lacks the branch set —
-overlaps only the ASR-9xx corner); Ericsson Cradlepoint, Peplink, Versa
+overlaps only the carrier/aggregation corner); Ericsson Cradlepoint, Peplink, Versa
 (controller/cloud-managed → fail the on-box criterion, as Meraki did in the
 appliance review); Ubiquiti EdgeRouter (EdgeOS effectively end-of-development);
 Palo Alto PAN-OS (firewall family, adjacent to the SD-WAN review).
 
 A structural fact recurs across **every** family, reference included: **capability
-presence is platform-scoped within a family.** Cisco's ASR 920 omits NAT, zone
-firewall, voice, and DSL, which concentrate on ISR/Catalyst 8000 — exactly as
-SRX-vs-MX at Juniper and SAR-vs-7750 at Nokia. The neutral contract therefore
+presence is platform-scoped within a family.** A vendor's carrier-metro platform
+omits the NAT, zone firewall, voice, and DSL that concentrate on its branch
+platforms — the pattern holds across the set (metro-vs-branch at the reference
+vendor, SRX-vs-MX at Juniper, SAR-vs-7750 at Nokia). The neutral contract therefore
 needs **per-method unsupported-capability signalling even inside one vendor
 family**, and the core/tier split (below) carries the additive facets.
 
@@ -261,8 +267,8 @@ class WanEdgeRouterDevice(ManagedRouterDevice, Protocol):
 
 @runtime_checkable
 class SwitchedRouterDevice(ManagedRouterDevice, Protocol):
-    """Adds the integrated-switch facet — the -4P 800-series and EtherSwitch
-    service modules. Reuses the existing switch capability layer."""
+    """Adds the integrated-switch facet — small-branch models with an integrated
+    switch, and EtherSwitch service modules. Reuses the existing switch layer."""
     switch_ports: SwitchPorts            # reuse
     switch_vlans: SwitchVlans            # reuse
     spanning_tree: SpanningTree          # reuse
@@ -411,7 +417,8 @@ yet — both grow on evidence").
 ## 8. Neutrality notes and quirks (for the driver layer)
 
 - **Per-method, not per-vendor.** Presence is platform-scoped inside every
-  family (ASR 920 omits NAT/ZBF/voice/DSL). Unsupported-capability signalling is
+  family (a vendor's carrier-metro platform omits the NAT/ZBF/voice/DSL its
+  branch platforms carry). Unsupported-capability signalling is
   per method, per the established convention — never "this whole capability is
   absent for vendor X."
 - **VRRP is the only portable FHRP.** HSRP and GLBP are Cisco-local; the
@@ -466,24 +473,22 @@ session-table dump are the likely first candidates).
 
 ## 10. Standalone switches — scoping note
 
-The six standalone switches in the trigger environment (C9200L-24T-4G,
-WS-C3650-48TD-E, ME-3600X-24TS-M, ME-C3750-24TE-M, and the SM-X-ES3-24-P
-EtherSwitch service module) are **not** modelled by this archetype. Expectation:
+Standalone switches sometimes present in the same estate are **not** modelled by
+this archetype. Expectation:
 
-- **Access/distribution switches** (C9200L, WS-C3650) fold into the existing
+- **Enterprise access/distribution switches** fold into the existing
   vendor-neutral `L2Switch` / `L3Switch` / `L3SwitchRouted` archetypes via a
-  CLI/NETCONF IOS driver. Those archetypes are capability-shaped and already
-  name Catalyst as an on-box/structured-RPC family in `LEVELS.md`
+  CLI/NETCONF driver. Those archetypes are capability-shaped and already
+  anticipate on-box/structured-RPC switch families in `LEVELS.md`
   (`MacTableWhiteBox` note), so this is primarily a **driver** exercise, not a
   commons change.
-- The **SM-X-ES3-24-P EtherSwitch module** is the integrated-switch facet of a
+- **EtherSwitch service modules** are the integrated-switch facet of a
   *router* — covered here by the `SwitchedRouterDevice` tier (§5), which reuses
   the same switch capability layer.
-- **Carrier Metro-Ethernet** on the ME-3600X / ME-C3750 (EVC, QinQ,
-  service-instance / pseudowire, MPLS L2VPN) exceeds the enterprise
-  `L2Switch`/`L3Switch` shape and is recorded as a **candidate `GAPS.md`
-  entry** (`CarrierEthernet` / EVC capability) to assess separately on real
-  test evidence.
+- **Carrier Metro-Ethernet switches** (EVC, QinQ, service-instance / pseudowire,
+  MPLS L2VPN) exceed the enterprise `L2Switch`/`L3Switch` shape and are recorded
+  as a **candidate `GAPS.md` entry** (`CarrierEthernet` / EVC capability) to
+  assess separately on real test evidence.
 
 ---
 
@@ -505,8 +510,8 @@ so the exploration is self-documenting:
   coherent family of its own. Trigger: a voice-gateway test.
 - **`CellularWan` / `DslWan` / `PppSession`** access-WAN tier — net-new but
   module-scoped; land with the first `AccessWanRouterDevice` consumer.
-- **`CarrierEthernet` (EVC)** [priority: low] — for the ME-series switches
-  (§10); assess separately.
+- **`CarrierEthernet` (EVC)** [priority: low] — for carrier Metro-Ethernet
+  switches (§10); assess separately.
 - Richer **interface config** (IP/description/encap/MTU) and **SNMP-agent
   config** [priority: low] — deferred; syslog is the telemetry path, admin-state
   is the interface baseline.
