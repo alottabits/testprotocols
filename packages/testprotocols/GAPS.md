@@ -703,6 +703,67 @@ here for tracking continuity, not a missing capability protocol.
 
 ---
 
+## 2026-08-21 — `ApplianceUplinkMembers` (per-HA-member uplink observation) [priority: medium]
+
+**Signal:** Proposal review (2026-08-21, accept-with-conditions): a consumer
+testbed's HA-pair verification found that `ApplianceUplinks.get_uplink`
+returns one row for the logical appliance, so any uplink-health judgment
+silently reads one warm-spare member — a member that keeps a wrong-era DHCP
+lease across an L2 re-map under its wan port (no link event fires) black-holes
+while the row stays green. Three live occurrences in two days on the
+consumer's testbed; the per-member datum is not derivable from the existing
+typed surface (`UplinkPorts` is declared topology, not live state; reading the
+member's switch port observes the port, not the appliance's own lease state).
+
+**Trigger to act:** a second folded-family consumer — a real FortiGate (FGCP)
+or VeloCloud (Enhanced HA) driver — confirms or corrects the
+`Mapping[member_id, UplinkStatus]` shape. The plugin-local
+`HaApplianceDevice`-style archetype tier (if any consumer grows one) lifts to
+commons on the same trigger, per the StreamingServerDevice precedent.
+
+**Out of scope right now because:** the shape is proven on one folded family
+(Meraki warm spare — full per-serial uplink rows). Of the reviewed families,
+three fold the HA pair behind one logical device (Meraki full; FortiGate ◐ —
+member-health surfaces, not per-uplink rows; VeloCloud topology-dependent —
+per-member WAN-link rows on Enhanced HA, coarser on Standard) and two model
+members as separate devices (Catalyst SD-WAN, Prisma SD-WAN), where the
+capability is correctly absent rather than a gap. One-family-proven shapes
+stay consumer-local per the grow-on-evidence rule; the first consumer runs it
+as a declared local `runtime_checkable` protocol meanwhile, shaped for
+re-homing.
+
+**Design notes (when picked up):**
+- Optional, composable capability beside `ApplianceUplinks` — never a
+  mandatory `SdwanApplianceDevice` attribute (the isinstance gate would fail
+  single-member products). Read-only.
+- One method seeded: `get_member_uplink_rows(name) -> Mapping[str,
+  UplinkStatus]` — member id -> the named uplink's row. Member ids are opaque
+  strings (vendor serial, unit id), distinct and stable within a session, no
+  cross-vendor meaning. Members without the named uplink are absent; empty
+  mapping = no member reports it. An all-uplinks member view is deferred
+  (grow on evidence).
+- Reuses `UplinkStatus` unchanged — no new model vocabulary.
+- Member-id coherence: the id space must let a consumer join per-member
+  status rows to `UplinkPortRef.member` (ports vs status share the member
+  concept; `SPLITS.md` 2026-06-15 shared-backing-object precedent). Record
+  the coherence decision in a SPLITS/design note with the PR.
+- Conformance: a two-member fake plus a single-member/absent case proving
+  "capability absent -> fall back to the aggregate row".
+- Dated design-doc note with the corrected per-family table
+  (LEVELS.md-style "expected to satisfy / NOT satisfy") lands with the PR.
+
+**Cross-references:** `appliance_uplinks.py` (the aggregate read this
+refines), `uplink_ports.py` (`UplinkPorts` / `UplinkPortRef.member` — the
+member identity to stay coherent with), `config_ownership.py` and
+`models/switch_routing.py::RedundancyRole` (write-ownership and role
+concerns deliberately NOT folded in here), `models/sdwan_appliance.py`
+(`UplinkStatus`), `SPLITS.md` (2026-08-10 "two members, one model"
+precedent; 2026-06-15 shared-backing-object precedent),
+`StreamingServerDevice` entry (this file — the deferred-archetype
+precedent).
+
+---
+
 ## Workflow
 
 When picking up a deferred capability:
