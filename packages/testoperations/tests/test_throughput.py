@@ -6,7 +6,7 @@ import json
 from collections.abc import Callable, Sequence
 from dataclasses import replace
 from typing import Any
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 from testoperations.throughput import (
@@ -18,9 +18,10 @@ from testoperations.throughput import (
     NonCompletion,
     PathMeasurement,
     ThroughputFlow,
-    # Deliberate: the round engine's probe step is exercised directly, so this
-    # test module is the one place the private helper is imported.
+    # Deliberate: the round engine's probe step and the shared retry mechanic
+    # are exercised directly, so this test module imports these private helpers.
     _probe_flow,  # pyright: ignore[reportPrivateUsage]
+    _retry_on_noncompletion,  # pyright: ignore[reportPrivateUsage]
     count_sessions,
     iter_json_docs,
     last_session_error,
@@ -28,6 +29,7 @@ from testoperations.throughput import (
     last_session_retransmits,
     last_session_rtt_ms,
     measure_concurrent_throughput,
+    measure_concurrent_throughput_with_retry,
     measure_external_flow,
     measure_external_path_until,
     measure_one_direction,
@@ -396,6 +398,127 @@ class TestMeasureConcurrentThroughput:
         receiver.stop_traffic.side_effect = RuntimeError("already gone")
         results = measure_concurrent_throughput([flow], duration_s=10, sleep=lambda _s: None)
         assert results[0].mbps == approx(5.0)
+
+
+class TestMeasureConcurrentThroughputWithRetry:
+    """The concurrent-set engine: whole-set fresh-port retry over the one-shot
+    primitive, composing the shared ``_retry_on_noncompletion`` mechanic."""
+
+    def _flows(self) -> list[ThroughputFlow]:
+        # Ports here are placeholders — the engine draws fresh ones per attempt.
+        fa, _, _ = _flow(0, mbps=10.0)
+        fb, _, _ = _flow(0, mbps=10.0)
+        return [fa, fb]
+
+    def _rates(self) -> list[FlowThroughput]:
+        return [FlowThroughput(port=0, mbps=10.0), FlowThroughput(port=0, mbps=11.0)]
+
+    def _nonc(self) -> NonCompletion:
+        return NonCompletion(
+            which_side="local_receiver", what="no_completed_session", detail="stall", port=5303
+        )
+
+    def _run(
+        self,
+        attempts: list[list[FlowThroughput] | Exception],
+        *,
+        retry_when: Callable[[NonCompletion], bool] | None,
+        retry_budget_s: float = 600.0,
+        on_retry: Callable[[NonCompletion, Sequence[int]], None] | None = None,
+        clock: Callable[[], float] | None = None,
+    ) -> tuple[list[FlowThroughput], list[list[int]]]:
+        seen: list[list[int]] = []
+
+        def _fake(flows: Sequence[ThroughputFlow], **_kw: Any) -> list[FlowThroughput]:
+            seen.append([f.port for f in flows])
+            r = attempts.pop(0)
+            if isinstance(r, Exception):
+                raise r
+            return r
+
+        ports = iter(range(5201, 5261))
+        with patch("testoperations.throughput.measure_concurrent_throughput", _fake):
+            result = measure_concurrent_throughput_with_retry(
+                self._flows(),
+                allocate_port=lambda: next(ports),
+                retry_when=retry_when,
+                retry_budget_s=retry_budget_s,
+                on_retry=on_retry,
+                sleep=lambda _s: None,
+                monotonic=clock or (lambda: 0.0),
+            )
+        return result, seen
+
+    def test_success_first_attempt_draws_one_fresh_set_no_retry(self) -> None:
+        result, seen = self._run([self._rates()], retry_when=lambda _e: True)
+        assert [r.mbps for r in result] == [approx(10.0), approx(11.0)]
+        assert seen == [[5201, 5202]]
+
+    def test_predicate_true_reruns_whole_set_on_fresh_ports(self) -> None:
+        _, seen = self._run([self._nonc(), self._rates()], retry_when=lambda _e: True)
+        assert seen == [[5201, 5202], [5203, 5204]]
+
+    def test_predicate_false_raises_immediately(self) -> None:
+        with pytest.raises(NonCompletion):
+            self._run([self._nonc()], retry_when=lambda _e: False)
+
+    def test_default_none_never_retries(self) -> None:
+        with pytest.raises(NonCompletion):
+            self._run([self._nonc()], retry_when=None)
+
+    def test_budget_exhaustion_raises_even_if_predicate_says_yes(self) -> None:
+        clock = iter([0.0, 700.0, 800.0])  # deadline 600; 700 >= 600 refuses the re-run
+        with pytest.raises(NonCompletion):
+            self._run(
+                [self._nonc(), self._nonc()],
+                retry_when=lambda _e: True,
+                clock=lambda: next(clock),
+            )
+
+    def test_on_retry_reports_the_abandoned_set_ports(self) -> None:
+        seen_retry: list[list[int]] = []
+        self._run(
+            [self._nonc(), self._rates()],
+            retry_when=lambda _e: True,
+            on_retry=lambda _exc, ports: seen_retry.append(list(ports)),
+        )
+        assert seen_retry == [[5201, 5202]]
+
+    def test_both_rated_flow_families_compose_the_shared_retry_helper(self) -> None:
+        def _fake_concurrent(
+            flows: Sequence[ThroughputFlow], **_kw: object
+        ) -> list[FlowThroughput]:
+            return [FlowThroughput(port=f.port, mbps=1.0) for f in flows]
+
+        def _measure_flow(flow: ExternalFlow, *, duration_s: int, **_kw: object) -> FlowThroughput:
+            return FlowThroughput(port=flow.port, mbps=1.0)
+
+        with patch(
+            "testoperations.throughput._retry_on_noncompletion",
+            wraps=_retry_on_noncompletion,
+        ) as helper:
+            ports = iter(range(5201, 5230))
+            with patch("testoperations.throughput.measure_concurrent_throughput", _fake_concurrent):
+                measure_concurrent_throughput_with_retry(
+                    self._flows(),
+                    allocate_port=lambda: next(ports),
+                    sleep=lambda _s: None,
+                    monotonic=lambda: 0.0,
+                )
+            after_concurrent = helper.call_count
+            measure_external_path_until(
+                sender=MagicMock(),
+                dest_host="203.0.113.10",
+                directions=[DirectionSpec("upload", reverse=False)],
+                allocate_port=lambda: 5301,
+                stop_when=lambda _f: True,
+                budget_s=600.0,
+                measure_flow=_measure_flow,
+                monotonic=lambda: 0.0,
+                sleep=lambda _s: None,
+            )
+        assert after_concurrent == 1  # the concurrent engine composed it once (whole set)
+        assert helper.call_count > after_concurrent  # the path engine composed it too
 
 
 class TestSenderOptionsAndRtt:
