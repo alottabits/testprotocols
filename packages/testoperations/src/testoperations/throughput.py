@@ -19,7 +19,7 @@ from __future__ import annotations
 import json
 import time
 from collections.abc import Callable, Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any, Literal, cast
 
 from testprotocols.iperf_client import IperfClient
@@ -436,6 +436,109 @@ def measure_concurrent_throughput(
                 pass
 
 
+# --- shared non-completion retry mechanic + concurrent-set engine -------------
+
+
+def _retry_on_noncompletion[T, R](
+    attempt: Callable[[R], T],
+    *,
+    allocate: Callable[[], R],
+    retry_when: Callable[[NonCompletion], bool] | None,
+    deadline: float,
+    busy_backoff_s: float,
+    on_retry: Callable[[NonCompletion, R], None] | None,
+    sleep: Callable[[float], None],
+    monotonic: Callable[[], float],
+) -> T:
+    """Run *attempt* on a freshly ``allocate``-d resource, re-drawing on a
+    :class:`NonCompletion` only when *retry_when* says so and *deadline* allows.
+
+    The single retry mechanic both rated-flow families compose — the path-round
+    engine's per-flow attempt and the concurrent-set engine's whole-set attempt.
+    The resource (a port, or a set of ports) is drawn PER attempt, so a re-draw
+    never reuses the abandoned one; a re-draw the budget refuses raises the last
+    non-completion untouched, not through *on_retry*. Only ``NonCompletion`` is
+    caught. The happy path draws the clock zero times (the deadline is the
+    caller's); the retry branch draws it once per absorbed non-completion, to
+    check the remaining budget before backing off.
+    """
+    while True:
+        resource = allocate()
+        try:
+            return attempt(resource)
+        except NonCompletion as exc:
+            if monotonic() >= deadline or retry_when is None or not retry_when(exc):
+                raise
+            if on_retry is not None:
+                on_retry(exc, resource)
+            sleep(busy_backoff_s)
+
+
+def measure_concurrent_throughput_with_retry(
+    flows: Sequence[ThroughputFlow],
+    *,
+    allocate_port: Callable[[], int],
+    duration_s: int = 10,
+    result_timeout_s: float = DEFAULT_RESULT_TIMEOUT_S,
+    poll_interval_s: float = DEFAULT_POLL_INTERVAL_S,
+    retry_when: Callable[[NonCompletion], bool] | None = None,
+    retry_budget_s: float = 0.0,
+    busy_backoff_s: float = DEFAULT_BUSY_BACKOFF_S,
+    on_retry: Callable[[NonCompletion, Sequence[int]], None] | None = None,
+    sleep: Callable[[float], None] = time.sleep,
+    monotonic: Callable[[], float] = time.monotonic,
+) -> list[FlowThroughput]:
+    """Measure a concurrent flow SET, re-running the whole set on fresh ports
+    when a flow's :class:`NonCompletion` is worth another attempt.
+
+    The engine-layer companion to the one-shot
+    :func:`measure_concurrent_throughput` primitive, composing the shared
+    :func:`_retry_on_noncompletion` mechanic. It is the concurrent analogue of
+    :func:`measure_path_until`'s retry, and a distinct entry point because the
+    path engine measures SEQUENTIAL directions (each owns the path) while a
+    per-set measurement needs OVERLAPPING flows: the flows overlap and their
+    rates are read as one measurement, so the retry unit is the ENTIRE set.
+
+    Every attempt draws a fresh port for every flow — the ports on the passed
+    *flows* are placeholders, ``allocate_port`` owns them — so an abandoned
+    receiver/port is never reused across attempts. Bounded by *retry_budget_s*;
+    a re-run the budget refuses raises the last non-completion.
+    ``on_retry(exc, ports)`` reports the abandoned set's ports.
+
+    ``retry_when=None`` (the default) never retries: ONE attempt, the first
+    non-completion propagates — the primitive's behaviour, plus fresh-port
+    allocation. Retryability is the caller's call by design (see
+    :class:`NonCompletion`): a ``local_receiver`` no-show is testbed-defect
+    territory, so a predicate here must NEVER converge on the test's own
+    asserted observable — a flow that genuinely never reaches its rate at a cap
+    is a product defect the test should fail on, which the budget bound
+    preserves.
+    """
+    deadline = monotonic() + retry_budget_s
+
+    def _attempt(ports: Sequence[int]) -> list[FlowThroughput]:
+        rebuilt = [replace(flow, port=port) for flow, port in zip(flows, ports, strict=True)]
+        return measure_concurrent_throughput(
+            rebuilt,
+            duration_s=duration_s,
+            result_timeout_s=result_timeout_s,
+            poll_interval_s=poll_interval_s,
+            sleep=sleep,
+            monotonic=monotonic,
+        )
+
+    return _retry_on_noncompletion(
+        _attempt,
+        allocate=lambda: [allocate_port() for _ in flows],
+        retry_when=retry_when,
+        deadline=deadline,
+        busy_backoff_s=busy_backoff_s,
+        on_retry=on_retry,
+        sleep=sleep,
+        monotonic=monotonic,
+    )
+
+
 # --- rated-path measurement: unloaded RTT probe + sequential directions -------
 #
 # The framing owned here (the reason it is a testoperations function and not a
@@ -836,22 +939,18 @@ def _measure_rounds(
     deadline = monotonic() + budget_s
 
     def _attempt(spec: DirectionSpec | None) -> FlowThroughput:
-        """Measure one flow, re-drawing a non-completion only if the caller says so.
-
-        The port is drawn per attempt, so a re-draw never reuses the abandoned
-        one. A re-draw the budget refuses is raised, not announced through
-        *on_retry*.
-        """
-        while True:
-            port = allocate_port()
-            try:
-                return measure_flow(port, spec)
-            except NonCompletion as exc:
-                if monotonic() >= deadline or retry_when is None or not retry_when(exc):
-                    raise
-                if on_retry is not None:
-                    on_retry(exc, port)
-                sleep(busy_backoff_s)
+        """Measure one flow, re-drawing a non-completion only if the caller says
+        so — the shared retry mechanic with a single-port resource."""
+        return _retry_on_noncompletion(
+            lambda port: measure_flow(port, spec),
+            allocate=allocate_port,
+            retry_when=retry_when,
+            deadline=deadline,
+            busy_backoff_s=busy_backoff_s,
+            on_retry=on_retry,
+            sleep=sleep,
+            monotonic=monotonic,
+        )
 
     findings: list[PathMeasurement] = []
     while True:
