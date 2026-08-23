@@ -764,6 +764,105 @@ precedent).
 
 ---
 
+## 2026-08-23 — `OverlayAdvertisements` (org-scope overlay-advertisement read) [priority: medium]
+
+**Signal:** Proposal review (2026-08-23, accept-with-conditions): a consumer
+suite's VPN-firewall selectivity test needs a deny-rule decoy target
+**provably absent from the management domain's advertised overlay space**.
+The VPN-scoped firewall rule set is organization-wide on the driving family,
+so the safety claim is org-wide while the testbed declares only a sliver of a
+shared org; a read-only census of that org found a reserved benchmark range
+(`198.18.0.0/15`) carrying live occupants — including a foreign network's
+export — so "reserved, therefore safe" is empirically false and the collision
+check must be live and fail-closed on every run. No existing surface carries
+the fact: `SiteToSiteVpn.get_vpn_config` is the own network's *declared*
+config, `get_vpn_peers` is name/state/uplink only, and the device-vantage RIB
+read is hub-domain-scoped — it cannot prove org-wide absence.
+
+**Trigger to act:** a second testbed/consumer needs org-scope advertisement
+reads, or the next `SiteToSiteVpn` minor-evolution release window. The first
+consumer runs it as a declared plugin-local `runtime_checkable` protocol
+meanwhile, shaped for re-homing (review-agreed shape below).
+
+**Out of scope right now because:** single consumer today, and promotion
+mid-use-case costs a shared-repo release plus a consumer pin bump.
+One-consumer shapes stay plugin-local per the grow-on-evidence rule
+(StreamingServerDevice / ApplianceUplinkMembers precedents, this file).
+
+**Design notes (when picked up):**
+- **Sibling optional protocol** beside `SiteToSiteVpn` — never folded into
+  the per-network-scoped protocol (scope mixture), never a mandatory
+  `SdwanApplianceDevice` attribute (the ◐ family below would fail the
+  isinstance gate; mirror the ApplianceUplinkMembers optional-composition
+  pattern). Read-only.
+- Review-agreed shape: `get_org_advertised_subnets() ->
+  list[AdvertisedSubnet]`; `AdvertisedSubnet(site_name, subnet)`.
+  `site_name` is **diagnostic provenance** as the management plane names it —
+  the testbed-level-name mapping rule is structurally inapplicable to foreign
+  entities; record that decision in the promotion design doc.
+- Contract semantics: bounded management-plane reads, never polled (on
+  several families the faithful implementation is multi-call or a different
+  vantage); operational failures raise; **empty list is a positive org-wide
+  assertion**, never "unknown"; a partially-paginated read never returns.
+- The promotion PR carries a dated design-doc decision on the org-scope
+  contract tier — this would be the contract's first intrinsically org-scoped
+  capability read, arguing past the recorded `l3_firewall.py` scope-note
+  position ("wider-than-device scope is a driver/testbed concern, not a
+  contract one") with the review's evidence. Generic evidence phrasing and
+  public vendor citations only.
+- Five-family check (run 2026-08-23 against published docs; re-verify the ◐
+  cell at promotion): Meraki MX ✓ (org appliance VPN statuses →
+  per-network exported subnets; published OpenAPI spec); Catalyst SD-WAN ✓
+  (Manager OMP advertised-routes per device via the controller; fleet =
+  iterate or controller vantage); Arista/VeloCloud ✓ (Orchestrator
+  enterprise route table / Overlay Flow Control — single org-scope call);
+  Prisma SD-WAN ✓ (site prefixes advertised into the fabric,
+  controller-readable per site); FortiGate ◐ (reconstructable from the ADVPN
+  hub/BGP-RR vantage; no dedicated fleet-advertisement REST read published —
+  unsupported-capability convention). 4/5 + ◐, the same admission profile as
+  the `bgp` operational reads.
+
+**Cross-references:** `site_to_site_vpn.py` (the per-network-scoped protocol
+it composes beside), `l3_firewall.py` (`set_vpn_rules` scope note — the
+recorded position the promotion doc must argue past),
+`models/sdwan_appliance.py` (`VpnSubnet` — declared-intent, a distinct
+meaning from the observed org row), `ApplianceUplinkMembers` entry (this
+file — optional-composition + plugin-local precedent), decoy-target
+derivation note (below — the consuming helper).
+
+---
+
+## 2026-08-23 — decoy-target derivation (`derive_decoy_target`, segmentation-family sibling) [priority: low]
+
+**Signal:** Same 2026-08-23 proposal review: a pure, assertion-free helper
+deriving a deny-rule decoy target from a fixed IETF-reserved range (RFC 5737
+TEST-NET-2, `198.51.100.0/24`) and collision-checking it against the live
+in-use CIDR set — returns facts (`DecoyDerivation(subnet, host,
+collisions)`); the caller decides pass/fail (a fail-closed precondition in
+the consuming step).
+**Trigger to act:** a second decoy-consuming use case, or the next
+`testoperations` release window.
+**Out of scope right now because:** single consumer; it lives as a
+suite-local step helper meanwhile, unit-tested and shaped for a move into
+`testoperations.segmentation` (wording already vendor- and
+customer-neutral).
+**Design notes (when picked up):** overlap judged with `ipaddress` network
+overlap, containment both ways, not just equality; other-address-family
+entries skipped (they cannot collide; a cross-family comparison raises
+`TypeError`) while malformed entries raise (`ValueError`), never skipped —
+the check must not go fail-open; single fixed range, hard fail-closed (an
+occupied documentation range warrants a human, not a silent fallback; a
+candidate-list evolution — TEST-NET-3, … — only on second-consumer
+evidence); output feeds `segmentation.build_deny_rule`'s dest fields.
+**Cross-references:** `testoperations/segmentation.py` (`build_deny_rule`,
+`find_matching_deny`), `OverlayAdvertisements` entry (this file — supplies
+the live advertised set the caller unions with the selected sites'
+subnets). Note: an *operations-family* sibling logged here for tracking
+continuity, not a missing capability protocol (ECN-entry precedent,
+2026-08-12).
+
+---
+
 ## Workflow
 
 When picking up a deferred capability:
