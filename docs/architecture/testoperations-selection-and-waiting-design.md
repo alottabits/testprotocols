@@ -84,3 +84,28 @@ existing failure texts byte-for-byte.
   packages (e.g. log-taxonomy reads) stay downstream until the usual
   ≥2-consumer evidence justifies a shared contract; they compose over
   `wait_until` unchanged.
+
+## Dated contract note — the readiness/evidence split (2026-08-23)
+
+`waiting` now carries two reachability waits, split by what the caller does
+with the wait, and the split is the contract:
+
+- **`wait_for_reachability` (bool)** is a readiness gate for callers that
+  record nothing about the wait. Its return answers "did the poll match
+  `want` within the budget" — which is the *expectation*, restated. Signature
+  and meaning are unchanged.
+- **`await_reachability` (`ReachabilityAwait`)** is the shape a caller that
+  records evidence of the convergence composes. Such a record needs what the
+  probe actually READ, never whether the poll matched: on budget expiry
+  against a flow that never converged, the bool collapses the true state
+  into `False`-for-"no match", while the await returns the last reading —
+  plus the poll loop (`polls`, `poll_interval_s`, `elapsed_s`, and
+  `not_converged_at_s`, the loop's own lower bound), so a convergence time is
+  recorded as a bound, never a false point value.
+
+Carrier layout follows the additive-sibling precedent (0.11.1's concurrent
+throughput retry): an intent-named public function over a shared private
+reading-loop core (`_await_reading`), the one-shot bool wait untouched. A new
+probe surface (e.g. an application-level target probe) joins as its own
+intent-named public sibling over the same core, on its own consumer
+evidence — never as a field-parameterized generalization of this one.

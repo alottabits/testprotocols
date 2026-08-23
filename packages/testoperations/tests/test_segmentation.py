@@ -6,10 +6,13 @@ from typing import TypedDict
 
 import pytest
 from testoperations.segmentation import (
+    DECOY_RANGE,
+    DecoyDerivation,
     NoEligibleSelectionError,
     RoleAssignment,
     SpokeCandidate,
     build_deny_rule,
+    derive_decoy_target,
     find_matching_deny,
     select_roles,
 )
@@ -218,3 +221,50 @@ class TestFindMatchingDeny:
             )
             is None
         )
+
+
+# --- derive_decoy_target ------------------------------------------------------
+
+
+def test_decoy_deterministic_with_fixed_forms() -> None:
+    first = derive_decoy_target([])
+    second = derive_decoy_target([])
+    assert first == second
+    assert first == DecoyDerivation(subnet="198.51.100.0/24", host="198.51.100.1/32", collisions=())
+
+
+def test_decoy_clean_on_a_realistic_in_use_set() -> None:
+    derivation = derive_decoy_target(
+        ["10.1.30.0/24", "10.8.1.0/24", "198.18.200.0/24", "198.18.63.120/29", "192.168.114.0/24"]
+    )
+    assert derivation.collisions == ()
+
+
+def test_decoy_supernet_swallowing_the_range_collides() -> None:
+    assert derive_decoy_target(["198.51.0.0/16"]).collisions == ("198.51.0.0/16",)
+
+
+def test_decoy_host_inside_the_range_collides() -> None:
+    assert derive_decoy_target(["198.51.100.9/32"]).collisions == ("198.51.100.9/32",)
+
+
+def test_decoy_exact_range_equality_collides() -> None:
+    assert derive_decoy_target([DECOY_RANGE]).collisions == ("198.51.100.0/24",)
+
+
+def test_decoy_valid_other_family_entries_are_skipped_not_compared() -> None:
+    assert derive_decoy_target(["2001:db8::/32", "10.1.30.0/24"]).collisions == ()
+
+
+def test_decoy_malformed_entry_raises_never_skipped() -> None:
+    with pytest.raises(ValueError):
+        derive_decoy_target(["not-a-cidr", "10.1.30.0/24"])
+
+
+def test_decoy_host_bearing_entry_is_normalized_and_still_checked() -> None:
+    assert derive_decoy_target(["198.51.100.7/24"]).collisions == ("198.51.100.0/24",)
+
+
+def test_decoy_collisions_deduplicated_in_input_order() -> None:
+    derivation = derive_decoy_target(["198.51.100.0/24", "198.51.100.0/24", "198.51.0.0/16"])
+    assert derivation.collisions == ("198.51.100.0/24", "198.51.0.0/16")

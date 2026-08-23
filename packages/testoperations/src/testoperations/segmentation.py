@@ -10,13 +10,17 @@ Pure, assertion-free helpers for a spoke-to-spoke segmentation test:
 * :func:`build_deny_rule` constructs the directional VPN-firewall ``L3Rule`` for
   a given rule *shape* (host ``/32`` vs subnet scope, and protocol).
 * :func:`find_matching_deny` locates that deny in an effective policy read-back.
+* :func:`derive_decoy_target` derives a provably-inert ("decoy") deny target
+  from a reserved documentation range, with a fail-closed non-collision check
+  against the in-use CIDRs the caller supplies.
 
 The module imports only testprotocols models — no devices, no vendor SDKs.
 """
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+import ipaddress
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 
 from testprotocols.models import L3Rule, RuleAction, RuleProtocol
@@ -132,3 +136,54 @@ def find_matching_deny(
         ):
             return rule
     return None
+
+
+# RFC 5737 TEST-NET-2 — reserved for documentation, never routable in a
+# production overlay by assignment: a deny scoped to it can never become a
+# real block, including when a failed run leaks it. A single fixed range,
+# hard fail-closed on occupancy (an occupied documentation range warrants a
+# human decision, not a silent fallback; a candidate-list evolution across
+# the documentation ranges is the recorded alternative if a consumer needs
+# one).
+DECOY_RANGE = "198.51.100.0/24"
+
+
+@dataclass(frozen=True)
+class DecoyDerivation:
+    """A derived decoy deny-target plus its non-collision check result."""
+
+    subnet: str  # the decoy range (subnet-scoped rules)
+    host: str  # its first host address /32 (host-scoped rules)
+    collisions: tuple[str, ...]  # in-use CIDRs overlapping the range; empty = safe
+
+
+def derive_decoy_target(in_use: Iterable[str]) -> DecoyDerivation:
+    """Derive a provably-inert deny-target and check it against *in_use* CIDRs.
+
+    An org-wide firewall rule set demands an org-wide safety fact: a deny
+    scoped to the decoy must overlap nothing in use anywhere, so the caller
+    feeds every live-advertised and selected subnet it can see and judges the
+    returned ``collisions`` (fail-closed on any hit). Deterministic by
+    construction (a fixed reserved range). Overlap is judged with
+    ``ipaddress`` network overlap — containment either way counts, not just
+    equality. Mixed address families: *in_use* entries of another address
+    family than the decoy are skipped, never compared — they cannot collide,
+    and a cross-family comparison raises ``TypeError``. Skipping is strictly
+    scoped to *valid* other-family networks: a malformed entry raises
+    (``ValueError`` from ``ipaddress``), never skipped — the check must not
+    go fail-open. Assertion-free: returns facts; pass/fail lives with the
+    caller.
+    """
+    decoy = ipaddress.IPv4Network(DECOY_RANGE)
+    collisions: dict[str, None] = {}  # insertion-ordered de-dup
+    for raw in in_use:
+        net = ipaddress.ip_network(str(raw).strip(), strict=False)
+        if isinstance(net, ipaddress.IPv6Network):
+            continue  # valid other-family: cannot collide with the v4 decoy
+        if net.overlaps(decoy):
+            collisions.setdefault(str(net), None)
+    return DecoyDerivation(
+        subnet=str(decoy),
+        host=f"{decoy[1]}/32",
+        collisions=tuple(collisions),
+    )
