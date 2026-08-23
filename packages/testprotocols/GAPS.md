@@ -863,6 +863,68 @@ continuity, not a missing capability protocol (ECN-entry precedent,
 
 ---
 
+## 2026-08-23 — result-returning reachability await (`await_reachability`, waiting-family sibling) [priority: medium]
+
+**Signal:** Proposal review (2026-08-23, accept-with-conditions, adopted): a
+consumer suite's evidence contract bars the bool-returning
+`wait_for_reachability` from recording `Then` steps — the bool answers "did
+the poll match *want*", so a record built from it is a function of the
+expectation, and on budget expiry it misreports what the probe actually
+saw; the poll cadence is also missing from the record. Two suite modules
+independently rebuilt the same remedy — a reading-plus-loop await returning
+the probe's **last reading** plus loop facts — as thin compositions over
+`wait_until` + `probe_reachable` (the found-slot-closure seam the waiting
+design doc records as intended use). That duplication is the
+second-consumer signal, surfaced by the proposal itself.
+
+**Trigger to act:** the next `testoperations` release window — agreed at
+review to travel with the `derive_decoy_target` promotion (this file's
+sibling entry; one release serves both) — or sooner at the consumer's
+sequencing preference. The shape is fixed below; promotion is a move.
+
+**Out of scope right now because:** promotion mid-use-case costs a
+shared-repo release plus a consumer pin bump; the consumer runs the agreed
+shape locally meanwhile, unit-tested with injected clocks.
+
+**Design notes (when picked up):**
+- Additive public `await_reachability(probe, proto, target_ip, *, want,
+  tcp_port, udp_port, budget_s, interval_s, sleep, monotonic) ->
+  ReachabilityAwait` in `waiting.py` — full signature parity with
+  `wait_for_reachability` (same parameters and port defaults), which stays
+  untouched in signature and meaning (the Given-side readiness gate that
+  owns no evidence record); both docstrings cross-reference the split.
+- Result fields: `reachable` (the LAST reading, never the match verdict —
+  the anti-echo contract), `elapsed_s`, `polls`, `poll_interval_s`,
+  `not_converged_at_s: float | None`. Docstring pins: the three
+  `not_converged_at_s` outcomes (immediate success → `None`; late success →
+  the last still-wrong round; budget expiry → the last round, a lower bound
+  that never resolved); `wait_until` parity (at least one poll always;
+  probe exceptions propagate — terminal, not retried); the deliberate
+  input-echo of `poll_interval_s` justified in one line (the result is a
+  self-contained evidence payload — cadence travels with the record).
+- Carrier: a **shared private reading-loop core** with the intent-named
+  public function over it (the `throughput._retry_on_noncompletion` /
+  `measure_concurrent_throughput_with_retry` precedent; intent-named public
+  siblings over a shared private bracket, never a field-parameterized
+  public generalization) — leaving room for a later URL-probing sibling on
+  its own evidence.
+- The fake-clock anti-echo budget-expiry unit test travels with the
+  function (the load-bearing case). A dated note lands in
+  `docs/architecture/testoperations-selection-and-waiting-design.md` with
+  the PR, recording the Given/Then split rationale.
+
+**Cross-references:** `testoperations/waiting.py` (`wait_until` /
+`probe_reachable` / `wait_for_reachability` — the primitives composed and
+the bool wait that keeps its role), `testoperations/throughput.py`
+(`_retry_on_noncompletion`, `measure_concurrent_throughput_with_retry` —
+the additive-wrapper precedent), `testprotocols/network_probe.py`
+(`NetworkProbe` — the only binding), decoy-target derivation entry (this
+file — the co-traveling promotion). Note: an *operations-family* sibling
+logged here for tracking continuity, not a missing capability protocol
+(ECN-entry precedent, 2026-08-12).
+
+---
+
 ## Workflow
 
 When picking up a deferred capability:
