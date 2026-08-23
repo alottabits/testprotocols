@@ -6,7 +6,13 @@ from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
-from testoperations.waiting import probe_reachable, wait_for_reachability, wait_until
+from testoperations.waiting import (
+    ReachabilityAwait,
+    await_reachability,
+    probe_reachable,
+    wait_for_reachability,
+    wait_until,
+)
 
 
 class FakeClock:
@@ -134,3 +140,113 @@ def test_wait_for_reachability_budget_expiry() -> None:
         )
         is False
     )
+
+
+# --- await_reachability (result-returning sibling) ---------------------------
+
+
+def _icmp_probe(readings: list[bool] | bool) -> MagicMock:
+    probe = MagicMock()
+    if isinstance(readings, list):
+        probe.icmp_can_reach.side_effect = readings
+    else:
+        probe.icmp_can_reach.return_value = readings
+    return probe
+
+
+def test_await_reachability_converges_with_reading_and_loop() -> None:
+    # Convergence lands on the third round: the result carries the reading
+    # plus polls/elapsed and the last still-wrong lower bound.
+    clock = FakeClock()
+    result = await_reachability(
+        _icmp_probe([True, True, False]),
+        "icmp",
+        "10.0.0.9",
+        want=False,
+        budget_s=60.0,
+        interval_s=8.0,
+        sleep=clock.sleep,
+        monotonic=clock.monotonic,
+    )
+    assert result == ReachabilityAwait(
+        reachable=False,
+        elapsed_s=16.0,
+        polls=3,
+        poll_interval_s=8.0,
+        not_converged_at_s=8.0,
+    )
+
+
+def test_await_reachability_budget_expiry_returns_the_last_reading() -> None:
+    # The load-bearing anti-echo case: the flow stays reachable past the
+    # budget. A bool wait answers "did it match want=False" (no); this await
+    # answers what the probe READ — reachable — so a record of a failed
+    # convergence shows the true state instead of echoing the expectation.
+    clock = FakeClock()
+    result = await_reachability(
+        _icmp_probe(True),
+        "icmp",
+        "10.0.0.9",
+        want=False,
+        budget_s=20.0,
+        interval_s=8.0,
+        sleep=clock.sleep,
+        monotonic=clock.monotonic,
+    )
+    assert result.reachable is True
+    assert result.polls >= 2
+    assert result.not_converged_at_s is not None
+
+
+def test_await_reachability_immediate_success_one_poll_no_lower_bound() -> None:
+    clock = FakeClock()
+    result = await_reachability(
+        _icmp_probe(True),
+        "icmp",
+        "10.0.0.9",
+        want=True,
+        budget_s=60.0,
+        interval_s=8.0,
+        sleep=clock.sleep,
+        monotonic=clock.monotonic,
+    )
+    assert result.reachable is True
+    assert result.polls == 1
+    assert result.not_converged_at_s is None
+    assert result.elapsed_s == 0.0
+    assert clock.sleeps == []
+
+
+def test_await_reachability_dispatches_ports_like_the_bool_wait() -> None:
+    clock = FakeClock()
+    probe = MagicMock()
+    probe.tcp_can_connect.return_value = True
+    await_reachability(
+        probe,
+        "tcp",
+        "10.0.0.9",
+        want=True,
+        budget_s=10.0,
+        interval_s=1.0,
+        tcp_port=8080,
+        sleep=clock.sleep,
+        monotonic=clock.monotonic,
+    )
+    probe.tcp_can_connect.assert_called_once_with("10.0.0.9", 8080)
+
+
+def test_await_reachability_probe_exceptions_propagate() -> None:
+    clock = FakeClock()
+    probe = MagicMock()
+    probe.icmp_can_reach.side_effect = RuntimeError("probe transport lost")
+    with pytest.raises(RuntimeError, match="probe transport lost"):
+        await_reachability(
+            probe,
+            "icmp",
+            "10.0.0.9",
+            want=True,
+            budget_s=10.0,
+            interval_s=1.0,
+            sleep=clock.sleep,
+            monotonic=clock.monotonic,
+        )
