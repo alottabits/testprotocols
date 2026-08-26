@@ -326,6 +326,7 @@ def test_qoe_measurement_client_aggregates_expected_capabilities() -> None:
         "network_probe",
         "responder",
         "pcap",
+        "http_client",
         "syslog",
         "attachment",
         "pipe",
