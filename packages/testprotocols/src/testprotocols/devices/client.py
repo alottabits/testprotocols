@@ -117,7 +117,9 @@ class QoeMeasurementClientDevice(QoeClientDevice, Protocol):
     One host that drives browser QoE workloads AND acts as an iperf source/sink,
     runs protocol-parameterised reachability probes (icmp / tcp / udp, with a
     responder so the connectionless "blocked vs no-service" case is observable),
-    and captures traffic on the test segment. A strict superset of
+    performs body-carrying HTTP fetches (so a step can judge the received
+    content, not just the status), and captures traffic on the test segment.
+    A strict superset of
     ``QoeClientDevice`` (qoe_browser + ip_interface + dhcp_client) — so any
     consumer typed against ``QoeClientDevice`` also accepts this device — for
     testbeds (e.g. a mobile LAN-side measurement VM) that fold all those roles
@@ -129,6 +131,7 @@ class QoeMeasurementClientDevice(QoeClientDevice, Protocol):
     network_probe: NetworkProbe
     responder: ReachabilityResponder
     pcap: PcapCapture
+    http_client: HttpClient
 
     attachment: NetworkAttachment
     """Homing metadata — test/mgmt plane addresses and the declared guest

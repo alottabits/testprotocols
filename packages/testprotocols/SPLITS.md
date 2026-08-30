@@ -588,3 +588,80 @@ per-uplink `PathMetrics` — the split is by *what is measured*, not by shape.
 - `timespan_s` is explicit on the overlay read because products report it as
   a windowed aggregate — the freshness trade belongs to the caller, and a
   hidden default would bake one test's window into the contract.
+
+---
+
+## 2026-08-17 — scan/fetch kept on `NmapScanner` / `HttpClient` (not folded into `PacketInjector`)
+
+**Signal:** Landing the `PacketInjector` substrate capability (packet emission /
+replay) raised whether the adjacent offensive-host verbs — port/host scan and
+attacker-originated HTTP fetch — should be bundled into the same capability for the
+threat-source role.
+
+**Decision:** keep. Scan stays on `NmapScanner`, fetch on `HttpClient`;
+`PacketInjector` carries only `emit_signature` / `replay_pcap`.
+
+**Rationale:**
+- Both already exist and are composed on `LanClientDevice`; folding them in would
+  duplicate live surfaces — the same redundancy the `PortForwarding`→`Firewall` and
+  `SdwanPolicyManager` firewall-method removals corrected.
+- A threat-source archetype composes the existing capabilities alongside
+  `PacketInjector` rather than re-homing them.
+- Emission (craft/send, pcap replay) is the one offensive verb-set with no home; that
+  is exactly what `PacketInjector` adds.
+
+**Migration impact:** none — pure addition. `NmapScanner` / `HttpClient` unchanged; no
+consumer changes.
+
+**Cross-references:** `packet_injector.py`,
+`docs/architecture/packet-injection-substrate-design.md`; `nmap_scanner.py`,
+`http_client.py`.
+
+---
+
+## 2026-08-26 — `http_client: HttpClient` added to `QoeMeasurementClientDevice`
+
+**Signal:** A consumer's security-detection suite judges a malware-download
+disposition at the **initiating LAN client** — the client fetches a harmless
+malware test file and the step must distinguish "received the test-file
+content" from "the appliance blocked the download / returned a non-malicious
+result", which requires a **body-carrying** fetch. The consumer's LAN-side
+clients are inventoried `linux_qoe_measurement_client`, whose archetype
+composed no `http_client` — while `LanClientDevice` and `WlanClientDevice`
+already carry the same capability, and the consumer's plugin-local splash
+probe returns status + redirect only (no body), so it cannot carry the
+disposition.
+
+**Decision:** move (compose) — add `http_client: HttpClient` to
+`QoeMeasurementClientDevice`.
+
+**Rationale:**
+- Archetype **composition** of an existing capability, per the 2026-06-15
+  `pcap`-on-`TrafficControllerDevice` precedent (this file): placing an
+  already-admitted capability where it structurally belongs needs a consumer
+  signal, not cross-vendor K/6 evidence. The driving test above is the signal.
+- The 2026-08-17 entry (this file) already keeps host-originated fetch on
+  `HttpClient`; this composes that same capability on another host archetype
+  rather than growing a parallel fetch surface.
+- The alternative — retyping the client to `LanClientDevice` — was reviewed
+  and rejected: it misdeclares the inventory (the hosts *are* QoE measurement
+  VMs) and `LanClientDevice` mandates a much wider capability set
+  (`http_server`, `dns_client`, `upnp_client`, `multicast_client`,
+  `nmap_scanner`, `packet_filter`, `arp_client`, `vlan_client`, …) the QoE VM
+  driver does not implement — a far broader `isinstance`-gate failure than
+  one additive member.
+- Note on fidelity: `HTTPResult` carries a text-parsed body — sufficient for
+  text-payload disposition judgments (the driving case uses the standard
+  ASCII anti-malware test file), **not** binary-safe. A future consumer
+  needing byte-exact binary bodies is a new signal, not covered here.
+
+**Migration impact:** a new mandatory member is **boot-breaking** for any
+driver registered as `linux_qoe_measurement_client` (the registration
+`isinstance` gate rejects it until the driver wires an `HttpClient` impl).
+One driver is known; it wires its existing Linux `HttpClient` impl in step
+with its pin bump — the release note for the next testprotocols release must
+state this coordinated migration. `tests/test_device_types.py`
+expected-attrs updated; the strict-superset invariant vs `QoeClientDevice`
+is unaffected (addition only). Review record: consumer interface-proposal
+review, 2026-08-26 (accept-with-conditions; this entry is its recorded
+condition on the composition).
