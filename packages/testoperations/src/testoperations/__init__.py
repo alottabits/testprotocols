@@ -1,3 +1,3 @@
 """testoperations — framework-agnostic composition over testprotocols capabilities."""
 
-__version__ = "0.11.2"
+__version__ = "0.11.3"
