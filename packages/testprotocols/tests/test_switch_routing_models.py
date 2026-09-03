@@ -66,3 +66,19 @@ def test_switch_routing_records() -> None:
         group_id=1, virtual_ip="10.0.10.254", role=RedundancyRole.PRIMARY, interface="vlan10"
     )
     assert g.virtual_ip == "10.0.10.254"
+
+
+def test_interface_dhcp_config_reserved_ranges_are_reserved_range_records() -> None:
+    from dataclasses import fields
+
+    from testprotocols.models import ReservedRange
+    from testprotocols.models.switch_routing import InterfaceDhcpConfig
+
+    d = InterfaceDhcpConfig(
+        interface="vlan10",
+        reserved_ranges=[ReservedRange("10.0.10.200", "10.0.10.250", comment="printers")],
+    )
+    assert d.reserved_ranges[0].comment == "printers"
+    assert {f.name: f.type for f in fields(InterfaceDhcpConfig)}["reserved_ranges"] == (
+        "list[ReservedRange]"
+    )

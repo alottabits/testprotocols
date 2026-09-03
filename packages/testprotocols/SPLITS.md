@@ -665,3 +665,58 @@ expected-attrs updated; the strict-superset invariant vs `QoeClientDevice`
 is unaffected (addition only). Review record: consumer interface-proposal
 review, 2026-08-26 (accept-with-conditions; this entry is its recorded
 condition on the composition).
+
+---
+
+## 2026-09-03 — `reserved_ranges` reshaped from address pairs to `ReservedRange` records (both `VlanConfig` and `InterfaceDhcpConfig`)
+
+**Signal:** A consumer's first live init-time DHCP reservation write on a
+Meraki MX was rejected: `400 — A comment is required for each reserved IP
+range.` The platform returns a per-range `comment` on every read and refuses
+a write without one (the `updateNetworkApplianceVlan` reference lists
+`start`, `end`, `comment` as required), but `VlanConfig.reserved_ranges` was
+typed `list[tuple[str, str]]`, so the read side dropped the label and every
+write of an *existing* range sent it back empty. The switch-side
+`InterfaceDhcpConfig.reserved_ranges` shared the shape (the
+`updateDeviceSwitchRoutingInterfaceDhcp` reference lists the comment as
+optional there). The model was lossy, not the driver.
+
+**Decision:** reshape — a neutral `ReservedRange(start, end, comment="")`
+record in `models/sdwan_appliance.py` next to `DhcpReservation`, imported by
+`models/switch_routing.py` like the other DHCP sub-models, exported from
+`testprotocols.models`; both `reserved_ranges` fields retyped on it.
+
+**Rationale:** The data-model rule (`sdwan-appliance-protocol-design.md`): a
+needed vendor datum with no normalized field becomes a normalized field on
+evidence, never a native bucket. A free-text `comment` defaulting to empty is
+house vocabulary on the rule records (`L3Rule`, `L7Rule`, `SwitchAclRule`),
+so the shape imports nothing vendor-specific. Cross-vendor check against the
+reviewed appliance and switch families: the excluded-range concept is
+already in the contract; a label on the range exists on Meraki MX (required),
+Meraki MS (optional) and Junos (the range's identifier), and is absent on
+Catalyst SD-WAN, FortiGate (`exclude-range`), Prisma SD-WAN and VeloCloud —
+an optional string with an empty default imposes nothing on the families
+that lack it, the footing `DhcpReservation.name` already stands on. A driver
+whose plane requires a label supplies or enforces one at its boundary; the
+model does not prescribe raising.
+
+**Migration impact:**
+- `testprotocols`: `ReservedRange` added; `VlanConfig.reserved_ranges` and
+  `InterfaceDhcpConfig.reserved_ranges` retyped `list[tuple[str, str]] →
+  list[ReservedRange]`. **Source-breaking** for every driver that constructs
+  or reads either field: call sites of the shape
+  `[(r["start"], r["end"]) for r in ...]` become
+  `[ReservedRange(r["start"], r["end"], r.get("comment", "")) for r in ...]`,
+  and writers of the shape `{"start": s, "end": e, "comment": ""} for s, e in
+  ranges` become `{"start": r.start, "end": r.end, "comment": r.comment} for
+  r in ranges`, defaulting the label where their plane requires one.
+  `testoperations`: unaffected (the homing operation passes `VlanConfig`
+  through whole and reads only id, subnet and appliance IP).
+- Released as 0.12.0 (lockstep); the release commit body carries this
+  migration line for external driver authors.
+- **Deferred candidate (method, not protocol):** a ranges-only write on
+  `ApplianceVlans` (replace just a VLAN's reserved ranges). Kept driver-local
+  for now — a partial PUT is a property of one management plane; whole-blob
+  planes would implement it as the same read-modify-write `set_vlan` already
+  is, and there is one consumer. Promote on a second consumer.
+

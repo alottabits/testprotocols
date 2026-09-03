@@ -691,6 +691,9 @@ in `LEVELS.md`); one would be added on signal.
 - **`ApplianceVlans` SVI/DHCP reuse** — the SVI + DHCP fields of `VlanConfig` are
   shared into `RoutedInterfaces` / `InterfaceDhcp`, with `appliance_ip` renamed
   to `svi_ip`. Log the rename and any appliance-consumer migration.
+  (2026-09-03: the `reserved_ranges` field both configs share was later reshaped
+  from address pairs to `ReservedRange` records on appliance-side evidence — the
+  one change that did touch `VlanConfig`; see the `SPLITS.md` 2026-09-03 entry.)
 - **`SwitchAcl` unified L2+L3** — record the decision to model **one** ACL
   surface (not separate L2 and L3 protocols) reusing `L3Rule`, since the reviewed
   switches use one engine.

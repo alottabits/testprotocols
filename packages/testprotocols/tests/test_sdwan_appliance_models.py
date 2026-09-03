@@ -7,6 +7,7 @@ vendor-ingest boundary), and they give static checking at driver/test call sites
 
 from __future__ import annotations
 
+from dataclasses import fields
 from enum import StrEnum
 
 import pytest
@@ -30,6 +31,7 @@ from testprotocols.models.sdwan_appliance import (
     L7MatchType,
     L7Rule,
     MalwareMode,
+    ReservedRange,
     RuleAction,
     RuleProtocol,
     SecurityAction,
@@ -291,3 +293,30 @@ def test_bgp_peer_status_model() -> None:
     )
     assert peer.prefixes_received is None
     assert peer.state == "established"
+
+
+def test_reserved_range_record_carries_an_optional_comment() -> None:
+    from testprotocols.models import ReservedRange as exported
+
+    assert exported is ReservedRange  # exported from the models package
+    plain = ReservedRange(start="10.0.100.200", end="10.0.100.250")
+    assert plain.comment == ""
+    labelled = ReservedRange(start="10.0.100.250", end="10.0.100.250", comment="static host")
+    assert labelled.comment == "static host"
+    assert plain == ReservedRange("10.0.100.200", "10.0.100.250")  # value equality
+    assert plain != labelled
+
+
+def test_vlan_config_reserved_ranges_are_reserved_range_records() -> None:
+    vlan = VlanConfig(vlan_id=100, name="data", subnet="10.0.100.0/24", appliance_ip="10.0.100.1")
+    assert vlan.reserved_ranges == []
+    vlan = VlanConfig(
+        vlan_id=100,
+        name="data",
+        subnet="10.0.100.0/24",
+        appliance_ip="10.0.100.1",
+        reserved_ranges=[ReservedRange("10.0.100.200", "10.0.100.250", comment="printers")],
+    )
+    assert vlan.reserved_ranges[0].comment == "printers"
+    # the field is typed on the record, not on bare address pairs
+    assert {f.name: f.type for f in fields(VlanConfig)}["reserved_ranges"] == "list[ReservedRange]"
