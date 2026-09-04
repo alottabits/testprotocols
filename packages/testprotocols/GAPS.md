@@ -695,6 +695,24 @@ entry).
   suite. Design record: the dated contract note in
   `docs/architecture/testoperations-selection-and-waiting-design.md`.
 
+- **2026-09-04 — `HeldPrefixes` (held addresses on an instrument's own
+  interfaces)** (not previously deferred — landed on first consumer
+  evidence): a substrate/tool capability, `hold(address)` / `release(address)`
+  / `held()` over normalized `host/prefixlen` strings; the instrument
+  allocates a loopback-class interface per held address, so no interface
+  name crosses the contract and one address is released without disturbing
+  another. Evidence, stated honestly: **one written consumer** (a consumer's
+  LAN-side route-exchange scenario, where a routing peer holds the
+  downstream prefix it advertises to the device under test) **and one
+  planned** (a static-downstream scenario on the same instrument). Neutrality
+  by substrate universality (Linux dummy as the vendor-free reference; five
+  substrates surveyed, one implemented). **No upstream archetype member**: the
+  routing-instrument archetype composing it stays downstream and lifts to
+  commons when a second router instrument materializes — the archetype's own
+  recorded trigger. Design record:
+  `docs/architecture/held-prefixes-substrate-design.md` (substrate survey to
+  ratify on landing).
+
 ---
 
 ## 2026-08-12 — ECN observation (capture-analysis sibling) [priority: low]

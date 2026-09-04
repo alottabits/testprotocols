@@ -46,6 +46,7 @@ from testprotocols.firewall import Firewall, FirewallWhiteBox
 from testprotocols.firewall_zones import FirewallZones
 from testprotocols.first_hop_security import FirstHopSecurity
 from testprotocols.gateway_redundancy import GatewayRedundancy
+from testprotocols.held_prefixes import HeldPrefixes
 from testprotocols.http_client import HttpClient
 from testprotocols.http_server import HttpServer
 from testprotocols.hw_console import HwConsole
@@ -140,6 +141,7 @@ __all__ = [
     "FirewallZones",
     "FirstHopSecurity",
     "GatewayRedundancy",
+    "HeldPrefixes",
     "HttpClient",
     "HttpServer",
     "HwConsole",
