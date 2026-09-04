@@ -2,9 +2,9 @@
 
 Defines the abstract contract for an endpoint's *declared or discovered
 homing* onto the testbed's network planes: its test-plane address, its
-management-plane address, and — for a guest-attached endpoint (one whose
-test leg sits on a segment the testbed does not manage) — the declared
-segment label and subnet.
+management-plane address, the name of the leg that test-plane address lives
+on, and — for a guest-attached endpoint (one whose test leg sits on a segment
+the testbed does not manage) — the declared segment label and subnet.
 
 Distinct from ``NetworkEndpoint``: that is the live role-address query
 ("give me the WAN address, now"), answered by whatever means the driver
@@ -53,4 +53,12 @@ class NetworkAttachment(Protocol):
     @property
     def subnet(self) -> str:
         """Declared subnet (CIDR) of a guest attachment, empty when undeclared."""
+        ...
+
+    @property
+    def test_interface(self) -> str:
+        """The name of this endpoint's leg on the test segment — the interface
+        ``test_ip`` lives on — as the endpoint's own ``IpInterface`` keys it (an
+        endpoint whose test leg sits in a namespace publishes its in-namespace
+        name). Empty when the endpoint has no test leg."""
         ...

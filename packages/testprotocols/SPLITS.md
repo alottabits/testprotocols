@@ -720,3 +720,48 @@ model does not prescribe raising.
   planes would implement it as the same read-modify-write `set_vlan` already
   is, and there is one consumer. Promote on a second consumer.
 
+
+---
+
+## 2026-09-04 — `test_interface` added to `NetworkAttachment` (the name of the test leg)
+
+**Signal:** Two consumer archetypes' step layers reconstruct the test-leg
+interface name outside the contract: one helper reads a driver-root
+attribute structurally (`getattr(device, "test_iface", "")` behind a
+precondition fallback), another declares a local structural slice carrying
+`test_iface` "because the archetype doesn't declare it yet", and a third
+helper reads the same attribute for a namespace-level probe. Three drivers
+in that consumer resolve the fact from their injected config. The
+consumer-reconstructs-the-model smell, on a second archetype. The driving
+case that surfaced it: a test instrument (a routing peer) whose test-leg
+address is *applied by the scenario* through `IpInterface`, which is keyed
+on an interface name the capability-only archetype could not expose.
+
+**Decision:** add — a read-only `test_interface` property on
+`NetworkAttachment`: the name of the endpoint's leg on the test segment as
+the endpoint's own `IpInterface` keys it (an endpoint whose leg sits in a
+namespace publishes its in-namespace name); empty when it has no test leg.
+
+**Rationale:**
+- The boundary-fact rule (`capability-only-archetypes.md`): a fact the driver
+  resolves from its config is published as a read-only property on the
+  boundary view whose domain it belongs to — never a scalar on the archetype.
+  The interface `test_ip` lives on is homing metadata, exactly this view's
+  docstring scope.
+- Not a new capability: an intent-named "test leg" capability
+  (`assign` / `clear` / `address`) was reviewed and rejected — it adds no
+  behaviour beyond `IpInterface` plus the name; the missing thing is a fact.
+- Not plugin-local: a local view would fragment homing facts across two
+  views and leave the structural reads in place.
+
+**Migration impact:**
+- `testprotocols`: a new mandatory member on `NetworkAttachment`.
+  **Source-breaking** for every implementer (the `@runtime_checkable`
+  `isinstance` gate rejects a view without it): drivers add the property,
+  resolved from their config slice, `""` when the endpoint has no test leg.
+  Consumers replace structural reads of a driver attribute with
+  `device.attachment.test_interface`. `testoperations`: unaffected.
+- Released as 0.12.0 (lockstep, beside the 2026-09-03 `ReservedRange`
+  entry); the release commit body carries this migration line for external
+  driver authors: *implement `test_interface` on every `NetworkAttachment`
+  view before bumping the pin.*

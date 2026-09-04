@@ -17,7 +17,13 @@ from testprotocols.uplink_ports import UplinkPortRef, UplinkPorts
 
 
 def test_network_attachment_members() -> None:
-    assert protocol_attrs(NetworkAttachment) == {"test_ip", "mgmt_ip", "segment", "subnet"}
+    assert protocol_attrs(NetworkAttachment) == {
+        "test_ip",
+        "mgmt_ip",
+        "segment",
+        "subnet",
+        "test_interface",
+    }
 
 
 def test_placement_pipe_members() -> None:
@@ -65,5 +71,6 @@ def test_runtime_checkable_with_plain_attributes() -> None:
         mgmt_ip = "192.0.2.10"
         segment = "provider-vpn"
         subnet = "10.1.30.0/24"
+        test_interface = "eth1"
 
     assert isinstance(_View(), NetworkAttachment)
