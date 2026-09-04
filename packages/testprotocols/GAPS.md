@@ -745,6 +745,12 @@ plus the prefixes still missing. The next-hop filter (`routes_via`) is a pure
 step-layer projection with no framing and stays downstream. The private core
 needs an internal generalization to keep a typed last reading before either
 lands.
+The same consumer also wraps `await_reachability` locally to run its budget
+from the act anchor (`anchor_monotonic`: the head start comes off the budget
+and is added back to the reported bounds; a first-poll hit is bounded at the
+anchor, not at the head). That wrapper is a third candidate under the same
+trigger; its upstream shape is an `anchor_monotonic` keyword on
+`await_reachability` itself rather than a new sibling.
 **Cross-references:** `bgp.py` (`get_bgp_neighbors` / `get_learned_routes`,
 the reads polled), `docs/architecture/testoperations-selection-and-waiting-design.md`
 (the dated contract note: a sibling joins on its own consumer evidence), the
