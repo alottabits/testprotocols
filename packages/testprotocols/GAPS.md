@@ -715,6 +715,41 @@ entry).
 
 ---
 
+## 2026-09-04 — budgeted BGP awaits (`await_bgp_session` / `await_learned_routes`) [priority: medium]
+
+**Signal:** A consumer's LAN-side route-exchange scenario judges two BGP
+convergences to a declared budget — the neighbour session reaching
+Established, and the learned set (via one next hop) containing every expected
+prefix — and records each as a polled observation with its cadence and
+bounds, anchored at the appliance-side act. `testoperations.waiting` publishes
+only the reachability sibling (`await_reachability`), whose private
+reading-loop core is bool-typed and cannot keep a typed last reading
+(`BgpSessionState`, a route list).
+**Trigger to act:** the second use case that awaits a BGP session or learned
+set (the consumer's planned static-downstream scenario reads the learned set
+by reachability, not by BGP, so it is not that consumer).
+**Out of scope right now because:** one consumer per await; the recorded bar
+for a new waiting sibling is two consumers agreeing on the shape (the
+`await_reachability` precedent). The consumer carries both as local helpers
+composing the public `wait_until` (never the private core), with the typed
+last reading, the `ReachabilityAwait` fields (`elapsed_s`, `polls`,
+`poll_interval_s`, `not_converged_at_s`), an `anchor_monotonic` so the budget
+runs from the act with no untimed head start, and the anti-echo
+budget-expiry unit case.
+**Design notes (when picked up):** two intent-named public siblings beside
+`await_reachability` — `await_bgp_session(bgp, peer_ip, *, want=ESTABLISHED,
+budget_s, interval_s, anchor_monotonic=None)` → a record with the last
+`BgpSessionState | None`; `await_learned_routes(bgp, *, expected, next_hop,
+budget_s, interval_s, anchor_monotonic=None)` → the last filtered route list
+plus the prefixes still missing. The next-hop filter (`routes_via`) is a pure
+step-layer projection with no framing and stays downstream. The private core
+needs an internal generalization to keep a typed last reading before either
+lands.
+**Cross-references:** `bgp.py` (`get_bgp_neighbors` / `get_learned_routes`,
+the reads polled), `docs/architecture/testoperations-selection-and-waiting-design.md`
+(the dated contract note: a sibling joins on its own consumer evidence), the
+2026-08-23 `await_reachability` entry (Implemented, this file).
+
 ## 2026-08-12 — ECN observation (capture-analysis sibling) [priority: low]
 
 **Signal:** Proposal review of the flow-marking observation operation
