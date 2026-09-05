@@ -695,7 +695,66 @@ entry).
   suite. Design record: the dated contract note in
   `docs/architecture/testoperations-selection-and-waiting-design.md`.
 
+- **2026-09-04 — `HeldPrefixes` (held addresses on an instrument's own
+  interfaces)** (not previously deferred — landed on first consumer
+  evidence): a substrate/tool capability, `hold(address)` / `release(address)`
+  / `held()` over normalized `host/prefixlen` strings; the instrument
+  allocates a loopback-class interface per held address, so no interface
+  name crosses the contract and one address is released without disturbing
+  another. Evidence, stated honestly: **one written consumer** (a consumer's
+  LAN-side route-exchange scenario, where a routing peer holds the
+  downstream prefix it advertises to the device under test) **and one
+  planned** (a static-downstream scenario on the same instrument). Neutrality
+  by substrate universality (Linux dummy as the vendor-free reference; five
+  substrates surveyed, one implemented). **No upstream archetype member**: the
+  routing-instrument archetype composing it stays downstream and lifts to
+  commons when a second router instrument materializes — the archetype's own
+  recorded trigger. Design record:
+  `docs/architecture/held-prefixes-substrate-design.md` (substrate survey to
+  ratify on landing).
+
 ---
+
+## 2026-09-04 — budgeted BGP awaits (`await_bgp_session` / `await_learned_routes`) [priority: medium]
+
+**Signal:** A consumer's LAN-side route-exchange scenario judges two BGP
+convergences to a declared budget — the neighbour session reaching
+Established, and the learned set (via one next hop) containing every expected
+prefix — and records each as a polled observation with its cadence and
+bounds, anchored at the appliance-side act. `testoperations.waiting` publishes
+only the reachability sibling (`await_reachability`), whose private
+reading-loop core is bool-typed and cannot keep a typed last reading
+(`BgpSessionState`, a route list).
+**Trigger to act:** the second use case that awaits a BGP session or learned
+set (the consumer's planned static-downstream scenario reads the learned set
+by reachability, not by BGP, so it is not that consumer).
+**Out of scope right now because:** one consumer per await; the recorded bar
+for a new waiting sibling is two consumers agreeing on the shape (the
+`await_reachability` precedent). The consumer carries both as local helpers
+composing the public `wait_until` (never the private core), with the typed
+last reading, the `ReachabilityAwait` fields (`elapsed_s`, `polls`,
+`poll_interval_s`, `not_converged_at_s`), an `anchor_monotonic` so the budget
+runs from the act with no untimed head start, and the anti-echo
+budget-expiry unit case.
+**Design notes (when picked up):** two intent-named public siblings beside
+`await_reachability` — `await_bgp_session(bgp, peer_ip, *, want=ESTABLISHED,
+budget_s, interval_s, anchor_monotonic=None)` → a record with the last
+`BgpSessionState | None`; `await_learned_routes(bgp, *, expected, next_hop,
+budget_s, interval_s, anchor_monotonic=None)` → the last filtered route list
+plus the prefixes still missing. The next-hop filter (`routes_via`) is a pure
+step-layer projection with no framing and stays downstream. The private core
+needs an internal generalization to keep a typed last reading before either
+lands.
+The same consumer also wraps `await_reachability` locally to run its budget
+from the act anchor (`anchor_monotonic`: the head start comes off the budget
+and is added back to the reported bounds; a first-poll hit is bounded at the
+anchor, not at the head). That wrapper is a third candidate under the same
+trigger; its upstream shape is an `anchor_monotonic` keyword on
+`await_reachability` itself rather than a new sibling.
+**Cross-references:** `bgp.py` (`get_bgp_neighbors` / `get_learned_routes`,
+the reads polled), `docs/architecture/testoperations-selection-and-waiting-design.md`
+(the dated contract note: a sibling joins on its own consumer evidence), the
+2026-08-23 `await_reachability` entry (Implemented, this file).
 
 ## 2026-08-12 — ECN observation (capture-analysis sibling) [priority: low]
 

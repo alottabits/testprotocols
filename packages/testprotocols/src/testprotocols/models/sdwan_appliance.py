@@ -408,13 +408,27 @@ class DhcpReservation:
 
 
 @dataclass
+class ReservedRange:
+    """An address range excluded from a DHCP pool.
+
+    ``comment`` is the free-text label some platforms keep with the range. It
+    is optional here: a driver whose management plane requires a label
+    supplies or enforces one at its own boundary, never through this model.
+    """
+
+    start: str
+    end: str
+    comment: str = ""
+
+
+@dataclass
 class VlanConfig:
     """A LAN VLAN and its DHCP configuration.
 
     ``dhcp_lease_seconds`` normalizes lease time to seconds (vendors express it
     variously). ``dns_servers`` empty means "use the appliance / upstream
-    default". Reserved ranges are ``(start_ip, end_ip)`` pairs excluded from
-    the dynamic pool.
+    default". ``reserved_ranges`` are :class:`ReservedRange` records excluded
+    from the dynamic pool, each carrying its optional label.
     """
 
     vlan_id: int
@@ -426,7 +440,7 @@ class VlanConfig:
     dns_servers: list[str] = field(default_factory=list[str])
     dhcp_options: list[DhcpOption] = field(default_factory=list[DhcpOption])
     reservations: list[DhcpReservation] = field(default_factory=list[DhcpReservation])
-    reserved_ranges: list[tuple[str, str]] = field(default_factory=list[tuple[str, str]])
+    reserved_ranges: list[ReservedRange] = field(default_factory=list[ReservedRange])
 
 
 @dataclass

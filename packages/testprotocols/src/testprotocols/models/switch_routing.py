@@ -17,6 +17,7 @@ from testprotocols.models.sdwan_appliance import (
     DhcpMode,
     DhcpOption,
     DhcpReservation,
+    ReservedRange,
 )
 from testprotocols.models.wan_edge import RouteOrigin  # re-export
 
@@ -29,6 +30,7 @@ __all__ = [
     "OspfVersion",
     "RedundancyGroup",
     "RedundancyRole",
+    "ReservedRange",
     "RouteOrigin",
     "RoutedInterface",
 ]
@@ -76,7 +78,11 @@ class RoutedInterface:
 
 @dataclass
 class InterfaceDhcpConfig:
-    """Per-interface DHCP server/relay config (reuses appliance DHCP sub-models)."""
+    """Per-interface DHCP server/relay config (reuses appliance DHCP sub-models).
+
+    ``reserved_ranges`` are :class:`ReservedRange` records excluded from the
+    dynamic pool, each carrying its optional label.
+    """
 
     interface: str
     mode: DhcpMode = DhcpMode.DISABLED
@@ -84,7 +90,7 @@ class InterfaceDhcpConfig:
     dns_servers: list[str] = field(default_factory=list[str])
     options: list[DhcpOption] = field(default_factory=list[DhcpOption])
     reservations: list[DhcpReservation] = field(default_factory=list[DhcpReservation])
-    reserved_ranges: list[tuple[str, str]] = field(default_factory=list[tuple[str, str]])
+    reserved_ranges: list[ReservedRange] = field(default_factory=list[ReservedRange])
     relay_targets: list[str] = field(default_factory=list[str])
 
 

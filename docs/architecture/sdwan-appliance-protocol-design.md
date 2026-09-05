@@ -210,8 +210,10 @@ evidence. Cross-vendor: all expose WAN link state.
 ### `lan: ApplianceVlans`
 Per-VLAN LAN config (`list_vlans` / `get_vlan` / `set_vlan` / `delete_vlan`) and
 DHCP lease reads. `VlanConfig` carries subnet, appliance IP, normalized
-`dhcp_mode` (server / relay / disabled), lease time, options, reservations, and
-fixed assignments. Replaces `ip_interface` LAN + `DhcpServer` for this archetype.
+`dhcp_mode` (server / relay / disabled), lease time, DNS servers, options, fixed
+assignments (`reservations: DhcpReservation`) and reserved ranges
+(`reserved_ranges: ReservedRange` — see the dated note below). Replaces
+`ip_interface` LAN + `DhcpServer` for this archetype.
 Cross-vendor: LAN VLAN + DHCP config is universal on SD-WAN edges.
 `delete_vlan` (added 2026-06-19) completes the per-object CRUD surface — see the
 dated note below.
@@ -235,6 +237,29 @@ whole-module group is the *same* translation `set_vlan` already requires there
 (read-modify-write the LAN module), so `delete_vlan` introduces no new neutrality
 concern. A plane that cannot remove a required / last LAN VLAN raises
 unsupported-capability, per the established convention.
+
+### `ReservedRange` — reserved DHCP ranges carry their label (2026-09-03)
+`VlanConfig.reserved_ranges` was typed as bare `(start, end)` pairs; it is now a
+list of `ReservedRange(start, end, comment="")` records, the same record the L3
+switch's `InterfaceDhcpConfig` reuses (the shared DHCP sub-models, per the
+2026-06-14 `SPLITS.md` entry). Binding record with migration impact:
+`SPLITS.md` 2026-09-03.
+
+**Evidence.** A consumer's first live init-time reservation write on a Meraki MX
+was rejected with `400 — A comment is required for each reserved IP range.` The
+platform returns the label on every read and refuses a write without it, so a
+model that cannot carry it makes every write of an *existing* range fail: the
+model was lossy, not the driver.
+
+**Cross-vendor concept check.** The excluded-range concept was already in the
+contract. A label on the range is *required* on Meraki MX
+(`updateNetworkApplianceVlan`), *optional* on Meraki MS
+(`updateDeviceSwitchRoutingInterfaceDhcp`), the range's identifier on Junos
+(`excluded-range name low high`), and absent on Catalyst SD-WAN, FortiGate
+(`exclude-range`), Prisma SD-WAN and VeloCloud. An optional string with an empty
+default imposes nothing on the families that lack it — the footing
+`DhcpReservation.name` stands on. A driver whose plane requires a label supplies
+or enforces one at its own boundary; the model does not prescribe raising.
 
 ### `syslog: SyslogConfig`
 Syslog server configuration (`set_syslog_servers` / `get_syslog_servers`).

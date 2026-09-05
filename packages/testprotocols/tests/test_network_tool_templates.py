@@ -1,7 +1,7 @@
 """Tests for network-tool Protocol shapes.
 
 Covers: HttpClient, HttpServer, DnsClient, NmapScanner, PacketInjector,
-SnmpClient, NtpClient, UpnpClient, ArpClient, VlanClient.
+HeldPrefixes, SnmpClient, NtpClient, UpnpClient, ArpClient, VlanClient.
 """
 
 from __future__ import annotations
@@ -36,6 +36,11 @@ PROTOCOLS = [
         "PacketInjector",
         "testprotocols.packet_injector",
         {"emit_signature", "replay_pcap"},
+    ),
+    (
+        "HeldPrefixes",
+        "testprotocols.held_prefixes",
+        {"hold", "release", "held"},
     ),
     (
         "SnmpClient",
