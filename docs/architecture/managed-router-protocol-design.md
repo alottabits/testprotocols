@@ -829,53 +829,50 @@ flows needs a collector on the harness side that does not exist either.
 driver detail; sFlow's packet-sampling semantics are a driver note, not a
 contract fork) carries over unchanged.
 
-### On-box packet capture — composed, not excluded
-Two grounds inherited from the appliance design would exclude `pcap`:
-`PcapCapture` is "Linux-tool-shaped", and capture "is the
-`TrafficControllerDevice`'s job" (`SPLITS.md` 2026-06-15). Neither holds for
-this class:
+### On-box packet capture — the device vantage
+**Decision: `pcap: PcapCapture` on the core, reused as-is, per-method
+unsupported.**
 
-- The precedent's structural reason was that the appliance archetype's
-  dashboard-only families cannot capture (a console-bearing edge can, and may
-  satisfy the same capability — §7 Two levels) and a *switch* only mirrors. A
-  managed router **captures to a file on its own management plane**: Embedded Packet Capture on IOS-XE 17.x,
-  `capture-packet` on VRP, mirror-destination pcap on SR OS (7750 SR and 7705
-  SAR), `packet-capture` on Comware 7, `/tool sniffer` on RouterOS — five ✓ —
-  with Junos (full datapath capture on SRX, RE-bound only on MX), FortiOS (a
-  CLI sniffer that streams text; file capture via other paths) and OneOS6
-  ("flow capture and decoding", file semantics unverified) as ◐. That is the
-  same strong-majority bar the stateful firewall clears, and the same logic
-  by which interface admin is *included* here while excluded on the
-  appliance: a capability structurally present on the substrate rides on the
-  archetype.
-- `PcapCapture`'s contract is **lifecycle plus raw read**
-  (`start_tcpdump(interface, port, output_file, filters) -> handle`,
-  `stop_tcpdump(handle)`, `tshark_read_pcap(fname, …) -> str`) — the
-  capture-analysis family design records exactly that framing. A router driver
-  satisfies it with no contract change: `start`/`stop` drive the on-box
-  capture session with the handle as the session name, and `tshark_read_pcap`
-  **fetches the finished file off-box** (SCP/SFTP/TFTP, whatever the platform
-  offers) and runs tshark on the harness host. The capture-analysis operations
-  (`path_placement`, `marking_observation`) then run over a router vantage
-  unchanged, and `capture_shared_window` can bracket a router capture beside
-  a traffic-controller capture in one shared window.
+Own-traffic capture is one of the operations that define the class (§2). A
+managed router captures to a file on its own management plane: Embedded
+Packet Capture on IOS-XE 17.x, `capture-packet` on VRP, mirror-destination
+pcap on SR OS (7750 SR and 7705 SAR), `packet-capture` on Comware 7,
+`/tool sniffer` on RouterOS — five ✓ — with Junos (full datapath capture on
+SRX, RE-bound only on MX), FortiOS (a CLI sniffer that streams text; file
+capture via other paths) and OneOS6 ("flow capture and decoding", file
+semantics unverified — §14) as ◐. That clears the strong-majority bar; the ◐
+families raise unsupported-capability per method.
 
-**Why compose it rather than leave it to the traffic controller alone.** The
-traffic controller sees every frame on the wire between two devices; the
-router sees what *it* forwarded, marked, translated, or dropped — the two
-vantages disagree exactly when a test cares (a DSCP remark applied on egress,
-a NAT translation, a packet the zone firewall admitted or refused). The
-traffic controller stays the **wire vantage of record**; the router adds the
-**device vantage**. Limits are recorded as driver notes, not contract shape:
-on-box capture is buffer- and count-bounded, may be CPU-punted and
-rate-limited, is control-plane-only on some carrier platforms (Junos MX), and
-is never a line-rate instrument.
+**Why the router carries it beside the traffic controller.** The traffic
+controller sees every frame on the wire between two devices; the router sees
+what *it* forwarded, marked, translated or dropped. The two vantages disagree
+exactly when a test cares — a DSCP remark applied on egress, a NAT
+translation, a packet the zone firewall admitted or refused. The traffic
+controller stays the **wire vantage of record** (`SPLITS.md` 2026-06-15); the
+router adds the **device vantage**. Archetypes that do not publish capture —
+the dashboard-only appliance families, switches that only mirror — do not
+compose it; a console-bearing edge that publishes it may satisfy the same
+capability (§7 Two levels).
 
-**Shape.** Reuse `PcapCapture` as-is for the first driver. Its method names
-carry a tool (`tcpdump`, `tshark`) the router never runs; de-branding them
-(`start_capture` / `stop_capture` / `read_capture`) is a `SPLITS.md`
-generalisation that touches every archetype composing `pcap`, so it lands on
-its own evidence, not with this seed.
+**Shape.** `PcapCapture` is a lifecycle-plus-raw-read contract
+(`start_tcpdump(interface, port, output_file, filters) -> handle`,
+`stop_tcpdump(handle)`, `tshark_read_pcap(fname, …) -> str`; the
+capture-analysis family design records that framing). A router driver
+satisfies it with no contract change: `start`/`stop` drive the on-box capture
+session with the handle as the session name, and `tshark_read_pcap` fetches
+the finished file off-box (SCP/SFTP/TFTP, whatever the platform offers) and
+runs tshark on the harness host. The capture-analysis operations
+(`path_placement`, `marking_observation`) then run over a router vantage
+unchanged, and `capture_shared_window` can bracket a router capture beside a
+traffic-controller capture in one shared window. The method names carry a
+tool the router never runs; de-branding them (`start_capture` /
+`stop_capture` / `read_capture`) is a `SPLITS.md` generalisation that touches
+every archetype composing `pcap` and lands on its own evidence (§11).
+
+**Limits (driver notes, not contract shape).** On-box capture is buffer- and
+count-bounded, may be CPU-punted and rate-limited, is control-plane-only on
+some carrier platforms (Junos MX), and is never a line-rate instrument; the
+file must be fetched off-box before it is read (§8).
 
 ### Voice gateway — a fourth optional tier
 Voice is 4/8 across the reviewed set (IOS-XE, VRP, Comware, OneOS6) — below
@@ -936,6 +933,15 @@ archetype.
   behaviour, never on the existence of a native object. §7 applies this to
   `sdwan_policy` and `l3_firewall`; it applies equally to NAT, zones and QoS on
   a CLI-managed box.
+- **White-box extensions: satisfy or do not; console availability enables
+  them.** A driver either satisfies a `<Capability>WhiteBox` extension or does
+  not — never raises at call time — and a test that needs one pins against it
+  and collection-skips otherwise (`LEVELS.md`). The enabling fact is a console
+  or equivalent raw-state and exec-level access, which a controller-owned edge
+  keeps and a dashboard-only appliance lacks; management mode never enters.
+  Verbs and return types stay neutral; the payload is opaque substrate state
+  that pins the reading test; structured operational state is preferred over
+  CLI text where the platform publishes it (§7 Two levels, §9).
 - **VRRP is the only portable FHRP.** HSRP and GLBP are Cisco-local; the
   `GatewayRedundancy` contract stays VRRP-shaped, and a Cisco driver maps HSRP
   onto it.
@@ -946,18 +952,25 @@ archetype.
   a commons method. Deferred entry in §11.
 - **OSPFv3 is per-method.** `OspfConfig.version = OspfVersion.V3` is
   unsupported where the platform lists OSPFv2 only (OneOS6 datasheets).
-- **Overlay-VPN mechanism names never enter the contract.** "DMVPN" / "ADVPN" /
-  "DSVPN" / "VAM" are vendor terms for one behaviour; the contract names the
-  behaviour.
+- **Vendor and mechanism names never enter the contract — at either level.**
+  "DMVPN" / "ADVPN" / "DSVPN" / "VAM" are vendor terms for one behaviour; the
+  contract names the behaviour. The same holds for white-box extensions: a
+  raw-dump verb is neutral, a vendor command name is not, and the
+  substrate-specific part is confined to the opaque payload (§7 Two levels).
+  The §12 vendor-isolation grep enforces it over the package source.
 - **Config-transaction semantics: assume immediate-apply, verify after apply.**
-  All three trigger families are immediate-apply on the CLI (IOS-XE
-  autonomous `configure terminal`; VRP5; OneOS6). Commit semantics exist but
-  are optional or transport-bound: the IOS-XE NETCONF candidate datastore is
-  off by default and enabled per device (`netconf-yang feature
-  candidate-datastore`, running datastore otherwise; confirmed-commit since
-  17.1.1); OneOS6 NETCONF is transactional; Junos and model-driven SR OS are
+  The on-box CLI of all three trigger families is immediate-apply (IOS-XE
+  `configure terminal`; VRP5; OneOS6). Commit semantics exist but are optional
+  or path-bound: the IOS-XE NETCONF candidate datastore is off by default and
+  enabled per device (`netconf-yang feature candidate-datastore`, running
+  datastore otherwise; confirmed-commit since 17.1.1); OneOS6 NETCONF is
+  transactional; a controller-owned instance's writes are controller
+  transactions (ownership bullet above); Junos and model-driven SR OS are
   commit-based throughout. A neutral driver **verifies after apply** rather
   than assuming either model — a driver-contract note, not a protocol shape.
+  The whole-list-replace semantics several reused capabilities carry stay at
+  the contract level; a driver on a per-entry management plane *diffs* — there
+  is no per-entry write path beside the list write.
 - **Programmatic-transport floor (driver fact, never a cell).** CLI + ≥1
   programmatic interface, and that interface is NETCONF/YANG on six of eight
   families (IOS-XE, VRP, OneOS6, Junos, SR OS, Comware — all three trigger
@@ -990,11 +1003,11 @@ appliance:
   router's own interface surface is `RoutedInterfaces` (+ `enabled`) instead.
 - iptables `nat` (`Nat`) — replaced by the outcome-shaped NAT capability (§7).
 
-**No longer excluded — `pcap` (`PcapCapture`).** Revision 2 composes it on the
-core (§7): the exclusion was inherited from a device class that cannot
-capture, and the managed router can. The 2026-06-15 `SPLITS.md` entry that
-placed `pcap` on `TrafficControllerDevice` is unaffected — the traffic
-controller keeps the wire vantage; this archetype adds the device vantage.
+**`pcap` (`PcapCapture`) is composed, not excluded.** A managed router
+publishes own-traffic capture (§2), so the capability rides on the core (§7
+On-box packet capture). The 2026-06-15 `SPLITS.md` entry that placed `pcap`
+on `TrafficControllerDevice` is unaffected — the traffic controller keeps the
+wire vantage of record; this archetype adds the device vantage.
 
 Unlike the appliance, the managed router **does** carry an interface-admin
 lever and a capture lever — it administers and observes itself on-box. Those
@@ -1540,3 +1553,12 @@ what the levels represent. Accepted; applied here.**
   level (verbs, return types, models, enums); a white-box payload is opaque
   substrate state and pins the test that reads it; structured operational
   state is preferred over CLI text where published.
+- Consistency pass over §8: the overlay-name bullet generalised to "vendor
+  and mechanism names never enter the contract, at either level"; the
+  config-transaction bullet drops the mode qualifier, adds controller-owned
+  writes as transactions and the list-replace-versus-diff note; a white-box
+  bullet added for driver authors (satisfy or do not; console availability;
+  opaque payload; structured state preferred).
+- The on-box packet-capture call (§7) and the matching §9 paragraph rewritten
+  to state the decision and its intent (device vantage beside the wire
+  vantage of record) without the exclusion-and-reversal narrative.
