@@ -2,7 +2,7 @@
 
 | Field   | Value                                                                                                                                                                                                                                                                                       |
 | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Status  | **Proposed — exploratory, revision 4 (2026-09-07).** No code exists yet. Revision 2 applied the approval-team review against the three-family trigger context (§2): reviewed-family list ratified at eight, the §3 matrix re-run with per-cell sources (§13), the net-new list re-derived through the zero-contract-change test (§7), on-box packet capture composed (§7, §9), voice added as an optional tier (§5). Revision 3 (same day) applies the appliance-overlap review: the archetype boundary restated by published operation set rather than management transport (§1), `InterfaceDhcp` replaces the mis-picked `DhcpServer` (§5), the WAN-edge tier composes the appliance's WAN-edge surface including SD-WAN policy by composition (§5, §7), a security-bundle tier candidate (§5), and a shared-with-appliance table (§6). Revision 4 (same day) applies the two-level review: the sea-level intent surface shared with the appliance, plus white-box extensions for raw state and console-only levers (§7, §9, §11, §12). To be re-reviewed before any implementation and before the branch (`explore/managed-router-archetype`) is considered for merge. |
+| Status  | **Proposed — exploratory, revision 5 (2026-09-07).** No code exists yet. Revision 2 applied the approval-team review against the three-family trigger context (§2): reviewed-family list ratified at eight, the §3 matrix re-run with per-cell sources (§13), the net-new list re-derived through the zero-contract-change test (§7), on-box packet capture composed (§7, §9), voice added as an optional tier (§5). Revision 3 (same day) applies the appliance-overlap review: the archetype boundary restated by published operation set rather than management transport (§1), `InterfaceDhcp` replaces the mis-picked `DhcpServer` (§5), the WAN-edge tier composes the appliance's WAN-edge surface including SD-WAN policy by composition (§5, §7), a security-bundle tier candidate (§5), and a shared-with-appliance table (§6). Revision 4 (same day) applies the two-level review: the sea-level intent surface shared with the appliance, plus white-box extensions for raw state and console-only levers (§7, §9, §11, §12). Revision 5 (same day) removes management mode from the shape argument: the levels carry the type-of-methods distinction, configuration ownership is the residual instance fact (§1, §2, §7, §8, §14). To be re-reviewed before any implementation and before the branch (`explore/managed-router-archetype`) is considered for merge. |
 | Author  | rjvisser                                                                                                                                                                                                                                                                                    |
 | Date    | 2026-08-20 · rev. 2 2026-09-07                                                                                                                                                                                                                                                              |
 | Related | `docs/architecture/sdwan-appliance-protocol-design.md` (the precedent this follows), `docs/architecture/capability-only-archetypes.md`, `docs/architecture/capture-analysis-operations-design.md`, `packages/testprotocols/SPLITS.md`, `packages/testprotocols/GAPS.md`, `packages/testprotocols/LEVELS.md`, `devices/sdwan.py`, `devices/switch.py`, `devices/cpe.py`, `devices/traffic.py`, `devices/voice.py`, `router.py`, `wan_link_admin.py`, `routed_interfaces.py`, `appliance_nat.py`, `switch_acl.py`, `firewall_zones.py`, `traffic_shaping.py`, `site_to_site_vpn.py`, `gateway_redundancy.py`, `network_probe.py`, `pcap_capture.py`, `interface_dhcp.py`, `appliance_vlans.py`, `l3_firewall.py`, `appliance_uplinks.py`, `uplink_ports.py`, `sdwan_policy_manager.py`, `l7_firewall.py`, `content_filtering.py`, `threat_prevention.py`, `docs/architecture/typed-path-steering-protocol-design.md` |
@@ -39,8 +39,8 @@ vendor-neutral test interface** that the major on-box-managed router families
   surface, link administration is excluded — see the appliance doc and
   `SPLITS.md` 2026-06-12).
 
-A traditional on-box-managed router — running IOS-XE (autonomous mode), VRP,
-OneOS6, Junos, SR OS, Comware, FortiOS, or RouterOS — is **neither**. It is a
+A traditional on-box-managed router — running IOS-XE, VRP, OneOS6, Junos,
+SR OS, Comware, FortiOS, or RouterOS — is **neither**. It is a
 closed product like the appliance. **How a driver reaches the box** — a cloud
 dashboard API, a NETCONF session, a CLI over SSH — **is a driver concern and
 plays no part in the split.** The archetypes differ in the **operation set
@@ -98,8 +98,10 @@ through an on-box management plane (CLI / NETCONF / RESTCONF / gNMI), forwards
 at L3, and runs traditional routing. Not a general-purpose Linux host (rules out
 the twin); not a cloud-only controller-managed edge (rules out the appliance
 class and, for the router review, Meraki/Cradlepoint/Peplink/Versa). A platform
-that can run in *either* an on-box mode or a controller-managed mode belongs to
-this archetype **only in its on-box mode** (see the Cisco baseline below).
+that can run in *either* an on-box mode or a controller-managed mode publishes
+the same operation set either way (the Cisco baseline below); which archetype a
+driver registers it under is decided by what the driver publishes, never by
+mode (§8).
 
 ### Device classes in scope
 
@@ -126,7 +128,7 @@ The trigger estate spans three vendor families. Each is reviewed at a
 record stays portable; no fleet inventory or SKU appears here (the
 de-identification rule of the 2026-08-20 revision stands).
 
-- **Cisco IOS-XE, release 17.9 and later, in autonomous mode.** The 17.9 train
+- **Cisco IOS-XE, release 17.9 and later, verified in autonomous mode.** The 17.9 train
   publishes release notes for the ISR 1000, ISR 4000, ASR 1000, Catalyst
   8000V/8200/8300/8500, ASR 900/920, and the Catalyst IR1101/IR1800/IR8100/
   IR8300 rugged routers, so all four device classes above sit inside one
@@ -134,9 +136,15 @@ de-identification rule of the 2026-08-20 revision stands).
   one universalk9 image runs in either **autonomous mode** (IOS-XE via
   CLI/NETCONF/YANG, `configure terminal`) or **controller mode** (Catalyst
   SD-WAN via SD-WAN Manager, `config-transaction`); configuration does not
-  survive a mode switch. A controller-mode box is an `SdwanApplianceDevice`
-  (the Catalyst SD-WAN column of the appliance design), never an instance of
-  this archetype. **Operating mode is a per-instance fact the driver asserts.**
+  survive a mode switch. The §3 cells were verified against the
+  autonomous-mode published operations; a controller-managed instance
+  publishes the same operation set through the controller (the Catalyst
+  SD-WAN column of the appliance design verified it) and differs only in
+  **write path** — a controller push instead of local configuration, with
+  local configuration refused while a template or configuration group is
+  attached. That is a driver note (§8), not a shape fact: mode never enters
+  the contract, and the console's raw reads and exec levers are identical in
+  both modes (§7 Two levels).
 - **Huawei VRP 5.170 — the VRP5 line (AR / NetEngine AR).** `display version`
   on NetEngine AR V300R019 reports `VRP (R) software, Version 5.170 (AR6300
   V300R019C00)`; the string identifies the VRP5 platform on the AR and
@@ -322,8 +330,9 @@ pre-enumerating the power set here.
 @runtime_checkable
 class ManagedRouterDevice(BaseDeviceProtocol, Protocol):
     """On-box-managed router — universal core. Vendor-neutral; satisfiable by
-    any CLI/NETCONF/RESTCONF/gNMI-managed router operated on-box (IOS-XE in
-    autonomous mode, VRP, OneOS6, Junos, SR OS, Comware, FortiOS, RouterOS)."""
+    any router whose driver publishes the members below (IOS-XE, VRP, OneOS6,
+    Junos, SR OS, Comware, FortiOS, RouterOS); management mode and transport
+    are driver concerns (§8)."""
 
     interfaces: RoutedInterfaces         # reuse + `enabled` field (SPLITS) — admin state + L3 identity of own interfaces: the defining lever (§7)
     routing_read: RoutingRead            # reuse — RIB read (RouteEntry)
@@ -679,7 +688,11 @@ three forms, of which two have merit:
 **Selecting the level needs no mechanism of its own.** A driver either
 satisfies a `WhiteBox` extension or does not; a test declares the level it
 needs by pinning against the extension (`isinstance`), exactly as the existing
-white-box tests do. No granularity flag. Two cautions: the whole-list-replace
+white-box tests do. No granularity flag. Which levels an instance offers is
+therefore the set of extensions its driver satisfies, and for white box the
+enabling fact is **console availability**: a controller-managed edge keeps its
+console and offers both levels; a dashboard-only appliance offers sea level
+only. Management mode never enters (§8). Two cautions: the whole-list-replace
 semantics the appliance capabilities inherited from cloud APIs stay at the
 black-box level and a console driver *diffs* — there is no case for a
 white-box per-entry write path; and appliances that do have a console (a
@@ -857,13 +870,23 @@ archetype.
   and the NETCONF server on some OneOS6 models). Unsupported-capability
   signalling is per method, per the established convention — never "this
   whole capability is absent for vendor X."
-- **Operating mode is an instance fact.** An IOS-XE platform on the same image
-  is this archetype in autonomous mode and an `SdwanApplianceDevice` in
-  controller mode. The driver asserts the mode at attach and refuses the
-  wrong one; the archetype never carries a mode field. If a mode or firmware
-  fact must cross the boundary, the boundary-fact rule of
-  `capability-only-archetypes.md` puts it on `DeviceInfo` as a read-only
-  property, never on the archetype.
+- **Configuration ownership is an instance fact; management mode is not a
+  shape fact.** Whether this session may write the device's configuration is
+  published by `ConfigOwnership.manages_network` — true for a driver that owns
+  the writes (locally, or through a controller), false for a console driver
+  attached to a controller-owned box, which is then a reads-plus-white-box
+  driver and tests that write skip on that fact. Controller-managed instances
+  exist in all three trigger families (Catalyst SD-WAN controller mode; the
+  OneOS6 SD-WAN Director; iMaster NCE for NetEngine AR); in each, the write
+  path and its latency (a controller push is a configuration transaction,
+  never an operational lever) are driver notes, and no method changes shape.
+  A driver must not mix planes silently — a controller overwrites
+  console-side configuration and vice versa — so a driver refuses *local
+  writes* on a controller-owned box; it never refuses an archetype on mode.
+  If a firmware or ownership fact beyond the boolean must cross the boundary,
+  the boundary-fact rule of `capability-only-archetypes.md` puts it on
+  `DeviceInfo` / `ConfigOwnership` as a read-only property, never on the
+  archetype.
 - **Composition is a mechanism, not an approximation.** A capability is
   satisfied by a *sequence* of platform primitives — several CLI commands, a
   probe plus a track plus a policy route — on the same terms as by a single
@@ -1291,9 +1314,11 @@ Answers refine the §2 baselines; none blocks the design record.
 1. **Huawei VRP8.** Are carrier NetEngine 40E/8000 routers in the estate? If so
    the Huawei column splits into a VRP5 and a VRP8 column and the carrier class
    gains a second trigger family.
-2. **Cisco controller mode.** Are any IOS-XE boxes operated in controller mode?
-   They are `SdwanApplianceDevice` instances, and the driver must refuse them
-   here.
+2. **Controller-owned boxes.** Do any tests need *writes* on a
+   controller-owned box (Catalyst SD-WAN controller mode, the OneOS6 Director,
+   iMaster NCE), rather than reads and white-box levers? Reads and levers need
+   only the console driver with `manages_network` false; writes need the
+   controller driver, whose push latency is a driver note (§8).
 3. **OneOS6 minor floor.** Pin it when known; until then the OneOS6 generation
    is the floor.
 4. **OneOS6 capture semantics.** Does "flow capture and decoding" write a
@@ -1378,3 +1403,23 @@ level? Answer: yes, in two of three forms; applied here.**
   diff.
 - White-box candidate list recorded in §9 and §11 in the two kinds; §12
   composition conformance reads through the white-box reads once they land.
+
+**2026-09-07 — mode-versus-levels correction (revision 5). Maintainer
+observation: whether controller mode uses a controller and autonomous mode a
+management plane is not relevant to the shape of the protocol; what is
+relevant is the type of methods available to control the device, and that is
+what the levels represent. Accepted; applied here.**
+
+- Mode removed from the shape argument: the §2 class definition and the Cisco
+  baseline no longer make mode an archetype boundary ("verified in autonomous
+  mode" stays as provenance for the §3 cells); the core docstring and §1 drop
+  the mode qualifier.
+- The levels carry the type-of-methods distinction — sea-level intent writes
+  and reads; white-box raw reads and exec levers. Which levels an instance
+  offers is the set of extensions its driver satisfies; console availability,
+  not mode, enables white box (§7 Two levels).
+- The residual per-instance fact is configuration ownership, published by
+  `ConfigOwnership.manages_network`; write path and push latency are driver
+  notes; a driver refuses local writes on a controller-owned box, never an
+  archetype (§8).
+- §14 question 2 now asks whether tests need writes on controller-owned boxes.
