@@ -366,10 +366,10 @@ register_device_type("managed_router", ManagedRouterDevice)
 
 **Zero net-new capabilities at seed.** Every member above exists today. Two
 need a `SPLITS.md` entry (the `enabled` field on `RoutedInterface`; the
-de-branded names for `ApplianceNat` / `SwitchAcl`), and `PcapCapture`'s
-tool-named methods are a de-branding candidate (§7) — none needs a new
-protocol. The evaluation order that produced each disposition is recorded in
-§7 so an implementer who finds a derivation failing knows what the fallback is.
+de-branded names for `ApplianceNat` / `ApplianceUplinks` / `SwitchAcl`), and
+`PcapCapture`'s tool-named methods are a de-branding candidate (§7) — none
+needs a new protocol. Where a disposition has a fallback, §7 states the
+condition that would move to it.
 
 Optional tier Protocols (each a strict `(ManagedRouterDevice, Protocol)`
 superset adding one facet):
@@ -508,55 +508,58 @@ implementation shows the same multi-capability step written twice.
 
 ## 7. Modeling decisions on the reuse-boundary calls
 
-Each call below was re-run in revision 2 under the rule the review skill
-applies to every proposal: **test a zero-contract-change derivation in the
-driver before accepting any contract change.** Revisions 3 to 5 extended the
-chapter (LAN side, WAN-edge surface, SD-WAN policy, security bundles, two
-levels) under the same rule plus two later ones: the archetype boundary is the
-published operation set (§1, §2), and management mode and transport are driver
-facts that never enter a shape (§8). The recorded order is the implementer's
-fallback ladder.
+Each call below runs under three rules: **test a zero-contract-change
+derivation in the driver before accepting any contract change** (the rule the
+review skill applies to every proposal); the archetype boundary is the
+published operation set (§1, §2); management mode and transport are driver
+facts that never enter a shape (§8). Where a call records fallbacks, the order
+is the implementer's ladder and the condition that would move down it is
+stated.
 
 ### Interface admin — one encoding, on the configured object
 The universal, defining lever is "administratively bring **any** interface
-up/down and read its state." Three existing surfaces already carry the verb:
+up/down and read its state." Three existing surfaces carry the verb:
 `WanLinkAdmin` (`bring_wan_down(label)` / `bring_wan_up(label)`, an opaque
 label a router driver could treat as an interface name), `SwitchPort.enabled`
 (admin state on the switch's configured port object), and `RoutedInterfaces`
 (`list/get/set_interface` over `RoutedInterface(name, mode, ip_address,
 subnet, vlan_id)` — the SVI / routed-port / loopback surface of the L3-switch
-archetype, which is exactly a router's interface surface). The 2026-08-20
-revision proposed a new `InterfaceAdmin` and deferred "richer interface
-config"; it did not consider `RoutedInterfaces` at all.
+archetype, which is exactly a router's interface surface).
 
-**Evaluation order and provisional pick:**
+**Decision: `RoutedInterfaces`, with a defaulted `enabled: bool = True` field
+on `RoutedInterface`.** One object carries L3 identity *and* admin state,
+mirroring `SwitchPort.enabled`; `get_interface` reads the configured state
+back; interface configuration (address, mode, VLAN) comes with it. A defaulted
+field is not source-breaking for the L3 switch that already composes the
+capability. Two conventions travel with the field, in the same `SPLITS.md`
+entry (§11):
 
-1. **`RoutedInterfaces` + a defaulted `enabled: bool = True` field on
-   `RoutedInterface`** (provisional pick). One object carries L3 identity *and*
-   admin state, mirroring `SwitchPort.enabled`; `get_interface` reads the
-   configured state back; the previously deferred "richer interface config"
-   arrives for free. A defaulted field is not source-breaking. Open point to
-   settle on the first driver: a dynamically addressed WAN interface
-   (DHCP-client / PPPoE) has no static `ip_address`; the read-side convention
-   is "the current address, empty when unassigned", and the record's docstring
-   says so.
-2. **`WanLinkAdmin` with label = interface name** if (1) fails on the
-   addressing fields. Zero contract change; the docstring's "host-substrate
-   lever" framing becomes a `SPLITS.md` note ("the twin shells it; a managed
-   router publishes it on its own management plane"). Costs the config
-   read-back.
-3. **A new `InterfaceAdmin`** only if both fail — and only for an
-   admin-versus-operational state read neither carries. An operational-state
-   read beyond the WAN-edge tier's `Router.get_wan_interface_status` is a
-   `GAPS.md` entry (§11), not a seed member.
+- **Dynamically addressed interfaces.** A DHCP-client or PPPoE WAN interface
+  has no static address. `ip_address` / `subnet` read back as the current
+  address, empty when unassigned; a write with empty addressing leaves the
+  interface's addressing untouched, so admin state can be set on any interface
+  without inventing an address.
+- **One encoding.** `WanEdgeRouterDevice` does not add `WanLinkAdmin` on top
+  (§5); the lever exists once, on the configured object.
 
-Whichever lands, the lever is encoded **once**; `WanEdgeRouterDevice` does not
-add `WanLinkAdmin` on top (§5). Two consequences of picking a *configured*
-object as the lever (§8): a controller-owned instance can satisfy it through a
-controller push — faithful, but a configuration transaction at controller
-latency, never an operational lever — and a convergence measurement therefore
-keeps its act on the traffic controller regardless of who owns the box, which
-is the existing `SPLITS.md` 2026-06-12 rationale unchanged.
+**What would overturn it.** The §12 conformance run of the first driver over
+the four interface kinds — a routed port with a static address, a DHCP-client
+or PPPoE WAN interface, a loopback, an SVI or sub-interface — must round-trip
+`enabled` on each without the driver writing an address it was not given. If
+that fails, the fallbacks in order are `WanLinkAdmin` with the label as the
+interface name (zero contract change; its docstring's "host-substrate lever"
+framing becomes a `SPLITS.md` note; costs the configuration read-back), and
+only then a new `InterfaceAdmin`, justified solely by an admin-versus-
+operational state read neither surface carries. An operational-state read
+beyond the WAN-edge tier's `Router.get_wan_interface_status` is a `GAPS.md`
+entry (§11), not a seed member.
+
+Two consequences of a *configured* object as the lever (§8): a
+controller-owned instance can satisfy it through a controller push — faithful,
+but a configuration transaction at controller latency, never an operational
+lever — and a convergence measurement therefore keeps its act on the traffic
+controller regardless of who owns the box, the `SPLITS.md` 2026-06-12
+rationale unchanged.
 
 ### LAN side — the L3-switch split; `ApplianceVlans` derivable
 The appliance's `lan: ApplianceVlans` folds VLAN, gateway address and DHCP into
@@ -568,18 +571,15 @@ loopbacks, SVIs) is not VLAN-keyed. Model-level reuse is therefore complete —
 the 2026-09-03 `ReservedRange` work and any appliance DHCP test port to the
 router unchanged — and a driver may additionally satisfy `ApplianceVlans` **by
 derivation** (list the SVIs with their VLAN id and DHCP) if an appliance-written
-LAN test needs it; no contract change. Revision 2 had mis-picked `DhcpServer`,
-whose only method is `provision_cpe` — the CPE-provisioning server on a Linux
-WAN host, not a router pool; revision 3 corrects it. The derivation is the
+LAN test needs it; no contract change. The derivation is the
 portable direction that exists today; the end-state reshape in the other
 direction — the appliance composing the pair and `ApplianceVlans` retired — is
 recorded as a `SPLITS.md` candidate with its trigger and prerequisites (§11),
 and `ApplianceVlans` keeps its name until then (§7 WAN-edge surface).
 
 ### WAN-edge surface — the appliance's, reused
-Three appliance members fit a WAN-edge router unchanged and were missing from
-revision 2; a fourth, `sdwan_policy`, fits by composition and has the next
-subsection to itself:
+Three appliance members fit a WAN-edge router unchanged; a fourth,
+`sdwan_policy`, fits by composition and has the next subsection to itself:
 
 - **`L3Firewall`** — the outbound / inbound / VPN rule triad over `L3Rule`. The
   2026-06-14 `SPLITS.md` entry kept the triad off switches as "gateway-shaped";
@@ -651,9 +651,8 @@ legitimate is the general rule in §8; applied here:
   tunnels with ECMP or policy routing, per platform.
 
 ### Security bundles — a tier, reused as-is
-`L7Firewall`, `ContentFiltering` and `ThreatPrevention` are appliance members
-the 2026-08-20 revision excluded as "not universal to the router class". They
-are not universal — but they are not cloud-only either: IOS-XE publishes
+`L7Firewall`, `ContentFiltering` and `ThreatPrevention` are appliance members.
+They are not universal on routers — but they are not cloud-only either: IOS-XE publishes
 Unified Threat Defense (Snort IPS/IDS, URL filtering) on the ISR 4000 /
 Catalyst 8000 classes under a security licence; NetEngine AR V300R019 publishes
 IPS and URL filtering ("Deep Security"); Junos SRX and FortiOS carry full UTM;
@@ -771,10 +770,8 @@ set: MQC class/policy-maps (IOS-XE / VRP / Comware), CBQ/CB-WFQ/LLQ (OneOS6),
 Junos CoS, Nokia H-QoS, FortiOS shaping-policies, RouterOS mangle+HTB. The
 neutral contract must express **intent** — *classify on a match, mark DSCP,
 rate-limit, prioritise* — and expose none of the policy-map / queue-tree
-machinery. The 2026-08-20 revision proposed a new `Qos` and left folding
-`TrafficShaping` "for later". Re-examined: `ShapingRule(name, match_type,
-value, bandwidth_limit_kbps, dscp_tag, priority)` already carries **all four
-verbs**, so `TrafficShaping.set_shaping_rules` *is* the intent-level QoS
+machinery. `ShapingRule(name, match_type, value, bandwidth_limit_kbps,
+dscp_tag, priority)` already carries **all four verbs**, so `TrafficShaping.set_shaping_rules` *is* the intent-level QoS
 contract. Reuse it. Per-method: the appliance-shaped `set_uplink_bandwidth`
 maps to a WAN-interface shaper, `set_global_client_bandwidth` is unsupported
 (already 2/5 on appliances), and application-ID `match_type` values are
@@ -793,8 +790,8 @@ family** (OneOS6 offers dynamic virtual tunnel interfaces and a group mode,
 both hub-dynamic, not spoke-to-spoke). The contract carries the behaviour,
 never a mechanism; Nokia, MikroTik and OneOS6 drivers raise
 unsupported-capability for the overlay read. A shortcut-status read stays a
-"grow on evidence" addition — the evidence got weaker in revision 2, not
-stronger.
+"grow on evidence" addition; with a trigger family absent, the evidence does
+not support seeding it.
 
 ### Reachability — one-shot now, configured probes deferred
 - **`NetworkProbe`** (reuse, on the core). Every reviewed family originates
@@ -806,10 +803,9 @@ stronger.
 - **`ReachabilityProbe`** (**GAPS-deferred**). The configured-probe surface
   (IP SLA / NQA / RPM / TWAMP: a probe the router *keeps running* plus a result
   series) is a genuinely different shape — config + operational read — and
-  5 ✓ + 3 ◐ across the set. It was seeded in the 2026-08-20 revision on
-  scope-breadth alone, with no consumer. The repo's bar (`HeldPrefixes` landed
-  on first consumer evidence, the BGP awaits were deferred without it) says
-  defer. When it lands: the result record reuses **`PathMetrics`**
+  5 ✓ + 3 ◐ across the set — and it has no consumer. The repo's bar
+  (`HeldPrefixes` landed on first consumer evidence, the BGP awaits were
+  deferred without it) says defer. When it lands: the result record reuses **`PathMetrics`**
   (latency/jitter/loss, already the return type of `Router.get_wan_path_metrics`
   and `SiteToSiteVpn.get_vpn_path_metrics`), and the `SPLITS.md` 2026-08-10
   rule applies — two members may share one model, never one member two
@@ -824,10 +820,10 @@ driver detail; sFlow's packet-sampling semantics are a driver note, not a
 contract fork) carries over unchanged.
 
 ### On-box packet capture — composed, not excluded
-The 2026-08-20 revision excluded `pcap` on two grounds inherited from the
-appliance design: `PcapCapture` is "Linux-tool-shaped", and capture "is the
-`TrafficControllerDevice`'s job" (`SPLITS.md` 2026-06-15). Re-examined against
-this class, neither ground holds:
+Two grounds inherited from the appliance design would exclude `pcap`:
+`PcapCapture` is "Linux-tool-shaped", and capture "is the
+`TrafficControllerDevice`'s job" (`SPLITS.md` 2026-06-15). Neither holds for
+this class:
 
 - The precedent's structural reason was that the appliance archetype's
   dashboard-only families cannot capture (a console-bearing edge can, and may
@@ -876,10 +872,10 @@ Voice is 4/8 across the reviewed set (IOS-XE, VRP, Comware, OneOS6) — below
 the core bar — but **present on every trigger family**: analog and digital
 voice ports (FXS/FXO/BRI/PRI), SIP trunking, and on OneOS6 an embedded SBC;
 on IOS-XE and VRP it is platform-scoped to the branch classes with voice DSP
-hardware. The 2026-08-20 revision deferred it at low priority under the
-second-consumer rule; that framing was wrong for this estate. Revision 2 adds
-`VoiceGatewayRouterDevice` (§5) with one new tier capability, **`RouterVoice`**,
-landing with the first voice-gateway consumer at `GAPS.md` priority medium.
+hardware. Below the core bar but universal on the trigger set, it is an
+optional tier: `VoiceGatewayRouterDevice` (§5) with one new tier capability,
+**`RouterVoice`**, landing with the first voice-gateway consumer at `GAPS.md`
+priority medium.
 
 Shape at that point (recorded now so the tier is self-documenting): voice-port
 inventory with admin/oper state per port (FXS/FXO/BRI/PRI), SIP trunk /
@@ -1076,9 +1072,11 @@ so the exploration is self-documenting:
 **`SPLITS.md` (generalisations this archetype motivates):**
 
 - `RoutedInterface` gains `enabled: bool = True` (admin state on the configured
-  L3 interface object, mirroring `SwitchPort.enabled`; §7). Fallbacks recorded
-  in §7 if the addressing fields do not fit dynamically addressed WAN
-  interfaces.
+  L3 interface object, mirroring `SwitchPort.enabled`; §7), with the
+  addressing convention on the record's docstring: `ip_address` / `subnet`
+  read back as the current address, empty when unassigned; a write with empty
+  addressing leaves addressing untouched. The overturn condition and the
+  fallback ladder are in §7.
 - `ApplianceNat` → de-branded outcome-shaped NAT name reused on both edge
   archetypes (§7).
 - `ApplianceUplinks` → de-branded uplink-status name reused on both edge
@@ -1516,3 +1514,9 @@ what the levels represent. Accepted; applied here.**
   `L3Firewall` triad is a derivation, not a third shape; the capture call
   attributes the precedent to dashboard-only families, not the appliance
   class.
+- Journey commentary removed from §7 (this section holds the record): each
+  call now states its decision and, where one exists, the condition that
+  would overturn it. The interface-admin pick is no longer "provisional":
+  `RoutedInterfaces` + `enabled` is the decision, with the dynamic-addressing
+  convention recorded and the §12 conformance run over four interface kinds
+  as the overturn condition.
