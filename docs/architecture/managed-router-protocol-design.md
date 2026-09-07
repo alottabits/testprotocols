@@ -270,15 +270,12 @@ cells of those rows are sourced (§13)
 > marked ² on the competitor columns; the remaining competitor cells carry
 > over from the 2026-08-20 review.
 
-**Management planes.** The floor is "on-box CLI plus ≥1 programmatic
-interface". **NETCONF/YANG is that interface on six of eight families**
-(IOS-XE, VRP, OneOS6, Junos, SR OS, Comware); IOS-XE additionally offers
-RESTCONF and gNMI, OneOS6 a REST API; FortiOS and RouterOS are **vendor-REST
-only**. Two consequences: all three trigger families are NETCONF-capable, so a
-NETCONF-first *driver* family covers the whole trigger estate; and the
-*contract* stays transport-agnostic because two reviewed families cannot speak
-NETCONF at all. On OneOS6 the NETCONF server is licence-flagged on some
-models — a per-instance fact, handled like any other unsupported method.
+**What a cell asserts.** A ✓ records that the family *publishes the
+operations* behind the row — a configuration write with read-back, an
+operational read, or an exec-level lever — through some management plane of
+its own. Which plane (CLI, NETCONF/YANG, RESTCONF, gNMI, vendor REST, or a
+controller fronting the box), whether a licence gates it, and whether a given
+instance exposes it are driver facts, recorded in §8; they never decide a cell.
 
 **Classification of the surface (of 8):**
 
@@ -929,12 +926,15 @@ archetype.
   17.1.1); OneOS6 NETCONF is transactional; Junos and model-driven SR OS are
   commit-based throughout. A neutral driver **verifies after apply** rather
   than assuming either model — a driver-contract note, not a protocol shape.
-- **Programmatic-transport floor.** CLI + ≥1 programmatic interface, and that
-  interface is NETCONF/YANG on six of eight families — including all three
-  trigger families — and vendor REST on the other two. Drivers own the
-  transport choice (a NETCONF-first driver family covers the trigger estate);
-  the protocol surface is transport-agnostic because two reviewed families
-  are REST-only.
+- **Programmatic-transport floor (driver fact, never a cell).** CLI + ≥1
+  programmatic interface, and that interface is NETCONF/YANG on six of eight
+  families (IOS-XE, VRP, OneOS6, Junos, SR OS, Comware — all three trigger
+  families among them); IOS-XE additionally offers RESTCONF and gNMI, OneOS6 a
+  REST API; FortiOS and RouterOS are vendor-REST only. On some OneOS6 models
+  the NETCONF server is licence-flagged — a per-instance fact handled like any
+  other unsupported method. Drivers own the transport choice (a NETCONF-first
+  driver family covers the trigger estate); the protocol surface is
+  transport-agnostic because two reviewed families are REST-only.
 - **On-box capture is bounded.** Buffer/count limits, possible CPU punt and
   rate limiting, control-plane-only on some carrier platforms, and a file that
   must be fetched off-box before it is read. The traffic controller remains
@@ -1440,3 +1440,8 @@ what the levels represent. Accepted; applied here.**
 - Label sweep: "on-box-managed" dropped from the title and prose in favour of
   "managed router" (the registered name is already `managed_router`); the
   historical review records keep their wording.
+- Maintainer observation: the §3 "management planes" paragraph described the
+  implementation of an interface, not the methods the interfaces offer.
+  Replaced by a note on what a matrix cell asserts (published operations,
+  whichever plane); the transport facts and the OneOS6 licence flag folded
+  into the §8 programmatic-transport bullet.
