@@ -688,8 +688,18 @@ three forms, of which two have merit:
   conformance wants typed reads of the primitives — the raw RIB/FIB, the zone
   session table, the NAT translation table, per-class shaping counters, probe
   statistics and track state behind `sdwan_policy`, IKE/IPsec security
-  associations, a running-configuration section. Raw vendor text is allowed at
-  this level (the raw PHY dump precedent). Candidates in §9.
+  associations, a running-configuration section. The neutrality rule holds
+  here as everywhere: the verb and the return type stay vendor-neutral (a raw
+  RIB dump is a legitimate verb, a vendor command name is not), and no vendor
+  name enters a method, model or enum at any level. What is substrate-specific
+  is the *payload* — that is what "raw" means — so it is opaque to the
+  contract, and a test that interprets it is pinned to that substrate, which
+  is exactly why such reads are white-box (the `LEVELS.md` 2026-05-02
+  precedents: the raw PHY dump, the kernel filter dumps, the raw conntrack
+  table, all opaque `str` on the vendor-free Linux reference substrate). For
+  this class, structured operational state (NETCONF/YANG, OpenConfig where
+  the platform publishes it) is preferred over CLI text; text is the floor,
+  not the norm. Candidates in §9.
 - **Levers with no intent-level equivalent** — white-box, per the
   radar-injection precedent. Console access adds a class of them: reset a BGP
   session, clear NAT translations, clear IPsec security associations, force a
@@ -1002,8 +1012,10 @@ identified the candidates, in the two kinds the convention admits:
   policy-route hit counts; `SiteToSiteVpnWhiteBox` — IKE/IPsec security
   associations; `BgpWhiteBox` — per-neighbour received/advertised routes raw;
   a running-configuration section read (home — `ConfigOwnership` or
-  `DeviceInfo` — to settle at seeding). Raw vendor text is permitted at this
-  level.
+  `DeviceInfo` — to settle at seeding). Payloads are substrate state, opaque
+  to the contract; verbs and return types stay vendor-neutral, and structured
+  operational state is preferred over CLI text where published (§7 Two
+  levels).
 - *Levers with no intent-level equivalent* (reproducible convergence tests):
   `BgpWhiteBox.reset_session(peer)`; a NAT white-box `clear_translations()`;
   `SiteToSiteVpnWhiteBox.clear_security_associations(peer)`;
@@ -1520,3 +1532,11 @@ what the levels represent. Accepted; applied here.**
   `RoutedInterfaces` + `enabled` is the decision, with the dynamic-addressing
   convention recorded and the §12 conformance run over four interface kinds
   as the overturn condition.
+- Maintainer observation: "raw vendor text is allowed at the white-box level"
+  conflicts with vendor-agnostic capability protocols. Traced to the
+  `LEVELS.md` 2026-05-02 precedents (raw PHY dump, kernel filter dumps, raw
+  conntrack table — opaque `str` on the Linux reference substrate) and
+  restated precisely in §7 and §9: neutrality governs the contract at every
+  level (verbs, return types, models, enums); a white-box payload is opaque
+  substrate state and pins the test that reads it; structured operational
+  state is preferred over CLI text where published.
