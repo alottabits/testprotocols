@@ -386,7 +386,7 @@ class WanEdgeRouterDevice(ManagedRouterDevice, Protocol):
     label-scoped encoding would be the redundant-encoding smell SPLITS.md
     exists to catch."""
     routing: Router                      # reuse — WAN-uplink read surface (read-only)
-    uplinks: ApplianceUplinks            # reuse — UplinkStatus (address, gateway, DNS, state) per uplink
+    uplinks: ApplianceUplinks            # reuse — UplinkStatus (address, gateway, DNS, state) per uplink; de-branded name on landing (SPLITS, §7)
     uplink_ports: UplinkPorts            # reuse — declared uplink→switch-port wiring (testbed topology fact)
     l3_firewall: L3Firewall              # reuse — outbound/inbound/VPN rule triad, derived as interface ACLs (§7)
     sdwan_policy: SdwanPolicyManager     # reuse — SLA policies + uplink selection by composition (probe + track + policy routing); per-method (§7)
@@ -466,7 +466,7 @@ consumer), **new (tier)** (lands with the first consumer of the tier).
 | Discovery | `Discovery` | reuse | 7 + 1 ◐¹ | LLDP-shaped |
 | Model identity | `DeviceInfo` | reuse | 8 | coverage axis; firmware/mode facts are driver facts (§8) |
 | Config ownership | `ConfigOwnership` | reuse | n/a | monitored-vs-managed |
-| WAN-uplink reads | `Router`, `ApplianceUplinks` | reuse (tier) | n/a | `WanEdgeRouterDevice`; the two status records already coexist on the appliance (§7) |
+| WAN-uplink reads | `Router`, `ApplianceUplinks` | reuse (tier); `ApplianceUplinks` renamed on landing | n/a | `WanEdgeRouterDevice`; the two status records already coexist on the appliance (§7) |
 | Uplink wiring | `UplinkPorts` | reuse (tier) | n/a | `WanEdgeRouterDevice`; testbed topology fact |
 | Edge firewall triad | `L3Firewall` | reuse (tier) | 8 | `WanEdgeRouterDevice`; derived as interface ACLs on WAN / tunnel interfaces (§7) |
 | SD-WAN policy (SLA + uplink selection) | `SdwanPolicyManager` | reuse (tier), by composition | 5 + 2 ◐ + 1 ✗ | `WanEdgeRouterDevice`; probe + track + policy routing; per-method (§7) |
@@ -488,7 +488,8 @@ one — by reuse, or by derivation from the capabilities it does compose:
 | --- | --- | --- |
 | `routing: Router` | `WanEdgeRouterDevice` | reuse as-is |
 | `static_routes`, `bgp`, `vpn`, `traffic_shaping`, `appliance_nat`, `syslog`, `info`, `ownership` | core | reuse as-is |
-| `uplinks`, `uplink_ports` | `WanEdgeRouterDevice` | reuse as-is |
+| `uplinks` | `WanEdgeRouterDevice` | reuse; de-branded name on landing, by the NAT rule (§7, §11) |
+| `uplink_ports` | `WanEdgeRouterDevice` | reuse as-is |
 | `l3_firewall` | `WanEdgeRouterDevice` | reuse; the driver derives the triad as interface ACLs (§7) |
 | `sdwan_policy` | `WanEdgeRouterDevice` | reuse; behaviour by composition, per-method (§7) |
 | `l7_firewall`, `content_filtering`, `security` | `SecuredRouterDevice` | reuse as-is (§7) |
@@ -575,7 +576,10 @@ revision 2:
   entry's decision to keep the two records separate.
 - **`ApplianceUplinks`** — `UplinkStatus` (address, gateway, DNS, state) per
   uplink; richer than `Router`'s `LinkStatus`. The appliance already composes
-  both reads, so composing both here adds no new redundancy.
+  both reads, so composing both here adds no new redundancy. The router
+  composes it as its **own** surface, so the NAT rule applies: the name is
+  de-branded on landing (§11). `ApplianceVlans` is the contrast case — the
+  router only derives it as a view, so it keeps its name.
 - **`UplinkPorts`** — the declared uplink→switch-port wiring, a testbed
   topology fact with no vendor in it; the placement work reads it on any WAN
   edge.
@@ -1055,6 +1059,34 @@ so the exploration is self-documenting:
   interfaces.
 - `ApplianceNat` → de-branded outcome-shaped NAT name reused on both edge
   archetypes (§7).
+- `ApplianceUplinks` → de-branded uplink-status name reused on both edge
+  archetypes — the same rule as NAT: the router composes it as its own
+  surface (§7). The rule's other half: `ApplianceVlans` is **not** renamed,
+  because the router only derives it as a view (§7 LAN side); a name is
+  de-branded when the shape is shared, never to make a non-shared shape look
+  shared.
+- **Reshape candidate — `ApplianceVlans` onto `RoutedInterfaces` +
+  `InterfaceDhcp`** (recorded 2026-09-07, not scheduled). The folded
+  `VlanConfig` is the shape of one cloud API's object; the intent is an L3
+  interface and the DHCP service on it, which the interface-keyed pair
+  expresses with `vlan_id` as an attribute (the reverse projection is lossy).
+  End state: the appliance composes the pair, `ApplianceVlans` is retired
+  (single encoding — never both on one archetype), and the L3 switch, the
+  managed router and the appliance share one LAN encoding. **Trigger:** a
+  consumer that needs one LAN test to run across archetypes (the
+  second-consumer bar; source-breaking lockstep migration of a shipped
+  archetype with a consumer plugin referencing the LAN surface widely).
+  **Prerequisites, in order:** (1) `RoutedInterfaces.delete_interface(name)`
+  — `ApplianceVlans.delete_vlan` landed 2026-06-19 on a homing-operation
+  signal and the pair has no delete verb; (2) a home for the VLAN *name*
+  (`VlanDef` on `SwitchVlans`, or a description field on `RoutedInterface`);
+  (3) a recorded driver convention for synthesizing a stable interface name
+  from the VLAN id on VLAN-keyed families; (4) a cited per-family keying check
+  on the five appliance families (the appliance design records LAN VLAN +
+  DHCP as universal but not how each family keys it); (5) batching and
+  read-back consistency for the one-object-becomes-two-writes case. Until
+  then the router-side derivation (§7 LAN side) covers the portable direction
+  that exists today.
 - `SwitchAcl` → de-branded `PacketFilterAcl` ordered-ACL shape; the binding
   docstring extended to "port, `vlan:<id>`, or interface name" (§7).
 - `TrafficShaping` — name is a de-branding candidate; no shape change (§7).
@@ -1445,3 +1477,11 @@ what the levels represent. Accepted; applied here.**
   Replaced by a note on what a matrix cell asserts (published operations,
   whichever plane); the transport facts and the OneOS6 licence flag folded
   into the §8 programmatic-transport bullet.
+- `ApplianceUplinks` added to the de-brand-on-landing list beside
+  `ApplianceNat`, with the rule stated: rename when the router composes the
+  capability as its own surface; keep the name when it only derives a view
+  (`ApplianceVlans`).
+- Maintainer question: restructure `ApplianceVlans` onto `RoutedInterfaces` +
+  `InterfaceDhcp`? Answer: yes as the end state, not now, never as an
+  addition beside the folded record. Recorded in §11 as a SPLITS reshape
+  candidate with its trigger and five prerequisites.
