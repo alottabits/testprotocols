@@ -1,4 +1,4 @@
-# Design: vendor-neutral **managed (on-box-managed) router** archetype
+# Design: vendor-neutral **managed router** archetype
 
 | Field   | Value                                                                                                                                                                                                                                                                                       |
 | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -8,18 +8,18 @@
 | Related | `docs/architecture/sdwan-appliance-protocol-design.md` (the precedent this follows), `docs/architecture/capability-only-archetypes.md`, `docs/architecture/capture-analysis-operations-design.md`, `packages/testprotocols/SPLITS.md`, `packages/testprotocols/GAPS.md`, `packages/testprotocols/LEVELS.md`, `devices/sdwan.py`, `devices/switch.py`, `devices/cpe.py`, `devices/traffic.py`, `devices/voice.py`, `router.py`, `wan_link_admin.py`, `routed_interfaces.py`, `appliance_nat.py`, `switch_acl.py`, `firewall_zones.py`, `traffic_shaping.py`, `site_to_site_vpn.py`, `gateway_redundancy.py`, `network_probe.py`, `pcap_capture.py`, `interface_dhcp.py`, `appliance_vlans.py`, `l3_firewall.py`, `appliance_uplinks.py`, `uplink_ports.py`, `sdwan_policy_manager.py`, `l7_firewall.py`, `content_filtering.py`, `threat_prevention.py`, `docs/architecture/typed-path-steering-protocol-design.md` |
 
 This document explains why `testprotocols` should carry a dedicated
-**on-box-managed router** archetype alongside the existing SD-WAN *router*
+**managed router** archetype alongside the existing SD-WAN *router*
 (Linux twin) and SD-WAN *appliance* (cloud/controller-managed) archetypes, and
 records the vendor-neutral shape proposed for it. It follows the SD-WAN
 appliance design as its template: a cross-vendor concept check drives every
 baseline capability, product names appear here only to evidence that a concept
 is genuinely shared, and nothing vendor-specific leaks into the contract.
 
-The **trigger** is a concrete estate of on-box-managed enterprise and
+The **trigger** is a concrete estate of managed enterprise and
 carrier/aggregation routers under test, drawn from three vendor families at
 the review-baseline generations recorded in §2. As with the SD-WAN appliance,
 that estate is the trigger, not the target: the deliverable is a **portable,
-vendor-neutral test interface** that the major on-box-managed router families
+vendor-neutral test interface** that the major managed-router families
 (the ratified eight-family set in §2) satisfy equally.
 
 ---
@@ -39,7 +39,7 @@ vendor-neutral test interface** that the major on-box-managed router families
   surface, link administration is excluded — see the appliance doc and
   `SPLITS.md` 2026-06-12).
 
-A traditional on-box-managed router — running IOS-XE, VRP, OneOS6, Junos,
+A traditional managed router — running IOS-XE, VRP, OneOS6, Junos,
 SR OS, Comware, FortiOS, or RouterOS — is **neither**. It is a
 closed product like the appliance. **How a driver reaches the box** — a cloud
 dashboard API, a NETCONF session, a CLI over SSH — **is a driver concern and
@@ -81,7 +81,7 @@ way the appliance failed against the Linux twin:
   one record where a router's interface set is not VLAN-keyed (§7).
 
 The conclusion mirrors the appliance decision: **a third archetype**, composing
-what an on-box-managed router genuinely exposes. Revision 2 sharpens the second
+what a managed router genuinely exposes. Revision 2 sharpens the second
 half of that sentence: after the zero-contract-change test in §7, the core
 composes **existing capabilities only** — two need a model field or a
 de-branded name, none needs a new protocol at seed. Revision 3 closes the
@@ -93,19 +93,28 @@ against the shared subset runs on both archetypes.
 
 ## 2. Device-class definition and inventory
 
-**On-box-managed router:** a closed network product that manages *itself*
-through an on-box management plane (CLI / NETCONF / RESTCONF / gNMI), forwards
-at L3, and runs traditional routing. Not a general-purpose Linux host (rules out
-the twin); not a cloud-only controller-managed edge (rules out the appliance
-class and, for the router review, Meraki/Cradlepoint/Peplink/Versa). A platform
-that can run in *either* an on-box mode or a controller-managed mode publishes
-the same operation set either way (the Cisco baseline below); which archetype a
-driver registers it under is decided by what the driver publishes, never by
-mode (§8).
+**Managed router (the archetype's device class):** a closed network product —
+not a general-purpose host, so the host-substrate levers (`conntrack`,
+`ip_interface`, iptables `nat`) are absent — that forwards at L3, runs
+traditional routing (static, IGP, BGP), and **publishes on its own management
+plane the operations that define the archetype**: administration of its own
+interfaces, capture of its own traffic, interface-bound filtering, and the
+on-box services (NAT, zone firewall, QoS, DHCP, first-hop redundancy). How that
+management plane is reached — CLI, NETCONF/YANG, RESTCONF, gNMI, or a
+controller that fronts it — is a driver concern (§1, §8).
+
+Two consequences keep the definition honest. *Review set:* the cross-vendor
+check in §3 compares traditional router families, the ones whose published
+operation set includes the defining operations; cloud-native SD-WAN edges
+(Meraki, Cradlepoint, Peplink, Versa) do not publish them and were reviewed in
+the appliance design instead. *Membership:* a device instance belongs to the
+archetype when its driver publishes the members — the `isinstance` gate
+decides, never the management mode or transport; a dual-mode platform (the
+Cisco baseline below) is the same device class in either mode (§8).
 
 ### Device classes in scope
 
-The archetype must cover the full on-box-managed router range, from the lean
+The archetype must cover the full managed-router range, from the lean
 carrier core to the feature-dense teleworker unit. Four broad classes recur
 across every vendor's line-up:
 
@@ -176,7 +185,7 @@ trigger family carries voice** (§3, §5).
 
 ### Competitor families reviewed
 
-Five further families were reviewed as the genuinely comparable, on-box-managed
+Five further families were reviewed as the genuinely comparable managed-router
 set (the router-class analogue of the appliance review's five families):
 
 - **Juniper Junos** — MX (carrier edge), ACX (aggregation/metro), SRX
@@ -192,7 +201,7 @@ set (the router-class analogue of the appliance review's five families):
 
 **Excluded and why:** Arista EOS (aggregation/DC routing; lacks the branch set —
 overlaps only the carrier/aggregation corner); Ericsson Cradlepoint, Peplink, Versa
-(controller/cloud-managed → fail the on-box criterion, as Meraki did in the
+(controller/cloud-managed → do not publish the defining operations, as Meraki did not in the
 appliance review); Ubiquiti EdgeRouter (EdgeOS effectively end-of-development);
 Palo Alto PAN-OS (firewall family, adjacent to the SD-WAN review).
 
@@ -295,7 +304,7 @@ models — a per-instance fact, handled like any other unsupported method.
 
 Add a vendor-neutral **`ManagedRouterDevice`** archetype (registered
 `managed_router`), **alongside** — not replacing — `SdwanRouterDevice` and
-`SdwanApplianceDevice`. It composes what an on-box-managed router universally
+`SdwanApplianceDevice`. It composes what a managed router universally
 exposes, carries interface-admin and on-box capture as first-class levers, and
 grows the additive facets (the appliance's WAN-edge surface, integrated
 switching, access-WAN, voice gateway, security bundles) as **optional tiers**.
@@ -329,7 +338,7 @@ pre-enumerating the power set here.
 ```python
 @runtime_checkable
 class ManagedRouterDevice(BaseDeviceProtocol, Protocol):
-    """On-box-managed router — universal core. Vendor-neutral; satisfiable by
+    """Managed router — universal core. Vendor-neutral; satisfiable by
     any router whose driver publishes the members below (IOS-XE, VRP, OneOS6,
     Junos, SR OS, Comware, FortiOS, RouterOS); management mode and transport
     are driver concerns (§8)."""
@@ -799,7 +808,7 @@ appliance design: `PcapCapture` is "Linux-tool-shaped", and capture "is the
 this class, neither ground holds:
 
 - The precedent's structural reason was that the *appliance* cannot capture
-  and a *switch* only mirrors. An on-box-managed router **captures to a file
+  and a *switch* only mirrors. A managed router **captures to a file
   on its own management plane**: Embedded Packet Capture on IOS-XE 17.x,
   `capture-packet` on VRP, mirror-destination pcap on SR OS (7750 SR and 7705
   SAR), `packet-capture` on Comware 7, `/tool sniffer` on RouterOS — five ✓ —
@@ -951,7 +960,7 @@ appliance:
 
 **No longer excluded — `pcap` (`PcapCapture`).** Revision 2 composes it on the
 core (§7): the exclusion was inherited from a device class that cannot
-capture, and the on-box router can. The 2026-06-15 `SPLITS.md` entry that
+capture, and the managed router can. The 2026-06-15 `SPLITS.md` entry that
 placed `pcap` on `TrafficControllerDevice` is unaffected — the traffic
 controller keeps the wire vantage; this archetype adds the device vantage.
 
@@ -1423,3 +1432,11 @@ what the levels represent. Accepted; applied here.**
   notes; a driver refuses local writes on a controller-owned box, never an
   archetype (§8).
 - §14 question 2 now asks whether tests need writes on controller-owned boxes.
+- Follow-up in the same review: the §2 device-class definition rewritten to
+  define the class by the operations it publishes (interface administration,
+  own-traffic capture, interface-bound filtering, on-box services), with the
+  host-substrate exclusion stated by substrate and the review set separated
+  from archetype membership; management transport moved out of the definition.
+- Label sweep: "on-box-managed" dropped from the title and prose in favour of
+  "managed router" (the registered name is already `managed_router`); the
+  historical review records keep their wording.
