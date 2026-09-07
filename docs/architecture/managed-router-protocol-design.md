@@ -306,16 +306,13 @@ exposes, carries interface-admin and on-box capture as first-class levers, and
 grows the additive facets (the appliance's WAN-edge surface, integrated
 switching, access-WAN, voice gateway, security bundles) as **optional tiers**.
 
-Revision 2 changes two things about *how* the core is built, not *what* it
-is: the core composes **existing capabilities only** (§5, §7), and the two
-capabilities the 2026-08-20 revision seeded on scope-breadth alone
-(`ReachabilityProbe`, `FlowExport`) are **GAPS-deferred** until a consumer
-needs them, per the repo's first-consumer bar.
-
-The excluded host-substrate levers (`conntrack`, `ip_interface`, iptables
-`nat`) stay on the twin, exactly as for the appliance (§9). Packet capture is
-**no longer excluded**: the traffic controller remains the wire vantage of
-record, and the router adds the device vantage (§7).
+The core composes **existing capabilities only** (§5, §7); the two
+capabilities without a consumer (`ReachabilityProbe`, `FlowExport`) are
+**GAPS-deferred** until one needs them, per the repo's first-consumer bar.
+The host-substrate levers (`conntrack`, `ip_interface`, iptables `nat`) stay
+on the twin; the boundary with the twin is tabulated in §9. Packet capture is
+on the core: the traffic controller remains the wire vantage of record, and
+the router adds the device vantage (§7).
 
 ---
 
@@ -354,7 +351,7 @@ class ManagedRouterDevice(BaseDeviceProtocol, Protocol):
     dhcp_client: DhcpClient              # reuse — WAN-interface client
     fhrp: GatewayRedundancy              # reuse — VRRP-shaped
     network_probe: NetworkProbe          # reuse — on-box one-shot reachability (ping/traceroute); feeds `await_reachability` (§7)
-    pcap: PcapCapture                    # reuse — on-box capture at the device vantage; per-method unsupported (§7, §9)
+    pcap: PcapCapture                    # reuse — on-box capture at the device vantage; per-method unsupported (§7)
     ntp: NtpConfig                       # reuse
     syslog: SyslogConfig                 # reuse — telemetry path (as appliance)
     discovery: Discovery                 # reuse — LLDP-shaped (CDP is a driver detail)
@@ -461,7 +458,7 @@ consumer), **new (tier)** (lands with the first consumer of the tier).
 | One-shot reachability | `NetworkProbe` | reuse | 8 | on-box ping/traceroute; feeds `await_reachability`; §7 |
 | Configured probe + result series | `ReachabilityProbe` | **defer (GAPS)** | 5 + 3 ◐ | IP SLA/NQA/RPM/TWAMP-class; reuse `PathMetrics` when it lands; §7 |
 | Flow telemetry | `FlowExport` | **defer (GAPS)** | 7 + 1 ◐ | exporter config intent; needs a collector-side consumer; §7 |
-| On-box packet capture | `PcapCapture` | **reuse; de-brand candidate** | 5 + 3 ◐ | device-vantage capture; file fetched off-box by the driver; §7, §9 |
+| On-box packet capture | `PcapCapture` | **reuse; de-brand candidate** | 5 + 3 ◐ | device-vantage capture; file fetched off-box by the driver; §7 |
 | NTP / syslog | `NtpConfig` / `SyslogConfig` | reuse | 7 + 1 ◐¹ | telemetry path = syslog (as appliance) |
 | Discovery | `Discovery` | reuse | 7 + 1 ◐¹ | LLDP-shaped |
 | Model identity | `DeviceInfo` | reuse | 8 | coverage axis; firmware/mode facts are driver facts (§8) |
@@ -699,7 +696,7 @@ three forms, of which two have merit:
   table, all opaque `str` on the vendor-free Linux reference substrate). For
   this class, structured operational state (NETCONF/YANG, OpenConfig where
   the platform publishes it) is preferred over CLI text; text is the floor,
-  not the norm. Candidates in §9.
+  not the norm. Candidates in §11.
 - **Levers with no intent-level equivalent** — white-box, per the
   radar-injection precedent. Console access adds a class of them: reset a BGP
   session, clear NAT translations, clear IPsec security associations, force a
@@ -992,52 +989,22 @@ archetype.
 
 ---
 
-## 9. Excluded host-substrate levers (explicit)
+## 9. Boundary with the Linux twin
 
-Not on `ManagedRouterDevice` — they remain on `SdwanRouterDevice`
-(`linux_sdwan_router`) with their `*WhiteBox` extensions, exactly as for the
-appliance:
+The mirror of the §6 "shared with the appliance" table. The twin
+(`SdwanRouterDevice`, `linux_sdwan_router`) is a general-purpose host; the
+managed router is a closed product (§2). Each row names a lever one side has
+and what the other side uses instead.
 
-- `conntrack` — no netfilter connection table on a closed router.
-- `ip_interface` (`IpInterface`) — per-`netdev` `ip addr/link/mtu/mac`; the
-  router's own interface surface is `RoutedInterfaces` (+ `enabled`) instead.
-- iptables `nat` (`Nat`) — replaced by the outcome-shaped NAT capability (§7).
+| Lever | Linux twin | Managed router |
+| --- | --- | --- |
+| Connection table | `conntrack` (+ `ConntrackWhiteBox`) | none at sea level; nearest analogue a zone-firewall session-table white-box read (§11) |
+| Per-`netdev` interface config (`ip addr/link/mtu/mac`) | `ip_interface` (`IpInterface`) | `interfaces: RoutedInterfaces` (+ `enabled`), the configured L3 object (§7) |
+| NAT | iptables `nat` (`Nat`) | the outcome-shaped NAT capability (§7) |
+| Interface administration | via host shell, `wan_admin: WanLinkAdmin` | published on the box, `interfaces` + `enabled` (§7) |
+| Own-traffic capture | host `pcap: PcapCapture` (tcpdump) | `pcap: PcapCapture` on the box, file fetched off-box (§7); the traffic controller stays the wire vantage of record (`SPLITS.md` 2026-06-15) |
 
-**`pcap` (`PcapCapture`) is composed, not excluded.** A managed router
-publishes own-traffic capture (§2), so the capability rides on the core (§7
-On-box packet capture). The 2026-06-15 `SPLITS.md` entry that placed `pcap`
-on `TrafficControllerDevice` is unaffected — the traffic controller keeps the
-wire vantage of record; this archetype adds the device vantage.
-
-Unlike the appliance, the managed router **does** carry an interface-admin
-lever and a capture lever — it administers and observes itself on-box. Those
-are the archetype's defining inclusions.
-
-**White-box extensions (§7 Two levels).** None is seeded with the archetype —
-each lands on signal per `LEVELS.md` — but the console-granularity review
-identified the candidates, in the two kinds the convention admits:
-
-- *Raw-state reads* (prove a composed write landed; pin diagnostics):
-  `RoutingReadWhiteBox` — raw RIB/FIB dump; `FirewallZonesWhiteBox` — session
-  table (the router analogue of `ConntrackWhiteBox`); a NAT white-box on the
-  de-branded NAT capability — translation table; `TrafficShapingWhiteBox` —
-  per-class counters; `SdwanPolicyWhiteBox` — probe statistics, track state,
-  policy-route hit counts; `SiteToSiteVpnWhiteBox` — IKE/IPsec security
-  associations; `BgpWhiteBox` — per-neighbour received/advertised routes raw;
-  a running-configuration section read (home — `ConfigOwnership` or
-  `DeviceInfo` — to settle at seeding). Payloads are substrate state, opaque
-  to the contract; verbs and return types stay vendor-neutral, and structured
-  operational state is preferred over CLI text where published (§7 Two
-  levels).
-- *Levers with no intent-level equivalent* (reproducible convergence tests):
-  `BgpWhiteBox.reset_session(peer)`; a NAT white-box `clear_translations()`;
-  `SiteToSiteVpnWhiteBox.clear_security_associations(peer)`;
-  `SdwanPolicyWhiteBox.force_track_state(name, up | down)` — simulate an SLA
-  breach without impairing the wire.
-
-Each candidate is recorded in `LEVELS.md` when a consumer or reviewer signal
-lands it, with the drivers expected to satisfy it (router drivers;
-console-bearing appliances) and not (dashboard-only appliances).
+The twin keeps its host levers and their `*WhiteBox` extensions unchanged.
 
 ---
 
@@ -1149,13 +1116,32 @@ so the exploration is self-documenting:
   ACLs named after the rule / policy they realise) is a driver-contract note
   so read-back reconstructs from device state; no protocol change.
 
-**`LEVELS.md`:** none at seed. Candidates recorded in §9 in the two kinds the
-convention admits — raw-state reads (`RoutingReadWhiteBox`,
-`FirewallZonesWhiteBox`, the NAT translation table, `TrafficShapingWhiteBox`,
-`SdwanPolicyWhiteBox`, `SiteToSiteVpnWhiteBox`, `BgpWhiteBox`, a
-running-configuration section) and levers (`reset_session`,
-`clear_translations`, `clear_security_associations`, `force_track_state`) —
-each landing on signal with its satisfy / not-satisfy driver sets.
+**`LEVELS.md` (white-box candidates, §7 Two levels):** none is seeded with
+the archetype — each lands on signal per the convention — but the
+console-granularity review identified the candidates, in the two kinds the
+convention admits:
+
+- *Raw-state reads* (prove a composed write landed; pin diagnostics):
+  `RoutingReadWhiteBox` — raw RIB/FIB dump; `FirewallZonesWhiteBox` — session
+  table (the router analogue of `ConntrackWhiteBox`); a NAT white-box on the
+  de-branded NAT capability — translation table; `TrafficShapingWhiteBox` —
+  per-class counters; `SdwanPolicyWhiteBox` — probe statistics, track state,
+  policy-route hit counts; `SiteToSiteVpnWhiteBox` — IKE/IPsec security
+  associations; `BgpWhiteBox` — per-neighbour received/advertised routes raw;
+  a running-configuration section read (home — `ConfigOwnership` or
+  `DeviceInfo` — to settle at seeding). Payloads are substrate state, opaque
+  to the contract; verbs and return types stay vendor-neutral, and structured
+  operational state is preferred over CLI text where published (§7 Two
+  levels).
+- *Levers with no intent-level equivalent* (reproducible convergence tests):
+  `BgpWhiteBox.reset_session(peer)`; a NAT white-box `clear_translations()`;
+  `SiteToSiteVpnWhiteBox.clear_security_associations(peer)`;
+  `SdwanPolicyWhiteBox.force_track_state(name, up | down)` — simulate an SLA
+  breach without impairing the wire.
+
+Each candidate is recorded in `LEVELS.md` when a consumer or reviewer signal
+lands it, with the drivers expected to satisfy it (router drivers;
+console-bearing appliances) and not (dashboard-only appliances).
 
 ---
 
@@ -1186,7 +1172,7 @@ Two additions in revision 2:
   state (not from a driver ledger), and that a sequence failed midway raises
   and leaves no partial policy — exercised at least on
   `sdwan_policy.set_uplink_selection` and `l3_firewall.set_outbound_rules`.
-  Where a `WhiteBox` read of the primitives exists (§9), the conformance test
+  Where a `WhiteBox` read of the primitives exists (§11), the conformance test
   reads through it; until one lands, it reads the device state through the
   driver's own transport and records that as the evidence path.
 
@@ -1562,3 +1548,7 @@ what the levels represent. Accepted; applied here.**
 - The on-box packet-capture call (§7) and the matching §9 paragraph rewritten
   to state the decision and its intent (device vantage beside the wire
   vantage of record) without the exclusion-and-reversal narrative.
+- §9 restructured from "excluded host-substrate levers" into the boundary
+  with the Linux twin, a two-way table mirroring the §6 appliance table; the
+  white-box candidate list moved to §11 under `LEVELS.md`; §4 states the
+  decision without the revision narrative; cross-references updated.
