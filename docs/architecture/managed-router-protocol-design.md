@@ -510,8 +510,12 @@ implementation shows the same multi-capability step written twice.
 
 Each call below was re-run in revision 2 under the rule the review skill
 applies to every proposal: **test a zero-contract-change derivation in the
-driver before accepting any contract change.** The recorded order is the
-implementer's fallback ladder.
+driver before accepting any contract change.** Revisions 3 to 5 extended the
+chapter (LAN side, WAN-edge surface, SD-WAN policy, security bundles, two
+levels) under the same rule plus two later ones: the archetype boundary is the
+published operation set (§1, §2), and management mode and transport are driver
+facts that never enter a shape (§8). The recorded order is the implementer's
+fallback ladder.
 
 ### Interface admin — one encoding, on the configured object
 The universal, defining lever is "administratively bring **any** interface
@@ -538,15 +542,21 @@ config"; it did not consider `RoutedInterfaces` at all.
    says so.
 2. **`WanLinkAdmin` with label = interface name** if (1) fails on the
    addressing fields. Zero contract change; the docstring's "host-substrate
-   lever" framing becomes a `SPLITS.md` note ("on-box lever; the twin shells
-   it, the router drives its management plane"). Costs the config read-back.
+   lever" framing becomes a `SPLITS.md` note ("the twin shells it; a managed
+   router publishes it on its own management plane"). Costs the config
+   read-back.
 3. **A new `InterfaceAdmin`** only if both fail — and only for an
    admin-versus-operational state read neither carries. An operational-state
    read beyond the WAN-edge tier's `Router.get_wan_interface_status` is a
    `GAPS.md` entry (§11), not a seed member.
 
 Whichever lands, the lever is encoded **once**; `WanEdgeRouterDevice` does not
-add `WanLinkAdmin` on top (§5).
+add `WanLinkAdmin` on top (§5). Two consequences of picking a *configured*
+object as the lever (§8): a controller-owned instance can satisfy it through a
+controller push — faithful, but a configuration transaction at controller
+latency, never an operational lever — and a convergence measurement therefore
+keeps its act on the traffic controller regardless of who owns the box, which
+is the existing `SPLITS.md` 2026-06-12 rationale unchanged.
 
 ### LAN side — the L3-switch split; `ApplianceVlans` derivable
 The appliance's `lan: ApplianceVlans` folds VLAN, gateway address and DHCP into
@@ -560,11 +570,16 @@ router unchanged — and a driver may additionally satisfy `ApplianceVlans` **by
 derivation** (list the SVIs with their VLAN id and DHCP) if an appliance-written
 LAN test needs it; no contract change. Revision 2 had mis-picked `DhcpServer`,
 whose only method is `provision_cpe` — the CPE-provisioning server on a Linux
-WAN host, not a router pool; revision 3 corrects it.
+WAN host, not a router pool; revision 3 corrects it. The derivation is the
+portable direction that exists today; the end-state reshape in the other
+direction — the appliance composing the pair and `ApplianceVlans` retired — is
+recorded as a `SPLITS.md` candidate with its trigger and prerequisites (§11),
+and `ApplianceVlans` keeps its name until then (§7 WAN-edge surface).
 
 ### WAN-edge surface — the appliance's, reused
 Three appliance members fit a WAN-edge router unchanged and were missing from
-revision 2:
+revision 2; a fourth, `sdwan_policy`, fits by composition and has the next
+subsection to itself:
 
 - **`L3Firewall`** — the outbound / inbound / VPN rule triad over `L3Rule`. The
   2026-06-14 `SPLITS.md` entry kept the triad off switches as "gateway-shaped";
@@ -585,9 +600,10 @@ revision 2:
   edge.
 
 ### SD-WAN policy — behaviour by composition, on the WAN-edge tier
-`SdwanPolicyManager` has no *native object* on an autonomous-mode router: no
-platform in the reviewed set carries an "SLA policy" or an "uplink selection
-rule" as a single configuration entity. That does not exclude it. The contract
+`SdwanPolicyManager` has no *native object* on a managed router: no platform
+in the reviewed set carries an "SLA policy" or an "uplink selection rule" as a
+single configuration entity on its own management plane (a controller fronting
+the box may — that is the appliance archetype's driver path, §8). That does not exclude it. The contract
 names **behaviour** — steer the flows matching `FlowMatch` to
 `preferred_uplink` while `performance_class` (an `SLAPolicy` of latency /
 jitter / loss thresholds) is met and fail over when it is not; carry
@@ -744,6 +760,11 @@ precedent), and **both have an existing contract**:
   from the ACL — stateless ordered filtering and stateful admission are
   different shapes on different subsets of the fleet.
 
+The WAN-edge tier's `L3Firewall` triad (§7 WAN-edge surface) is not a third
+filtering shape: it is a derivation over this interface-bound ACL, with the
+triad's three lists mapped onto WAN and tunnel interfaces, kept so that
+appliance-written firewall tests run on a WAN-edge router unchanged.
+
 ### QoS — `TrafficShaping` already carries the intent
 QoS is present on 8/8 but is the **most model-divergent** capability in the
 set: MQC class/policy-maps (IOS-XE / VRP / Comware), CBQ/CB-WFQ/LLQ (OneOS6),
@@ -808,9 +829,10 @@ appliance design: `PcapCapture` is "Linux-tool-shaped", and capture "is the
 `TrafficControllerDevice`'s job" (`SPLITS.md` 2026-06-15). Re-examined against
 this class, neither ground holds:
 
-- The precedent's structural reason was that the *appliance* cannot capture
-  and a *switch* only mirrors. A managed router **captures to a file
-  on its own management plane**: Embedded Packet Capture on IOS-XE 17.x,
+- The precedent's structural reason was that the appliance archetype's
+  dashboard-only families cannot capture (a console-bearing edge can, and may
+  satisfy the same capability — §7 Two levels) and a *switch* only mirrors. A
+  managed router **captures to a file on its own management plane**: Embedded Packet Capture on IOS-XE 17.x,
   `capture-packet` on VRP, mirror-destination pcap on SR OS (7750 SR and 7705
   SAR), `packet-capture` on Comware 7, `/tool sniffer` on RouterOS — five ✓ —
   with Junos (full datapath capture on SRX, RE-bound only on MX), FortiOS (a
@@ -1485,3 +1507,12 @@ what the levels represent. Accepted; applied here.**
   `InterfaceDhcp`? Answer: yes as the end state, not now, never as an
   addition beside the folded record. Recorded in §11 as a SPLITS reshape
   candidate with its trigger and five prerequisites.
+- Consistency pass over §7 against revisions 3–5: the chapter intro names the
+  two later rules it now runs under; the interface-admin call records the
+  consequences of a *configured* lever for controller-owned instances and
+  act anchoring; the LAN side cross-references the reshape candidate; the
+  WAN-edge surface counts `sdwan_policy` as its fourth member; the SD-WAN
+  policy call drops the mode qualifier; the ACL call states that the tier's
+  `L3Firewall` triad is a derivation, not a third shape; the capture call
+  attributes the precedent to dashboard-only families, not the appliance
+  class.
