@@ -938,7 +938,7 @@ archetype.
   keeps and a dashboard-only appliance lacks; management mode never enters.
   Verbs and return types stay neutral; the payload is opaque substrate state
   that pins the reading test; structured operational state is preferred over
-  CLI text where the platform publishes it (§7 Two levels, §9).
+  CLI text where the platform publishes it (§7 Two levels, §11).
 - **VRRP is the only portable FHRP.** HSRP and GLBP are Cisco-local; the
   `GatewayRedundancy` contract stays VRRP-shaped, and a Cisco driver maps HSRP
   onto it.
