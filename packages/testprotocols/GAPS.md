@@ -713,6 +713,28 @@ entry).
   `docs/architecture/held-prefixes-substrate-design.md` (substrate survey to
   ratify on landing).
 
+- **2026-09-09 — `set_subnet_advertised` (single-subnet overlay
+  advertisement flip)** (not previously deferred — landed on consumer
+  evidence): a `testoperations.homing` operation, a read-modify-write over
+  the whole-replace `SiteToSiteVpn` configuration — an existing entry keeps
+  its position and takes the flag, an absent entry is appended on advertise
+  and left absent on withdraw, the role and hubs pass through, subnets match
+  by exact string, and a converged state performs no write. Evidence, stated
+  honestly: **one private upstream consumer** (the homing helper
+  `_set_advertise`, the same RMW shape with drop-on-withdraw — kept as is,
+  since its callers delete the subnet's VLAN in the same operation) **and one
+  written scenario consumer** (a consumer's static-downstream scenario, which
+  advertises a static route's subnet into the overlay and withdraws it while
+  the route stays local). One reviewed family lists static-route subnets in
+  the overlay configuration automatically — live-observed, not published —
+  and the operation does not encode it: the semantics hold either way.
+  Observation for the record: three facet-level RMWs now exist over the
+  whole-replace contract (this operation, `_set_advertise`, and a downstream
+  full-tunnel hub-flag helper); a generic mutate-with-callback operation has
+  no driving test, so consolidation is deferred to a third shared consumer.
+  Proposal and review: the consumer's dated proposal record (2026-09-09,
+  accept-with-conditions).
+
 ---
 
 ## 2026-09-04 — budgeted BGP awaits (`await_bgp_session` / `await_learned_routes`) [priority: medium]
