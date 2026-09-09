@@ -1,9 +1,18 @@
-"""QoE-client homing operations — VLAN repositioning over the sdwan_appliance surface.
+"""Overlay-participation operations over the sdwan_appliance surface.
 
-Homing a client to a location = define the client's fixed LAN VLAN on that
-location's appliance and advertise its subnet into the site-to-site VPN overlay,
-withdrawing both from the client's previous appliance first (single-definer
-invariant). The client itself never moves; its VLAN/subnet are a fixed identity.
+Two families share this module because both edit the same whole-replace
+site-to-site VPN configuration (``SiteToSiteVpn.set_vpn_config`` takes the
+complete overlay participation):
+
+- **Client homing** (``home_client`` / ``realize`` / ``verify_home``): homing a
+  client to a location = define the client's fixed LAN VLAN on that location's
+  appliance and advertise its subnet into the overlay, withdrawing both from
+  the client's previous appliance first (single-definer invariant). The client
+  itself never moves; its VLAN/subnet are a fixed identity.
+- **Single-subnet advertisement** (``set_subnet_advertised``): flip one local
+  subnet's participation in the overlay — whatever makes the subnet local, a
+  VLAN or a static route — leaving every other subnet, the role and the hubs
+  untouched.
 
 Vendor-agnostic and assertion-free: every argument is a resolved capability
 protocol instance (``ApplianceVlans`` / ``SiteToSiteVpn``); callers interpret
@@ -39,12 +48,58 @@ def _set_advertise(vpn: SiteToSiteVpn, subnet: str, advertise: bool) -> None:
 
     The overlay config is replaced whole (protocol contract), so we filter the
     subnet out and re-add it with the desired flag — idempotent either way.
+
+    Withdrawing **drops** the subnet's entry: the homing callers remove the
+    subnet's VLAN definition in the same operation, so the subnet is no longer
+    local and an entry for it has nothing to describe. For a subnet that stays
+    local after the withdrawal, use the public :func:`set_subnet_advertised`,
+    which keeps the entry with the flag off. Subnets match by exact string
+    equality.
     """
     cfg = vpn.get_vpn_config()
     subnets = [s for s in cfg.subnets if s.subnet != subnet]
     if advertise:
         subnets.append(VpnSubnet(subnet=subnet, advertise=True))
     vpn.set_vpn_config(SiteToSiteVpnConfig(role=cfg.role, hubs=cfg.hubs, subnets=subnets))
+
+
+def set_subnet_advertised(vpn: SiteToSiteVpn, subnet: str, advertise: bool) -> None:
+    """Read-modify-write *vpn* so *subnet* carries *advertise*; all else preserved.
+
+    The overlay configuration is replaced whole (the ``SiteToSiteVpn``
+    contract), so this reads it, changes exactly one thing and writes it back:
+
+    - an entry for *subnet* that already exists keeps its position and takes
+      the requested flag;
+    - an absent entry is appended with ``advertise=True`` when advertising,
+      and left absent when withdrawing;
+    - the role and the hubs pass through unchanged.
+
+    Subnets match by exact string equality — the same rule
+    :func:`_set_advertise` and :func:`verify_home` apply; no CIDR
+    normalisation.
+
+    A converged state performs no write: when the rebuilt configuration equals
+    the one read, ``set_vpn_config`` is not called — a configuration push that
+    changes nothing is still a push. Idempotent. Assertion-free; raises only on
+    operational failure.
+
+    Sibling of the private :func:`_set_advertise`, which drops the entry on
+    withdraw because its callers delete the subnet's VLAN in the same
+    operation; this one keeps the entry with the flag off, for a subnet that
+    stays local — a static route's, or a VLAN's that is not being removed.
+    """
+    cfg = vpn.get_vpn_config()
+    subnets = [
+        VpnSubnet(subnet=s.subnet, advertise=advertise) if s.subnet == subnet else s
+        for s in cfg.subnets
+    ]
+    if advertise and not any(s.subnet == subnet for s in cfg.subnets):
+        subnets.append(VpnSubnet(subnet=subnet, advertise=True))
+    rebuilt = SiteToSiteVpnConfig(role=cfg.role, hubs=cfg.hubs, subnets=subnets)
+    if rebuilt == cfg:
+        return
+    vpn.set_vpn_config(rebuilt)
 
 
 def verify_home(

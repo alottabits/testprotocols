@@ -5,10 +5,17 @@ from __future__ import annotations
 from collections.abc import Callable, Iterable
 from unittest.mock import MagicMock
 
-from testoperations.homing import HomeAssignment, home_client, realize, verify_home
+from testoperations.homing import (
+    HomeAssignment,
+    home_client,
+    realize,
+    set_subnet_advertised,
+    verify_home,
+)
 from testprotocols.models.sdwan_appliance import (
     SiteToSiteVpnConfig,
     VlanConfig,
+    VpnHub,
     VpnPeerState,
     VpnPeerStatus,
     VpnRole,
@@ -200,3 +207,111 @@ def test_realize_restores_default_after_a_rehome() -> None:
 
     amsterdam.lan.delete_vlan.assert_called_once_with(2639)
     rotterdam.lan.set_vlan.assert_called_once_with(vlan)
+
+
+# --------------------------------------------------------------------------- set_subnet_advertised
+
+
+def _three_subnets() -> list[VpnSubnet]:
+    return [
+        VpnSubnet(subnet="10.1.30.0/24", advertise=True),
+        VpnSubnet(subnet="203.0.113.0/24", advertise=False),
+        VpnSubnet(subnet="10.1.31.0/24", advertise=True),
+    ]
+
+
+def _vpn_with_hubs(subnets: list[VpnSubnet]) -> MagicMock:
+    vpn = MagicMock()
+    vpn.get_vpn_config.return_value = SiteToSiteVpnConfig(
+        role=VpnRole.SPOKE,
+        hubs=[VpnHub(name="hub-a", use_default_route=True), VpnHub(name="hub-b")],
+        subnets=subnets,
+    )
+    return vpn
+
+
+def test_set_subnet_advertised_flips_existing_entry_in_place() -> None:
+    vpn = _vpn_with_hubs(_three_subnets())
+
+    set_subnet_advertised(vpn, "203.0.113.0/24", advertise=True)
+
+    written: SiteToSiteVpnConfig = vpn.set_vpn_config.call_args.args[0]
+    assert written.subnets == [
+        VpnSubnet(subnet="10.1.30.0/24", advertise=True),
+        VpnSubnet(subnet="203.0.113.0/24", advertise=True),
+        VpnSubnet(subnet="10.1.31.0/24", advertise=True),
+    ]
+    assert written.role is VpnRole.SPOKE
+    assert written.hubs == [VpnHub(name="hub-a", use_default_route=True), VpnHub(name="hub-b")]
+
+
+def test_set_subnet_advertised_preserves_entry_order() -> None:
+    subnets = _three_subnets()
+    vpn = _vpn_with_hubs(subnets)
+
+    set_subnet_advertised(vpn, "203.0.113.0/24", advertise=True)
+
+    written: SiteToSiteVpnConfig = vpn.set_vpn_config.call_args.args[0]
+    assert [s.subnet for s in written.subnets] == [s.subnet for s in subnets]
+
+
+def test_set_subnet_advertised_withdraw_keeps_entry_with_flag_off() -> None:
+    vpn = _vpn_with_hubs(
+        [
+            VpnSubnet(subnet="10.1.30.0/24", advertise=True),
+            VpnSubnet(subnet="203.0.113.0/24", advertise=True),
+        ]
+    )
+
+    set_subnet_advertised(vpn, "203.0.113.0/24", advertise=False)
+
+    written: SiteToSiteVpnConfig = vpn.set_vpn_config.call_args.args[0]
+    assert written.subnets == [
+        VpnSubnet(subnet="10.1.30.0/24", advertise=True),
+        VpnSubnet(subnet="203.0.113.0/24", advertise=False),
+    ]
+
+
+def test_set_subnet_advertised_appends_absent_entry_on_advertise() -> None:
+    vpn = _vpn_with_hubs([VpnSubnet(subnet="10.1.30.0/24", advertise=True)])
+
+    set_subnet_advertised(vpn, "203.0.113.0/24", advertise=True)
+
+    written: SiteToSiteVpnConfig = vpn.set_vpn_config.call_args.args[0]
+    assert written.subnets == [
+        VpnSubnet(subnet="10.1.30.0/24", advertise=True),
+        VpnSubnet(subnet="203.0.113.0/24", advertise=True),
+    ]
+
+
+def test_set_subnet_advertised_withdraw_of_absent_entry_performs_no_write() -> None:
+    vpn = _vpn_with_hubs([VpnSubnet(subnet="10.1.30.0/24", advertise=True)])
+
+    set_subnet_advertised(vpn, "203.0.113.0/24", advertise=False)
+
+    vpn.set_vpn_config.assert_not_called()
+
+
+def test_set_subnet_advertised_second_identical_call_performs_no_write() -> None:
+    vpn = _vpn_with_hubs(_three_subnets())
+
+    set_subnet_advertised(vpn, "203.0.113.0/24", advertise=True)
+    assert vpn.set_vpn_config.call_count == 1
+    written: SiteToSiteVpnConfig = vpn.set_vpn_config.call_args.args[0]
+
+    vpn.get_vpn_config.return_value = written  # the appliance now reads back what was written
+    set_subnet_advertised(vpn, "203.0.113.0/24", advertise=True)
+
+    assert vpn.set_vpn_config.call_count == 1
+
+
+def test_set_subnet_advertised_matches_subnet_by_exact_string() -> None:
+    vpn = _vpn_with_hubs([VpnSubnet(subnet="203.0.113.0/24", advertise=False)])
+
+    set_subnet_advertised(vpn, "203.0.113.0/25", advertise=True)
+
+    written: SiteToSiteVpnConfig = vpn.set_vpn_config.call_args.args[0]
+    assert written.subnets == [
+        VpnSubnet(subnet="203.0.113.0/24", advertise=False),
+        VpnSubnet(subnet="203.0.113.0/25", advertise=True),
+    ]
