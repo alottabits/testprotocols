@@ -186,14 +186,14 @@ comments, tests, docstrings or documents. Vendor and tool names appear
 only as neutrality evidence in proposals and design documents. The
 originating use-case id (`UC-nnn`) is allowed as a traceability key.
 
-The scan in `scripts/neutrality_scan.py` fails a PR on: IPv4/IPv6
-literals outside the RFC 5737 / RFC 3849 documentation ranges (RFC 1918
-and the RFC 2544 benchmarking range are tolerated under `tests/`);
-hostnames under `.local`, `.lan` or `.internal`; e-mail addresses outside
-the example domains; ticket-shaped ids (`ABC-123`) other than the allowed
-prefixes listed in the script. The script carries no names on purpose;
-the semantic check is the reviewers'. Use `192.0.2.0/24`,
-`198.51.100.0/24`, `203.0.113.0/24`, `2001:db8::/32` and `example.com`.
+The scan in `scripts/neutrality_scan.py` fails a PR on: IPv4/IPv6 literals
+outside the RFC 5737 / RFC 3849 documentation ranges (RFC 1918 and the RFC
+2544 benchmarking range are tolerated under `tests/`); hostnames under
+`.local`, `.lan` or `.internal`; e-mail addresses outside the example domains;
+ticket-shaped ids (two or more capitals, a dash, digits) other than the
+allowed prefixes listed in the script. The script carries no names on purpose;
+the semantic check is the reviewers'. Use `192.0.2.0/24`, `198.51.100.0/24`,
+`203.0.113.0/24`, `2001:db8::/32` and `example.com`.
 
 ## Versioning
 
