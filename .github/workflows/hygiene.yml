@@ -47,7 +47,7 @@ jobs:
           set -euo pipefail
           mkdir -p hygiene-work
           gh api "repos/$REPO/pulls/$PR" > hygiene-work/pr.json
-          gh api --paginate --slurp "repos/$REPO/pulls/$PR/files" > hygiene-work/files.json
+          gh api --paginate "repos/$REPO/pulls/$PR/files" | jq -s 'add' > hygiene-work/files.json
           gh pr diff "$PR" --repo "$REPO" > hygiene-work/pr.diff
 
       - name: Fetch the head files the rules read (as data)

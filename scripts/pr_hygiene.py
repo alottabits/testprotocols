@@ -291,7 +291,7 @@ def load_pull_request(pr_json: Path, files_json: Path) -> PullRequest:
     """Build a PullRequest from ``gh api`` output.
 
     *pr_json* is ``gh api .../pulls/N``; *files_json* is
-    ``gh api --paginate --slurp .../pulls/N/files``.
+    ``gh api --paginate .../pulls/N/files | jq -s add``.
     """
     pr_data: dict[str, Any] = json.loads(pr_json.read_text())
     raw_files: Any = json.loads(files_json.read_text())
@@ -317,7 +317,7 @@ def main(argv: list[str]) -> int:
             "--files",
             required=True,
             type=Path,
-            help="gh api --paginate --slurp .../pulls/N/files output",
+            help="gh api --paginate .../pulls/N/files | jq -s add output",
         )
         if name == "check":
             p.add_argument("--main-root", required=True, type=Path)
