@@ -222,12 +222,12 @@ subsection that applies (*Breaking for driver authors*, *Added*,
   Proposal `docs/proposals/2026-08-23-overlay-advertisements.md` P1; PR #31.
 ```
 
-Fields in order: kind; the **merged** importable path in `module:Symbol`
-form; one line of behaviour (for Breaking and Changed: old shape, new
-shape, migration line); the proposal path and item id, or `no proposal`;
-the PR number; `proposed as `old.module:OldName`` only when the maintainer
-reshaped the item at the PR. A `delta:` that changes a contract before the
-release updates the item's existing entry.
+Fields in order: kind; the **merged** importable path in `module:Symbol` form;
+one line of behaviour (for Breaking and Changed: old shape, new shape,
+migration line); the proposal path and item id, or `no proposal`; the PR
+number; a *proposed as* field naming the old symbol path, only when the
+maintainer reshaped the item at the PR. A `delta:` that changes a contract
+before the release updates the item's existing entry.
 
 ## Releases
 
