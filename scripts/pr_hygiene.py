@@ -126,7 +126,7 @@ _RELEASE_TITLE = re.compile(r"^release: (\d+\.\d+\.\d+)$")
 _VERSION_FIELD = re.compile(r'^version = "([^"]+)"', re.MULTILINE)
 _P1_BLOCK = re.compile(r"^### P1\b", re.MULTILINE)
 _OUTCOME_SECTION = re.compile(
-    r"^##+ [^\n]*Outcome[^\n]*\n(.*?)(?=^## |\Z)", re.MULTILINE | re.DOTALL
+    r"^#+ [^\n]*Outcome[^\n]*\n(.*?)(?=^#+ |\Z)", re.MULTILINE | re.DOTALL
 )
 _LOCAL_OR_DECLINED = re.compile(r"keep[ -]local|declin", re.IGNORECASE)
 
@@ -148,7 +148,19 @@ def _safe_relative(path: str) -> bool:
 
 def _read_head(head_root: Path, rel: str) -> str | None:
     target = head_root / rel
-    return target.read_text() if target.is_file() else None
+    return target.read_text(encoding="utf-8") if target.is_file() else None
+
+
+def check_proposal_dir(pr: PullRequest) -> list[str]:
+    if parse_kind(pr.title) in {"proposal", "delta"}:
+        return []
+    touched = [p for p in pr.paths if _is_proposal_doc(p)]
+    if not touched:
+        return []
+    return [
+        "files under docs/proposals/ change only through a `proposal:` or `delta:` PR: "
+        + ", ".join(touched)
+    ]
 
 
 def check_proposal(pr: PullRequest, head_root: Path) -> list[str]:
@@ -226,7 +238,7 @@ def check_gaps_pointers(pr: PullRequest, main_root: Path) -> list[str]:
     if parse_kind(pr.title) not in {"proposal", "release"}:
         return []
     gaps_path = main_root / GAPS
-    gaps = gaps_path.read_text() if gaps_path.is_file() else ""
+    gaps = gaps_path.read_text(encoding="utf-8") if gaps_path.is_file() else ""
     problems: list[str] = []
     proposals_dir = main_root / PROPOSAL_DIR
     if not proposals_dir.is_dir():
@@ -235,8 +247,11 @@ def check_gaps_pointers(pr: PullRequest, main_root: Path) -> list[str]:
         rel = PROPOSAL_DIR + doc.name
         if not _is_proposal_doc(rel):
             continue
-        outcome = _OUTCOME_SECTION.search(doc.read_text())
-        if outcome is None or _LOCAL_OR_DECLINED.search(outcome.group(1)) is None:
+        flagged = any(
+            _LOCAL_OR_DECLINED.search(m.group(1))
+            for m in _OUTCOME_SECTION.finditer(doc.read_text(encoding="utf-8"))
+        )
+        if not flagged:
             continue
         if rel not in gaps:
             problems.append(
@@ -264,6 +279,7 @@ def run_checks(pr: PullRequest, main_root: Path, head_root: Path) -> Result:
     scope_problems, set_review = check_kind_scope(pr)
     problems += scope_problems
     problems += check_changelog(pr)
+    problems += check_proposal_dir(pr)
     problems += check_proposal(pr, head_root)
     problems += check_delta(pr)
     problems += check_release(pr, head_root)

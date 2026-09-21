@@ -15,6 +15,7 @@ from pr_hygiene import (
     check_gaps_pointers,
     check_kind_scope,
     check_proposal,
+    check_proposal_dir,
     check_release,
     check_title,
     head_paths,
@@ -180,6 +181,20 @@ def test_delta_modifies_one_merged_proposal_only() -> None:
     ]
 
 
+def test_proposal_docs_need_proposal_or_delta_kind() -> None:
+    assert check_proposal_dir(pr("docs: x", "docs/proposals/2026-01-01-y.md", status="added")) == [
+        "files under docs/proposals/ change only through a `proposal:` or `delta:` PR: "
+        "docs/proposals/2026-01-01-y.md"
+    ]
+    assert check_proposal_dir(pr("feat: x: y", SRC, "docs/proposals/2026-01-01-y.md")) == [
+        "files under docs/proposals/ change only through a `proposal:` or `delta:` PR: "
+        "docs/proposals/2026-01-01-y.md"
+    ]
+    assert check_proposal_dir(pr("docs: readme", "docs/proposals/README.md")) == []
+    assert check_proposal_dir(pr("proposal: x", PROPOSAL, status="added")) == []
+    assert check_proposal_dir(pr("delta: x", PROPOSAL)) == []
+
+
 def release_head(root: Path, tp: str, to: str, changelog: str) -> None:
     write(
         root,
@@ -257,6 +272,41 @@ def test_gaps_pointer_check_only_on_proposal_and_release(tmp_path: Path) -> None
     assert check_gaps_pointers(pr("feat: x: y", SRC), tmp_path) == []
 
 
+def test_gaps_pointer_reads_every_outcome_section(tmp_path: Path) -> None:
+    write(tmp_path, "docs/proposals/README.md", "# Proposals\n")
+    write(
+        tmp_path,
+        "docs/proposals/2026-08-01-thing.md",
+        "# Thing\n\n"
+        "## Outcome (round 1)\n\n- P1: accepted\n\n"
+        "## Outcome (round 2)\n\n- P1: declined\n",
+    )
+    write(tmp_path, "packages/testprotocols/GAPS.md", "# Log\n")
+    assert check_gaps_pointers(pr("release: 0.13.0", "CHANGELOG.md"), tmp_path) == [
+        "packages/testprotocols/GAPS.md has no pointer to docs/proposals/2026-08-01-thing.md "
+        "(its Outcome has a keep-local or declined item)"
+    ]
+    write(
+        tmp_path,
+        "packages/testprotocols/GAPS.md",
+        "# Log\n\nSee docs/proposals/2026-08-01-thing.md.\n",
+    )
+    assert check_gaps_pointers(pr("release: 0.13.0", "CHANGELOG.md"), tmp_path) == []
+
+
+def test_gaps_pointer_ignores_subsections_after_outcome(tmp_path: Path) -> None:
+    write(tmp_path, "docs/proposals/README.md", "# Proposals\n")
+    write(
+        tmp_path,
+        "docs/proposals/2026-08-01-thing.md",
+        "# Thing\n\n"
+        "### Outcome\n\n- P1: accepted\n\n"
+        "### Next steps\n\nthe declined alternative is out of scope\n",
+    )
+    write(tmp_path, "packages/testprotocols/GAPS.md", "# Log\n")
+    assert check_gaps_pointers(pr("release: 0.13.0", "CHANGELOG.md"), tmp_path) == []
+
+
 def test_head_paths() -> None:
     assert head_paths(pr("proposal: x", PROPOSAL, status="added")) == [PROPOSAL]
     assert head_paths(pr("release: 0.13.0", "CHANGELOG.md")) == [
@@ -279,6 +329,17 @@ def test_run_checks_collects_everything(tmp_path: Path) -> None:
     assert len(result.problems) == 2
     assert result.problems[0].startswith("PR title has no recognised kind prefix")
     assert result.problems[1].startswith("package source changed but CHANGELOG.md")
+
+
+def test_run_checks_flags_proposal_dir_touched_by_wrong_kind(tmp_path: Path) -> None:
+    main_root = tmp_path / "main"
+    head_root = tmp_path / "head"
+    gaps_main(main_root, "- P1: accepted", "# Log\n")
+    result = run_checks(
+        pr("docs: x", "docs/proposals/2026-01-01-y.md", status="added"), main_root, head_root
+    )
+    assert len(result.problems) == 1
+    assert result.set_review_status is False
 
 
 def test_cli(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
