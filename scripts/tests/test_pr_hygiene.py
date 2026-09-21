@@ -181,15 +181,32 @@ def test_delta_modifies_one_merged_proposal_only() -> None:
     ]
 
 
+ADDED_MESSAGE = (
+    "a new document under docs/proposals/ enters through a `proposal:` PR: "
+    "docs/proposals/2026-01-01-y.md"
+)
+
+
+def modify_message(kind: str) -> str:
+    return (
+        f"a `{kind}:` PR may not change a document under docs/proposals/; "
+        "use `delta:` or land the change with the `feat:` that needs it: "
+        "docs/proposals/2026-01-01-y.md"
+    )
+
+
 def test_proposal_docs_need_proposal_or_delta_kind() -> None:
-    assert check_proposal_dir(pr("docs: x", "docs/proposals/2026-01-01-y.md", status="added")) == [
-        "files under docs/proposals/ change only through a `proposal:` or `delta:` PR: "
-        "docs/proposals/2026-01-01-y.md"
-    ]
-    assert check_proposal_dir(pr("feat: x: y", SRC, "docs/proposals/2026-01-01-y.md")) == [
-        "files under docs/proposals/ change only through a `proposal:` or `delta:` PR: "
-        "docs/proposals/2026-01-01-y.md"
-    ]
+    new_doc = "docs/proposals/2026-01-01-y.md"
+    # A new document enters only through a `proposal:` PR, whatever the kind.
+    assert check_proposal_dir(pr("docs: x", new_doc, status="added")) == [ADDED_MESSAGE]
+    assert check_proposal_dir(pr("feat: x: y", SRC, new_doc, status="added")) == [ADDED_MESSAGE]
+    # A reviewed kind may carry the in-PR design delta on an existing document.
+    assert check_proposal_dir(pr("feat: x: y", SRC, new_doc)) == []
+    assert check_proposal_dir(pr("fix: x: y", SRC, new_doc)) == []
+    assert check_proposal_dir(pr("release: 0.13.0", new_doc)) == []
+    # A hygiene-only kind may not: nothing reviews it.
+    assert check_proposal_dir(pr("docs: x", new_doc)) == [modify_message("docs")]
+    assert check_proposal_dir(pr("chore: x", new_doc)) == [modify_message("chore")]
     assert check_proposal_dir(pr("docs: readme", "docs/proposals/README.md")) == []
     assert check_proposal_dir(pr("proposal: x", PROPOSAL, status="added")) == []
     assert check_proposal_dir(pr("delta: x", PROPOSAL)) == []

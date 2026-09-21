@@ -152,15 +152,32 @@ def _read_head(head_root: Path, rel: str) -> str | None:
 
 
 def check_proposal_dir(pr: PullRequest) -> list[str]:
-    if parse_kind(pr.title) in {"proposal", "delta"}:
+    """Documents under docs/proposals/ enter through a proposal: PR and change under review.
+
+    A non-``proposal:`` kind may not add one. A hygiene-only kind may not modify
+    one either, since nothing reviews it. A ``feat:``, ``fix:`` or ``release:`` PR
+    may modify an existing one: that is the in-PR design delta of the process,
+    and the PR is reviewed.
+    """
+    kind = parse_kind(pr.title)
+    if kind in {"proposal", "delta"}:
         return []
-    touched = [p for p in pr.paths if _is_proposal_doc(p)]
-    if not touched:
-        return []
-    return [
-        "files under docs/proposals/ change only through a `proposal:` or `delta:` PR: "
-        + ", ".join(touched)
-    ]
+    added = [f.path for f in pr.files if f.status == "added" and _is_proposal_doc(f.path)]
+    problems: list[str] = []
+    if added:
+        problems.append(
+            "a new document under docs/proposals/ enters through a `proposal:` PR: "
+            + ", ".join(added)
+        )
+    if kind in HYGIENE_ONLY_KINDS:
+        modified = [f.path for f in pr.files if f.status != "added" and _is_proposal_doc(f.path)]
+        if modified:
+            problems.append(
+                f"a `{kind}:` PR may not change a document under docs/proposals/; "
+                "use `delta:` or land the change with the `feat:` that needs it: "
+                + ", ".join(modified)
+            )
+    return problems
 
 
 def check_proposal(pr: PullRequest, head_root: Path) -> list[str]:
