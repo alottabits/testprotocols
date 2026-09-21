@@ -13,6 +13,9 @@ name: Hygiene
 # a rule needs, fetched as data. Nothing from the PR tree is executed.
 # `dco` and `lint` stay on `pull_request`; they need the PR checked out and
 # write nothing.
+#
+# If a title edit turns a hygiene-only PR into a reviewed kind on the same
+# head commit, the job retracts the `review` status it set earlier itself.
 
 on:
   pull_request_target:
@@ -36,6 +39,7 @@ jobs:
         uses: actions/checkout@v5
         with:
           ref: main
+          persist-credentials: false
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -82,3 +86,19 @@ jobs:
             -f state=success -f context=review \
             -f description="no agent review for this kind" \
             -f target_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+      - name: Retract a review status this job set earlier for the same commit
+        # A title edit can turn a hygiene-only PR into a reviewed kind on the same
+        # head commit. Only a status carrying this job's own description is
+        # overwritten; one posted by the agent review is left alone.
+        if: ${{ !cancelled() && steps.rules.outputs.set_review != 'true' }}
+        run: |
+          set -euo pipefail
+          current=$(gh api "repos/$REPO/commits/$HEAD_SHA/status" \
+            --jq '[.statuses[] | select(.context == "review")][0].description // ""')
+          if [ "$current" = "no agent review for this kind" ]; then
+            gh api -X POST "repos/$REPO/statuses/$HEAD_SHA" \
+              -f state=pending -f context=review \
+              -f description="review required for this kind" \
+              -f target_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          fi
