@@ -34,14 +34,22 @@ testprotocols/
 └── pyproject.toml                (root: dev tooling only)
 ```
 
-## Adopt under vitro
+## Install
 
 ```bash
-uv pip install -e packages/testprotocols
-uv pip install -e packages/testoperations
+uv pip install testprotocols testoperations
 ```
 
-See the per-domain protocol design references under `docs/architecture/`
-and the consumer architecture docs in
-[vitro-bdd](https://github.com/alottabits/vitro-bdd)
-(`docs/architecture/architecture-overview.md`).
+Both packages are on PyPI and release in lockstep; pin
+`testprotocols>=0.M.P,<0.(M+1).0` and the same for `testoperations`.
+The per-domain protocol design references are under `docs/architecture/`;
+the consumer-side development flow is documented in the consumer
+repositories.
+
+## Contributing
+
+Changes to the contracts start as a proposal; see
+[`docs/proposals/README.md`](docs/proposals/README.md). Everything else,
+from PR kinds to the release procedure, is in
+[`CONTRIBUTING.md`](CONTRIBUTING.md). Questions go in an issue with the
+`question` label.
