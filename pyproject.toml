@@ -31,6 +31,8 @@ quote-style = "double"
 [tool.mypy]
 strict = true
 python_version = "3.12"
+# `scripts/` holds top-level modules the tests under `scripts/tests/` import.
+mypy_path = "scripts"
 
 [tool.pyright]
 typeCheckingMode = "strict"
@@ -40,4 +42,8 @@ pythonVersion = "3.12"
 # would otherwise win). Third-party deps still come from the environment, so
 # pyright needs the project interpreter: `uv run pyright`, or
 # `pyright --pythonpath .venv/bin/python`.
-extraPaths = ["packages/testprotocols/src", "packages/testoperations/src"]
+extraPaths = ["packages/testprotocols/src", "packages/testoperations/src", "scripts"]
+
+[tool.pytest.ini_options]
+# `scripts/tests/` imports the CI scripts as top-level modules.
+pythonpath = ["scripts"]
