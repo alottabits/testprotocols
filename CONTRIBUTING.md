@@ -165,8 +165,8 @@ maintainer change with `no proposal` and its rationale.
   `YYYY-MM-DD-<slug>.md`, with the header table and a `### P1` block, and
   touches nothing else; a `delta:` PR modifies exactly one existing file
   there; a new document there enters only through a `proposal:` PR, and a
-  `docs:`, `chore:`, `ci:` or `test:` PR may not change one; a `feat:` or
-  `fix:` PR may carry the in-PR design delta on the proposal it
+  `docs:`, `chore:`, `ci:` or `test:` PR may not change one; a `feat:`, `fix:`
+  or `release:` PR may carry the in-PR design delta on the proposal it
   implements;
 - a `release:` PR sets both version fields to the title's version and
   renames the `[Unreleased]` heading to it, with a fresh `[Unreleased]`

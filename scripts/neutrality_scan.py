@@ -142,7 +142,7 @@ _HOSTNAME = re.compile(
 )
 _PY_LITERALS = re.compile(r"\"[^\"]*\"|'[^']*'|#.*$")
 _EMAIL = re.compile(r"[\w.+-]+@((?:[\w-]+\.)+[A-Za-z]{2,})")
-_TICKET = re.compile(r"(?<![\w/-])([A-Z]{2,})-\d+\b(?!\.\d)")
+_TICKET = re.compile(r"(?<![\w-])([A-Z]{2,})-\d+\b(?!\.\d)")
 
 
 def _is_test_path(path: str) -> bool:

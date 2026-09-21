@@ -215,6 +215,18 @@ def test_ticket_shaped_id_still_hits_next_to_those() -> None:
     assert check_line(DOC, "NETOPS-4711 under LICENSE-2.0") == [("ticket-id", "NETOPS-4711")]
 
 
+@pytest.mark.parametrize(
+    "text",
+    [
+        "https://tracker.example.com/browse/NETOPS-4711",
+        "tickets/NETOPS-4711/comments",
+        "/NETOPS-4711",
+    ],
+)
+def test_ticket_ids_inside_urls_and_paths_hit(text: str) -> None:
+    assert [kind for kind, _ in check_line(DOC, text)] == ["ticket-id"]
+
+
 PY = "packages/testprotocols/src/testprotocols/x.py"
 DOCSTRING_DIFF = (
     f"--- a/{PY}\n"
