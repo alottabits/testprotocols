@@ -11,6 +11,12 @@ of names in a public repository would itself be the leak. The semantic
 check (is this a customer's site, is this a person) belongs to the
 reviewers; see CONTRIBUTING.md.
 
+A line whose text carries ``neutrality: allow`` is exempt from every rule,
+so a line that must hold such a token (a standards document, a vendor model
+number in neutrality evidence) can say so where the reviewers read it. This
+file and its tests are exempt as a whole: the scanner's own rules and
+fixtures are the one place these tokens must appear.
+
 Usage: ``python scripts/neutrality_scan.py [DIFF_FILE]``; the diff is read
 from stdin when no file is given. Exit status 1 when there is a hit.
 """
@@ -94,6 +100,14 @@ TEST_ONLY_NETWORKS = (
 # RFC 2606 example domains plus the project owner's domain, which the package
 # metadata already publishes.
 ALLOWED_EMAIL_DOMAINS = frozenset({"example.com", "example.org", "example.net", "alottabits.com"})
+# A line carrying this marker is exempt from every rule; the marker stays
+# visible in the diff the reviewers read.
+ALLOW_MARKER = "neutrality: allow"
+# The scanner's own rules and fixtures are the one place these tokens must
+# appear, so the scan skips them rather than flagging every change to itself.
+SELF_EXEMPT_PATHS = frozenset(
+    {"scripts/neutrality_scan.py", "scripts/tests/test_neutrality_scan.py"}
+)
 # Traceability keys and standards-body identifiers that look like ticket ids.
 ALLOWED_TICKET_PREFIXES = frozenset(
     {"UC", "ENG", "TR", "RFC", "ISO", "IEEE", "ITU", "UTF", "SHA", "AES", "TLS", "HTTP"}
@@ -114,7 +128,7 @@ _HOSTNAME = re.compile(
 )
 _PY_LITERALS = re.compile(r"\"[^\"]*\"|'[^']*'|#.*$")
 _EMAIL = re.compile(r"[\w.+-]+@((?:[\w-]+\.)+[A-Za-z]{2,})")
-_TICKET = re.compile(r"(?<![\w-])([A-Z]{2,})-\d+\b")
+_TICKET = re.compile(r"(?<![\w/-])([A-Z]{2,})-\d+\b(?!\.\d)")
 
 
 def _is_test_path(path: str) -> bool:
@@ -174,6 +188,8 @@ def _ticket_hits(text: str) -> list[tuple[str, str]]:
 
 def check_line(path: str, text: str) -> list[tuple[str, str]]:
     """Every ``(kind, token)`` in *text* that the rules reject, given its file *path*."""
+    if ALLOW_MARKER in text:
+        return []
     return (
         _ip_hits(path, text) + _hostname_hits(path, text) + _email_hits(text) + _ticket_hits(text)
     )
@@ -184,6 +200,7 @@ def scan_diff(diff: str) -> list[Hit]:
     return [
         Hit(line.path, line.line_no, kind, token)
         for line in added_lines(diff)
+        if line.path not in SELF_EXEMPT_PATHS
         for kind, token in check_line(line.path, line.text)
     ]
 

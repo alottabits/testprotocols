@@ -197,6 +197,16 @@ allowed prefixes listed in the script. The script carries no names on purpose;
 the semantic check is the reviewers'. Use `192.0.2.0/24`, `198.51.100.0/24`,
 `203.0.113.0/24`, `2001:db8::/32` and `example.com`.
 
+When the scan is wrong about a line that must carry such a token (a vendor
+model number in neutrality evidence, a standards document, an address in a
+documented range the rule does not know), end that line with
+`neutrality: allow` (as a comment in code, `<!-- neutrality: allow -->` in
+Markdown); the marker is visible in the diff the reviewers read. A
+maintainer may instead apply the `neutrality-override` label to the PR,
+with the reason as a PR comment. In Python files the hostname rule reads
+string literals, comments and docstrings only, since `.lan` and friends are
+ordinary attribute names in this codebase.
+
 ## Versioning
 
 Both packages carry one version, `0.MINOR.PATCH`, always equal.

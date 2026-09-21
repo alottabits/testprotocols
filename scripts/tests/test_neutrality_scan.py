@@ -174,6 +174,47 @@ def test_allowed_identifiers(text: str) -> None:
     assert check_line(SRC, text) == []
 
 
+def test_allow_marker_exempts_the_line_it_is_on() -> None:
+    assert check_line(SRC, 'dns = "8.8.8.8"  # neutrality: allow') == []
+    assert check_line(SRC, 'host = "gateway.lan"  # neutrality: allow') == []
+    assert check_line(DOC, "the box at 8.8.8.8 <!-- neutrality: allow -->") == []
+    assert check_line(DOC, "tracked as NETOPS-4711 <!-- neutrality: allow -->") == []
+    # The marker exempts its own line only.
+    assert [kind for kind, _ in check_line(DOC, "the box at 8.8.8.8")] == ["ip-literal"]
+
+
+def test_the_scanner_and_its_own_tests_are_self_exempt() -> None:
+    diff = (
+        "--- a/scripts/neutrality_scan.py\n"
+        "+++ b/scripts/neutrality_scan.py\n"
+        "@@ -1,1 +1,2 @@\n"
+        '+EXAMPLE = "8.8.8.8"\n'
+        "--- a/scripts/tests/test_neutrality_scan.py\n"
+        "+++ b/scripts/tests/test_neutrality_scan.py\n"
+        "@@ -1,1 +1,2 @@\n"
+        "+    assert check_line(SRC, 'x = \"8.8.8.8\"') == []\n"
+    )
+    assert scan_diff(diff) == []
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "LICENSE-2.0",
+        "https://www.apache.org/licenses/LICENSE-2.0",
+        "the text of /LICENSE-2.0 in the tree",
+        "negotiated TLS-1.2",
+    ],
+)
+def test_licence_and_standards_identifiers_are_not_tickets(text: str) -> None:
+    assert check_line(DOC, text) == []
+    assert check_line(SRC, text) == []
+
+
+def test_ticket_shaped_id_still_hits_next_to_those() -> None:
+    assert check_line(DOC, "NETOPS-4711 under LICENSE-2.0") == [("ticket-id", "NETOPS-4711")]
+
+
 def test_scan_diff_reports_hits_with_location() -> None:
     diff = (
         "--- /dev/null\n"

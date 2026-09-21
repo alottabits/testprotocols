@@ -2,7 +2,9 @@ name: Hygiene
 
 # The deterministic gate of CONTRIBUTING.md ("The hygiene gate"): title
 # prefix, changelog presence, proposal / delta / release shape, GAPS
-# pointers, and the neutrality pattern scan. No agent runs here.
+# pointers, and the neutrality pattern scan. No agent runs here. A
+# maintainer may skip the neutrality scan for one PR with the
+# `neutrality-override` label, giving the reason as a PR comment.
 #
 # Runs on `pull_request_target`, not `pull_request`: a fork PR's
 # `pull_request` token is read-only and could not write the `review`
@@ -76,8 +78,13 @@ jobs:
             --github-output "$GITHUB_OUTPUT"
 
       - name: Neutrality scan
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && !contains(github.event.pull_request.labels.*.name, 'neutrality-override') }}
         run: python scripts/neutrality_scan.py hygiene-work/pr.diff
+
+      - name: Neutrality scan overridden by label
+        if: ${{ !cancelled() && contains(github.event.pull_request.labels.*.name, 'neutrality-override') }}
+        run: |
+          echo "::warning::neutrality scan skipped: the neutrality-override label is set; the reason must be a PR comment"
 
       - name: Set the review status for a hygiene-only kind
         if: ${{ success() && steps.rules.outputs.set_review == 'true' }}
