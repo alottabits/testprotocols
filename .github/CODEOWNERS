@@ -1,0 +1,4 @@
+# Maintainers own everything; GitHub requests their review on every PR
+# not authored by them. Not used for a required-review rule (see
+# CONTRIBUTING.md, "How this differs from a typical GitHub project").
+* @rjvisser
