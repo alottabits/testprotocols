@@ -310,8 +310,9 @@ def load_pull_request(pr_json: Path, files_json: Path) -> PullRequest:
     *pr_json* is ``gh api .../pulls/N``; *files_json* is
     ``gh api --paginate .../pulls/N/files | jq -s add``.
     """
-    pr_data: dict[str, Any] = json.loads(pr_json.read_text())
-    raw_files: Any = json.loads(files_json.read_text())
+    pr_data: dict[str, Any] = json.loads(pr_json.read_text(encoding="utf-8"))
+    # `jq -s 'add'` over zero pages prints `null`; read that as no files.
+    raw_files: Any = json.loads(files_json.read_text(encoding="utf-8")) or []
     pages: list[list[dict[str, Any]]] = (
         raw_files if raw_files and isinstance(raw_files[0], list) else [raw_files]
     )

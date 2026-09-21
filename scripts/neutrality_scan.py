@@ -206,7 +206,11 @@ def scan_diff(diff: str) -> list[Hit]:
 
 
 def main(argv: list[str]) -> int:
-    diff = Path(argv[0]).read_text() if argv else sys.stdin.read()
+    diff = (
+        Path(argv[0]).read_text(encoding="utf-8", errors="replace")
+        if argv
+        else sys.stdin.buffer.read().decode("utf-8", errors="replace")
+    )
     hits = scan_diff(diff)
     for hit in hits:
         print(f"{hit.path}:{hit.line_no}: {hit.kind}: {hit.token}")

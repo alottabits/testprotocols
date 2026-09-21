@@ -21,6 +21,7 @@ from pr_hygiene import (
     head_paths,
     is_decision_file,
     is_source_path,
+    load_pull_request,
     main,
     parse_kind,
     run_checks,
@@ -357,6 +358,15 @@ def test_run_checks_flags_proposal_dir_touched_by_wrong_kind(tmp_path: Path) -> 
     )
     assert len(result.problems) == 1
     assert result.set_review_status is False
+
+
+def test_load_pull_request_tolerates_an_empty_file_list(tmp_path: Path) -> None:
+    # `jq -s 'add'` over zero pages prints `null`, not `[]`.
+    pr_json = tmp_path / "pr.json"
+    files_json = tmp_path / "files.json"
+    pr_json.write_text(json.dumps({"title": "docs: typo", "labels": []}))
+    files_json.write_text("null\n")
+    assert load_pull_request(pr_json, files_json) == PullRequest("docs: typo", frozenset(), ())
 
 
 def test_cli(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
