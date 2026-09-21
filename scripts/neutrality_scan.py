@@ -38,6 +38,9 @@ class AddedLine:
     path: str
     line_no: int
     text: str
+    # Inside a triple-quoted string, as far as the hunk shows. A docstring
+    # interior is prose, and is read whole even in a Python file.
+    in_string: bool = False
 
 
 _FILE_HEADER = re.compile(r"^\+\+\+ (?:b/)?(.+)$")
@@ -45,9 +48,15 @@ _HUNK_HEADER = re.compile(r"^@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@")
 
 
 def added_lines(diff: str) -> Iterator[AddedLine]:
-    """Yield every added line of *diff* with its post-image path and line number."""
+    """Yield every added line of *diff* with its post-image path and line number.
+
+    ``in_string`` marks a line inside a triple-quoted string. It is counted per
+    hunk, over the hunk's context and added lines, because a hunk is all the
+    diff shows: a line that opens a string counts as inside it.
+    """
     path: str | None = None
     line_no = 0
+    in_string = False
     previous = ""
     for raw in diff.splitlines():
         header = _FILE_HEADER.match(raw)
@@ -62,15 +71,19 @@ def added_lines(diff: str) -> Iterator[AddedLine]:
         hunk = _HUNK_HEADER.match(raw)
         if hunk is not None:
             line_no = int(hunk.group(1))
+            in_string = False
             continue
         if path is None or not raw:
             continue
         marker, text = raw[0], raw[1:]
+        if marker not in {"+", " "}:
+            continue
+        quotes_flip = (text.count('"""') + text.count("'''")) % 2 == 1
         if marker == "+":
-            yield AddedLine(path, line_no, text)
-            line_no += 1
-        elif marker == " ":
-            line_no += 1
+            yield AddedLine(path, line_no, text, in_string or quotes_flip)
+        line_no += 1
+        if quotes_flip:
+            in_string = not in_string
 
 
 @dataclass(frozen=True)
@@ -118,8 +131,9 @@ _IPV6 = re.compile(r"(?<![\w:.])((?:[0-9A-Fa-f]{0,4}:){2,7}[0-9A-Fa-f]{0,4})(?![
 # A hostname counts only when delimited like a value (quotes, backticks,
 # whitespace, brackets, URL separators) and not followed by a word character,
 # so an attribute chain like `device.lan.set_vlan(...)` does not trip it. In
-# Python files only string literals and comments are scanned, because `.lan`,
-# `.local` and `.internal` are plausible attribute names in this codebase.
+# Python files only string literals, comments and the interior of a
+# triple-quoted string are scanned, because `.lan`, `.local` and `.internal`
+# are plausible attribute names in this codebase.
 _HOSTNAME = re.compile(
     r"(?:^|(?<=[\s\"'`/@(\[]))"
     r"((?:[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?\.)+(?:local|lan|internal))"
@@ -163,8 +177,11 @@ def _ip_hits(path: str, text: str) -> list[tuple[str, str]]:
     return hits
 
 
-def _hostname_hits(path: str, text: str) -> list[tuple[str, str]]:
-    segments = [m.group(0) for m in _PY_LITERALS.finditer(text)] if path.endswith(".py") else [text]
+def _hostname_hits(path: str, text: str, in_string: bool = False) -> list[tuple[str, str]]:
+    if path.endswith(".py") and not in_string:
+        segments = [m.group(0) for m in _PY_LITERALS.finditer(text)]
+    else:
+        segments = [text]
     return [("hostname", m.group(1)) for segment in segments for m in _HOSTNAME.finditer(segment)]
 
 
@@ -186,12 +203,19 @@ def _ticket_hits(text: str) -> list[tuple[str, str]]:
     ]
 
 
-def check_line(path: str, text: str) -> list[tuple[str, str]]:
-    """Every ``(kind, token)`` in *text* that the rules reject, given its file *path*."""
+def check_line(path: str, text: str, in_string: bool = False) -> list[tuple[str, str]]:
+    """Every ``(kind, token)`` in *text* that the rules reject, given its file *path*.
+
+    *in_string* marks a line inside a triple-quoted string; in a ``.py`` file the
+    hostname rule then reads the whole line, a docstring interior being prose.
+    """
     if ALLOW_MARKER in text:
         return []
     return (
-        _ip_hits(path, text) + _hostname_hits(path, text) + _email_hits(text) + _ticket_hits(text)
+        _ip_hits(path, text)
+        + _hostname_hits(path, text, in_string)
+        + _email_hits(text)
+        + _ticket_hits(text)
     )
 
 
@@ -201,7 +225,7 @@ def scan_diff(diff: str) -> list[Hit]:
         Hit(line.path, line.line_no, kind, token)
         for line in added_lines(diff)
         if line.path not in SELF_EXEMPT_PATHS
-        for kind, token in check_line(line.path, line.text)
+        for kind, token in check_line(line.path, line.text, line.in_string)
     ]
 
 

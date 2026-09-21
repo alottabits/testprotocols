@@ -215,6 +215,50 @@ def test_ticket_shaped_id_still_hits_next_to_those() -> None:
     assert check_line(DOC, "NETOPS-4711 under LICENSE-2.0") == [("ticket-id", "NETOPS-4711")]
 
 
+PY = "packages/testprotocols/src/testprotocols/x.py"
+DOCSTRING_DIFF = (
+    f"--- a/{PY}\n"
+    f"+++ b/{PY}\n"
+    "@@ -10,0 +10,5 @@ def connect() -> None:\n"
+    '+    """Connect to the box.\n'
+    "+\n"
+    "+    Reachable at gateway.lan in the reference lab.\n"
+    '+    """\n'
+    "+    return connect(gateway.lan)\n"
+)
+
+
+def test_added_lines_mark_the_triple_quoted_interior() -> None:
+    assert [line.in_string for line in added_lines(DOCSTRING_DIFF)] == [
+        True,
+        True,
+        True,
+        True,
+        False,
+    ]
+
+
+def test_docstring_interior_is_scanned_whole_in_python_files() -> None:
+    assert scan_diff(DOCSTRING_DIFF) == [Hit(PY, 12, "hostname", "gateway.lan")]
+
+
+def test_the_same_interior_line_outside_a_string_is_not_scanned() -> None:
+    diff = f"--- a/{PY}\n+++ b/{PY}\n@@ -10,0 +10,1 @@\n+    Reachable at gateway.lan here.\n"
+    assert scan_diff(diff) == []
+
+
+def test_a_context_line_opens_the_string_for_the_added_lines_after_it() -> None:
+    diff = (
+        f"--- a/{PY}\n"
+        f"+++ b/{PY}\n"
+        "@@ -10,2 +10,3 @@\n"
+        '     """Connect to the box.\n'
+        "+    Reachable at gateway.lan in the reference lab.\n"
+        '     """\n'
+    )
+    assert scan_diff(diff) == [Hit(PY, 11, "hostname", "gateway.lan")]
+
+
 def test_scan_diff_reports_hits_with_location() -> None:
     diff = (
         "--- /dev/null\n"
