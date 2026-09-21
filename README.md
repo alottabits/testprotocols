@@ -53,3 +53,5 @@ Changes to the contracts start as a proposal; see
 from PR kinds to the release procedure, is in
 [`CONTRIBUTING.md`](CONTRIBUTING.md). Questions go in an issue with the
 `question` label.
+
+<!-- hygiene check -->
