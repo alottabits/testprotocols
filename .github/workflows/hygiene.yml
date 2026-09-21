@@ -1,0 +1,84 @@
+name: Hygiene
+
+# The deterministic gate of CONTRIBUTING.md ("The hygiene gate"): title
+# prefix, changelog presence, proposal / delta / release shape, GAPS
+# pointers, and the neutrality pattern scan. No agent runs here.
+#
+# Runs on `pull_request_target`, not `pull_request`: a fork PR's
+# `pull_request` token is read-only and could not write the `review`
+# commit status this job sets for hygiene-only kinds. `pull_request_target`
+# runs in the base repository with a write token. To make that token safe
+# to hold, the job checks out `main` only, never the PR head, and reads the
+# PR through the API: title, labels, file list, diff, and the few head files
+# a rule needs, fetched as data. Nothing from the PR tree is executed.
+# `dco` and `lint` stay on `pull_request`; they need the PR checked out and
+# write nothing.
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened, edited, labeled, unlabeled, ready_for_review]
+
+permissions:
+  contents: read
+  pull-requests: read
+  statuses: write
+
+jobs:
+  hygiene:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPO: ${{ github.repository }}
+      PR: ${{ github.event.pull_request.number }}
+      HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+    steps:
+      - name: Check out main (never the PR head)
+        uses: actions/checkout@v5
+        with:
+          ref: main
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Read the PR through the API
+        run: |
+          set -euo pipefail
+          mkdir -p hygiene-work
+          gh api "repos/$REPO/pulls/$PR" > hygiene-work/pr.json
+          gh api --paginate --slurp "repos/$REPO/pulls/$PR/files" > hygiene-work/files.json
+          gh pr diff "$PR" --repo "$REPO" > hygiene-work/pr.diff
+
+      - name: Fetch the head files the rules read (as data)
+        run: |
+          set -euo pipefail
+          mkdir -p hygiene-work/head
+          python scripts/pr_hygiene.py head-paths \
+            --pr hygiene-work/pr.json --files hygiene-work/files.json \
+          | while IFS= read -r path; do
+              mkdir -p "hygiene-work/head/$(dirname "$path")"
+              gh api "repos/$REPO/contents/$path?ref=$HEAD_SHA" \
+                -H "Accept: application/vnd.github.raw+json" \
+                > "hygiene-work/head/$path" || rm -f "hygiene-work/head/$path"
+            done
+
+      - name: PR hygiene rules
+        id: rules
+        run: |
+          python scripts/pr_hygiene.py check \
+            --pr hygiene-work/pr.json --files hygiene-work/files.json \
+            --main-root . --head-root hygiene-work/head \
+            --github-output "$GITHUB_OUTPUT"
+
+      - name: Neutrality scan
+        if: ${{ !cancelled() }}
+        run: python scripts/neutrality_scan.py hygiene-work/pr.diff
+
+      - name: Set the review status for a hygiene-only kind
+        if: ${{ success() && steps.rules.outputs.set_review == 'true' }}
+        run: |
+          gh api -X POST "repos/$REPO/statuses/$HEAD_SHA" \
+            -f state=success -f context=review \
+            -f description="no agent review for this kind" \
+            -f target_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
