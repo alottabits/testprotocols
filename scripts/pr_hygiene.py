@@ -17,6 +17,7 @@ the workflow sets the ``review`` status itself.
 
 from __future__ import annotations
 
+import argparse
 import fnmatch
 import json
 import re
@@ -112,6 +113,164 @@ def check_changelog(pr: PullRequest) -> list[str]:
     return []
 
 
+PROPOSAL_DIR = "docs/proposals/"
+VERSION_FILES = (
+    "packages/testprotocols/pyproject.toml",
+    "packages/testoperations/pyproject.toml",
+)
+GAPS = "packages/testprotocols/GAPS.md"
+HEADER_ROWS = ("Date", "Use case", "Round", "Status")
+
+_PROPOSAL_NAME = re.compile(r"^\d{4}-\d{2}-\d{2}-[a-z0-9]+(?:-[a-z0-9]+)*\.md$")
+_RELEASE_TITLE = re.compile(r"^release: (\d+\.\d+\.\d+)$")
+_VERSION_FIELD = re.compile(r'^version = "([^"]+)"', re.MULTILINE)
+_P1_BLOCK = re.compile(r"^### P1\b", re.MULTILINE)
+_OUTCOME_SECTION = re.compile(
+    r"^##+ [^\n]*Outcome[^\n]*\n(.*?)(?=^## |\Z)", re.MULTILINE | re.DOTALL
+)
+_LOCAL_OR_DECLINED = re.compile(r"keep[ -]local|declin", re.IGNORECASE)
+
+
+@dataclass(frozen=True)
+class Result:
+    problems: list[str]
+    set_review_status: bool
+
+
+def _is_proposal_doc(path: str) -> bool:
+    return path.startswith(PROPOSAL_DIR) and path != PROPOSAL_DIR + "README.md"
+
+
+def _safe_relative(path: str) -> bool:
+    parts = path.split("/")
+    return bool(path) and not path.startswith("/") and ".." not in parts
+
+
+def _read_head(head_root: Path, rel: str) -> str | None:
+    target = head_root / rel
+    return target.read_text() if target.is_file() else None
+
+
+def check_proposal(pr: PullRequest, head_root: Path) -> list[str]:
+    if parse_kind(pr.title) != "proposal":
+        return []
+    rule = "a proposal: PR adds exactly one file under docs/proposals/ and touches nothing else; "
+    added = [f.path for f in pr.files if f.status == "added" and _is_proposal_doc(f.path)]
+    others = [p for p in pr.paths if p not in added]
+    if len(added) != 1:
+        return [rule + ("no added proposal file" if not added else "several: " + ", ".join(added))]
+    if others:
+        return [rule + "also changed: " + ", ".join(others)]
+    path = added[0]
+    if not _PROPOSAL_NAME.match(path.removeprefix(PROPOSAL_DIR)):
+        return [f"proposal file name must match YYYY-MM-DD-<slug>.md: {path}"]
+    body = _read_head(head_root, path)
+    if body is None:
+        return [f"{path}: could not read the file from the PR head"]
+    problems: list[str] = []
+    missing = [row for row in HEADER_ROWS if not re.search(rf"^\| *{row} *\|", body, re.MULTILINE)]
+    if missing:
+        problems.append(f"{path}: header table is missing rows: " + ", ".join(missing))
+    if _P1_BLOCK.search(body) is None:
+        problems.append(f"{path}: no `### P1` block")
+    return problems
+
+
+def check_delta(pr: PullRequest) -> list[str]:
+    if parse_kind(pr.title) != "delta":
+        return []
+    ok = (
+        len(pr.files) == 1
+        and pr.files[0].status == "modified"
+        and _is_proposal_doc(pr.files[0].path)
+    )
+    if ok:
+        return []
+    return ["a delta: PR modifies exactly one existing file under docs/proposals/ and nothing else"]
+
+
+def check_release(pr: PullRequest, head_root: Path) -> list[str]:
+    if parse_kind(pr.title) != "release":
+        return []
+    match = _RELEASE_TITLE.match(pr.title)
+    if match is None:
+        return [f"release: title must be `release: X.Y.Z`: {pr.title!r}"]
+    version = match.group(1)
+    problems: list[str] = []
+    for rel in VERSION_FILES:
+        body = _read_head(head_root, rel)
+        found = None if body is None else _VERSION_FIELD.search(body)
+        if found is None:
+            problems.append(f"{rel}: could not read a version field from the PR head")
+        elif found.group(1) != version:
+            problems.append(f"{rel}: version is {found.group(1)}, title says {version}")
+    changelog = _read_head(head_root, CHANGELOG)
+    if changelog is None:
+        problems.append(f"{CHANGELOG}: could not read the file from the PR head")
+        return problems
+    heading = re.search(
+        rf"^## \[{re.escape(version)}\] [—-] \d{{4}}-\d{{2}}-\d{{2}}", changelog, re.MULTILINE
+    )
+    if heading is None:
+        problems.append(f"{CHANGELOG}: no `## [{version}] — YYYY-MM-DD` heading")
+        return problems
+    unreleased = changelog.find("## [Unreleased]")
+    if unreleased < 0 or unreleased > heading.start():
+        problems.append(
+            f"{CHANGELOG}: no fresh `## [Unreleased]` heading above the release heading"
+        )
+    return problems
+
+
+def check_gaps_pointers(pr: PullRequest, main_root: Path) -> list[str]:
+    if parse_kind(pr.title) not in {"proposal", "release"}:
+        return []
+    gaps_path = main_root / GAPS
+    gaps = gaps_path.read_text() if gaps_path.is_file() else ""
+    problems: list[str] = []
+    proposals_dir = main_root / PROPOSAL_DIR
+    if not proposals_dir.is_dir():
+        return []
+    for doc in sorted(proposals_dir.glob("*.md")):
+        rel = PROPOSAL_DIR + doc.name
+        if not _is_proposal_doc(rel):
+            continue
+        outcome = _OUTCOME_SECTION.search(doc.read_text())
+        if outcome is None or _LOCAL_OR_DECLINED.search(outcome.group(1)) is None:
+            continue
+        if rel not in gaps:
+            problems.append(
+                f"{GAPS} has no pointer to {rel} (its Outcome has a keep-local or declined item)"
+            )
+    return problems
+
+
+def head_paths(pr: PullRequest) -> list[str]:
+    """PR-head files the checks read; the workflow fetches them through the API."""
+    kind = parse_kind(pr.title)
+    if kind == "proposal":
+        return [
+            f.path
+            for f in pr.files
+            if f.status == "added" and _is_proposal_doc(f.path) and _safe_relative(f.path)
+        ]
+    if kind == "release":
+        return [*VERSION_FILES, CHANGELOG]
+    return []
+
+
+def run_checks(pr: PullRequest, main_root: Path, head_root: Path) -> Result:
+    problems = check_title(pr)
+    scope_problems, set_review = check_kind_scope(pr)
+    problems += scope_problems
+    problems += check_changelog(pr)
+    problems += check_proposal(pr, head_root)
+    problems += check_delta(pr)
+    problems += check_release(pr, head_root)
+    problems += check_gaps_pointers(pr, main_root)
+    return Result(problems, set_review and not problems)
+
+
 def load_pull_request(pr_json: Path, files_json: Path) -> PullRequest:
     """Build a PullRequest from ``gh api`` output.
 
@@ -131,7 +290,44 @@ def load_pull_request(pr_json: Path, files_json: Path) -> PullRequest:
 
 
 def main(argv: list[str]) -> int:
-    del argv
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    sub = parser.add_subparsers(dest="command", required=True)
+    for name in ("head-paths", "check"):
+        p = sub.add_parser(name)
+        p.add_argument("--pr", required=True, type=Path, help="gh api repos/O/R/pulls/N output")
+        p.add_argument(
+            "--files",
+            required=True,
+            type=Path,
+            help="gh api --paginate --slurp .../pulls/N/files output",
+        )
+        if name == "check":
+            p.add_argument("--main-root", required=True, type=Path)
+            p.add_argument("--head-root", required=True, type=Path)
+            p.add_argument("--github-output", type=Path, default=None)
+    args = parser.parse_args(argv)
+    pr_path: Path = args.pr
+    files_path: Path = args.files
+    pr = load_pull_request(pr_path, files_path)
+    if args.command == "head-paths":
+        for path in head_paths(pr):
+            print(path)
+        return 0
+    main_root: Path = args.main_root
+    head_root: Path = args.head_root
+    github_output: Path | None = args.github_output
+    result = run_checks(pr, main_root, head_root)
+    if github_output is not None:
+        with github_output.open("a") as out:
+            out.write(f"set_review={'true' if result.set_review_status else 'false'}\n")
+    for problem in result.problems:
+        print(f"hygiene: {problem}")
+    if result.problems:
+        print(f"\n{len(result.problems)} hygiene problem(s). See CONTRIBUTING.md.")
+        return 1
+    print("hygiene: clean")
     return 0
 
 
