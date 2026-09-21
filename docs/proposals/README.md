@@ -142,8 +142,8 @@ response left below. Two rounds. After round two without agreement:
 A maintainer merges once every item has an Outcome, declined and
 kept-local included. At merge the maintainer writes a pointer in
 `packages/testprotocols/GAPS.md` for every keep-local trigger and every
-declined item implemented locally, naming the proposal path and its
-conditions; the `hygiene` job checks on later `proposal:` and `release:`
+declined item, naming the proposal path and its conditions; the `hygiene`
+job checks on later `proposal:` and `release:`
 PRs that the pointer exists.
 
 A proposal whose contributor has gone silent for 60 days after a review is
