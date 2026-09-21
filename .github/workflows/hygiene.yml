@@ -28,6 +28,12 @@ permissions:
   pull-requests: read
   statuses: write
 
+# One run per PR: a title edit or a label change while a run is in flight
+# would otherwise race it over the `review` status.
+concurrency:
+  group: hygiene-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
 jobs:
   hygiene:
     runs-on: ubuntu-latest
@@ -66,7 +72,9 @@ jobs:
               mkdir -p "hygiene-work/head/$(dirname "$path")"
               gh api "repos/$REPO/contents/$path?ref=$HEAD_SHA" \
                 -H "Accept: application/vnd.github.raw+json" \
-                > "hygiene-work/head/$path" || rm -f "hygiene-work/head/$path"
+                > "hygiene-work/head/$path" \
+                || { echo "::warning::could not fetch $path from the PR head"; \
+                     rm -f "hygiene-work/head/$path"; }
             done
 
       - name: PR hygiene rules
@@ -89,6 +97,7 @@ jobs:
       - name: Set the review status for a hygiene-only kind
         if: ${{ success() && steps.rules.outputs.set_review == 'true' }}
         run: |
+          set -euo pipefail
           gh api -X POST "repos/$REPO/statuses/$HEAD_SHA" \
             -f state=success -f context=review \
             -f description="no agent review for this kind" \
