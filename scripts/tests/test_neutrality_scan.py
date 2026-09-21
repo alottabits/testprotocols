@@ -59,6 +59,7 @@ def test_empty_diff_yields_nothing() -> None:
 
 SRC = "packages/testprotocols/src/testprotocols/x.py"
 TEST = "packages/testprotocols/tests/test_x.py"
+DOC = "docs/proposals/2026-01-01-thing.md"
 
 
 @pytest.mark.parametrize(
@@ -102,24 +103,37 @@ def test_ip_token_is_reported() -> None:
 
 
 @pytest.mark.parametrize(
-    "text",
-    ['host = "gateway.site.lan"', "the box at core1.internal answers", 'h = "printer.local"'],
+    ("path", "text"),
+    [
+        (SRC, 'host = "gateway.site.lan"'),
+        (SRC, 'h = "printer.local"'),
+        (SRC, "# reach gateway.lan for the console"),
+        (SRC, '"""Connect to core1.internal."""'),
+        (DOC, "the box at core1.internal answers"),
+        (DOC, "the box at gateway.lan."),
+        (DOC, "(see gateway.lan)"),
+        (DOC, "the `gateway.lan` box"),
+    ],
 )
-def test_private_use_hostnames_hit(text: str) -> None:
-    assert [kind for kind, _ in check_line(SRC, text)] == ["hostname"]
+def test_private_use_hostnames_hit(path: str, text: str) -> None:
+    assert [kind for kind, _ in check_line(path, text)] == ["hostname"]
 
 
 @pytest.mark.parametrize(
-    "text",
+    ("path", "text"),
     [
-        "_delete_if_present(ap.lan, vlan_id)",
-        "a.target.lan.set_vlan(a.vlan)",
-        'host = "gateway.example.com"',
-        "self.local = 1",
+        (SRC, "_delete_if_present(ap.lan, vlan_id)"),
+        (SRC, "a.target.lan.set_vlan(a.vlan)"),
+        (SRC, "return self.lan"),
+        (SRC, "iface = ap.lan"),
+        (SRC, 'host = "gateway.example.com"'),
+        (SRC, "self.local = 1"),
+        (DOC, "a.target.lan.set_vlan(a.vlan)"),
+        (DOC, "self.local = 1"),
     ],
 )
-def test_attribute_access_and_public_names_are_not_hostnames(text: str) -> None:
-    assert check_line(SRC, text) == []
+def test_attribute_access_and_public_names_are_not_hostnames(path: str, text: str) -> None:
+    assert check_line(path, text) == []
 
 
 def test_email_outside_example_domains_hits() -> None:

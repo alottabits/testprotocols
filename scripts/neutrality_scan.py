@@ -102,14 +102,17 @@ ALLOWED_TICKET_PREFIXES = frozenset(
 _IPV4 = re.compile(r"(?<![\w.])(\d{1,3}(?:\.\d{1,3}){3})(?!\w|\.\d)")
 _IPV6 = re.compile(r"(?<![\w:.])((?:[0-9A-Fa-f]{0,4}:){2,7}[0-9A-Fa-f]{0,4})(?![\w:])")
 # A hostname counts only when delimited like a value (quotes, backticks,
-# whitespace, URL separators), so `device.lan` attribute access in code does
-# not trip it.
+# whitespace, brackets, URL separators) and not followed by a word character,
+# so an attribute chain like `device.lan.set_vlan(...)` does not trip it. In
+# Python files only string literals and comments are scanned, because `.lan`,
+# `.local` and `.internal` are plausible attribute names in this codebase.
 _HOSTNAME = re.compile(
-    r"(?:^|(?<=[\s\"'`/@]))"
+    r"(?:^|(?<=[\s\"'`/@(\[]))"
     r"((?:[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?\.)+(?:local|lan|internal))"
-    r"(?=$|[\s\"'`/:])(?!\s*=)",
+    r"(?=$|[\s\"'`/:,;)\]]|\.(?!\w))(?!\s*=)",
     re.IGNORECASE,
 )
+_PY_LITERALS = re.compile(r"\"[^\"]*\"|'[^']*'|#.*$")
 _EMAIL = re.compile(r"[\w.+-]+@((?:[\w-]+\.)+[A-Za-z]{2,})")
 _TICKET = re.compile(r"(?<![\w-])([A-Z]{2,})-\d+\b")
 
@@ -146,8 +149,9 @@ def _ip_hits(path: str, text: str) -> list[tuple[str, str]]:
     return hits
 
 
-def _hostname_hits(text: str) -> list[tuple[str, str]]:
-    return [("hostname", m.group(1)) for m in _HOSTNAME.finditer(text)]
+def _hostname_hits(path: str, text: str) -> list[tuple[str, str]]:
+    segments = [m.group(0) for m in _PY_LITERALS.finditer(text)] if path.endswith(".py") else [text]
+    return [("hostname", m.group(1)) for segment in segments for m in _HOSTNAME.finditer(segment)]
 
 
 def _email_hits(text: str) -> list[tuple[str, str]]:
@@ -170,7 +174,9 @@ def _ticket_hits(text: str) -> list[tuple[str, str]]:
 
 def check_line(path: str, text: str) -> list[tuple[str, str]]:
     """Every ``(kind, token)`` in *text* that the rules reject, given its file *path*."""
-    return _ip_hits(path, text) + _hostname_hits(text) + _email_hits(text) + _ticket_hits(text)
+    return (
+        _ip_hits(path, text) + _hostname_hits(path, text) + _email_hits(text) + _ticket_hits(text)
+    )
 
 
 def scan_diff(diff: str) -> list[Hit]:
