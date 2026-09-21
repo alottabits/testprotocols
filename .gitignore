@@ -11,3 +11,6 @@ build/
 # local working documents — not shipped
 docs/superpowers/
 action-document.md
+
+# subagent-driven-development scratch (ledger, briefs, review packages)
+.superpowers/
