@@ -79,12 +79,12 @@ This is a [uv](https://docs.astral.sh/uv/) workspace with two packages under
 `packages/`. To get started:
 
 ```bash
-uv sync                 # install all workspace packages + dev tools
-uv run pytest           # run the test suite
-uv run ruff check .     # lint
-uv run ruff format .    # format
-uv run mypy .           # type-check (strict)
-uv run pyright          # type-check (strict, second checker)
+uv sync                       # install all workspace packages + dev tools
+uv run pytest                 # run the test suite
+uv run ruff check .           # lint
+uv run ruff format --check .  # format check
+uv run mypy .                 # type-check (strict)
+uv run pyright                # type-check (strict, second checker)
 ```
 
 Please make sure tests, linting, and type checks pass before opening a pull
