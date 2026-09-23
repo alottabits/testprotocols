@@ -6,10 +6,12 @@ name: Review
 # not a draft and that `dco`, `lint` and `hygiene` are green on the head
 # commit, sets the `review` status to pending and sends a repository_dispatch
 # to the private runner, which reviews and posts back under the App's
-# identity. No agent runs here and no model key exists here: this log shows a
-# gate decision and a dispatch, nothing else. `issue_comment` runs in the base
-# repository from `main`, so a PR from a fork is dispatched exactly as a
-# branch PR once a maintainer types the command.
+# identity — or, when no reviewer takes the PR's kind, refuses instead so
+# hygiene's own `review` status stands. No agent runs here and no model key
+# exists here: this log shows a gate decision and a dispatch, nothing else.
+# `issue_comment` runs in the base repository from `main`, so a PR from a
+# fork is dispatched exactly as a branch PR once a maintainer types the
+# command.
 
 on:
   issue_comment:
@@ -85,6 +87,11 @@ jobs:
           set -euo pipefail
           KIND=$(jq -r .title review-work/pr.json | sed -nE 's/^([a-z]+)!?: .*/\1/p')
           REVIEWERS=$(python scripts/pr_hygiene.py reviewers --pr review-work/pr.json --files review-work/files.json)
+          if [ -z "$REVIEWERS" ]; then
+            gh pr comment "$PR" --repo "$REPO" \
+              --body "review not started: no reviewer takes this PR; hygiene sets its status (CONTRIBUTING.md, A PR's life, step 3)"
+            exit 1
+          fi
           echo "kind=$KIND" >> "$GITHUB_OUTPUT"
           echo "reviewers=$REVIEWERS" >> "$GITHUB_OUTPUT"
           echo "kind=$KIND reviewers=${REVIEWERS:-none}"
