@@ -13,7 +13,6 @@ One line per maintainer, in this exact form:
 
 ## Maintainers
 
-- @rjvisser — everything (`*`)
 
 Adding a maintainer is a line here and a line in `.github/CODEOWNERS`;
 the process in CONTRIBUTING.md does not change.
