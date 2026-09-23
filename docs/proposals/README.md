@@ -97,8 +97,6 @@ verifies it against published documentation and cites what it checked.
 ## The review response
 
 The review team posts one GitHub PR review whose body is:
-(until the review team is wired in, a maintainer reads the PR against the
-same criteria and records the reading in a comment)
 
 ```markdown
 ## Review response (testprotocols review team, YYYY-MM-DD)

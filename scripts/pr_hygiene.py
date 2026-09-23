@@ -8,6 +8,7 @@ directory as data. Nothing from the PR tree is executed.
 Subcommands:
 
   head-paths  print the PR-head paths ``check`` wants fetched, one per line
+  reviewers   print the reviewer set a PR takes, comma-joined
   check       apply the rules; print one problem per line and exit 1 on any
 
 ``check`` also writes ``set_review=true|false`` to the file named by
@@ -277,6 +278,27 @@ def check_gaps_pointers(pr: PullRequest, main_root: Path) -> list[str]:
     return problems
 
 
+REVIEWED_KINDS = {
+    "proposal": "proposal",
+    "delta": "proposal",
+    "feat": "code",
+    "fix": "code",
+    "release": "release",
+}
+REVIEWER_ORDER = ("code", "release", "proposal")
+
+
+def reviewers_for(pr: PullRequest) -> list[str]:
+    """The reviewer set a PR takes: by kind, plus the proposal reviewer for a decision file."""
+    kind = parse_kind(pr.title)
+    if kind is None:
+        return []
+    chosen: set[str] = {REVIEWED_KINDS[kind]} if kind in REVIEWED_KINDS else set()
+    if any(is_decision_file(p) for p in pr.paths):
+        chosen.add("proposal")
+    return [r for r in REVIEWER_ORDER if r in chosen]
+
+
 def head_paths(pr: PullRequest) -> list[str]:
     """PR-head files the checks read; the workflow fetches them through the API."""
     kind = parse_kind(pr.title)
@@ -328,7 +350,7 @@ def main(argv: list[str]) -> int:
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
     sub = parser.add_subparsers(dest="command", required=True)
-    for name in ("head-paths", "check"):
+    for name in ("head-paths", "reviewers", "check"):
         p = sub.add_parser(name)
         p.add_argument("--pr", required=True, type=Path, help="gh api repos/O/R/pulls/N output")
         p.add_argument(
@@ -348,6 +370,9 @@ def main(argv: list[str]) -> int:
     if args.command == "head-paths":
         for path in head_paths(pr):
             print(path)
+        return 0
+    if args.command == "reviewers":
+        print(",".join(reviewers_for(pr)))
         return 0
     main_root: Path = args.main_root
     head_root: Path = args.head_root
