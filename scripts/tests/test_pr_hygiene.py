@@ -24,6 +24,7 @@ from pr_hygiene import (
     load_pull_request,
     main,
     parse_kind,
+    reviewers_for,
     run_checks,
 )
 
@@ -417,3 +418,43 @@ def test_cli(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     assert code == 1
     assert "CHANGELOG.md" in capsys.readouterr().out
     assert output.read_text().endswith("set_review=false\n")
+
+
+@pytest.mark.parametrize(
+    ("title", "paths", "expected"),
+    [
+        ("proposal: x", (PROPOSAL,), ["proposal"]),
+        ("delta: x", (PROPOSAL,), ["proposal"]),
+        ("feat: x: y", (SRC,), ["code"]),
+        ("feat!: x: y", (SRC,), ["code"]),
+        ("fix: x: y", (SRC,), ["code"]),
+        ("release: 0.13.0", ("CHANGELOG.md",), ["release"]),
+        ("feat: x: y", (SRC, "packages/testprotocols/SPLITS.md"), ["code", "proposal"]),
+        ("docs: x", ("docs/architecture/bgp-protocol-design.md",), ["proposal"]),
+        ("docs: x", ("README.md",), []),
+        ("chore: x", ("packages/testprotocols/GAPS.md",), ["proposal"]),
+        ("no prefix", (SRC,), []),
+    ],
+)
+def test_reviewers_for(title: str, paths: tuple[str, ...], expected: list[str]) -> None:
+    assert reviewers_for(pr(title, *paths)) == expected
+
+
+def test_reviewers_cli(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    pr_json = tmp_path / "pr.json"
+    files_json = tmp_path / "files.json"
+    pr_json.write_text(json.dumps({"title": "feat: x: y", "labels": []}))
+    files_json.write_text(
+        json.dumps(
+            [
+                {"filename": SRC, "status": "modified"},
+                {"filename": "packages/testprotocols/LEVELS.md", "status": "modified"},
+            ]
+        )
+    )
+    assert main(["reviewers", "--pr", str(pr_json), "--files", str(files_json)]) == 0
+    assert capsys.readouterr().out == "code,proposal\n"
+    pr_json.write_text(json.dumps({"title": "docs: x", "labels": []}))
+    files_json.write_text(json.dumps([{"filename": "README.md", "status": "modified"}]))
+    assert main(["reviewers", "--pr", str(pr_json), "--files", str(files_json)]) == 0
+    assert capsys.readouterr().out == "\n"
