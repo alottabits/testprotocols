@@ -53,3 +53,5 @@ class Bgp(Protocol):
         when not reported.
         """
         ...
+
+# throwaway: fail-closed test 5 (hygiene red: package source without a changelog entry)
