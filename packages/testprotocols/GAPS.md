@@ -986,6 +986,15 @@ Implemented section).
 
 ---
 
+## 2026-09-23 — `ThrowawayProbe` (rollout verification placeholder) [priority: low]
+
+**Signal:** rollout step 2, fail-closed test 8. A placeholder entry added by
+a throwaway `chore:` PR so that the PR takes the proposal reviewer through
+the decision-file rule. No capability is proposed; the entry is removed
+when the PR is closed.
+
+**Evidence:** none. This entry exists to exercise the review path only.
+
 ## Workflow
 
 When picking up a deferred capability:
