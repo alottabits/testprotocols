@@ -24,4 +24,4 @@ release commits and PR pages; a backfill is planned.
 
 - **model member** `testoperations.waiting:ReachabilityAwait.converged` —
   whether the wanted reading arrived within the budget, derived from
-  `not_converged_at_s`. no proposal; PR #<n>.
+  `not_converged_at_s`. no proposal; PR #43.
