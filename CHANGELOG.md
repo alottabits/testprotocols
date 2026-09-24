@@ -20,6 +20,16 @@ release commits and PR pages; a backfill is planned.
 
 ### testoperations
 
+- no entries yet
+
+## [0.12.2] — 2026-09-24
+
+### testprotocols
+
+- no entries yet
+
+### testoperations
+
 #### Added
 
 - **model member** `testoperations.waiting:ReachabilityAwait.retried` —
