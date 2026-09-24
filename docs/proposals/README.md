@@ -124,6 +124,63 @@ appends the block verbatim to the document after a `---` rule in the next
 push. The agent never commits to the branch: authorship and sign-off stay
 the contributor's. The document, not the PR conversation, is the record.
 
+## The code and release reviews
+
+A `feat:` or `fix:` PR is read by the code reviewer, a `release:` PR by the
+release reviewer, against the same rule as proposals: the criteria are
+public, the method is not. Each posts one review whose body is a
+per-question table followed by one section per question and the
+conditions, and sets the `review` status from the table. A PR that takes
+two reviewers (a `feat:` that also touches a decision file) gets two
+reviews, and the worst verdict sets the status.
+
+**The code reviewer's questions**, in order:
+
+1. **Proposal coverage.** Every shape change is covered by a merged
+   proposal's accepted item (path and item id cited in the body), or the
+   body says `no proposal` with a one-paragraph rationale.
+2. **Conditions met.** Every condition the cited proposal's review recorded
+   for an implemented item is met and cited.
+3. **Contract rules.** `Protocol`-typed boundary, typed models, no vendor
+   leakage into a shared contract, no sibling of an existing protocol or
+   operation, no forwarder or test plumbing in either package.
+4. **Tests for both outcomes.** Every new or changed symbol has a test for
+   the positive path and one for the negative or edge path.
+5. **Changelog entry.** Present under the right package and subsection, in
+   the entry format, with a migration line for a breaking change.
+6. **Neutrality** of code, comments, tests, fixtures and docstrings.
+
+**The release reviewer's questions**, in order:
+
+1. **Versions and the pin.** Both versions equal the title and the changelog
+   heading; `testoperations` pins `testprotocols>=X.Y.Z,<X.(Y+1).0`.
+2. **Bump severity.** MINOR if the released section has a breaking entry in
+   either package, PATCH otherwise; never an empty section.
+3. **Breaking entries complete.** Old shape, new shape, migration line, and
+   *proposed as* where the merged path differs.
+4. **Every merged change has an entry.** Every merge since the last tag that
+   touched package source is cited; no entry cites an unmerged PR.
+5. **Cited proposals exist** on `main`.
+
+The response body:
+
+```markdown
+## Review response (testprotocols review team, YYYY-MM-DD) — code | release
+
+| Question | Answer | Reason |
+| --- | --- | --- |
+| 1. ... | met / met with conditions / not met | one line |
+
+### 1. ...
+...
+
+### Conditions
+- C1 (Q4): ...
+```
+
+The verdict is `approve` when every row is `met`, `approve with
+conditions` when none is `not met`, `request changes` otherwise.
+
 ## Rounds
 
 The contributor answers with an **Outcome** section (per item: decision,

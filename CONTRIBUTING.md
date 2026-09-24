@@ -142,12 +142,9 @@ maintainer change with `no proposal` and its rationale.
    three green before a review is requested.
 3. **Review requested.** A maintainer comments `/review`. The reviewer
    for the kind runs, posts one PR review, sets the `review` status on the
-   head commit. (The proposal reviewer is wired in: `proposal:`, `delta:` and
-   decision-file PRs are reviewed by the agent. For `feat:`, `fix:` and
-   `release:` PRs the maintainer still reads the PR against the same
-   criteria and records the reading in a comment until the code and
-   release reviewers land; a `/review` on those kinds is answered with a
-   `review` status of `error` naming that.)
+   head commit. (A PR that takes two reviewers — a `feat:` that also
+   touches a decision file — gets two reviews, and the worst verdict sets
+   the status.)
 4. **Rework.** Push fixups; a new head commit clears the status; a
    maintainer comments `/review` again once the gates are green. Fixup
    commits may stay; the merge commit groups the PR. No interactive
