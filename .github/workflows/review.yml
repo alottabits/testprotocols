@@ -117,12 +117,13 @@ jobs:
       - name: Dispatch to the runner
         env:
           GH_TOKEN: ${{ steps.app.outputs.token }}
+          KIND: ${{ steps.reviewers.outputs.kind }}
+          REVIEWERS: ${{ steps.reviewers.outputs.reviewers }}
         run: |
           set -euo pipefail
           jq -n --arg repo "$REPO" --argjson pr "$PR" --arg sha "$HEAD_SHA" \
-             --arg kind "${{ steps.reviewers.outputs.kind }}" \
-             --arg reviewers "${{ steps.reviewers.outputs.reviewers }}" \
+             --arg kind "$KIND" --arg reviewers "$REVIEWERS" \
              '{event_type: "review-requested",
                client_payload: {repo: $repo, pr: $pr, sha: $sha, kind: $kind, reviewers: $reviewers}}' \
           | gh api -X POST "repos/$RUNNER_REPO/dispatches" --input -
-          echo "dispatched pr=$PR sha=$HEAD_SHA kind=${{ steps.reviewers.outputs.kind }} reviewers=${{ steps.reviewers.outputs.reviewers }}"
+          echo "dispatched pr=$PR sha=$HEAD_SHA kind=$KIND reviewers=$REVIEWERS"
