@@ -120,6 +120,10 @@ The title's prefix names the kind; `hygiene` rejects a title without one.
 | `docs:`, `chore:`, `ci:`, `test:` | nothing under `packages/*/src/` and none of the decision files | hygiene only | hygiene green |
 | `release: X.Y.Z` | the version bump | release reviewer | verdict `approve` |
 
+On a `release:` PR the `review` check enforces that merge condition
+directly: `approve with conditions` sets `review` to failure, so
+conditions are fixed before the release merges.
+
 **Decision files override the prefix.** `docs/architecture/*.md`,
 `packages/testprotocols/GAPS.md`, `SPLITS.md` and `LEVELS.md` are the
 recorded decisions reviews are answered against. A PR that touches any of
@@ -281,7 +285,9 @@ commits only; rules enforced for admins.
 `review` is accepted from any app, because `hygiene` (GitHub Actions)
 and the review App both set it; before merging, the maintainer checks
 that the `review` status was set by `testprotocols-review[bot]` or
-`github-actions[bot]` and by no other account.
+`github-actions[bot]` and by no other account. A reviewer's verdict
+counts toward that status only when its review was posted on the PR;
+otherwise the run errors rather than guessing a verdict.
 
 Overriding a verdict: the maintainer records the finding and the reason
 in a PR comment, applies the `review-overridden` label, lifts the

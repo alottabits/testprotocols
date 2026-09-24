@@ -179,7 +179,9 @@ The response body:
 ```
 
 The verdict is `approve` when every row is `met`, `approve with
-conditions` when none is `not met`, `request changes` otherwise.
+conditions` when none is `not met`, `request changes` otherwise. On a
+`release:` PR only `approve` passes the `review` check; `approve with
+conditions` sets it to failure.
 
 ## Rounds
 
