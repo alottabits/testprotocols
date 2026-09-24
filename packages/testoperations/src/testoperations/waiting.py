@@ -117,6 +117,15 @@ class ReachabilityAwait:
     poll_interval_s: float
     not_converged_at_s: float | None
 
+    @property
+    def retried(self) -> bool:
+        """Whether more than one poll was needed.
+
+        Pure loop mechanics derived from ``polls`` — it says nothing about
+        whether the wait matched *want*, only how many rounds the loop ran.
+        """
+        return self.polls > 1
+
 
 def _await_reading(
     read: Callable[[], bool],

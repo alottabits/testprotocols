@@ -250,3 +250,38 @@ def test_await_reachability_probe_exceptions_propagate() -> None:
             sleep=clock.sleep,
             monotonic=clock.monotonic,
         )
+
+
+# --- ReachabilityAwait.retried -----------------------------------------------
+
+
+def test_retried_false_after_a_single_poll() -> None:
+    clock = FakeClock()
+    result = await_reachability(
+        _icmp_probe(True),
+        "icmp",
+        "10.0.0.9",
+        want=True,
+        budget_s=60.0,
+        interval_s=8.0,
+        sleep=clock.sleep,
+        monotonic=clock.monotonic,
+    )
+    assert result.polls == 1
+    assert result.retried is False
+
+
+def test_retried_true_after_several_polls() -> None:
+    clock = FakeClock()
+    result = await_reachability(
+        _icmp_probe([True, True, False]),
+        "icmp",
+        "10.0.0.9",
+        want=False,
+        budget_s=60.0,
+        interval_s=8.0,
+        sleep=clock.sleep,
+        monotonic=clock.monotonic,
+    )
+    assert result.polls == 3
+    assert result.retried is True

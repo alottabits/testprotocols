@@ -765,3 +765,11 @@ namespace publishes its in-namespace name); empty when it has no test leg.
   entry); the release commit body carries this migration line for external
   driver authors: *implement `test_interface` on every `NetworkAttachment`
   view before bumping the pin.*
+
+---
+
+## 2026-09-24 — review-posted check placeholder
+
+This entry is a placeholder so this PR takes both the code and the
+proposal reviewer, verifying the review-posted check. It carries no
+decision and is removed with the PR.
