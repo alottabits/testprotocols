@@ -117,6 +117,11 @@ class ReachabilityAwait:
     poll_interval_s: float
     not_converged_at_s: float | None
 
+    @property
+    def converged(self) -> bool:
+        """True when the wanted reading arrived within the budget."""
+        return self.not_converged_at_s is None
+
 
 def _await_reading(
     read: Callable[[], bool],
