@@ -118,9 +118,15 @@ class ReachabilityAwait:
     not_converged_at_s: float | None
 
     @property
-    def converged(self) -> bool:
-        """True when the wanted reading arrived within the budget."""
-        return self.not_converged_at_s is None
+    def retried(self) -> bool:
+        """True when more than one poll was needed to finish waiting.
+
+        Pure loop mechanics: a single poll happens both when the first
+        reading already matched *want* and when the budget expired before a
+        second poll could run, so this says nothing about whether the wait
+        ever matched — that verdict stays on :func:`wait_for_reachability`.
+        """
+        return self.polls > 1
 
 
 def _await_reading(

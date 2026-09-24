@@ -252,9 +252,9 @@ def test_await_reachability_probe_exceptions_propagate() -> None:
         )
 
 
-def test_reachability_await_converged_when_the_loop_finished_in_budget() -> None:
-    assert ReachabilityAwait(True, 1.0, 2, 0.5, None).converged is True
+def test_reachability_await_not_retried_when_a_single_poll_finished_it() -> None:
+    assert ReachabilityAwait(True, 1.0, 1, 0.5, None).retried is False
 
 
-def test_reachability_await_not_converged_when_the_budget_expired() -> None:
-    assert ReachabilityAwait(False, 3.0, 6, 0.5, 3.0).converged is False
+def test_reachability_await_retried_when_more_than_one_poll_was_needed() -> None:
+    assert ReachabilityAwait(False, 3.0, 6, 0.5, 3.0).retried is True
