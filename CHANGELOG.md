@@ -24,4 +24,4 @@ release commits and PR pages; a backfill is planned.
 
 - **model member** `testoperations.waiting:ReachabilityAwait.retried` —
   read-only property, `polls > 1`; pure loop mechanics, says nothing about
-  whether the wait matched. no proposal; PR #TBD.
+  whether the wait matched. no proposal; PR #48.
