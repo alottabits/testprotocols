@@ -723,6 +723,15 @@ model does not prescribe raising.
 
 ---
 
+## 2026-09-24 — `ReachabilityAwait.retried` (rollout step 3 test A placeholder)
+
+A derived member added on an existing result model; records nothing that a
+driver author must act on. Placeholder entry so this PR takes both the code
+and the proposal reviewer; removed with the PR.
+
+
+---
+
 ## 2026-09-04 — `test_interface` added to `NetworkAttachment` (the name of the test leg)
 
 **Signal:** Two consumer archetypes' step layers reconstruct the test-leg
