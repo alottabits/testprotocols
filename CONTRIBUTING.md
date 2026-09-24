@@ -150,9 +150,10 @@ maintainer change with `no proposal` and its rationale.
    commits may stay; the merge commit groups the PR. No interactive
    rebase is asked of you.
 5. **Go-ahead.** A maintainer reads the review and merges with a merge
-   commit. Merging over a `request changes` verdict needs a comment naming
-   the finding and the reason, and may carry the `review-overridden`
-   label.
+   commit. Merging over a `request changes` verdict follows the override
+   procedure under Branch protection on `main` below (finding and reason
+   recorded, `review-overridden` label, the requirement lifted for that one
+   merge).
 6. **Record.** For a proposal, the document. For code, the PR page, which
    the changelog entry cites by number.
 
@@ -272,10 +273,20 @@ coexist, and removed no earlier than the next MINOR.
 ## Branch protection on `main`
 
 Applied by a maintainer and recorded here so it can be re-applied:
-required checks `dco`, `lint`, `hygiene` (and `review` once the review
-team is required); strict up-to-date off; required approving reviews 0;
-push restricted to maintainers; conversation resolution required; force
-pushes and deletions off; merge commits only; rules enforced for admins.
+required checks `dco`, `lint`, `hygiene` and `review`; strict up-to-date
+off; required approving reviews 0; push restricted to maintainers;
+conversation resolution required; force pushes and deletions off; merge
+commits only; rules enforced for admins.
+
+`review` is accepted from any app, because `hygiene` (GitHub Actions)
+and the review App both set it; before merging, the maintainer checks
+that the `review` status was set by `testprotocols-review[bot]` or
+`github-actions[bot]` and by no other account.
+
+Overriding a verdict: the maintainer records the finding and the reason
+in a PR comment, applies the `review-overridden` label, lifts the
+`review` requirement for that one merge (a branch-protection edit),
+merges, and restores the requirement immediately after.
 
 ## Questions
 
