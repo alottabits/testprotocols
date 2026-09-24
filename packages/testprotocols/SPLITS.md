@@ -732,6 +732,7 @@ and the proposal reviewer; removed with the PR.
 
 ---
 
+
 ## 2026-09-04 — `test_interface` added to `NetworkAttachment` (the name of the test leg)
 
 **Signal:** Two consumer archetypes' step layers reconstruct the test-leg
