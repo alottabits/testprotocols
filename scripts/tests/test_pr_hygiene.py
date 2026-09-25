@@ -258,6 +258,28 @@ def test_release_versions_and_heading(tmp_path: Path) -> None:
     ]
 
 
+def test_release_reads_the_project_version_only(tmp_path: Path) -> None:
+    # A `version =` key outside [project] must not be taken for the package version.
+    changelog = (
+        "# Changelog\n\n## [Unreleased]\n\n## [0.13.0] — 2026-09-21\n\n### testprotocols\n\n"
+        "- **model** `testprotocols.models:X` — x. No proposal; PR #1.\n"
+    )
+    release_head(tmp_path, "0.13.0", "0.13.0", changelog)
+    write(
+        tmp_path,
+        "packages/testprotocols/pyproject.toml",
+        '[tool.other]\nversion = "9.9.9"\n\n'
+        '[project]\nname = "testprotocols"\nversion = "0.13.0"\n',
+    )
+    assert check_release(pr("release: 0.13.0", "CHANGELOG.md"), tmp_path) == []
+    write(
+        tmp_path, "packages/testoperations/pyproject.toml", '[project]\nname = "testoperations"\n'
+    )
+    assert check_release(pr("release: 0.13.0", "CHANGELOG.md"), tmp_path) == [
+        "packages/testoperations/pyproject.toml: cannot read a [project] version"
+    ]
+
+
 @pytest.mark.parametrize(
     ("released", "reason"),
     [
