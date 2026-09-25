@@ -123,10 +123,20 @@ their tags and PR history.
   `ReachabilityAwait` carrying what the probe actually read and the poll
   loop's bounds, never an echo of the expectation on budget expiry;
   `wait_for_reachability` is unchanged. No proposal; PR #25.
+- **model** `testoperations.waiting:ReachabilityAwait` — the probe's last
+  reading (`reachable`) plus the poll loop that found it: `elapsed_s`,
+  `polls`, `poll_interval_s`, `not_converged_at_s`. No proposal; PR #25.
 - **operation** `testoperations.segmentation:derive_decoy_target` — derive
   an inert deny target from a documentation range, with a fail-closed
   non-collision check against the caller's in-use CIDRs; returns a
   `DecoyDerivation`, assertion-free. No proposal; PR #25.
+- **model** `testoperations.segmentation:DecoyDerivation` — a derived
+  decoy deny-target (`subnet`, its first-host `host`) plus `collisions`,
+  the in-use CIDRs it overlaps; empty means safe. No proposal; PR #25.
+- **constant** `testoperations.segmentation:DECOY_RANGE` — the fixed
+  RFC 5737 TEST-NET-2 range (`198.51.100.0/24`) `derive_decoy_target`
+  derives its decoy target from; reserved for documentation, never
+  routable in a production overlay. No proposal; PR #25.
 
 ## [0.11.1] — 2026-08-22
 
@@ -161,6 +171,10 @@ their tags and PR history.
   capture window at a capture vantage, flows selected by `FlowSelector`
   (fail-loud at construction); on an encapsulated vantage the outer header
   wins. No proposal; PR #22.
+- **model** `testoperations.marking_observation:FlowSelector` — one
+  observed flow selected by on-wire address facts (`dst_host`,
+  `src_host`, `protocol`, `dst_port`); fail-loud at construction on an
+  inconsistent host or port/transport combination. No proposal; PR #22.
 
 ## [0.10.0] — 2026-08-11
 
@@ -227,12 +241,23 @@ their tags and PR history.
 - **operation** `testoperations.path_placement:count_signature_on_path` —
   count frames of one packet-size signature on a wire vantage.
   No proposal; PR #19.
+- **model** `testoperations.path_placement:SizeBand` — an inclusive
+  on-the-wire frame-length band (`min_bytes`, `max_bytes`) identifying one
+  stream by its packet-size signature. No proposal; PR #19.
 - **operation** `testoperations.path_placement:locate_streams_by_size` —
   locate each stream's path by its size signature, one shared window across
   paths. No proposal; PR #19.
 - **operation** `testoperations.path_placement:await_stream_on_path` — a
   caller-anchored bounded await returning a `ConvergenceRecord`; the budget
   verdict stays with the caller. No proposal; PR #19.
+- **model** `testoperations.path_placement:ConvergenceRecord` — the
+  recorded outcome of one bounded placement await: `elapsed_s`,
+  `converged`, and the full `samples` trace of `(elapsed_s, located_path)`
+  polls; facts only, no verdict. No proposal; PR #19.
 - **operation** `testoperations.iperf_client:sender_life_record` — parse a
   stopped sender's interval reports into a `SenderLifeRecord` (intervals,
   gaps, total bytes). No proposal; PR #19.
+- **model** `testoperations.iperf_client:SenderLifeRecord` — a stopped
+  sender's life parsed from its interval reports: `intervals`, `gaps`
+  (transmission holes), `total_bytes`; the end-of-run summary line is
+  excluded from all three. No proposal; PR #19.

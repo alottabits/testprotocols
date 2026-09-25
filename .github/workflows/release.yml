@@ -85,7 +85,10 @@ jobs:
     # After both publishes, so a Release never exists for a tag whose wheels
     # are not on PyPI. No environment: the two publish approvals already
     # gated this tag. A failure here leaves the wheels live; recover by fixing
-    # CHANGELOG.md on main and running the two commands below by hand.
+    # CHANGELOG.md on main, then from a main checkout:
+    #   python scripts/changelog_section.py X.Y.Z > notes.md
+    #   gh release create vX.Y.Z --verify-tag --title X.Y.Z \
+    #     --notes-file notes.md --generate-notes
     needs: [publish-testprotocols, publish-testoperations]
     permissions:
       contents: write

@@ -255,6 +255,10 @@ before the release updates the item's existing entry.
 symbol gets no entry (apply `skip-changelog` when that is the PR's only
 source change).
 
+Each entry is a `- ` bullet at the start of the line, continuation
+lines indented two spaces — the release checks count only those
+lines as entries.
+
 ## Releases
 
 Cut on demand by a maintainer when every promote item of the triggering
