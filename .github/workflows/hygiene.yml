@@ -1,10 +1,11 @@
 name: Hygiene
 
 # The deterministic gate of CONTRIBUTING.md ("The hygiene gate"): title
-# prefix, changelog presence, proposal / delta / release shape, GAPS
-# pointers, and the neutrality pattern scan. No agent runs here. A
-# maintainer may skip the neutrality scan for one PR with the
-# `neutrality-override` label, giving the reason as a PR comment.
+# prefix, changelog presence, proposal / delta / release shape (incl. a
+# publishable released section), GAPS pointers, and the neutrality pattern
+# scan. No agent runs here. A maintainer may skip the neutrality scan for
+# one PR with the `neutrality-override` label, giving the reason as a PR
+# comment.
 #
 # Runs on `pull_request_target`, not `pull_request`: a fork PR's
 # `pull_request` token is read-only and could not write the `review`

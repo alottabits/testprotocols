@@ -27,6 +27,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from changelog_section import SectionError, section
+
 KINDS = ("proposal", "delta", "feat", "fix", "docs", "chore", "ci", "test", "release")
 HYGIENE_ONLY_KINDS = frozenset({"docs", "chore", "ci", "test"})
 SOURCE_GLOB = "packages/*/src/*"
@@ -249,6 +251,13 @@ def check_release(pr: PullRequest, head_root: Path) -> list[str]:
         problems.append(
             f"{CHANGELOG}: no fresh `## [Unreleased]` heading above the release heading"
         )
+        return problems
+    # The same function release.yml runs at the tag: a section it would refuse
+    # to publish is refused here, before the wheels exist.
+    try:
+        section(changelog, version)
+    except SectionError as exc:
+        problems.append(f"{CHANGELOG}: released section {exc}")
     return problems
 
 
