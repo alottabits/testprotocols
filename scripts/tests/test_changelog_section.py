@@ -125,6 +125,9 @@ def test_version_problems(tmp_path: Path) -> None:
     assert version_problems(tmp_path, "0.13.0") == [
         "packages/testoperations/pyproject.toml: version is 0.12.1, tag says 0.13.0"
     ]
+    assert version_problems(tmp_path, "0.13.0", source="title") == [
+        "packages/testoperations/pyproject.toml: version is 0.12.1, title says 0.13.0"
+    ]
 
 
 def test_cli_prints_the_section(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:

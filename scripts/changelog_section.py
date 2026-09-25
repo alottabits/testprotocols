@@ -65,8 +65,12 @@ def section(text: str, version: str, *, allow_empty: bool = False) -> str:
     return body
 
 
-def version_problems(root: Path, version: str) -> list[str]:
-    """One line per package whose ``[project] version`` under *root* is not *version*."""
+def version_problems(root: Path, version: str, *, source: str = "tag") -> list[str]:
+    """One line per package whose ``[project] version`` under *root* is not *version*.
+
+    *source* names where *version* came from, for the message: the tag here,
+    the PR title in ``hygiene``.
+    """
     problems: list[str] = []
     for rel in VERSION_FILES:
         try:
@@ -75,7 +79,7 @@ def version_problems(root: Path, version: str) -> list[str]:
             problems.append(f"{rel}: cannot read a [project] version")
             continue
         if found != version:
-            problems.append(f"{rel}: version is {found}, tag says {version}")
+            problems.append(f"{rel}: version is {found}, {source} says {version}")
     return problems
 
 

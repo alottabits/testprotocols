@@ -27,7 +27,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from changelog_section import SectionError, section
+from changelog_section import VERSION_FILES, SectionError, section, version_problems
 
 KINDS = ("proposal", "delta", "feat", "fix", "docs", "chore", "ci", "test", "release")
 HYGIENE_ONLY_KINDS = frozenset({"docs", "chore", "ci", "test"})
@@ -117,16 +117,11 @@ def check_changelog(pr: PullRequest) -> list[str]:
 
 
 PROPOSAL_DIR = "docs/proposals/"
-VERSION_FILES = (
-    "packages/testprotocols/pyproject.toml",
-    "packages/testoperations/pyproject.toml",
-)
 GAPS = "packages/testprotocols/GAPS.md"
 HEADER_ROWS = ("Date", "Use case", "Round", "Status")
 
 _PROPOSAL_NAME = re.compile(r"^\d{4}-\d{2}-\d{2}-[a-z0-9]+(?:-[a-z0-9]+)*\.md$")
 _RELEASE_TITLE = re.compile(r"^release: (\d+\.\d+\.\d+)$")
-_VERSION_FIELD = re.compile(r'^version = "([^"]+)"', re.MULTILINE)
 _P1_BLOCK = re.compile(r"^### P1\b", re.MULTILINE)
 _OUTCOME_SECTION = re.compile(
     r"^#+ [^\n]*Outcome[^\n]*\n(.*?)(?=^#+ |\Z)", re.MULTILINE | re.DOTALL
@@ -228,14 +223,8 @@ def check_release(pr: PullRequest, head_root: Path) -> list[str]:
     if match is None:
         return [f"release: title must be `release: X.Y.Z`: {pr.title!r}"]
     version = match.group(1)
-    problems: list[str] = []
-    for rel in VERSION_FILES:
-        body = _read_head(head_root, rel)
-        found = None if body is None else _VERSION_FIELD.search(body)
-        if found is None:
-            problems.append(f"{rel}: could not read a version field from the PR head")
-        elif found.group(1) != version:
-            problems.append(f"{rel}: version is {found.group(1)}, title says {version}")
+    # The same reader release.yml uses at the tag.
+    problems = version_problems(head_root, version, source="title")
     changelog = _read_head(head_root, CHANGELOG)
     if changelog is None:
         problems.append(f"{CHANGELOG}: could not read the file from the PR head")
