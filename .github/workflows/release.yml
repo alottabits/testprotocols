@@ -14,8 +14,11 @@ name: Release
 # `uv publish` mints a short-lived OIDC token automatically when it detects it is
 # running in GitHub Actions with `id-token: write`.
 #
-# `testoperations` depends on `testprotocols>=0.1.0`, so its job `needs` the
-# testprotocols job and runs after it.
+# The release PR pins `testoperations` on `testprotocols>=X.Y.Z,<X.(Y+1).0`
+# (CONTRIBUTING.md, "Versioning"), so its job `needs` the testprotocols job
+# and runs after it. A third job, `github-release`, runs after both
+# publishes and creates the GitHub Release from the version's CHANGELOG.md
+# section; it is the only job that may write to the repository.
 
 on:
   push:
@@ -44,8 +47,8 @@ jobs:
         uses: astral-sh/setup-uv@v7
 
       # `uv build --package` strips the local `[tool.uv.sources]` workspace
-      # override from published metadata, leaving the real
-      # `testprotocols>=0.1.0` dependency on `testoperations`.
+      # override from published metadata, leaving the real `testprotocols`
+      # pin on `testoperations`.
       - name: Build testprotocols
         run: uv build --package testprotocols --out-dir dist/testprotocols
 
@@ -56,7 +59,7 @@ jobs:
 
   publish-testoperations:
     runs-on: ubuntu-latest
-    # Runs after testprotocols so the dependency (`testprotocols>=0.1.0`) is on
+    # Runs after testprotocols so the version `testoperations` pins is on
     # PyPI first.
     needs: publish-testprotocols
     # Distinct environment -> distinct (owner, repo, workflow, environment)
@@ -76,3 +79,34 @@ jobs:
 
       - name: Publish testoperations
         run: uv publish dist/testoperations/*
+
+  github-release:
+    runs-on: ubuntu-latest
+    # After both publishes, so a Release never exists for a tag whose wheels
+    # are not on PyPI. No environment: the two publish approvals already
+    # gated this tag. A failure here leaves the wheels live; recover by fixing
+    # CHANGELOG.md on main and running the two commands below by hand.
+    needs: [publish-testprotocols, publish-testoperations]
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # The same section() hygiene ran on the release PR; --check-versions
+      # also requires both pyproject versions to equal the tag.
+      - name: Extract the release notes
+        run: python scripts/changelog_section.py "${GITHUB_REF_NAME#v}" --check-versions > notes.md
+
+      # --generate-notes appends GitHub's PR and contributor list below the
+      # hand-written section; --title keeps the plain version.
+      - name: Create the GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --verify-tag \
+            --title "${GITHUB_REF_NAME#v}" --notes-file notes.md --generate-notes
