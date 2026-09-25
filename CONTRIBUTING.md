@@ -178,7 +178,9 @@ maintainer change with `no proposal` and its rationale.
   implements;
 - a `release:` PR sets both version fields to the title's version and
   renames the `[Unreleased]` heading to it, with a fresh `[Unreleased]`
-  above;
+  above; the released section has at least one entry, no
+  `- no entries yet`, and is not `- no API change (version bump only)`
+  for both packages;
 - on `proposal:` and `release:` PRs, every merged proposal whose Outcome
   has a keep-local or declined item has a pointer in
   `packages/testprotocols/GAPS.md`;
@@ -249,6 +251,14 @@ number; a *proposed as* field naming the old symbol path, only when the
 maintainer reshaped the item at the PR. A `delta:` that changes a contract
 before the release updates the item's existing entry.
 
+*Changed* lists public symbols only; a change to an underscore-prefixed
+symbol gets no entry (apply `skip-changelog` when that is the PR's only
+source change).
+
+Each entry is a `- ` bullet at the start of the line, continuation
+lines indented two spaces — the release checks count only those
+lines as entries.
+
 ## Releases
 
 Cut on demand by a maintainer when every promote item of the triggering
@@ -259,13 +269,16 @@ exception; a change that must wait stays unmerged.
 
 1. Branch `release/X.Y.Z` from `main`; bump both version fields and the
    `testoperations` pin on `testprotocols`; rename `## [Unreleased]` to
-   `## [X.Y.Z] — YYYY-MM-DD` and add a fresh empty `[Unreleased]` above;
-   commit `release: X.Y.Z`, signed off.
+   `## [X.Y.Z] — YYYY-MM-DD`, replace a package's `- no entries yet` with
+   `- no API change (version bump only)`, and add a fresh empty
+   `[Unreleased]` above; commit `release: X.Y.Z`, signed off.
 2. Open the PR `release: X.Y.Z`; `hygiene` checks the mechanics;
    `/review` runs the release reviewer.
 3. Merge. The merge commit is the release commit.
 4. Tag it `vX.Y.Z` (annotated, message `Release X.Y.Z`) and push the tag;
-   `release.yml` publishes both packages behind the environment approvals.
+   `release.yml` publishes both packages behind the environment approvals,
+   then creates the GitHub Release from the version's changelog section,
+   the same section `hygiene` checked on the release PR.
 
 A tag is never moved or deleted. A broken release is yanked on PyPI and
 followed by a PATCH; the yank is noted in the changelog section. Fixes

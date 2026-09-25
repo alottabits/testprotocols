@@ -229,7 +229,11 @@ def release_head(root: Path, tp: str, to: str, changelog: str) -> None:
 
 
 def test_release_versions_and_heading(tmp_path: Path) -> None:
-    good = "# Changelog\n\n## [Unreleased]\n\n## [0.13.0] — 2026-09-21\n\n### testprotocols\n"
+    good = (
+        "# Changelog\n\n## [Unreleased]\n\n## [0.13.0] — 2026-09-21\n\n### testprotocols\n\n"
+        "- **operation** `testoperations.homing:set_subnet_advertised` — "
+        "flip. No proposal; PR #1.\n"
+    )
     release_head(tmp_path, "0.13.0", "0.13.0", good)
     assert check_release(pr("release: 0.13.0", "CHANGELOG.md"), tmp_path) == []
 
@@ -251,6 +255,38 @@ def test_release_versions_and_heading(tmp_path: Path) -> None:
     release_head(tmp_path, "0.13.0", "0.13.0", "# Changelog\n\n## [0.13.0] — 2026-09-21\n")
     assert check_release(pr("release: 0.13.0", "CHANGELOG.md"), tmp_path) == [
         "CHANGELOG.md: no fresh `## [Unreleased]` heading above the release heading"
+    ]
+
+
+@pytest.mark.parametrize(
+    ("released", "reason"),
+    [
+        ("### testprotocols\n\n#### Added\n", "is empty"),
+        ("### testprotocols\n\n- no entries yet\n", "still contains `- no entries yet`"),
+        (
+            "### testprotocols\n\n- no API change (version bump only)\n\n"
+            "### testoperations\n\n- no API change (version bump only)\n",
+            "has no entry beyond `- no API change (version bump only)`",
+        ),
+    ],
+)
+def test_release_section_must_publish(tmp_path: Path, released: str, reason: str) -> None:
+    changelog = f"# Changelog\n\n## [Unreleased]\n\n## [0.13.0] — 2026-09-21\n\n{released}"
+    release_head(tmp_path, "0.13.0", "0.13.0", changelog)
+    assert check_release(pr("release: 0.13.0", "CHANGELOG.md"), tmp_path) == [
+        f"CHANGELOG.md: released section {reason}"
+    ]
+
+
+def test_release_section_duplicate_heading(tmp_path: Path) -> None:
+    entry = "### testprotocols\n\n- **model** `testprotocols.models:X` — x. No proposal; PR #1.\n\n"
+    changelog = (
+        "# Changelog\n\n## [Unreleased]\n\n"
+        f"## [0.13.0] — 2026-09-21\n\n{entry}## [0.13.0] — 2026-09-21\n\n{entry}"
+    )
+    release_head(tmp_path, "0.13.0", "0.13.0", changelog)
+    assert check_release(pr("release: 0.13.0", "CHANGELOG.md"), tmp_path) == [
+        "CHANGELOG.md: released section heading `## [0.13.0]` appears 2 times"
     ]
 
 
