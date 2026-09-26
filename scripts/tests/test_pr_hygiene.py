@@ -801,3 +801,21 @@ def test_archetype_title_and_head_paths(tmp_path: Path) -> None:
         DESIGN,
         "packages/testprotocols/GAPS.md",
     ]
+
+
+def test_run_checks_applies_the_archetype_rules(tmp_path: Path) -> None:
+    main_root = tmp_path / "main"
+    head_root = tmp_path / "head"
+    gaps_main(main_root, "- P1: accepted", "# Log\n")
+    write(main_root, "MAINTAINERS.md", MAINTAINERS)
+    write(head_root, DESIGN, CHARTER_DOC)
+    good = PullRequest(
+        "charter: managed-router", frozenset(), (FileChange(DESIGN, "added"),), "rjvisser"
+    )
+    assert run_checks(good, main_root, head_root) == Result([], False)
+    outsider = PullRequest(
+        "charter: managed-router", frozenset(), (FileChange(DESIGN, "added"),), "someone"
+    )
+    result = run_checks(outsider, main_root, head_root)
+    assert len(result.problems) == 1
+    assert "is not listed" in result.problems[0]
