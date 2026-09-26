@@ -10,10 +10,13 @@ from pr_hygiene import (
     FileChange,
     PullRequest,
     Result,
+    check_archetype,
     check_changelog,
+    check_charter,
     check_delta,
     check_gaps_pointers,
     check_kind_scope,
+    check_maintainer_opened,
     check_proposal,
     check_proposal_dir,
     check_release,
@@ -26,11 +29,13 @@ from pr_hygiene import (
     parse_kind,
     reviewers_for,
     run_checks,
+    title_slug,
 )
 
 SRC = "packages/testprotocols/src/testprotocols/bgp.py"
 OPS_SRC = "packages/testoperations/src/testoperations/homing.py"
 TEST = "packages/testprotocols/tests/test_bgp.py"
+DESIGN = "docs/architecture/managed-router-protocol-design.md"
 
 
 def pr(
@@ -52,6 +57,9 @@ def pr(
         ("ci: pin actions", "ci"),
         ("test: cover both outcomes", "test"),
         ("release: 0.13.0", "release"),
+        ("charter: managed-router", "charter"),
+        ("archetype: managed-router", "archetype"),
+        ("archetype!: managed-router", None),
         ("Feat: capitalised", None),
         ("feat(homing): scoped form is not recognised", None),
         ("feat:missing space", None),
@@ -492,6 +500,14 @@ def test_cli(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
         ("docs: x", ("README.md",), []),
         ("chore: x", ("packages/testprotocols/GAPS.md",), ["proposal"]),
         ("no prefix", (SRC,), []),
+        ("charter: managed-router", (DESIGN,), ["archetype"]),
+        ("archetype: managed-router", (DESIGN,), ["archetype"]),
+        ("archetype: managed-router", (DESIGN, SRC, "CHANGELOG.md"), ["code", "archetype"]),
+        (
+            "archetype: managed-router",
+            (DESIGN, SRC, "packages/testprotocols/SPLITS.md"),
+            ["code", "archetype"],
+        ),
     ],
 )
 def test_reviewers_for(title: str, paths: tuple[str, ...], expected: list[str]) -> None:
@@ -516,3 +532,315 @@ def test_reviewers_cli(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> No
     files_json.write_text(json.dumps([{"filename": "README.md", "status": "modified"}]))
     assert main(["reviewers", "--pr", str(pr_json), "--files", str(files_json)]) == 0
     assert capsys.readouterr().out == "\n"
+
+
+def test_load_pull_request_reads_the_author(tmp_path: Path) -> None:
+    pr_json = tmp_path / "pr.json"
+    files_json = tmp_path / "files.json"
+    pr_json.write_text(
+        json.dumps({"title": "charter: x", "labels": [], "user": {"login": "RJVisser"}})
+    )
+    files_json.write_text("[]")
+    assert load_pull_request(pr_json, files_json).author == "RJVisser"
+    pr_json.write_text(json.dumps({"title": "charter: x", "labels": []}))
+    assert load_pull_request(pr_json, files_json).author == ""
+
+
+MAINTAINERS = """\
+# Maintainers
+
+~~~text
+- @handle — <scope>
+~~~
+
+## Maintainers
+
+- @rjvisser — everything (`*`)
+"""
+
+CHARTER_DOC = """\
+# Design: vendor-neutral **managed router** archetype
+
+| Field | Value |
+| --- | --- |
+| Status | chartered |
+| Author | a maintainer |
+
+## 1. Charter
+
+The class, defined by the operations its management planes publish.
+
+## Review record
+
+- none yet
+"""
+
+
+def charter_pr(*files: FileChange, title: str = "charter: managed-router") -> PullRequest:
+    return PullRequest(title, frozenset(), files, author="rjvisser")
+
+
+def test_title_slug() -> None:
+    assert title_slug(pr("charter: managed-router", DESIGN)) == "managed-router"
+    assert title_slug(pr("archetype: wifi-ap", DESIGN)) == "wifi-ap"
+    assert title_slug(pr("charter: Managed Router", DESIGN)) is None
+    assert title_slug(pr("archetype: managed_router", DESIGN)) is None
+    assert title_slug(pr("feat: x: y", SRC)) is None
+
+
+def test_archetype_kinds_are_maintainer_opened(tmp_path: Path) -> None:
+    write(tmp_path, "MAINTAINERS.md", MAINTAINERS)
+    ok = PullRequest("charter: managed-router", frozenset(), (), author="RJVisser")
+    assert check_maintainer_opened(ok, tmp_path) == []
+    outsider = PullRequest("archetype: managed-router", frozenset(), (), author="someone")
+    assert check_maintainer_opened(outsider, tmp_path) == [
+        "a `archetype:` PR is opened by a maintainer listed in MAINTAINERS.md; "
+        "@someone is not listed (a consumer requests an archetype with the "
+        "archetype-request issue template)"
+    ]
+    handle = PullRequest("charter: x", frozenset(), (), author="handle")
+    assert check_maintainer_opened(handle, tmp_path) != []  # the fenced example is not a listing
+    assert check_maintainer_opened(pr("feat: x: y", SRC), tmp_path) == []
+
+
+def test_charter_adds_exactly_its_design_document(tmp_path: Path) -> None:
+    write(tmp_path, DESIGN, CHARTER_DOC)
+    assert check_charter(charter_pr(FileChange(DESIGN, "added")), tmp_path) == []
+    rule = f"a charter: PR adds exactly {DESIGN} and touches nothing else; changed: "
+    assert check_charter(charter_pr(FileChange(DESIGN, "modified")), tmp_path) == [
+        rule + f"{DESIGN} (modified)"
+    ]
+    assert check_charter(
+        charter_pr(FileChange(DESIGN, "added"), FileChange("README.md", "modified")), tmp_path
+    ) == [rule + f"{DESIGN} (added), README.md (modified)"]
+    other = "docs/architecture/router-protocol-design.md"
+    assert check_charter(charter_pr(FileChange(other, "added")), tmp_path) == [
+        rule + f"{other} (added)"
+    ]
+    assert check_charter(charter_pr(), tmp_path) == [rule + "nothing"]
+
+
+def test_charter_title_needs_a_slug(tmp_path: Path) -> None:
+    assert check_charter(
+        charter_pr(FileChange(DESIGN, "added"), title="charter: Managed Router"), tmp_path
+    ) == [
+        "charter: title must be `charter: <slug>`, lowercase words joined by hyphens: "
+        "'charter: Managed Router'"
+    ]
+    assert head_paths(charter_pr(FileChange(DESIGN, "added"), title="charter: ../x")) == []
+
+
+def test_charter_document_is_chartered_and_holds_only_the_charter(tmp_path: Path) -> None:
+    write(tmp_path, DESIGN, CHARTER_DOC.replace("| chartered |", "| `Chartered` |"))
+    assert check_charter(charter_pr(FileChange(DESIGN, "added")), tmp_path) == []
+    write(tmp_path, DESIGN, CHARTER_DOC.replace("| chartered |", "| verified |"))
+    assert check_charter(charter_pr(FileChange(DESIGN, "added")), tmp_path) == [
+        f"{DESIGN}: Status is 'verified'; a charter enters as `chartered`"
+    ]
+    write(tmp_path, DESIGN, CHARTER_DOC.replace("| Status | chartered |\n", ""))
+    assert check_charter(charter_pr(FileChange(DESIGN, "added")), tmp_path) == [
+        f"{DESIGN}: header table has no Status row"
+    ]
+    write(tmp_path, DESIGN, CHARTER_DOC + "\n## 2. Cross-family matrix\n")
+    assert check_charter(charter_pr(FileChange(DESIGN, "added")), tmp_path) == [
+        f"{DESIGN}: a charter holds only `## 1. Charter` (and an unnumbered "
+        "`## Review record`); found: 1. Charter, 2. Cross-family matrix"
+    ]
+    write(tmp_path, DESIGN, CHARTER_DOC.replace("## 1. Charter", "## Charter"))
+    assert check_charter(charter_pr(FileChange(DESIGN, "added")), tmp_path) == [
+        f"{DESIGN}: a charter holds only `## 1. Charter` (and an unnumbered "
+        "`## Review record`); found: no numbered section"
+    ]
+
+
+def test_charter_document_missing_from_head(tmp_path: Path) -> None:
+    assert check_charter(charter_pr(FileChange(DESIGN, "added")), tmp_path) == [
+        f"{DESIGN}: could not read the file from the PR head"
+    ]
+
+
+def test_charter_head_paths() -> None:
+    assert head_paths(charter_pr(FileChange(DESIGN, "added"))) == [DESIGN]
+
+
+def design_doc(status: str, *, manifest: str = "") -> str:
+    body = CHARTER_DOC.replace("| chartered |", f"| {status} |")
+    body = body.replace("## Review record", "## 2. Cross-family matrix\n\n...\n\n## Review record")
+    if manifest:
+        body = body.replace(
+            "## Review record",
+            "## 12. Landing manifest\n\n| Id | Kind | Symbol | Placement | Breaking | Outcome |\n"
+            f"| --- | --- | --- | --- | --- | --- |\n{manifest}\n## Review record",
+        )
+    return body
+
+
+CORE_ROW = "| M1 | new field | `m:X.enabled` | core | no | accepted |\n"
+TIER_ROW = "| M2 | new tier | `m:V` | tier-staged — 2nd consumer | no | accepted |\n"
+
+
+def archetype_pr(*files: FileChange) -> PullRequest:
+    return PullRequest("archetype: managed-router", frozenset(), files, author="rjvisser")
+
+
+def roots(tmp_path: Path, main_doc: str | None, head_doc: str | None) -> tuple[Path, Path]:
+    main_root, head_root = tmp_path / "main", tmp_path / "head"
+    main_root.mkdir(parents=True)
+    head_root.mkdir(parents=True)
+    if main_doc is not None:
+        write(main_root, DESIGN, main_doc)
+    if head_doc is not None:
+        write(head_root, DESIGN, head_doc)
+    return main_root, head_root
+
+
+def test_archetype_design_stage_is_clean(tmp_path: Path) -> None:
+    main_root, head_root = roots(tmp_path, CHARTER_DOC, design_doc("chartered"))
+    assert check_archetype(archetype_pr(FileChange(DESIGN, "modified")), main_root, head_root) == []
+    main_root2, head_root2 = roots(
+        tmp_path / "b", CHARTER_DOC, design_doc("accepted for verification")
+    )
+    assert (
+        check_archetype(archetype_pr(FileChange(DESIGN, "modified")), main_root2, head_root2) == []
+    )
+
+
+def test_archetype_needs_its_chartered_document_on_main(tmp_path: Path) -> None:
+    main_root, head_root = roots(tmp_path, None, design_doc("chartered"))
+    assert check_archetype(archetype_pr(FileChange(DESIGN, "added")), main_root, head_root) == [
+        f"an archetype: PR modifies {DESIGN}, which a merged charter added",
+        f"{DESIGN} is not on main; merge its `charter:` PR first",
+    ]
+
+
+def test_archetype_rejects_a_renamed_or_second_design_document(tmp_path: Path) -> None:
+    main_root, head_root = roots(tmp_path, CHARTER_DOC, design_doc("chartered"))
+    other = "docs/architecture/router-protocol-design.md"
+    assert check_archetype(
+        archetype_pr(FileChange(DESIGN, "modified"), FileChange(other, "added")),
+        main_root,
+        head_root,
+    ) == [
+        "an archetype: PR changes only its design document, existing architecture documents "
+        "it updates, package source and tests, CHANGELOG.md and the tracking files; "
+        f"also changed: {other}"
+    ]
+    assert check_archetype(archetype_pr(FileChange(DESIGN, "renamed")), main_root, head_root) == [
+        f"an archetype: PR modifies {DESIGN}, which a merged charter added"
+    ]
+
+
+def test_archetype_may_update_sibling_architecture_documents(tmp_path: Path) -> None:
+    # A rename of a reused capability updates the design records that name it.
+    main_root, head_root = roots(tmp_path, CHARTER_DOC, design_doc("chartered"))
+    sibling = "docs/architecture/sdwan-appliance-protocol-design.md"
+    nested = "docs/architecture/notes/x.md"
+    assert (
+        check_archetype(
+            archetype_pr(FileChange(DESIGN, "modified"), FileChange(sibling, "modified")),
+            main_root,
+            head_root,
+        )
+        == []
+    )
+    assert check_archetype(
+        archetype_pr(FileChange(DESIGN, "modified"), FileChange(nested, "modified")),
+        main_root,
+        head_root,
+    ) == [
+        "an archetype: PR changes only its design document, existing architecture documents "
+        "it updates, package source and tests, CHANGELOG.md and the tracking files; "
+        f"also changed: {nested}"
+    ]
+
+
+def test_archetype_allows_code_tests_changelog_and_tracking_files(tmp_path: Path) -> None:
+    head = design_doc("accepted for verification", manifest=CORE_ROW)
+    main_root, head_root = roots(tmp_path, CHARTER_DOC, head)
+    files = (
+        FileChange(DESIGN, "modified"),
+        FileChange(SRC, "modified"),
+        FileChange(TEST, "added"),
+        FileChange("CHANGELOG.md", "modified"),
+        FileChange("packages/testprotocols/SPLITS.md", "modified"),
+        FileChange("packages/testprotocols/LEVELS.md", "modified"),
+        FileChange("packages/testprotocols/GAPS.md", "modified"),
+    )
+    assert check_archetype(archetype_pr(*files), main_root, head_root) == []
+
+
+def test_archetype_status_values_and_direction(tmp_path: Path) -> None:
+    main_root, head_root = roots(tmp_path, CHARTER_DOC, design_doc("proposed"))
+    assert check_archetype(archetype_pr(FileChange(DESIGN, "modified")), main_root, head_root) == [
+        f"{DESIGN}: Status must be one of chartered, accepted for verification, verified; "
+        "found 'proposed'"
+    ]
+    main_root2, head_root2 = roots(
+        tmp_path / "b", design_doc("accepted for verification"), design_doc("chartered")
+    )
+    assert check_archetype(
+        archetype_pr(FileChange(DESIGN, "modified")), main_root2, head_root2
+    ) == [f"{DESIGN}: Status moves backwards: accepted for verification on main, chartered here"]
+
+
+def test_archetype_source_needs_acceptance_and_a_manifest(tmp_path: Path) -> None:
+    main_root, head_root = roots(tmp_path, CHARTER_DOC, design_doc("chartered"))
+    files = (FileChange(DESIGN, "modified"), FileChange(SRC, "modified"))
+    assert check_archetype(archetype_pr(*files), main_root, head_root) == [
+        f"{DESIGN}: package source arrives at stage 4; the design review sets Status to "
+        "`accepted for verification` first",
+        f"{DESIGN}: package source is present but there is no `## 12. Landing manifest` section",
+    ]
+
+
+def test_archetype_verified_needs_gaps_pointers_for_tier_rows(tmp_path: Path) -> None:
+    head = design_doc("verified", manifest=CORE_ROW + TIER_ROW)
+    main_root, head_root = roots(tmp_path, design_doc("accepted for verification"), head)
+    files = (FileChange(DESIGN, "modified"), FileChange(SRC, "modified"))
+    assert check_archetype(archetype_pr(*files), main_root, head_root) == [
+        "packages/testprotocols/GAPS.md: could not read the file from the PR head"
+    ]
+    write(head_root, "packages/testprotocols/GAPS.md", "# Log\n")
+    assert check_archetype(archetype_pr(*files), main_root, head_root) == [
+        f"packages/testprotocols/GAPS.md has no pointer to {DESIGN} (tier-staged rows: M2)"
+    ]
+    write(head_root, "packages/testprotocols/GAPS.md", f"# Log\n\nSee {DESIGN} M2.\n")
+    assert check_archetype(archetype_pr(*files), main_root, head_root) == []
+
+
+def test_archetype_head_document_missing(tmp_path: Path) -> None:
+    main_root, head_root = roots(tmp_path, CHARTER_DOC, None)
+    assert check_archetype(archetype_pr(FileChange(DESIGN, "modified")), main_root, head_root) == [
+        f"{DESIGN}: could not read the file from the PR head"
+    ]
+
+
+def test_archetype_title_and_head_paths(tmp_path: Path) -> None:
+    bad = PullRequest("archetype: managed_router", frozenset(), (FileChange(DESIGN, "modified"),))
+    assert check_archetype(bad, tmp_path, tmp_path) == [
+        "archetype: title must be `archetype: <slug>`, lowercase words joined by hyphens: "
+        "'archetype: managed_router'"
+    ]
+    assert head_paths(bad) == []
+    assert head_paths(archetype_pr(FileChange(DESIGN, "modified"))) == [
+        DESIGN,
+        "packages/testprotocols/GAPS.md",
+    ]
+
+
+def test_run_checks_applies_the_archetype_rules(tmp_path: Path) -> None:
+    main_root = tmp_path / "main"
+    head_root = tmp_path / "head"
+    gaps_main(main_root, "- P1: accepted", "# Log\n")
+    write(main_root, "MAINTAINERS.md", MAINTAINERS)
+    write(head_root, DESIGN, CHARTER_DOC)
+    good = PullRequest(
+        "charter: managed-router", frozenset(), (FileChange(DESIGN, "added"),), "rjvisser"
+    )
+    assert run_checks(good, main_root, head_root) == Result([], False)
+    outsider = PullRequest(
+        "charter: managed-router", frozenset(), (FileChange(DESIGN, "added"),), "someone"
+    )
+    result = run_checks(outsider, main_root, head_root)
+    assert len(result.problems) == 1
+    assert "is not listed" in result.problems[0]

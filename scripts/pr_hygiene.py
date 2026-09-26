@@ -25,12 +25,37 @@ import re
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from changelog_section import VERSION_FILES, SectionError, section, version_problems
+from design_doc import (
+    ARCH_DIR,
+    STATUSES,
+    doc_path,
+    is_slug,
+    manifest_section,
+    numbered_sections,
+    status_rank,
+    status_value,
+    tier_staged_rows,
+)
+from review_gate import maintainers
 
-KINDS = ("proposal", "delta", "feat", "fix", "docs", "chore", "ci", "test", "release")
+KINDS = (
+    "proposal",
+    "delta",
+    "charter",
+    "archetype",
+    "feat",
+    "fix",
+    "docs",
+    "chore",
+    "ci",
+    "test",
+    "release",
+)
 HYGIENE_ONLY_KINDS = frozenset({"docs", "chore", "ci", "test"})
+ARCHETYPE_KINDS = frozenset({"charter", "archetype"})
 SOURCE_GLOB = "packages/*/src/*"
 DECISION_FILE_GLOBS = (
     "docs/architecture/*.md",
@@ -41,7 +66,9 @@ DECISION_FILE_GLOBS = (
 CHANGELOG = "CHANGELOG.md"
 SKIP_CHANGELOG_LABEL = "skip-changelog"
 
-_TITLE = re.compile(r"^(proposal|delta|feat!?|fix|docs|chore|ci|test|release): \S")
+_TITLE = re.compile(
+    r"^(proposal|delta|charter|archetype|feat!?|fix|docs|chore|ci|test|release): \S"
+)
 
 
 @dataclass(frozen=True)
@@ -55,6 +82,7 @@ class PullRequest:
     title: str
     labels: frozenset[str]
     files: tuple[FileChange, ...]
+    author: str = ""
 
     @property
     def paths(self) -> tuple[str, ...]:
@@ -118,6 +146,9 @@ def check_changelog(pr: PullRequest) -> list[str]:
 
 PROPOSAL_DIR = "docs/proposals/"
 GAPS = "packages/testprotocols/GAPS.md"
+SPLITS = "packages/testprotocols/SPLITS.md"
+LEVELS = "packages/testprotocols/LEVELS.md"
+ARCHETYPE_COMPANION_GLOBS = (SOURCE_GLOB, "packages/*/tests/*", CHANGELOG, GAPS, SPLITS, LEVELS)
 HEADER_ROWS = ("Date", "Use case", "Round", "Status")
 
 _PROPOSAL_NAME = re.compile(r"^\d{4}-\d{2}-\d{2}-[a-z0-9]+(?:-[a-z0-9]+)*\.md$")
@@ -216,6 +247,155 @@ def check_delta(pr: PullRequest) -> list[str]:
     return ["a delta: PR modifies exactly one existing file under docs/proposals/ and nothing else"]
 
 
+MAINTAINERS_FILE = "MAINTAINERS.md"
+
+
+def title_slug(pr: PullRequest) -> str | None:
+    """The slug of a ``charter:`` / ``archetype:`` title, or ``None`` when it is not one."""
+    kind = parse_kind(pr.title)
+    if kind not in ARCHETYPE_KINDS:
+        return None
+    slug = pr.title.removeprefix(f"{kind}: ").strip()
+    return slug if is_slug(slug) else None
+
+
+def check_maintainer_opened(pr: PullRequest, main_root: Path) -> list[str]:
+    kind = parse_kind(pr.title)
+    if kind not in ARCHETYPE_KINDS:
+        return []
+    listed = maintainers(_read_head(main_root, MAINTAINERS_FILE) or "")
+    if pr.author.lower() in listed:
+        return []
+    return [
+        f"a `{kind}:` PR is opened by a maintainer listed in {MAINTAINERS_FILE}; "
+        f"@{pr.author or 'unknown'} is not listed (a consumer requests an archetype with "
+        "the archetype-request issue template)"
+    ]
+
+
+def _describe(files: tuple[FileChange, ...]) -> str:
+    return ", ".join(f"{f.path} ({f.status})" for f in files) or "nothing"
+
+
+def check_charter(pr: PullRequest, head_root: Path) -> list[str]:
+    if parse_kind(pr.title) != "charter":
+        return []
+    slug = title_slug(pr)
+    if slug is None:
+        return [
+            "charter: title must be `charter: <slug>`, lowercase words joined by hyphens: "
+            f"{pr.title!r}"
+        ]
+    path = doc_path(slug)
+    if pr.files != (FileChange(path, "added"),):
+        return [
+            f"a charter: PR adds exactly {path} and touches nothing else; changed: "
+            + _describe(pr.files)
+        ]
+    body = _read_head(head_root, path)
+    if body is None:
+        return [f"{path}: could not read the file from the PR head"]
+    problems: list[str] = []
+    value = status_value(body)
+    if value is None:
+        problems.append(f"{path}: header table has no Status row")
+    elif value != "chartered":
+        problems.append(f"{path}: Status is {value!r}; a charter enters as `chartered`")
+    sections = numbered_sections(body)
+    if sections != [(1, "Charter")]:
+        found = ", ".join(f"{n}. {t}" for n, t in sections) or "no numbered section"
+        problems.append(
+            f"{path}: a charter holds only `## 1. Charter` (and an unnumbered "
+            f"`## Review record`); found: {found}"
+        )
+    return problems
+
+
+def _archetype_companion(change: FileChange) -> bool:
+    """A file an ``archetype:`` PR may change beside its design document.
+
+    An existing architecture document may be updated (a rename of a reused
+    capability updates the design records that name it); a new one enters
+    through its own ``charter:``.
+    """
+    if any(fnmatch.fnmatchcase(change.path, g) for g in ARCHETYPE_COMPANION_GLOBS):
+        return True
+    return (
+        change.status == "modified"
+        and change.path.startswith(ARCH_DIR)
+        and change.path.count("/") == 2
+        and change.path.endswith(".md")
+    )
+
+
+def check_archetype(pr: PullRequest, main_root: Path, head_root: Path) -> list[str]:
+    """An ``archetype:`` PR: the chartered design document, then the core code beside it."""
+    if parse_kind(pr.title) != "archetype":
+        return []
+    slug = title_slug(pr)
+    if slug is None:
+        return [
+            "archetype: title must be `archetype: <slug>`, lowercase words joined by hyphens: "
+            f"{pr.title!r}"
+        ]
+    path = doc_path(slug)
+    problems: list[str] = []
+    if FileChange(path, "modified") not in pr.files:
+        problems.append(f"an archetype: PR modifies {path}, which a merged charter added")
+    main_body = _read_head(main_root, path)
+    if main_body is None:
+        problems.append(f"{path} is not on main; merge its `charter:` PR first")
+        return problems
+    others = [f.path for f in pr.files if f.path != path and not _archetype_companion(f)]
+    if others:
+        problems.append(
+            "an archetype: PR changes only its design document, existing architecture documents "
+            "it updates, package source and tests, CHANGELOG.md and the tracking files; "
+            "also changed: " + ", ".join(others)
+        )
+    body = _read_head(head_root, path)
+    if body is None:
+        problems.append(f"{path}: could not read the file from the PR head")
+        return problems
+    head_status = status_value(body)
+    if head_status is None or head_status not in STATUSES:
+        problems.append(
+            f"{path}: Status must be one of {', '.join(STATUSES)}; found {head_status!r}"
+        )
+        return problems
+    main_status = status_value(main_body)
+    if (
+        main_status is not None
+        and main_status in STATUSES
+        and status_rank(head_status) < status_rank(main_status)
+    ):
+        problems.append(
+            f"{path}: Status moves backwards: {main_status} on main, {head_status} here"
+        )
+    if any(is_source_path(p) for p in pr.paths):
+        if head_status == "chartered":
+            problems.append(
+                f"{path}: package source arrives at stage 4; the design review sets Status to "
+                "`accepted for verification` first"
+            )
+        if manifest_section(body) is None:
+            problems.append(
+                f"{path}: package source is present but there is no "
+                "`## 12. Landing manifest` section"
+            )
+    if head_status == "verified":
+        rows = tier_staged_rows(body)
+        if rows:
+            gaps = _read_head(head_root, GAPS)
+            if gaps is None:
+                problems.append(f"{GAPS}: could not read the file from the PR head")
+            elif path not in gaps:
+                problems.append(
+                    f"{GAPS} has no pointer to {path} (tier-staged rows: {', '.join(rows)})"
+                )
+    return problems
+
+
 def check_release(pr: PullRequest, head_root: Path) -> list[str]:
     if parse_kind(pr.title) != "release":
         return []
@@ -279,20 +459,31 @@ def check_gaps_pointers(pr: PullRequest, main_root: Path) -> list[str]:
 REVIEWED_KINDS = {
     "proposal": "proposal",
     "delta": "proposal",
+    "charter": "archetype",
+    "archetype": "archetype",
     "feat": "code",
     "fix": "code",
     "release": "release",
 }
-REVIEWER_ORDER = ("code", "release", "proposal")
+REVIEWER_ORDER = ("code", "release", "archetype", "proposal")
 
 
 def reviewers_for(pr: PullRequest) -> list[str]:
-    """The reviewer set a PR takes: by kind, plus the proposal reviewer for a decision file."""
+    """The reviewer set a PR takes.
+
+    By kind; a decision file adds the proposal reviewer, except on the two
+    archetype kinds, whose design document and tracking-file entries the
+    archetype reviewer reads. An ``archetype:`` PR that carries package
+    source also takes the code reviewer.
+    """
     kind = parse_kind(pr.title)
     if kind is None:
         return []
     chosen: set[str] = {REVIEWED_KINDS[kind]} if kind in REVIEWED_KINDS else set()
-    if any(is_decision_file(p) for p in pr.paths):
+    if kind in ARCHETYPE_KINDS:
+        if any(is_source_path(p) for p in pr.paths):
+            chosen.add("code")
+    elif any(is_decision_file(p) for p in pr.paths):
         chosen.add("proposal")
     return [r for r in REVIEWER_ORDER if r in chosen]
 
@@ -308,6 +499,12 @@ def head_paths(pr: PullRequest) -> list[str]:
         ]
     if kind == "release":
         return [*VERSION_FILES, CHANGELOG]
+    if kind == "charter":
+        slug = title_slug(pr)
+        return [] if slug is None else [doc_path(slug)]
+    if kind == "archetype":
+        slug = title_slug(pr)
+        return [] if slug is None else [doc_path(slug), GAPS]
     return []
 
 
@@ -319,6 +516,9 @@ def run_checks(pr: PullRequest, main_root: Path, head_root: Path) -> Result:
     problems += check_proposal_dir(pr)
     problems += check_proposal(pr, head_root)
     problems += check_delta(pr)
+    problems += check_maintainer_opened(pr, main_root)
+    problems += check_charter(pr, head_root)
+    problems += check_archetype(pr, main_root, head_root)
     problems += check_release(pr, head_root)
     problems += check_gaps_pointers(pr, main_root)
     return Result(problems, set_review and not problems)
@@ -340,7 +540,9 @@ def load_pull_request(pr_json: Path, files_json: Path) -> PullRequest:
         FileChange(str(entry["filename"]), str(entry["status"])) for page in pages for entry in page
     )
     labels = frozenset(str(label["name"]) for label in pr_data.get("labels", []))
-    return PullRequest(str(pr_data["title"]), labels, files)
+    user = cast(dict[str, Any], pr_data.get("user") or {})
+    author = str(user.get("login", ""))
+    return PullRequest(str(pr_data["title"]), labels, files, author)
 
 
 def main(argv: list[str]) -> int:
