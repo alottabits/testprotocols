@@ -12,3 +12,7 @@ A throwaway document that exercises the charter hygiene rule. Never merged.
 ## Review record
 
 - none yet
+
+## 2. Cross-family matrix
+
+Not allowed at the charter stage.
