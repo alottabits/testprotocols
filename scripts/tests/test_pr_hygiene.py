@@ -715,17 +715,42 @@ def test_archetype_needs_its_chartered_document_on_main(tmp_path: Path) -> None:
 
 def test_archetype_rejects_a_renamed_or_second_design_document(tmp_path: Path) -> None:
     main_root, head_root = roots(tmp_path, CHARTER_DOC, design_doc("chartered"))
-    other = "docs/architecture/bgp-protocol-design.md"
+    other = "docs/architecture/router-protocol-design.md"
     assert check_archetype(
-        archetype_pr(FileChange(DESIGN, "modified"), FileChange(other, "modified")),
+        archetype_pr(FileChange(DESIGN, "modified"), FileChange(other, "added")),
         main_root,
         head_root,
     ) == [
-        "an archetype: PR changes only its design document, package source and tests, "
-        f"CHANGELOG.md and the tracking files; also changed: {other}"
+        "an archetype: PR changes only its design document, existing architecture documents "
+        "it updates, package source and tests, CHANGELOG.md and the tracking files; "
+        f"also changed: {other}"
     ]
     assert check_archetype(archetype_pr(FileChange(DESIGN, "renamed")), main_root, head_root) == [
         f"an archetype: PR modifies {DESIGN}, which a merged charter added"
+    ]
+
+
+def test_archetype_may_update_sibling_architecture_documents(tmp_path: Path) -> None:
+    # A rename of a reused capability updates the design records that name it.
+    main_root, head_root = roots(tmp_path, CHARTER_DOC, design_doc("chartered"))
+    sibling = "docs/architecture/sdwan-appliance-protocol-design.md"
+    nested = "docs/architecture/notes/x.md"
+    assert (
+        check_archetype(
+            archetype_pr(FileChange(DESIGN, "modified"), FileChange(sibling, "modified")),
+            main_root,
+            head_root,
+        )
+        == []
+    )
+    assert check_archetype(
+        archetype_pr(FileChange(DESIGN, "modified"), FileChange(nested, "modified")),
+        main_root,
+        head_root,
+    ) == [
+        "an archetype: PR changes only its design document, existing architecture documents "
+        "it updates, package source and tests, CHANGELOG.md and the tracking files; "
+        f"also changed: {nested}"
     ]
 
 

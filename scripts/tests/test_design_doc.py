@@ -111,3 +111,15 @@ def test_manifest_section_and_tier_rows() -> None:
 def test_tier_rows_outside_the_manifest_are_ignored() -> None:
     body = "# T\n\n## 4. The archetype\n\n| M9 | tier-staged |\n\n## 12. Landing manifest\n\n"
     assert tier_staged_rows(body) == []
+
+
+def test_tier_rows_read_the_placement_cell_only() -> None:
+    body = (
+        "# T\n\n## 12. Landing manifest\n\n"
+        "| Id | Kind | Symbol | Placement | Breaking | Outcome |\n"
+        "| --- | --- | --- | --- | --- | --- |\n"
+        "| M1 | new field | `m:X` | Tier-staged — second consumer | no | accepted |\n"
+        "| M2 | new tier | `m:Y` | tier staged — a test needs it | no | accepted |\n"
+        "| M3 | new field | `m:Z` | core | no | accepted; was tier-staged in round 1 |\n"
+    )
+    assert tier_staged_rows(body) == ["M1", "M2"]

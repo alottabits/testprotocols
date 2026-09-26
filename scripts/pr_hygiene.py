@@ -29,6 +29,7 @@ from typing import Any, cast
 
 from changelog_section import VERSION_FILES, SectionError, section, version_problems
 from design_doc import (
+    ARCH_DIR,
     STATUSES,
     doc_path,
     is_slug,
@@ -310,6 +311,23 @@ def check_charter(pr: PullRequest, head_root: Path) -> list[str]:
     return problems
 
 
+def _archetype_companion(change: FileChange) -> bool:
+    """A file an ``archetype:`` PR may change beside its design document.
+
+    An existing architecture document may be updated (a rename of a reused
+    capability updates the design records that name it); a new one enters
+    through its own ``charter:``.
+    """
+    if any(fnmatch.fnmatchcase(change.path, g) for g in ARCHETYPE_COMPANION_GLOBS):
+        return True
+    return (
+        change.status == "modified"
+        and change.path.startswith(ARCH_DIR)
+        and change.path.count("/") == 2
+        and change.path.endswith(".md")
+    )
+
+
 def check_archetype(pr: PullRequest, main_root: Path, head_root: Path) -> list[str]:
     """An ``archetype:`` PR: the chartered design document, then the core code beside it."""
     if parse_kind(pr.title) != "archetype":
@@ -328,15 +346,12 @@ def check_archetype(pr: PullRequest, main_root: Path, head_root: Path) -> list[s
     if main_body is None:
         problems.append(f"{path} is not on main; merge its `charter:` PR first")
         return problems
-    others = [
-        p
-        for p in pr.paths
-        if p != path and not any(fnmatch.fnmatchcase(p, g) for g in ARCHETYPE_COMPANION_GLOBS)
-    ]
+    others = [f.path for f in pr.files if f.path != path and not _archetype_companion(f)]
     if others:
         problems.append(
-            "an archetype: PR changes only its design document, package source and tests, "
-            "CHANGELOG.md and the tracking files; also changed: " + ", ".join(others)
+            "an archetype: PR changes only its design document, existing architecture documents "
+            "it updates, package source and tests, CHANGELOG.md and the tracking files; "
+            "also changed: " + ", ".join(others)
         )
     body = _read_head(head_root, path)
     if body is None:

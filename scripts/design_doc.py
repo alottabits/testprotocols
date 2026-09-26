@@ -54,11 +54,17 @@ def manifest_section(body: str) -> str | None:
 
 
 def tier_staged_rows(body: str) -> list[str]:
+    """Ids of manifest rows whose Placement cell (the fourth column) is tier-staged."""
     section = manifest_section(body)
     if section is None:
         return []
-    return [
-        m.group(1)
-        for m in _ROW_ID.finditer(section)
-        if "tier-staged" in section[m.start() : section.find("\n", m.start())]
-    ]
+    rows: list[str] = []
+    for line in section.splitlines():
+        match = _ROW_ID.match(line)
+        if match is None:
+            continue
+        cells = [c.strip() for c in line.strip().strip("|").split("|")]
+        placement = cells[3].lower().replace(" ", "-") if len(cells) > 3 else ""
+        if placement.startswith("tier-staged"):
+            rows.append(match.group(1))
+    return rows
