@@ -25,12 +25,25 @@ import re
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from changelog_section import VERSION_FILES, SectionError, section, version_problems
 
-KINDS = ("proposal", "delta", "feat", "fix", "docs", "chore", "ci", "test", "release")
+KINDS = (
+    "proposal",
+    "delta",
+    "charter",
+    "archetype",
+    "feat",
+    "fix",
+    "docs",
+    "chore",
+    "ci",
+    "test",
+    "release",
+)
 HYGIENE_ONLY_KINDS = frozenset({"docs", "chore", "ci", "test"})
+ARCHETYPE_KINDS = frozenset({"charter", "archetype"})
 SOURCE_GLOB = "packages/*/src/*"
 DECISION_FILE_GLOBS = (
     "docs/architecture/*.md",
@@ -41,7 +54,9 @@ DECISION_FILE_GLOBS = (
 CHANGELOG = "CHANGELOG.md"
 SKIP_CHANGELOG_LABEL = "skip-changelog"
 
-_TITLE = re.compile(r"^(proposal|delta|feat!?|fix|docs|chore|ci|test|release): \S")
+_TITLE = re.compile(
+    r"^(proposal|delta|charter|archetype|feat!?|fix|docs|chore|ci|test|release): \S"
+)
 
 
 @dataclass(frozen=True)
@@ -55,6 +70,7 @@ class PullRequest:
     title: str
     labels: frozenset[str]
     files: tuple[FileChange, ...]
+    author: str = ""
 
     @property
     def paths(self) -> tuple[str, ...]:
@@ -279,20 +295,31 @@ def check_gaps_pointers(pr: PullRequest, main_root: Path) -> list[str]:
 REVIEWED_KINDS = {
     "proposal": "proposal",
     "delta": "proposal",
+    "charter": "archetype",
+    "archetype": "archetype",
     "feat": "code",
     "fix": "code",
     "release": "release",
 }
-REVIEWER_ORDER = ("code", "release", "proposal")
+REVIEWER_ORDER = ("code", "release", "archetype", "proposal")
 
 
 def reviewers_for(pr: PullRequest) -> list[str]:
-    """The reviewer set a PR takes: by kind, plus the proposal reviewer for a decision file."""
+    """The reviewer set a PR takes.
+
+    By kind; a decision file adds the proposal reviewer, except on the two
+    archetype kinds, whose design document and tracking-file entries the
+    archetype reviewer reads. An ``archetype:`` PR that carries package
+    source also takes the code reviewer.
+    """
     kind = parse_kind(pr.title)
     if kind is None:
         return []
     chosen: set[str] = {REVIEWED_KINDS[kind]} if kind in REVIEWED_KINDS else set()
-    if any(is_decision_file(p) for p in pr.paths):
+    if kind in ARCHETYPE_KINDS:
+        if any(is_source_path(p) for p in pr.paths):
+            chosen.add("code")
+    elif any(is_decision_file(p) for p in pr.paths):
         chosen.add("proposal")
     return [r for r in REVIEWER_ORDER if r in chosen]
 
@@ -340,7 +367,9 @@ def load_pull_request(pr_json: Path, files_json: Path) -> PullRequest:
         FileChange(str(entry["filename"]), str(entry["status"])) for page in pages for entry in page
     )
     labels = frozenset(str(label["name"]) for label in pr_data.get("labels", []))
-    return PullRequest(str(pr_data["title"]), labels, files)
+    user = cast(dict[str, Any], pr_data.get("user") or {})
+    author = str(user.get("login", ""))
+    return PullRequest(str(pr_data["title"]), labels, files, author)
 
 
 def main(argv: list[str]) -> int:

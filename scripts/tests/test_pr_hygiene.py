@@ -31,6 +31,7 @@ from pr_hygiene import (
 SRC = "packages/testprotocols/src/testprotocols/bgp.py"
 OPS_SRC = "packages/testoperations/src/testoperations/homing.py"
 TEST = "packages/testprotocols/tests/test_bgp.py"
+DESIGN = "docs/architecture/managed-router-protocol-design.md"
 
 
 def pr(
@@ -52,6 +53,9 @@ def pr(
         ("ci: pin actions", "ci"),
         ("test: cover both outcomes", "test"),
         ("release: 0.13.0", "release"),
+        ("charter: managed-router", "charter"),
+        ("archetype: managed-router", "archetype"),
+        ("archetype!: managed-router", None),
         ("Feat: capitalised", None),
         ("feat(homing): scoped form is not recognised", None),
         ("feat:missing space", None),
@@ -492,6 +496,14 @@ def test_cli(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
         ("docs: x", ("README.md",), []),
         ("chore: x", ("packages/testprotocols/GAPS.md",), ["proposal"]),
         ("no prefix", (SRC,), []),
+        ("charter: managed-router", (DESIGN,), ["archetype"]),
+        ("archetype: managed-router", (DESIGN,), ["archetype"]),
+        ("archetype: managed-router", (DESIGN, SRC, "CHANGELOG.md"), ["code", "archetype"]),
+        (
+            "archetype: managed-router",
+            (DESIGN, SRC, "packages/testprotocols/SPLITS.md"),
+            ["code", "archetype"],
+        ),
     ],
 )
 def test_reviewers_for(title: str, paths: tuple[str, ...], expected: list[str]) -> None:
@@ -516,3 +528,15 @@ def test_reviewers_cli(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> No
     files_json.write_text(json.dumps([{"filename": "README.md", "status": "modified"}]))
     assert main(["reviewers", "--pr", str(pr_json), "--files", str(files_json)]) == 0
     assert capsys.readouterr().out == "\n"
+
+
+def test_load_pull_request_reads_the_author(tmp_path: Path) -> None:
+    pr_json = tmp_path / "pr.json"
+    files_json = tmp_path / "files.json"
+    pr_json.write_text(
+        json.dumps({"title": "charter: x", "labels": [], "user": {"login": "RJVisser"}})
+    )
+    files_json.write_text("[]")
+    assert load_pull_request(pr_json, files_json).author == "RJVisser"
+    pr_json.write_text(json.dumps({"title": "charter: x", "labels": []}))
+    assert load_pull_request(pr_json, files_json).author == ""
