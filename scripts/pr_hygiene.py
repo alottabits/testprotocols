@@ -28,6 +28,8 @@ from pathlib import Path
 from typing import Any, cast
 
 from changelog_section import VERSION_FILES, SectionError, section, version_problems
+from design_doc import doc_path, is_slug, numbered_sections, status_value
+from review_gate import maintainers
 
 KINDS = (
     "proposal",
@@ -232,6 +234,70 @@ def check_delta(pr: PullRequest) -> list[str]:
     return ["a delta: PR modifies exactly one existing file under docs/proposals/ and nothing else"]
 
 
+MAINTAINERS_FILE = "MAINTAINERS.md"
+
+
+def title_slug(pr: PullRequest) -> str | None:
+    """The slug of a ``charter:`` / ``archetype:`` title, or ``None`` when it is not one."""
+    kind = parse_kind(pr.title)
+    if kind not in ARCHETYPE_KINDS:
+        return None
+    slug = pr.title.removeprefix(f"{kind}: ").strip()
+    return slug if is_slug(slug) else None
+
+
+def check_maintainer_opened(pr: PullRequest, main_root: Path) -> list[str]:
+    kind = parse_kind(pr.title)
+    if kind not in ARCHETYPE_KINDS:
+        return []
+    listed = maintainers(_read_head(main_root, MAINTAINERS_FILE) or "")
+    if pr.author.lower() in listed:
+        return []
+    return [
+        f"a `{kind}:` PR is opened by a maintainer listed in {MAINTAINERS_FILE}; "
+        f"@{pr.author or 'unknown'} is not listed (a consumer requests an archetype with "
+        "the archetype-request issue template)"
+    ]
+
+
+def _describe(files: tuple[FileChange, ...]) -> str:
+    return ", ".join(f"{f.path} ({f.status})" for f in files) or "nothing"
+
+
+def check_charter(pr: PullRequest, head_root: Path) -> list[str]:
+    if parse_kind(pr.title) != "charter":
+        return []
+    slug = title_slug(pr)
+    if slug is None:
+        return [
+            "charter: title must be `charter: <slug>`, lowercase words joined by hyphens: "
+            f"{pr.title!r}"
+        ]
+    path = doc_path(slug)
+    if pr.files != (FileChange(path, "added"),):
+        return [
+            f"a charter: PR adds exactly {path} and touches nothing else; changed: "
+            + _describe(pr.files)
+        ]
+    body = _read_head(head_root, path)
+    if body is None:
+        return [f"{path}: could not read the file from the PR head"]
+    problems: list[str] = []
+    value = status_value(body)
+    if value is None:
+        problems.append(f"{path}: header table has no Status row")
+    elif value != "chartered":
+        problems.append(f"{path}: Status is {value!r}; a charter enters as `chartered`")
+    sections = numbered_sections(body)
+    if sections != [(1, "Charter")]:
+        found = ", ".join(f"{n}. {t}" for n, t in sections) or "no numbered section"
+        problems.append(
+            f"{path}: a charter holds only `## 1. Charter` (and an unnumbered "
+            f"`## Review record`); found: {found}"
+        )
+    return problems
+
+
 def check_release(pr: PullRequest, head_root: Path) -> list[str]:
     if parse_kind(pr.title) != "release":
         return []
@@ -335,6 +401,9 @@ def head_paths(pr: PullRequest) -> list[str]:
         ]
     if kind == "release":
         return [*VERSION_FILES, CHANGELOG]
+    if kind == "charter":
+        slug = title_slug(pr)
+        return [] if slug is None else [doc_path(slug)]
     return []
 
 

@@ -11,9 +11,11 @@ from pr_hygiene import (
     PullRequest,
     Result,
     check_changelog,
+    check_charter,
     check_delta,
     check_gaps_pointers,
     check_kind_scope,
+    check_maintainer_opened,
     check_proposal,
     check_proposal_dir,
     check_release,
@@ -26,6 +28,7 @@ from pr_hygiene import (
     parse_kind,
     reviewers_for,
     run_checks,
+    title_slug,
 )
 
 SRC = "packages/testprotocols/src/testprotocols/bgp.py"
@@ -540,3 +543,120 @@ def test_load_pull_request_reads_the_author(tmp_path: Path) -> None:
     assert load_pull_request(pr_json, files_json).author == "RJVisser"
     pr_json.write_text(json.dumps({"title": "charter: x", "labels": []}))
     assert load_pull_request(pr_json, files_json).author == ""
+
+
+MAINTAINERS = """\
+# Maintainers
+
+~~~text
+- @handle — <scope>
+~~~
+
+## Maintainers
+
+- @rjvisser — everything (`*`)
+"""
+
+CHARTER_DOC = """\
+# Design: vendor-neutral **managed router** archetype
+
+| Field | Value |
+| --- | --- |
+| Status | chartered |
+| Author | a maintainer |
+
+## 1. Charter
+
+The class, defined by the operations its management planes publish.
+
+## Review record
+
+- none yet
+"""
+
+
+def charter_pr(*files: FileChange, title: str = "charter: managed-router") -> PullRequest:
+    return PullRequest(title, frozenset(), files, author="rjvisser")
+
+
+def test_title_slug() -> None:
+    assert title_slug(pr("charter: managed-router", DESIGN)) == "managed-router"
+    assert title_slug(pr("archetype: wifi-ap", DESIGN)) == "wifi-ap"
+    assert title_slug(pr("charter: Managed Router", DESIGN)) is None
+    assert title_slug(pr("archetype: managed_router", DESIGN)) is None
+    assert title_slug(pr("feat: x: y", SRC)) is None
+
+
+def test_archetype_kinds_are_maintainer_opened(tmp_path: Path) -> None:
+    write(tmp_path, "MAINTAINERS.md", MAINTAINERS)
+    ok = PullRequest("charter: managed-router", frozenset(), (), author="RJVisser")
+    assert check_maintainer_opened(ok, tmp_path) == []
+    outsider = PullRequest("archetype: managed-router", frozenset(), (), author="someone")
+    assert check_maintainer_opened(outsider, tmp_path) == [
+        "a `archetype:` PR is opened by a maintainer listed in MAINTAINERS.md; "
+        "@someone is not listed (a consumer requests an archetype with the "
+        "archetype-request issue template)"
+    ]
+    handle = PullRequest("charter: x", frozenset(), (), author="handle")
+    assert check_maintainer_opened(handle, tmp_path) != []  # the fenced example is not a listing
+    assert check_maintainer_opened(pr("feat: x: y", SRC), tmp_path) == []
+
+
+def test_charter_adds_exactly_its_design_document(tmp_path: Path) -> None:
+    write(tmp_path, DESIGN, CHARTER_DOC)
+    assert check_charter(charter_pr(FileChange(DESIGN, "added")), tmp_path) == []
+    rule = f"a charter: PR adds exactly {DESIGN} and touches nothing else; changed: "
+    assert check_charter(charter_pr(FileChange(DESIGN, "modified")), tmp_path) == [
+        rule + f"{DESIGN} (modified)"
+    ]
+    assert check_charter(
+        charter_pr(FileChange(DESIGN, "added"), FileChange("README.md", "modified")), tmp_path
+    ) == [rule + f"{DESIGN} (added), README.md (modified)"]
+    other = "docs/architecture/router-protocol-design.md"
+    assert check_charter(charter_pr(FileChange(other, "added")), tmp_path) == [
+        rule + f"{other} (added)"
+    ]
+    assert check_charter(charter_pr(), tmp_path) == [rule + "nothing"]
+
+
+def test_charter_title_needs_a_slug(tmp_path: Path) -> None:
+    assert check_charter(
+        charter_pr(FileChange(DESIGN, "added"), title="charter: Managed Router"), tmp_path
+    ) == [
+        "charter: title must be `charter: <slug>`, lowercase words joined by hyphens: "
+        "'charter: Managed Router'"
+    ]
+    assert head_paths(charter_pr(FileChange(DESIGN, "added"), title="charter: ../x")) == []
+
+
+def test_charter_document_is_chartered_and_holds_only_the_charter(tmp_path: Path) -> None:
+    write(tmp_path, DESIGN, CHARTER_DOC.replace("| chartered |", "| `Chartered` |"))
+    assert check_charter(charter_pr(FileChange(DESIGN, "added")), tmp_path) == []
+    write(tmp_path, DESIGN, CHARTER_DOC.replace("| chartered |", "| verified |"))
+    assert check_charter(charter_pr(FileChange(DESIGN, "added")), tmp_path) == [
+        f"{DESIGN}: Status is 'verified'; a charter enters as `chartered`"
+    ]
+    write(tmp_path, DESIGN, CHARTER_DOC.replace("| Status | chartered |\n", ""))
+    assert check_charter(charter_pr(FileChange(DESIGN, "added")), tmp_path) == [
+        f"{DESIGN}: header table has no Status row"
+    ]
+    write(tmp_path, DESIGN, CHARTER_DOC + "\n## 2. Cross-family matrix\n")
+    assert check_charter(charter_pr(FileChange(DESIGN, "added")), tmp_path) == [
+        f"{DESIGN}: a charter holds only `## 1. Charter` (and an unnumbered "
+        "`## Review record`); found: 1. Charter, 2. Cross-family matrix"
+    ]
+    write(tmp_path, DESIGN, CHARTER_DOC.replace("## 1. Charter", "## Charter"))
+    assert check_charter(charter_pr(FileChange(DESIGN, "added")), tmp_path) == [
+        f"{DESIGN}: a charter holds only `## 1. Charter` (and an unnumbered "
+        "`## Review record`); found: no numbered section"
+    ]
+
+
+def test_charter_document_missing_from_head(tmp_path: Path) -> None:
+    assert check_charter(charter_pr(FileChange(DESIGN, "added")), tmp_path) == [
+        f"{DESIGN}: could not read the file from the PR head"
+    ]
+
+
+def test_charter_head_paths() -> None:
+    assert head_paths(charter_pr(FileChange(DESIGN, "added"))) == [DESIGN]
