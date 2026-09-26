@@ -189,10 +189,11 @@ maintainer change with `no proposal` and its rationale.
 - a `charter:` PR adds exactly that document, with Status `chartered` and
   `## 1. Charter` as its only numbered section, and touches nothing else;
 - an `archetype:` PR modifies that document (already on `main`) and changes
-  nothing but package source, package tests, `CHANGELOG.md`, `GAPS.md`,
-  `SPLITS.md` and `LEVELS.md`; the Status is one of `chartered`, `accepted
-  for verification`, `verified` and never moves backwards; package source
-  needs `accepted for verification` and a `## 12. Landing manifest`; at
+  nothing but existing `docs/architecture/*.md` documents it updates,
+  package source, package tests, `CHANGELOG.md`, `GAPS.md`, `SPLITS.md` and
+  `LEVELS.md`; the Status is one of `chartered`, `accepted for
+  verification`, `verified` and never moves backwards; package source needs
+  `accepted for verification` or later and a `## 12. Landing manifest`; at
   `verified`, a document with `tier-staged` manifest rows is named in
   `GAPS.md`;
 - a `release:` PR sets both version fields to the title's version and

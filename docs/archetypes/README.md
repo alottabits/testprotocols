@@ -160,11 +160,12 @@ The corpus is kept current with every archetype that went through this track:
   it to every reference driver before the change merges;
 - a change that **narrows** it shows which families no longer satisfy it.
 
-The `conformance` status reports this on every PR that changes package
-source, in public terms only: the public symbol and the number of families,
-never the corpus content. A pull request from a fork gets `conformance` when a
-maintainer runs `/review`. `conformance` becomes a required check when the
-corpus pipeline is live; CONTRIBUTING.md lists the required checks. The
+Once the corpus pipeline is live (it is not yet), a `conformance` status
+reports this on every PR that changes package source, in public terms only:
+the public symbol and the number of families, never the corpus content. A pull
+request from a fork will get `conformance` when a maintainer runs `/review`.
+`conformance` becomes a required check at that point; CONTRIBUTING.md lists
+the required checks. The
 review record of a verified design names the corpus commit it was verified
 against.
 
