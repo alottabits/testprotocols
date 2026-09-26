@@ -115,6 +115,8 @@ The title's prefix names the kind; `hygiene` rejects a title without one.
 | --- | --- | --- | --- |
 | `proposal: <slug>` | one new document at `docs/proposals/YYYY-MM-DD-<slug>.md` | proposal reviewer | every item has an Outcome |
 | `delta: <slug>` | a dated **Design delta** section appended to a merged proposal; touches that one file | proposal reviewer | `records only, merge on sight`, or as `proposal:` when a contract changed |
+| `charter: <slug>` | a new `docs/architecture/<slug>-protocol-design.md` with Status `chartered` and only its Charter section; maintainer-opened (`docs/archetypes/README.md`) | archetype reviewer | verdict not `request changes`; merge ratifies the reviewed-family list |
+| `archetype: <slug>` | that design document through design and verification, then the core code, tests and changelog entries beside it; maintainer-opened | archetype reviewer; also the code reviewer once package source is present | Status `verified`, verdict not `request changes` |
 | `feat: <scope>: <summary>` (`feat!:` when breaking) | implementation of accepted items, or a maintainer addition; the body cites the proposal path and item ids, or says `no proposal` with a one-paragraph rationale | code reviewer | verdict not `request changes`; changelog entry present |
 | `fix: <scope>: <summary>` | behaviour fix, no shape change | code reviewer | as `feat:` |
 | `docs:`, `chore:`, `ci:`, `test:` | nothing under `packages/*/src/` and none of the decision files | hygiene only | hygiene green |
@@ -128,7 +130,9 @@ conditions are fixed before the release merges.
 `packages/testprotocols/GAPS.md`, `SPLITS.md` and `LEVELS.md` are the
 recorded decisions reviews are answered against. A PR that touches any of
 them takes the proposal reviewer whatever its prefix, and `hygiene` does
-not set the `review` status for it. A `feat:` PR that also adds a SPLITS
+not set the `review` status for it; the exception is a `charter:` or
+`archetype:` PR, whose design document and tracking-file entries the
+archetype reviewer reads instead. A `feat:` PR that also adds a SPLITS
 or LEVELS entry takes both the code and the proposal reviewer; the worse
 verdict wins.
 
@@ -142,6 +146,9 @@ maintainer change with `no proposal` and its rationale.
 1. **Open.** Branch from `main`: `proposal/<slug>`, `feat/<slug>`,
    `fix/<slug>`, `release/X.Y.Z`. Commits signed off. A draft is fine; the
    deterministic gates run on it, `/review` on a draft is refused.
+   A new device archetype follows its own stages
+   (`docs/archetypes/README.md`): a `charter:` PR, then one long-running
+   `archetype:` PR from `archetype/<slug>`.
 2. **Deterministic gates on every push:** `dco`, `lint`, `hygiene`. All
    three green before a review is requested.
 3. **Review requested.** A maintainer comments `/review`. The reviewer
@@ -176,6 +183,18 @@ maintainer change with `no proposal` and its rationale.
   `docs:`, `chore:`, `ci:` or `test:` PR may not change one; a `feat:`, `fix:`
   or `release:` PR may carry the in-PR design delta on the proposal it
   implements;
+- a `charter:` or `archetype:` PR is opened by a handle listed in
+  `MAINTAINERS.md`; the title's slug names the document
+  `docs/architecture/<slug>-protocol-design.md`;
+- a `charter:` PR adds exactly that document, with Status `chartered` and
+  `## 1. Charter` as its only numbered section, and touches nothing else;
+- an `archetype:` PR modifies that document (already on `main`) and changes
+  nothing but package source, package tests, `CHANGELOG.md`, `GAPS.md`,
+  `SPLITS.md` and `LEVELS.md`; the Status is one of `chartered`, `accepted
+  for verification`, `verified` and never moves backwards; package source
+  needs `accepted for verification` and a `## 12. Landing manifest`; at
+  `verified`, a document with `tier-staged` manifest rows is named in
+  `GAPS.md`;
 - a `release:` PR sets both version fields to the title's version and
   renames the `[Unreleased]` heading to it, with a fresh `[Unreleased]`
   above; the released section has at least one entry, no

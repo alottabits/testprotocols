@@ -13,6 +13,10 @@ included), an archetype extension, a WhiteBox extension, an operation. The
 framing litmus: a function with logic of its own is an operation whatever
 file it sits in; a forwarder or test plumbing is not, and never enters.
 
+A new **device archetype** does not enter as a proposal. A consumer requests
+one with the `archetype-request` issue template, and a maintainer runs it
+through `docs/archetypes/README.md`.
+
 ## One document per originating use case
 
 - Items are batched: one document per use case, however many items.
@@ -87,9 +91,18 @@ The review answers these questions, in this order, for every item:
    freezes. A proposal from one consumer says what substitutes for the
    second: for a capability protocol, neutrality evidence across the
    domain's reviewed-family list is the accepted substitute; for an
-   archetype tier or a boundary view that folds several devices, a second
-   consumer is still required and the item defaults to plugin-staged or
-   keep-local with the trigger recorded.
+   archetype core, the ratified family list, the sourced matrix and the
+   reference corpus (`docs/archetypes/README.md`); for an archetype tier or
+   a boundary view that folds several devices, a second consumer (or, for a
+   tier, a second trigger family) is still required and the item defaults
+   to plugin-staged or keep-local with the trigger recorded.
+   **Corpus impact:** for an item that touches a capability reachable from
+   an archetype in the reference corpus, the review states how many
+   reference families could implement it. At or above the core threshold
+   (every trigger family and a majority of the ratified list), the item is
+   promoted on condition that every reference driver implements it before
+   the `feat:` PR merges; below it, the item is a tier or optional member,
+   or keep-local, and the count is the argument.
 
 When the verdict hinges on a claimed vendor or tool behaviour, the review
 verifies it against published documentation and cites what it checked.
@@ -149,6 +162,12 @@ reviews, and the worst verdict sets the status.
 5. **Changelog entry.** Present under the right package and subsection, in
    the entry format, with a migration line for a breaking change.
 6. **Neutrality** of code, comments, tests, fixtures and docstrings.
+7. **Corpus coverage.** For a PR that touches a capability reachable from an
+   archetype in the reference corpus: every new or changed member is
+   implemented by every reference driver, each mapping cites its source,
+   and an unsupported cell raises `NotSupportedError` with a source. The
+   `conformance` status is the deterministic half; this question applies
+   once a corpus archetype exists.
 
 **The release reviewer's questions**, in order:
 
