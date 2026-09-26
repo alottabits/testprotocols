@@ -28,7 +28,16 @@ from pathlib import Path
 from typing import Any, cast
 
 from changelog_section import VERSION_FILES, SectionError, section, version_problems
-from design_doc import doc_path, is_slug, numbered_sections, status_value
+from design_doc import (
+    STATUSES,
+    doc_path,
+    is_slug,
+    manifest_section,
+    numbered_sections,
+    status_rank,
+    status_value,
+    tier_staged_rows,
+)
 from review_gate import maintainers
 
 KINDS = (
@@ -136,6 +145,9 @@ def check_changelog(pr: PullRequest) -> list[str]:
 
 PROPOSAL_DIR = "docs/proposals/"
 GAPS = "packages/testprotocols/GAPS.md"
+SPLITS = "packages/testprotocols/SPLITS.md"
+LEVELS = "packages/testprotocols/LEVELS.md"
+ARCHETYPE_COMPANION_GLOBS = (SOURCE_GLOB, "packages/*/tests/*", CHANGELOG, GAPS, SPLITS, LEVELS)
 HEADER_ROWS = ("Date", "Use case", "Round", "Status")
 
 _PROPOSAL_NAME = re.compile(r"^\d{4}-\d{2}-\d{2}-[a-z0-9]+(?:-[a-z0-9]+)*\.md$")
@@ -298,6 +310,77 @@ def check_charter(pr: PullRequest, head_root: Path) -> list[str]:
     return problems
 
 
+def check_archetype(pr: PullRequest, main_root: Path, head_root: Path) -> list[str]:
+    """An ``archetype:`` PR: the chartered design document, then the core code beside it."""
+    if parse_kind(pr.title) != "archetype":
+        return []
+    slug = title_slug(pr)
+    if slug is None:
+        return [
+            "archetype: title must be `archetype: <slug>`, lowercase words joined by hyphens: "
+            f"{pr.title!r}"
+        ]
+    path = doc_path(slug)
+    problems: list[str] = []
+    if FileChange(path, "modified") not in pr.files:
+        problems.append(f"an archetype: PR modifies {path}, which a merged charter added")
+    main_body = _read_head(main_root, path)
+    if main_body is None:
+        problems.append(f"{path} is not on main; merge its `charter:` PR first")
+        return problems
+    others = [
+        p
+        for p in pr.paths
+        if p != path and not any(fnmatch.fnmatchcase(p, g) for g in ARCHETYPE_COMPANION_GLOBS)
+    ]
+    if others:
+        problems.append(
+            "an archetype: PR changes only its design document, package source and tests, "
+            "CHANGELOG.md and the tracking files; also changed: " + ", ".join(others)
+        )
+    body = _read_head(head_root, path)
+    if body is None:
+        problems.append(f"{path}: could not read the file from the PR head")
+        return problems
+    head_status = status_value(body)
+    if head_status is None or head_status not in STATUSES:
+        problems.append(
+            f"{path}: Status must be one of {', '.join(STATUSES)}; found {head_status!r}"
+        )
+        return problems
+    main_status = status_value(main_body)
+    if (
+        main_status is not None
+        and main_status in STATUSES
+        and status_rank(head_status) < status_rank(main_status)
+    ):
+        problems.append(
+            f"{path}: Status moves backwards: {main_status} on main, {head_status} here"
+        )
+    if any(is_source_path(p) for p in pr.paths):
+        if head_status == "chartered":
+            problems.append(
+                f"{path}: package source arrives at stage 4; the design review sets Status to "
+                "`accepted for verification` first"
+            )
+        if manifest_section(body) is None:
+            problems.append(
+                f"{path}: package source is present but there is no "
+                "`## 12. Landing manifest` section"
+            )
+    if head_status == "verified":
+        rows = tier_staged_rows(body)
+        if rows:
+            gaps = _read_head(head_root, GAPS)
+            if gaps is None:
+                problems.append(f"{GAPS}: could not read the file from the PR head")
+            elif path not in gaps:
+                problems.append(
+                    f"{GAPS} has no pointer to {path} (tier-staged rows: {', '.join(rows)})"
+                )
+    return problems
+
+
 def check_release(pr: PullRequest, head_root: Path) -> list[str]:
     if parse_kind(pr.title) != "release":
         return []
@@ -404,6 +487,9 @@ def head_paths(pr: PullRequest) -> list[str]:
     if kind == "charter":
         slug = title_slug(pr)
         return [] if slug is None else [doc_path(slug)]
+    if kind == "archetype":
+        slug = title_slug(pr)
+        return [] if slug is None else [doc_path(slug), GAPS]
     return []
 
 
