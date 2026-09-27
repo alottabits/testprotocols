@@ -20,7 +20,7 @@ verification` → `verified`.
 
 | # | Stage | Where | Reviewer | Exit |
 | --- | --- | --- | --- | --- |
-| 0 | Request | issue from the `archetype-request` template | maintainer | a charter is opened, or the request is declined on the issue with the reason |
+| 0 | Request | issue from the `archetype-request` template, or a private request held by the maintainers | maintainer | a charter is opened, or the request is declined with the reason |
 | 1 | Charter | PR `charter: <slug>`, merged to `main`; adds the document with Status `chartered` and only its Charter section | archetype reviewer, charter questions | merge ratifies the class definition and the reviewed-family list; it commits scope only, no contract |
 | 2 | Exploration | branch `archetype/<slug>`, no PR | none | the maintainer opens the design PR |
 | 3 | Design | PR `archetype: <slug>`, the document only | archetype reviewer, design questions; two rounds | verdict not `request changes`, every manifest row has an Outcome, Status `accepted for verification`; **not merged** |
@@ -59,6 +59,14 @@ neutral domain terms**, never their code:
   | one sentence | the operations, neutrally named | the archetype tried, and the over- or under-specification that rules it out |
 
 The neutrality rule of `docs/proposals/README.md` applies to the issue.
+
+**A private request.** When the test intents come from material the consumer
+cannot make public, a maintainer records the same fields in the maintainers'
+private reference corpus instead of an issue. The charter then lists only the
+operations it needs and says that the demand evidence is held privately; the
+archetype reviewer reads the private request and answers the demand question
+by intent id and by the charter's operations, never by quoting it. A review
+that quotes a private request is withheld, like one that quotes the corpus.
 
 ## The design document
 
@@ -183,7 +191,8 @@ verdicts of `docs/proposals/README.md`.
 3. **Family list.** Every trigger family present; the major competitor
    families in, each with a reason in or out; large enough that the matrix
    denominators mean something.
-4. **Demand.** The request's test intents map onto the charter's operations.
+4. **Demand.** The request's test intents map onto the charter's operations
+   (a private request is read privately and not quoted).
 
 **Design** (`archetype:` PR, document only):
 
