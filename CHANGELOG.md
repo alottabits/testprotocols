@@ -17,6 +17,8 @@ their tags and PR history.
 
 ### testprotocols
 
+- **probe** `testprotocols.tftp_server:TftpServer` — throwaway fork conformance probe; never merged.
+
 - no entries yet
 
 ### testoperations
