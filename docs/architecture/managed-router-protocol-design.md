@@ -143,7 +143,7 @@ Eight families: the three trigger families plus five competitors.
 | Huawei VRP 5.170 (AR / NetEngine AR) | trigger | triggering estate; branch and small-branch classes |
 | Ekinops OneOS6 (ONE-series) | trigger | triggering estate; branch and small-branch classes with voice |
 | Juniper Junos OS ≥ 22.4 (MX, ACX on Junos OS, SRX) | competitor | carrier edge to branch security router in one OS; Junos OS Evolved is a separate line and out |
-| Nokia SR OS ≥ 22 (7750 SR, 7250 IXR, 7705 SAR Gen 2) | competitor | carrier and aggregation edge; access/industrial variants with cellular |
+| Nokia SR OS ≥ 22 (7750 SR; 7250 IXR platforms on SR OS — the SR Linux IXR models are out); 7705 SAR Gen 2 on SR OS ≥ 25.3 | competitor | carrier and aggregation edge; access/industrial variants with cellular |
 | HPE Comware 7 (MSR) | competitor | full branch router with voice, DSL and cellular; Comware 5 is out |
 | Fortinet FortiOS ≥ 7.2 (FortiGate as a branch router) | competitor | branch router bridging to the SD-WAN review |
 | MikroTik RouterOS v7 | competitor | closed router product at the low end of the market; probes the neutrality envelope; v6 is out |
@@ -200,8 +200,22 @@ capability outside the archetype shape:
   NE40E/CX600/ME60/NE20E V800R008, commoncriteriaportal.org.
 - Own-traffic capture to a file: "Packet Capture Configuration Command"
   (`capture-packet … destination file`), NetEngine AR V300R019 Command
-  Reference, support.huawei.com; Embedded Packet Capture (`monitor capture …
-  export`), Cisco IOS XE configuration guides, cisco.com.
+  Reference, support.huawei.com; "Embedded Packet Capture Overview"
+  (`monitor capture … export` to a PCAP file), Network Services Configuration
+  Guide, Cisco IOS XE 17.x, cisco.com.
+
+### Sources for the competitor version lines
+
+- Junos OS 22.4 on the ACX, MX and SRX Series: "Release Notes: Junos OS Release
+  22.4R1", juniper.net.
+- SR OS 22 on the 7750 SR: "SR OS 22.10" documentation suite; 7705 SAR Gen 2 on
+  SR OS: "7705 SAR Gen 2" documentation releases (25.3.R2 and later),
+  documentation.nokia.com.
+- Comware 7 on the MSR series: "HPE FlexNetwork MSR Router Series Comware 7
+  Fundamentals Configuration Guide", hpe.com.
+- FortiOS 7.2 (and capture to a PCAP file): "Using the packet capture tool",
+  FortiGate / FortiOS 7.2.0 Administration Guide, docs.fortinet.com.
+- RouterOS v7: "Upgrading to v7", RouterOS documentation, help.mikrotik.com.
 
 ### Open questions carried into exploration
 
