@@ -11,7 +11,7 @@ from typing import Protocol, runtime_checkable
 
 @runtime_checkable
 class TftpServer(Protocol):
-    """Abstract contract for TFTP server operations."""
+    """Abstract contract for TFTP server operations (guard probe)."""
 
     def download_image_from_uri(self, image_uri: str) -> str:
         """Download an image from *image_uri* and return the local path."""
