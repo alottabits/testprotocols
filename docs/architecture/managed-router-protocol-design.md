@@ -17,13 +17,13 @@ IGP, BGP), and publishes on its own management plane the operations that
 define the class:
 
 - **administration of its own interfaces** — take an interface down and up,
-  read its state and its physical parameters;
+  read its state;
 - **capture of its own traffic** to a file that can be fetched off the box;
 - **interface-bound filtering** and a zone-based stateful firewall;
 - **on-box services** — NAT, QoS by class (classify, mark, queue, shape), DHCP
   server and relay, first-hop redundancy, on-box reachability probes;
 - **routing state and levers** — routing tables per routing instance, peering
-  state, peer resets;
+  state, resets of a routing peer and of a wired access session;
 - **device and management-plane operations** — reload, management-access
   filtering, log export, time synchronisation, operator authentication.
 
@@ -46,16 +46,33 @@ a carrier platform omits what a branch platform carries — so the contract
 needs per-method unsupported signalling even inside one family, and the
 design (not this charter) decides the core and the tiers.
 
+**Own-traffic capture reopens a recorded placement, in one respect.**
+`SPLITS.md` (2026-06-15) placed `PcapCapture` on the inline
+`TrafficControllerDevice` because that device sees every frame crossing the
+path under test, and the host, appliance and switch archetypes exclude capture
+on that ground. That placement stands: the traffic controller remains the wire
+vantage of record. What it cannot see is the router's own vantage — traffic the
+router originates or terminates on its control and management planes, traffic
+between two of its interfaces that never crosses the inline point, and traffic
+on the inside of the router's own translation or encryption. The class
+publishes capture of exactly that traffic to a file on its own management
+plane: IOS-XE's Embedded Packet Capture exports a capture file, and VRP on the
+AR series captures packets to a file (`capture-packet`); OneOS6 is to be
+verified. The design carries the per-family evidence in its matrix. This
+charter therefore adds capture as a device-vantage operation of this class
+without moving the traffic controller's.
+
 Standalone switches that share an estate with these routers are out of scope:
 they fold into the existing switch archetypes as a driver exercise.
 
 ### Boundary with the registered archetypes
 
 - **`sdwan_appliance` (`SdwanApplianceDevice`)** — *under*-specified for this
-  class: it publishes no interface administration and no own-traffic capture,
-  both deliberately excluded because no cloud-managed appliance publishes them
-  (`SPLITS.md`, 2026-06-12), yet interface administration is this class's
-  defining operation. *Over*-specified in the other direction: its mandatory
+  class: it publishes no interface administration, excluded because none of
+  the reviewed appliance families publishes it (`SPLITS.md`, 2026-06-12), yet
+  interface administration is this class's defining operation; and it carries
+  no capture, which is placed on the traffic controller (`SPLITS.md`,
+  2026-06-15; see the capture paragraph above). *Over*-specified in the other direction: its mandatory
   members include a WAN-uplink object model, SD-WAN policy and security
   bundles that a carrier/aggregation router cannot satisfy — on a router they
   are optional facets. A tier or extension of the appliance cannot fix both:
@@ -70,13 +87,25 @@ they fold into the existing switch archetypes as a driver exercise.
   a closed router does not expose; a router driver could satisfy them only
   with stubs.
 - **`managed_switch_l2`, `managed_switch_l3`, `managed_switch_l3_routed`** —
-  forwarding-tier archetypes keyed on VLANs and switch ports; they carry no
-  WAN access, NAT, stateful firewall, QoS-by-class policy or routing-peer
-  levers. A router's integrated switch reuses their capability layer; the
-  router itself is not a switch.
-- **`linux_cpe` (`CpeDevice`)** — a residential gateway on a Linux substrate,
-  provisioned through device management; it publishes neither the routing
-  levers nor the enterprise services of this class.
+  *under*-specified: forwarding-tier archetypes keyed on VLANs and switch
+  ports, with no WAN access, NAT, stateful firewall, QoS-by-class policy or
+  routing-peer reset. *Over*-specified: every one of them mandates the switch
+  port layer — `switch_ports`, `switch_vlans`, `spanning_tree`,
+  `link_aggregation`, `port_poe`, `port_security`, `storm_control`,
+  `mac_table`, `placement` — which a carrier/aggregation router with no LAN
+  switching cannot satisfy. No tier or extension closes that: a router tier on
+  `managed_switch_l3_routed` would still inherit the mandatory port layer, and
+  demoting it would break the switch drivers. A router's integrated switch
+  reuses the switch capability layer as an optional facet of this archetype
+  instead.
+- **`linux_cpe` (`CpeDevice`)** — *under*-specified: a residential gateway
+  that publishes neither the routing-peer levers nor the enterprise services
+  of this class. *Over*-specified: it mandates the Wi-Fi stack (`wifi_radio`,
+  `wifi_bss`, `wifi_stations`, `wifi_rf`, `wifi_transitions`,
+  `wifi_onboarding`), device management and lifecycle, a hardware console and
+  the host levers (`ip_interface`, `conntrack`, host `nat`), which a closed
+  router does not publish. No tier or extension closes that for the same
+  reason as the switches: the mandatory members stay mandatory.
 - **The remaining archetypes** (LAN, WLAN and QoE clients, SIP phone and
   server, WAN server, traffic controller and generator, ACS, provisioner,
   TFTP) are test-bed hosts, not network elements under test; none overlaps.
@@ -113,17 +142,22 @@ Eight families: the three trigger families plus five competitors.
 | Cisco IOS-XE ≥ 17.9 | trigger | triggering estate; spans all four device classes |
 | Huawei VRP 5.170 (AR / NetEngine AR) | trigger | triggering estate; branch and small-branch classes |
 | Ekinops OneOS6 (ONE-series) | trigger | triggering estate; branch and small-branch classes with voice |
-| Juniper Junos (MX, ACX, SRX) | competitor | carrier edge to branch security router in one OS |
-| Nokia SR OS (7750 SR, 7250 IXR, 7705 SAR) | competitor | carrier and aggregation edge; access/industrial variants with cellular and xDSL |
-| HPE Comware (MSR) | competitor | full branch router with voice, DSL and cellular |
-| Fortinet FortiOS (FortiGate as a branch router) | competitor | branch router bridging to the SD-WAN review |
-| MikroTik RouterOS | competitor | closed router product at the low end of the market; probes the neutrality envelope |
+| Juniper Junos OS ≥ 22.4 (MX, ACX on Junos OS, SRX) | competitor | carrier edge to branch security router in one OS; Junos OS Evolved is a separate line and out |
+| Nokia SR OS ≥ 22 (7750 SR, 7250 IXR, 7705 SAR Gen 2) | competitor | carrier and aggregation edge; access/industrial variants with cellular |
+| HPE Comware 7 (MSR) | competitor | full branch router with voice, DSL and cellular; Comware 5 is out |
+| Fortinet FortiOS ≥ 7.2 (FortiGate as a branch router) | competitor | branch router bridging to the SD-WAN review |
+| MikroTik RouterOS v7 | competitor | closed router product at the low end of the market; probes the neutrality envelope; v6 is out |
 
-Excluded, with reasons: **Arista EOS** (aggregation and data-centre routing;
-no branch set); **Cradlepoint, Peplink, Versa** (controller or cloud-managed —
-they do not publish the defining operations, as the appliance review found
-for its families); **Ubiquiti EdgeRouter** (effectively end of development);
-**Palo Alto PAN-OS** (a firewall family, adjacent to the SD-WAN review).
+Excluded, with reasons: **Arista EOS** (aggregation and data-centre routing
+without the branch service set — NAT, zone firewall, voice, xDSL or cellular
+access); **Ubiquiti EdgeRouter** (effectively end of development);
+**Palo Alto PAN-OS** (a firewall family, reviewed as a security product rather
+than a router).
+
+Not reviewed: **Cradlepoint, Peplink, Versa**. They are outside the triggering
+estate and this charter makes no claim about their published operations; any
+of them can join the list by a dated revision, as the appliance design's
+fifth-family review did.
 
 Eight families give denominators with meaning (a core threshold of every
 trigger family plus a majority of eight), and the set covers every device
@@ -133,9 +167,15 @@ class twice or more outside the trigger families.
 
 The demand evidence is held privately by the maintainers (a private request
 under `docs/archetypes/README.md`, "The request"). It asks for the operations
-listed under "The class" above and, in addition, for operations whose
-placement the design decides — in the archetype, in a tier, or in a separate
-operational capability outside the archetype shape:
+listed under "The class" above except two, which this charter carries on
+family evidence rather than on demand: **own-traffic capture** and the
+**zone-based stateful firewall with interface-bound data-plane filtering**.
+The design's matrix carries the per-family evidence for both, and either is
+dropped there if the evidence does not hold.
+
+In addition, the demand asks for operations whose placement the design
+decides — in the archetype, in a tier, or in a separate operational
+capability outside the archetype shape:
 
 - physical interface parameters (speed, duplex, negotiation);
 - software image lifecycle (stage, activate, roll back);
@@ -145,6 +185,23 @@ operational capability outside the archetype shape:
 - flow export, configured probes and tracking, overlay tunnel state;
 - link aggregation, cellular radio and subscription state, backup-WAN
   failover.
+
+### Sources for the trigger version lines and for capture
+
+- Cisco IOS XE 17.9 on the rugged IR platforms: "Release Notes for Cisco
+  Catalyst IR1101, IR1800, IR8140, and IR8340 Routers (Cisco IOS XE Cupertino
+  17.9.5)", cisco.com.
+- Huawei VRP 5.170 on NetEngine AR: "Displaying Version Information",
+  NetEngine AR V300R019 CLI-based Configuration Guide, support.huawei.com
+  (`VRP (R) software, Version 5.170 (AR6300 V300R019C00)`), and the Common
+  Criteria Security Target for the NetEngine AR6121 V300R019,
+  commoncriteriaportal.org.
+- Huawei VRP8 on the carrier NE40E: the Common Criteria Security Target for
+  NE40E/CX600/ME60/NE20E V800R008, commoncriteriaportal.org.
+- Own-traffic capture to a file: "Packet Capture Configuration Command"
+  (`capture-packet … destination file`), NetEngine AR V300R019 Command
+  Reference, support.huawei.com; Embedded Packet Capture (`monitor capture …
+  export`), Cisco IOS XE configuration guides, cisco.com.
 
 ### Open questions carried into exploration
 
@@ -163,3 +220,13 @@ operational capability outside the archetype shape:
 - **2026-09-27 — chartered under the archetype track.** VRP8 out; the OneOS6
   generation is the floor; the family list above is proposed for
   ratification by this charter's review.
+- **2026-09-27 — charter review, round 1: approve with conditions (C1–C8).**
+  Applied in round 2: C1 capture argued as reopening the SPLITS 2026-06-15
+  placement for the device vantage only, and the appliance citation
+  corrected; C2 the switch and CPE boundaries argued on their mandatory
+  members; C3 competitor version lines pinned; C4 the Cradlepoint / Peplink /
+  Versa exclusion replaced by "not reviewed", without a claim about their
+  operations; C5 capture and the zone firewall carried on family evidence, not
+  on demand; C6 physical interface parameters kept only in the deferred list;
+  C7 wired access-session reset added to the routing levers; C8 public sources
+  for the trigger version lines added.
