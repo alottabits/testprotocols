@@ -158,3 +158,24 @@ jobs:
             | gh api -X POST repos/alottabits/testprotocols-reference/dispatches --input -
             echo "conformance dispatched for fork PR $PR"
           fi
+
+      - name: Mint the status token (a failed fork conformance dispatch)
+        id: fork_status
+        if: ${{ failure() && env.HEAD_REPO != github.repository && steps.corpus_app.outcome != 'skipped' }}
+        uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349 # v2
+        with:
+          app-id: ${{ secrets.REVIEW_APP_ID }}
+          private-key: ${{ secrets.REVIEW_APP_PRIVATE_KEY }}
+          owner: alottabits
+          repositories: testprotocols
+          permission-statuses: write
+          permission-metadata: read
+
+      - name: conformance = error when the fork dispatch failed
+        if: ${{ failure() && steps.fork_status.outputs.token != '' }}
+        env:
+          GH_TOKEN: ${{ steps.fork_status.outputs.token }}
+        run: |
+          gh api -X POST "repos/$REPO/statuses/$HEAD_SHA" -f state=error \
+            -f context=conformance -f description="could not dispatch to the reference corpus; see the run" \
+            -f target_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
