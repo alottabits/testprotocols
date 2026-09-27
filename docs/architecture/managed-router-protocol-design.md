@@ -1308,19 +1308,21 @@ convention the SD-WAN appliance doc follows.
 Answers refine the design before the design review; none blocks the
 restructure.
 
-1. **Controller-owned instances.** Do tests need *writes* on a
-   controller-owned box, rather than reads and white-box levers? Reads and
-   levers need only a console driver with `manages_network` false; writes need
-   the controller driver, whose push latency is a driver note (§8).
+1. **Controller-owned instances — resolved (maintainer, 2026-09-27).** The
+   first drivers assume no controller-owned instances. Adding them later is
+   additive and changes no contract: a `controller` route in the consumer's
+   driver beside `cli`, `ConfigOwnership.manages_network` set accordingly,
+   per-method unsupported where a controller does not publish an operation,
+   and the existing waiting operations for push latency (§8).
 2. **OneOS6 minor version** — pinned on first driver evidence (charter).
 3. **OneOS6 capture semantics.** Does its capture write a retrievable file?
    Decides whether the OneOS6 capture cell is ✓ or a per-method unsupported;
    the charter carries capture on family evidence, so this cell counts.
 4. **OneOS6 steering without the SD-WAN licence.** Is probe-conditioned policy
    routing on the base OneOS6? Decides the OneOS6 `sdwan_policy` cell.
-5. **De-branded names.** The design proposes `ApplianceNat` → `NatRules`,
-   `ApplianceUplinks` → `WanUplinks`, `SwitchAcl` → `PacketFilterAcl`, each
-   with a deprecated alias for one MINOR (§12). The names are proposals.
+5. **De-branded names — resolved (maintainer, 2026-09-27).** `ApplianceNat`
+   → `NatRules`, `ApplianceUplinks` → `WanUplinks`, `SwitchAcl` →
+   `PacketFilterAcl`, each with a deprecated alias for one MINOR (§12).
 6. **Competitor cells against the pinned version lines.** The competitor
    columns were assessed before the charter pinned Junos OS ≥ 22.4, SR OS ≥ 22,
    Comware 7, FortiOS ≥ 7.2 and RouterOS v7; each competitor cell is re-checked
