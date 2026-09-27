@@ -1,6 +1,6 @@
 # Introducing a device archetype
 
-A device archetype is the vendor-neutral shape tests are written against for
+A device archetype is the vendor-neutral shape tests are written against for 
 one device class. Introducing one is not a proposal for a symbol: it is a
 survey of how the vendor offerings in a device category publish their
 operations, carried out to arrive at a method set that is neither too narrow
