@@ -25,7 +25,8 @@ define the class:
 - **routing state and levers** — routing tables per routing instance, peering
   state, resets of a routing peer and of a wired access session;
 - **device and management-plane operations** — reload, management-access
-  filtering, log export, time synchronisation, operator authentication.
+  filtering, log export, time synchronisation, operator authentication
+  (central server with a local fallback).
 
 How that management plane is reached — CLI, NETCONF/YANG, RESTCONF, gNMI, or a
 controller that fronts it — is a driver concern and plays no part in the
@@ -85,11 +86,14 @@ they fold into the existing switch archetypes as a driver exercise.
   *over*-specified: its members include host-substrate levers (connection
   table, per-netdev interface configuration, iptables NAT, host capture) that
   a closed router does not expose; a router driver could satisfy them only
-  with stubs.
+  with stubs. No tier or extension closes that: a router tier on the twin
+  would still inherit the mandatory host levers, and demoting them would
+  break the twin's drivers, whose host levers are the reason the twin exists.
 - **`managed_switch_l2`, `managed_switch_l3`, `managed_switch_l3_routed`** —
   *under*-specified: forwarding-tier archetypes keyed on VLANs and switch
-  ports, with no WAN access, NAT, stateful firewall, QoS-by-class policy or
-  routing-peer reset. *Over*-specified: every one of them mandates the switch
+  ports, with no WAN access, NAT, stateful firewall or routing-peer reset;
+  their `switch_qos` classifies and marks (trust mode, DSCP↔CoS map,
+  match→mark rules) but carries no queueing, shaping or per-class counters. *Over*-specified: every one of them mandates the switch
   port layer — `switch_ports`, `switch_vlans`, `spanning_tree`,
   `link_aggregation`, `port_poe`, `port_security`, `storm_control`,
   `mac_table`, `placement` — which a carrier/aggregation router with no LAN
@@ -145,16 +149,14 @@ Eight families: the three trigger families plus five competitors.
 | Juniper Junos OS ≥ 22.4 (MX, ACX on Junos OS, SRX) | competitor | carrier edge to branch security router in one OS; Junos OS Evolved is a separate line and out |
 | Nokia SR OS ≥ 22 (7750 SR; 7250 IXR platforms on SR OS — the SR Linux IXR models are out); 7705 SAR Gen 2 on SR OS ≥ 25.3 | competitor | carrier and aggregation edge; access/industrial variants with cellular |
 | HPE Comware 7 (MSR) | competitor | full branch router with voice, DSL and cellular; Comware 5 is out |
-| Fortinet FortiOS ≥ 7.2 (FortiGate as a branch router) | competitor | branch router bridging to the SD-WAN review |
+| Fortinet FortiOS ≥ 7.2 (FortiGate as a branch router) | competitor | branch router; FortiGate is also a family of the SD-WAN appliance review, so the router and appliance matrices share one column for comparison |
 | MikroTik RouterOS v7 | competitor | closed router product at the low end of the market; probes the neutrality envelope; v6 is out |
 
 Excluded, with reasons: **Arista EOS** (aggregation and data-centre routing
 without the branch service set — NAT, zone firewall, voice, xDSL or cellular
-access); **Ubiquiti EdgeRouter** (effectively end of development);
-**Palo Alto PAN-OS** (a firewall family, reviewed as a security product rather
-than a router).
+access); **Ubiquiti EdgeRouter** (effectively end of development).
 
-Not reviewed: **Cradlepoint, Peplink, Versa**. They are outside the triggering
+Not reviewed: **Cradlepoint, Peplink, Versa, Palo Alto PAN-OS**. They are outside the triggering
 estate and this charter makes no claim about their published operations; any
 of them can join the list by a dated revision, as the appliance design's
 fifth-family review did.
@@ -177,11 +179,15 @@ In addition, the demand asks for operations whose placement the design
 decides — in the archetype, in a tier, or in a separate operational
 capability outside the archetype shape:
 
-- physical interface parameters (speed, duplex, negotiation);
+- physical interface parameters (speed, duplex, negotiation, MTU) and header
+  transparency in transit;
 - software image lifecycle (stage, activate, roll back);
 - configuration export and import;
-- security posture of the management plane (services, stored secrets);
-- monitoring access, operator authorisation, time synchronisation;
+- security posture of the management plane (services, stored secrets) and
+  protection of the router's own control plane under load;
+- monitoring access; command authorisation levels and accounting for
+  operators (authentication itself — central server with a local fallback —
+  is in the class list);
 - flow export, configured probes and tracking, overlay tunnel state;
 - link aggregation, cellular radio and subscription state, backup-WAN
   failover.
@@ -201,8 +207,8 @@ capability outside the archetype shape:
 - Own-traffic capture to a file: "Packet Capture Configuration Command"
   (`capture-packet … destination file`), NetEngine AR V300R019 Command
   Reference, support.huawei.com; "Embedded Packet Capture Overview"
-  (`monitor capture … export` to a PCAP file), Network Services Configuration
-  Guide, Cisco IOS XE 17.x, cisco.com.
+  (`monitor capture … export` to a PCAP file), Embedded Packet Capture
+  Configuration Guide, Cisco IOS XE 17, cisco.com.
 
 ### Sources for the competitor version lines
 
@@ -244,3 +250,14 @@ capability outside the archetype shape:
   on demand; C6 physical interface parameters kept only in the deferred list;
   C7 wired access-session reset added to the routing levers; C8 public sources
   for the trigger version lines added.
+- **2026-09-27 — charter review, round 2: approve with conditions (C1–C6);
+  charter merged (#62), family list ratified.** Applied as the first commit of
+  the exploration branch: C1 the Cisco capture source is the Embedded Packet
+  Capture Configuration Guide; C2 the switch under-specification restated
+  (`switch_qos` classifies and marks but has no queueing, shaping or per-class
+  counters); C3 the no-tier-or-extension argument added for the Linux twin;
+  C4 FortiOS kept for its shared column with the appliance review, PAN-OS
+  moved to "not reviewed"; C5 MTU and header transparency, and control-plane
+  protection, placed in the deferred list; C6 time synchronisation kept in
+  the class list only, and operator authentication (class) split from
+  command authorisation and accounting (deferred) deliberately.
