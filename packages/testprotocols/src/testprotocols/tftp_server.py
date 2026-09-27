@@ -20,3 +20,7 @@ class TftpServer(Protocol):
     def restart_lighttpd(self) -> None:
         """Restart the lighttpd service on the TFTP server."""
         ...
+
+    def probe_member(self) -> None:
+        """Throwaway probe member."""
+        ...
