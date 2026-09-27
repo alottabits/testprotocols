@@ -1,0 +1,103 @@
+name: Conformance dispatch
+
+# Starts the `conformance` check (CONTRIBUTING.md, "The conformance check";
+# docs/archetypes/README.md). A PR that changes no package source gets
+# `success` at once. A branch PR is dispatched to the private reference
+# corpus, which posts the result. A fork PR's code would run where the corpus
+# can be read, so it waits for a maintainer's `/review`, which dispatches it.
+# Runs on pull_request_target from `main`; never checks out the PR. Statuses
+# are posted with the App's token so the required check can be pinned to it.
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: conformance-dispatch-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    env:
+      REPO: ${{ github.repository }}
+      PR: ${{ github.event.pull_request.number }}
+      HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+      HEAD_REF: ${{ github.event.pull_request.head.ref }}
+      HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+      RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+    steps:
+      - name: Classify the PR
+        id: classify
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if gh api --paginate "repos/$REPO/pulls/$PR/files" --jq '.[].filename' \
+               | grep -q '^packages/[^/]*/src/'; then
+            echo "source=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "source=false" >> "$GITHUB_OUTPUT"
+          fi
+          if [ "$HEAD_REPO" = "$REPO" ]; then
+            echo "fork=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "fork=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Mint the status token
+        id: status_token
+        uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349 # v2
+        with:
+          app-id: ${{ secrets.REVIEW_APP_ID }}
+          private-key: ${{ secrets.REVIEW_APP_PRIVATE_KEY }}
+          owner: alottabits
+          repositories: testprotocols
+          permission-statuses: write
+          permission-metadata: read
+
+      - name: No package source
+        if: ${{ steps.classify.outputs.source == 'false' }}
+        env:
+          GH_TOKEN: ${{ steps.status_token.outputs.token }}
+        run: |
+          gh api -X POST "repos/$REPO/statuses/$HEAD_SHA" -f state=success \
+            -f context=conformance -f description="no package source" -f target_url="$RUN_URL"
+
+      - name: Fork PR waits for /review
+        if: ${{ steps.classify.outputs.source == 'true' && steps.classify.outputs.fork == 'true' }}
+        env:
+          GH_TOKEN: ${{ steps.status_token.outputs.token }}
+        run: |
+          gh api -X POST "repos/$REPO/statuses/$HEAD_SHA" -f state=pending \
+            -f context=conformance -f description="runs at /review (fork PR)" -f target_url="$RUN_URL"
+
+      - name: Mint the dispatch token
+        if: ${{ steps.classify.outputs.source == 'true' && steps.classify.outputs.fork == 'false' }}
+        id: dispatch_token
+        uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349 # v2
+        with:
+          app-id: ${{ secrets.REVIEW_APP_ID }}
+          private-key: ${{ secrets.REVIEW_APP_PRIVATE_KEY }}
+          owner: alottabits
+          repositories: testprotocols-reference
+          permission-contents: write
+          permission-metadata: read
+
+      - name: Dispatch to the reference corpus
+        if: ${{ steps.classify.outputs.source == 'true' && steps.classify.outputs.fork == 'false' }}
+        env:
+          GH_TOKEN: ${{ steps.dispatch_token.outputs.token }}
+          STATUS_TOKEN: ${{ steps.status_token.outputs.token }}
+        run: |
+          set -euo pipefail
+          GH_TOKEN="$STATUS_TOKEN" gh api -X POST "repos/$REPO/statuses/$HEAD_SHA" -f state=pending \
+            -f context=conformance -f description="dispatched to the reference corpus" -f target_url="$RUN_URL"
+          jq -n --arg repo "$REPO" --argjson pr "$PR" --arg sha "$HEAD_SHA" --arg ref "$HEAD_REF" \
+            '{event_type: "conformance-requested",
+              client_payload: {repo: $repo, pr: $pr, sha: $sha, head_ref: $ref}}' \
+          | gh api -X POST repos/alottabits/testprotocols-reference/dispatches --input -
