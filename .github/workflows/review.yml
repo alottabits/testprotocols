@@ -12,6 +12,9 @@ name: Review
 # `issue_comment` runs in the base repository from `main`, so a PR from a
 # fork is dispatched exactly as a branch PR once a maintainer types the
 # command.
+# For a fork PR that changes package source it also dispatches the
+# `conformance` check to the private reference corpus (CONTRIBUTING.md, The
+# conformance check): the maintainer has read the diff by then.
 
 on:
   issue_comment:
@@ -54,6 +57,8 @@ jobs:
           gh api "repos/$REPO/collaborators/$COMMENTER/permission" --jq .permission > review-work/permission.txt
           HEAD_SHA=$(jq -r .head.sha review-work/pr.json)
           echo "HEAD_SHA=$HEAD_SHA" >> "$GITHUB_ENV"
+          echo "HEAD_REF=$(jq -r .head.ref review-work/pr.json)" >> "$GITHUB_ENV"
+          echo "HEAD_REPO=$(jq -r .head.repo.full_name review-work/pr.json)" >> "$GITHUB_ENV"
           gh api "repos/$REPO/commits/$HEAD_SHA/check-runs" \
             --jq '[.check_runs[] | {key: .name, value: (.conclusion // .status)}] | from_entries' \
             > review-work/checks.json
@@ -122,8 +127,34 @@ jobs:
         run: |
           set -euo pipefail
           jq -n --arg repo "$REPO" --argjson pr "$PR" --arg sha "$HEAD_SHA" \
-             --arg kind "$KIND" --arg reviewers "$REVIEWERS" \
+             --arg kind "$KIND" --arg reviewers "$REVIEWERS" --arg ref "$HEAD_REF" \
              '{event_type: "review-requested",
-               client_payload: {repo: $repo, pr: $pr, sha: $sha, kind: $kind, reviewers: $reviewers}}' \
+               client_payload: {repo: $repo, pr: $pr, sha: $sha, kind: $kind, reviewers: $reviewers, head_ref: $ref}}' \
           | gh api -X POST "repos/$RUNNER_REPO/dispatches" --input -
           echo "dispatched pr=$PR sha=$HEAD_SHA kind=$KIND reviewers=$REVIEWERS"
+
+      - name: Mint the corpus dispatch token (fork PRs with package source)
+        id: corpus_app
+        if: ${{ env.HEAD_REPO != github.repository }}
+        uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349 # v2
+        with:
+          app-id: ${{ secrets.REVIEW_APP_ID }}
+          private-key: ${{ secrets.REVIEW_APP_PRIVATE_KEY }}
+          owner: alottabits
+          repositories: testprotocols-reference
+          permission-contents: write
+          permission-metadata: read
+
+      - name: Dispatch conformance for a fork PR (the maintainer has read the diff)
+        if: ${{ env.HEAD_REPO != github.repository }}
+        env:
+          GH_TOKEN: ${{ steps.corpus_app.outputs.token }}
+        run: |
+          set -euo pipefail
+          if jq -r '.[].filename' review-work/files.json | grep -q '^packages/[^/]*/src/'; then
+            jq -n --arg repo "$REPO" --argjson pr "$PR" --arg sha "$HEAD_SHA" --arg ref "$HEAD_REF" \
+              '{event_type: "conformance-requested",
+                client_payload: {repo: $repo, pr: $pr, sha: $sha, head_ref: $ref}}' \
+            | gh api -X POST repos/alottabits/testprotocols-reference/dispatches --input -
+            echo "conformance dispatched for fork PR $PR"
+          fi

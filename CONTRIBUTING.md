@@ -210,6 +210,18 @@ For `docs:`, `chore:`, `ci:` and `test:` PRs that touch no package source
 and no decision file, `hygiene` sets the `review` status itself
 (`no agent review for this kind`), so such a PR needs no `/review`.
 
+## The conformance check
+
+`conformance` runs on every PR. A PR that changes nothing under
+`packages/*/src/` gets `success` at once. Otherwise the maintainers' private
+reference corpus (`docs/archetypes/README.md`) is type-checked against the
+PR's source and the result is posted as `conformance`, naming only public
+symbols and counts. A PR from a fork waits (`pending`) until a maintainer
+runs `/review`, which starts it. A failure means the change narrows or
+extends an archetype in a way the reference drivers do not yet follow; the
+maintainer decides whether the corpus follows or the shape goes back to its
+proposal.
+
 ## Neutrality
 
 This repository is public. Nothing in it names an organisation, a
