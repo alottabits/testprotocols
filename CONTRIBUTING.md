@@ -322,7 +322,7 @@ coexist, and removed no earlier than the next MINOR.
 ## Branch protection on `main`
 
 Applied by a maintainer and recorded here so it can be re-applied:
-required checks `dco`, `lint`, `hygiene` and `review`; strict up-to-date
+required checks `dco`, `lint`, `hygiene`, `review` and `conformance`; strict up-to-date
 off; required approving reviews 0; push restricted to maintainers;
 conversation resolution required; force pushes and deletions off; merge
 commits only; rules enforced for admins.
@@ -333,6 +333,11 @@ that the `review` status was set by `testprotocols-review[bot]` or
 `github-actions[bot]` and by no other account. A reviewer's verdict
 counts toward that status only when its review was posted on the PR;
 otherwise the run errors rather than guessing a verdict.
+
+`conformance` is accepted only from the review App: the public dispatch
+workflow and the private reference corpus both post it under that App.
+When the corpus pipeline is down, the override procedure for `review`
+applies to `conformance` too, with the reason recorded.
 
 Overriding a verdict: the maintainer records the finding and the reason
 in a PR comment, applies the `review-overridden` label, lifts the
