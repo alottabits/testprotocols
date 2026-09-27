@@ -101,3 +101,12 @@ jobs:
             '{event_type: "conformance-requested",
               client_payload: {repo: $repo, pr: $pr, sha: $sha, head_ref: $ref}}' \
           | gh api -X POST repos/alottabits/testprotocols-reference/dispatches --input -
+
+      - name: conformance = error when the dispatch failed
+        if: ${{ failure() && steps.status_token.outputs.token != '' }}
+        env:
+          GH_TOKEN: ${{ steps.status_token.outputs.token }}
+        run: |
+          gh api -X POST "repos/$REPO/statuses/$HEAD_SHA" -f state=error \
+            -f context=conformance -f description="could not dispatch to the reference corpus; see the run" \
+            -f target_url="$RUN_URL"
