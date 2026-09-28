@@ -177,7 +177,8 @@ maintainer change with `no proposal` and its rationale.
 - a PR that changes files under `packages/*/src/` also changes
   `CHANGELOG.md`, unless it carries the `skip-changelog` label;
 - a `proposal:` PR adds exactly one file under `docs/proposals/`, named
-  `YYYY-MM-DD-<slug>.md`, with the header table and a `### P1` block, and
+  `YYYY-MM-DD-<slug>.md`, with the header table, a `### P1` block and a
+  placement-ladder Mechanism on every item, and
   touches nothing else; a `delta:` PR modifies exactly one existing file
   there; a new document there enters only through a `proposal:` PR, and a
   `docs:`, `chore:`, `ci:` or `test:` PR may not change one; a `feat:`, `fix:`
@@ -195,7 +196,9 @@ maintainer change with `no proposal` and its rationale.
   verification`, `verified` and never moves backwards; package source needs
   `accepted for verification` or later and a `## 12. Landing manifest`; at
   `verified`, a document with `tier-staged` manifest rows is named in
-  `GAPS.md`;
+  `GAPS.md`; every manifest row names its Mechanism, a rung of the
+  placement ladder (or `archetype` / `record`), and says Breaking `yes`
+  exactly for `breaking` rows;
 - a `release:` PR sets both version fields to the title's version and
   renames the `[Unreleased]` heading to it, with a fresh `[Unreleased]`
   above; the released section has at least one entry, no

@@ -135,7 +135,8 @@ GOOD_PROPOSAL = """\
 
 ### P1 — capability protocol `OverlayAdvertisements`
 
-Need ...
+- **Need**: ...
+- **Mechanism**: new capability
 """
 
 
@@ -165,7 +166,7 @@ def test_proposal_must_add_exactly_one_well_named_file(tmp_path: Path) -> None:
 
 
 def test_proposal_body_needs_header_table_and_p1(tmp_path: Path) -> None:
-    write(tmp_path, PROPOSAL, "# Title\n\n### P1 — thing\n")
+    write(tmp_path, PROPOSAL, "# Title\n\n### P1 — thing\n\n- **Mechanism**: reuse\n")
     assert check_proposal(pr("proposal: x", PROPOSAL, status="added"), tmp_path) == [
         f"{PROPOSAL}: header table is missing rows: Date, Use case, Round, Status"
     ]
@@ -669,14 +670,15 @@ def design_doc(status: str, *, manifest: str = "") -> str:
     if manifest:
         body = body.replace(
             "## Review record",
-            "## 12. Landing manifest\n\n| Id | Kind | Symbol | Placement | Breaking | Outcome |\n"
-            f"| --- | --- | --- | --- | --- | --- |\n{manifest}\n## Review record",
+            "## 12. Landing manifest\n\n"
+            "| Id | Kind | Symbol | Mechanism | Placement | Breaking | Outcome |\n"
+            f"| --- | --- | --- | --- | --- | --- | --- |\n{manifest}\n## Review record",
         )
     return body
 
 
-CORE_ROW = "| M1 | new field | `m:X.enabled` | core | no | accepted |\n"
-TIER_ROW = "| M2 | new tier | `m:V` | tier-staged — 2nd consumer | no | accepted |\n"
+CORE_ROW = "| M1 | new field | `m:X.enabled` | defaulted field | core | no | accepted |\n"
+TIER_ROW = "| M2 | new tier | `m:V` | archetype | tier-staged — 2nd consumer | no | accepted |\n"
 
 
 def archetype_pr(*files: FileChange) -> PullRequest:
@@ -844,3 +846,29 @@ def test_run_checks_applies_the_archetype_rules(tmp_path: Path) -> None:
     result = run_checks(outsider, main_root, head_root)
     assert len(result.problems) == 1
     assert "is not listed" in result.problems[0]
+
+
+def test_archetype_manifest_walks_the_placement_ladder(tmp_path: Path) -> None:
+    head = design_doc("accepted for verification", manifest=CORE_ROW).replace(
+        " Mechanism |", " Notes |"
+    )
+    main_root, head_root = roots(tmp_path, CHARTER_DOC, head)
+    files = (FileChange(DESIGN, "modified"),)
+    assert check_archetype(archetype_pr(*files), main_root, head_root) == [
+        f"{DESIGN}: the landing manifest has no Mechanism column "
+        "(docs/archetypes/README.md, The placement ladder)"
+    ]
+
+
+def test_every_proposal_item_names_its_mechanism(tmp_path: Path) -> None:
+    two_items = GOOD_PROPOSAL + (
+        "\n### P2 — model field `X.y`\n\n- **Mechanism**: `defaulted field`\n"
+        "\n### P3 — operation `z`\n\n- **Need**: ...\n"
+        "\n### P4 — protocol `W`\n\n- **Mechanism**: a new protocol\n"
+    )
+    write(tmp_path, PROPOSAL, two_items)
+    assert check_proposal(pr("proposal: x", PROPOSAL, status="added"), tmp_path) == [
+        f"{PROPOSAL}: P3 names no Mechanism (docs/proposals/README.md, The placement ladder)",
+        f"{PROPOSAL}: P4 Mechanism 'a new protocol' is not a placement-ladder rung "
+        "(driver-only, reuse, defaulted field, white-box, new capability, breaking, archetype)",
+    ]

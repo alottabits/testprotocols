@@ -18,6 +18,7 @@ _STATUS_ROW = re.compile(r"^\| *Status *\|(.*?)\|[ \t]*$", re.MULTILINE)
 _NUMBERED = re.compile(r"^## (\d+)\. +(.+?)[ \t]*$", re.MULTILINE)
 _ANY_H2 = re.compile(r"^## ", re.MULTILINE)
 _ROW_ID = re.compile(r"^\| *(M\d+) *\|", re.MULTILINE)
+_CELL_SEP = re.compile(r"(?<!\\)\|")
 
 
 def is_slug(text: str) -> bool:
@@ -44,6 +45,11 @@ def numbered_sections(body: str) -> list[tuple[int, str]]:
     return [(int(m.group(1)), m.group(2)) for m in _NUMBERED.finditer(body)]
 
 
+def _cells(line: str) -> list[str]:
+    """A table row's cells; an escaped pipe (``\\|``) stays inside its cell."""
+    return [c.strip() for c in _CELL_SEP.split(line.strip().strip("|"))]
+
+
 def manifest_section(body: str) -> str | None:
     for match in _NUMBERED.finditer(body):
         if int(match.group(1)) == MANIFEST_NUMBER:
@@ -54,17 +60,81 @@ def manifest_section(body: str) -> str | None:
 
 
 def tier_staged_rows(body: str) -> list[str]:
-    """Ids of manifest rows whose Placement cell (the fourth column) is tier-staged."""
+    """Ids of manifest rows whose Placement cell is tier-staged.
+
+    The Placement column is found by its header; without one, the fourth
+    column is read (the manifest layout before the Mechanism column).
+    """
     section = manifest_section(body)
     if section is None:
         return []
+    placement_at = 3
     rows: list[str] = []
     for line in section.splitlines():
+        cells = _cells(line)
+        if line.strip().startswith("|") and "placement" in [c.lower() for c in cells]:
+            placement_at = [c.lower() for c in cells].index("placement")
+            continue
         match = _ROW_ID.match(line)
         if match is None:
             continue
-        cells = [c.strip() for c in line.strip().strip("|").split("|")]
-        placement = cells[3].lower().replace(" ", "-") if len(cells) > 3 else ""
+        placement = (
+            cells[placement_at].lower().replace(" ", "-") if len(cells) > placement_at else ""
+        )
         if placement.startswith("tier-staged"):
             rows.append(match.group(1))
     return rows
+
+
+MECHANISMS = (
+    "driver-only",
+    "reuse",
+    "defaulted field",
+    "white-box",
+    "new capability",
+    "breaking",
+    "archetype",
+    "record",
+)
+
+
+def manifest_problems(body: str) -> list[str]:
+    """Placement-ladder checks on the landing manifest (docs/archetypes/README.md).
+
+    Every row names its Mechanism, one of ``MECHANISMS``; the Breaking column
+    says yes exactly for the ``breaking`` rung.
+    """
+    section = manifest_section(body)
+    if section is None:
+        return []
+    lines = [line.strip() for line in section.splitlines() if line.strip().startswith("|")]
+    if not lines:
+        return []
+    header = [c.lower() for c in _cells(lines[0])]
+    if "mechanism" not in header:
+        return [
+            "the landing manifest has no Mechanism column (docs/archetypes/README.md, "
+            "The placement ladder)"
+        ]
+    mech_at = header.index("mechanism")
+    breaking_at = header.index("breaking") if "breaking" in header else None
+    problems: list[str] = []
+    for line in lines[1:]:
+        cells = _cells(line)
+        if not cells or _ROW_ID.match(line) is None or len(cells) <= mech_at:
+            continue
+        row, mechanism = cells[0], cells[mech_at].lower()
+        if mechanism not in MECHANISMS:
+            problems.append(
+                f"{row}: Mechanism {cells[mech_at]!r} is not a placement-ladder rung "
+                f"({', '.join(MECHANISMS)})"
+            )
+            continue
+        if breaking_at is None or len(cells) <= breaking_at:
+            continue
+        breaking = cells[breaking_at].lower().startswith("yes")
+        if mechanism == "breaking" and not breaking:
+            problems.append(f"{row}: Mechanism 'breaking' needs Breaking 'yes'")
+        elif mechanism != "breaking" and breaking:
+            problems.append(f"{row}: Breaking is 'yes' but Mechanism {mechanism!r} is not breaking")
+    return problems

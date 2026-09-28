@@ -109,9 +109,9 @@ Charter` and `## 12. Landing manifest`.
    a verification item.
 3. **Decision.**
 4. **The archetype** — core plus optional tiers, each tier with its trigger.
-5. **Reuse vs. net-new** — every net-new protocol or field justified against
-   reuse, derivation and composition; a shared-with table per sibling
-   archetype.
+5. **Reuse vs. net-new** — every operation the design adds, placed on the
+   placement ladder (below): its rung, and for every item above rung 2 why
+   no cheaper rung fits; a shared-with table per sibling archetype.
 6. **Modelling decisions** — each stated as the decision and the condition
    that would overturn it.
 7. **Levels** — sea-level and white-box per `packages/testprotocols/LEVELS.md`.
@@ -132,15 +132,25 @@ driver-facing notes.
 
 ### The landing manifest
 
-| Id | Kind | Symbol | Placement | Breaking | Outcome |
+| Id | Kind | Symbol | Mechanism | Placement | Breaking | Outcome |
 | --- | --- | --- | --- | --- | --- |
-| M1 | new protocol / new field / new archetype / new tier / rename / SPLITS entry / GAPS entry / LEVELS entry | `module:Symbol` | `core` or `tier-staged — <trigger>` | yes / no | accepted / accepted with conditions / declined, date |
+| M1 | new protocol / new field / new archetype / new tier / rename / SPLITS entry / GAPS entry / LEVELS entry | `module:Symbol` | a ladder rung, or `archetype` / `record` | `core` or `tier-staged — <trigger>` | yes / no | accepted / accepted with conditions / declined, date |
 
 Every symbol change the body mentions has a row. `core` rows are implemented
 on the `archetype:` PR and get changelog entries citing `<design path> M<n>`.
 `tier-staged` rows get a pointer in `packages/testprotocols/GAPS.md` naming the
 document before the PR merges at `verified`. A later `feat:` PR cites a row
 the way it cites a proposal's `P<n>`.
+
+## The placement ladder
+
+Every operation a design adds is placed on the placement ladder of
+`docs/proposals/README.md` ("The placement ladder"): the cheapest rung that
+genuinely fits, with the reason no cheaper rung does for every item above
+rung 2. The manifest records each row's rung in its Mechanism column, with
+`archetype` for an archetype or tier row and `record` for a tracking-file
+entry; the Breaking column is `yes` exactly for `breaking` rows. `hygiene`
+checks both.
 
 ## The evidence bar
 
@@ -201,8 +211,10 @@ verdicts of `docs/proposals/README.md`.
    and the capability-only rule; reopening needs new evidence.
 2. **Matrix soundness.** Every cell sourced; denominators against the ratified
    list; every ◐ a verification item.
-3. **Reuse exhausted.** Every net-new protocol or field justified against
-   reuse, derivation and composition.
+3. **Placement ladder walked.** Every added operation sits on the cheapest
+   rung that fits, and every item above rung 2 says why no cheaper rung does;
+   no new capability holds a single verb of a concern that an existing or
+   another new capability owns.
 4. **Core vs. tiers.** Every core member meets the core threshold; everything
    else is `tier-staged` with its trigger, or a documented per-method
    unsupported case.
@@ -211,7 +223,7 @@ verdicts of `docs/proposals/README.md`.
 6. **No siblings.** No near-duplicate of an existing protocol; renames flagged
    breaking.
 7. **Manifest complete.** Every symbol change in the body has a row with its
-   breaking flag and tracking-file entries.
+   Mechanism, breaking flag and tracking-file entries.
 
 **Verification** (`archetype:` PR with package source):
 
