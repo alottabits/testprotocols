@@ -167,3 +167,13 @@ def test_mechanism_values_and_breaking_agreement() -> None:
 
 def test_no_manifest_no_problems() -> None:
     assert manifest_problems("# T\n\n## 1. Charter\n") == []
+
+
+def test_escaped_pipes_stay_inside_their_cell() -> None:
+    body = LADDER_DOC.replace(
+        "| M1 | new field | `m:X.f` | defaulted field |",
+        "| M1 | new field | `m:X.f` (`int \\| None = None`) | defaulted field |",
+    )
+    assert manifest_problems(body) == []
+    tier = body.replace("| archetype | tier-staged — x |", "| archetype | tier-staged — a \\| b |")
+    assert tier_staged_rows(tier) == ["M5"]

@@ -18,6 +18,7 @@ _STATUS_ROW = re.compile(r"^\| *Status *\|(.*?)\|[ \t]*$", re.MULTILINE)
 _NUMBERED = re.compile(r"^## (\d+)\. +(.+?)[ \t]*$", re.MULTILINE)
 _ANY_H2 = re.compile(r"^## ", re.MULTILINE)
 _ROW_ID = re.compile(r"^\| *(M\d+) *\|", re.MULTILINE)
+_CELL_SEP = re.compile(r"(?<!\\)\|")
 
 
 def is_slug(text: str) -> bool:
@@ -44,6 +45,11 @@ def numbered_sections(body: str) -> list[tuple[int, str]]:
     return [(int(m.group(1)), m.group(2)) for m in _NUMBERED.finditer(body)]
 
 
+def _cells(line: str) -> list[str]:
+    """A table row's cells; an escaped pipe (``\\|``) stays inside its cell."""
+    return [c.strip() for c in _CELL_SEP.split(line.strip().strip("|"))]
+
+
 def manifest_section(body: str) -> str | None:
     for match in _NUMBERED.finditer(body):
         if int(match.group(1)) == MANIFEST_NUMBER:
@@ -65,7 +71,7 @@ def tier_staged_rows(body: str) -> list[str]:
     placement_at = 3
     rows: list[str] = []
     for line in section.splitlines():
-        cells = [c.strip() for c in line.strip().strip("|").split("|")]
+        cells = _cells(line)
         if line.strip().startswith("|") and "placement" in [c.lower() for c in cells]:
             placement_at = [c.lower() for c in cells].index("placement")
             continue
@@ -104,7 +110,7 @@ def manifest_problems(body: str) -> list[str]:
     lines = [line.strip() for line in section.splitlines() if line.strip().startswith("|")]
     if not lines:
         return []
-    header = [c.strip().lower() for c in lines[0].strip("|").split("|")]
+    header = [c.lower() for c in _cells(lines[0])]
     if "mechanism" not in header:
         return [
             "the landing manifest has no Mechanism column (docs/archetypes/README.md, "
@@ -114,7 +120,7 @@ def manifest_problems(body: str) -> list[str]:
     breaking_at = header.index("breaking") if "breaking" in header else None
     problems: list[str] = []
     for line in lines[1:]:
-        cells = [c.strip() for c in line.strip("|").split("|")]
+        cells = _cells(line)
         if not cells or _ROW_ID.match(line) is None or len(cells) <= mech_at:
             continue
         row, mechanism = cells[0], cells[mech_at].lower()
