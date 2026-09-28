@@ -47,9 +47,10 @@ this order:
 - **Need**: what, and which existing protocols and operations were checked
   and why each fails.
 - **Proposed design**: signature, models, framing rationale.
-- **Mechanism**: the item's rung of the placement ladder (below) — `driver-only`,
-  `reuse`, `defaulted field`, `white-box`, `new capability`, `breaking` or
-  `archetype` — and, above `reuse`, why no cheaper rung fits.
+- **Mechanism**: the item's rung of the placement ladder (below) —
+  `driver-only`, `reuse`, `defaulted field`, `white-box`, `extend`,
+  `deprecate`, `remove`, `new capability` or `archetype` — and, above
+  `reuse`, why no lower rung fits.
 - **Placement**: **promote** to `testprotocols` or `testoperations`, or
   **keep local** with the trigger that would promote it. For a promote
   item: **plugin-staged** (a `PROMOTED_AS = "module:Symbol"` marker in the
@@ -72,7 +73,7 @@ returned before any design question is answered.
 
 Every operation a change adds reaches the contract by one of six mechanisms.
 They cost different parties different things, so a proposal or an archetype
-design places each operation on the cheapest rung that genuinely fits, and
+design places each operation on the lowest rung that genuinely fits, and
 says why for every item above rung 2:
 
 | Rung | Mechanism (value) | Cost |
@@ -81,12 +82,43 @@ says why for every item above rung 2:
 | 2 | reuse an existing capability as-is (`reuse`) | none |
 | 3 | a defaulted field on an existing model (`defaulted field`) | none: existing drivers compile unchanged and fill the default |
 | 4 | a white-box extension of an existing capability (`white-box`) | none for existing drivers; optional by construction |
-| 5 | a new capability (`new capability`) | grows the capability set: it must own a concern no existing capability owns, and the operations of one concern go into one capability, never one capability per verb |
-| 6 | a new member, retype or rename on an existing protocol (`breaking`) | breaks every implementer of that protocol: a MINOR release with a migration line |
+| 5 | change an existing protocol: add a member (`extend`), rename or retype with a deprecation period (`deprecate`), and later remove the deprecated form (`remove`) | paid by consumers when they adopt the release that carries it — they pin a version range, so the timing is theirs (below) |
+| 6 | a new capability (`new capability`) | grows the capability set, which costs structure and maintainability for as long as it exists |
 
-Rungs 5 and 6 are weighed, not ordered: extending an existing protocol is
-right when the operation belongs to its concern and its implementers are few
-(the proposal or design names them); a new capability is right for a distinct concern.
+**Rung 5 before rung 6.** Change an existing protocol rather than add a
+capability. Add a new capability only when no existing protocol owns the
+concern, or when extending would leave a whole archetype that composes the
+protocol permanently unsupported (the splitting argument: a protocol that
+half its archetypes can never satisfy promises less than it says). Group the
+operations of one concern into one capability, never one capability per verb.
+
+**How rung 5 is done.**
+
+- **Extend.** Add the member. Implementers that cannot support it yet add a
+  one-line stub raising `NotSupportedError`. A MINOR release; the changelog
+  entry is under *Breaking for driver authors* with the stub as its
+  migration line.
+- **Rename.** A capability or model class keeps its old name as a module
+  alias that emits a `DeprecationWarning`; tests and drivers keep working
+  unchanged. A method or field rename declares both names for the
+  deprecation period: implementers add the new one and let the old one
+  delegate to it. The old name is removed after the period (`remove`).
+- **Retype**, keeping the name:
+  - *values going in* (parameters, constructor fields) — **widen, then
+    narrow**: accept the old and the new type for the deprecation period,
+    normalise the old form with a shared helper that emits a
+    `DeprecationWarning`, then narrow to the new type;
+  - *values coming out* (return types, fields tests read) — an **opt-in
+    selector**: `form="legacy"` stays the default for the period while
+    callers opt into `form="current"`, the default then flips, and the
+    selector is removed after a second period;
+  - only when neither fits, **rename, then reclaim**: a temporary name
+    carries the new type, the old name is removed after the period and
+    reintroduced with the new type, and the temporary name is deprecated in
+    turn.
+- **The deprecation period** is at least one MINOR release and at least six
+  months, whichever is later, announced by a *Deprecated* changelog entry and
+  a runtime `DeprecationWarning`.
 
 A proposal names each item's rung on its **Mechanism** line; `hygiene`
 checks that every item names one.
@@ -106,8 +138,9 @@ The review answers these questions, in this order, for every item:
    proposed, and ratifying it becomes a condition.
 3. **Placement ladder walked.** Can the need be met in the driver or plugin
    without changing a contract? Promote is earned, not the default. When a
-   contract change is earned, the item sits on the cheapest rung of the
-   placement ladder that fits, and its Mechanism says so.
+   contract change is earned, the item sits on the lowest rung of the
+   placement ladder that fits — an existing protocol changed before a new
+   capability is added — and its Mechanism says so.
 4. **Correct home.** `testprotocols`, `testoperations`, or plugin-local?
 5. **Overlap with capability protocols.** Is there an existing protocol or
    a sibling of one?

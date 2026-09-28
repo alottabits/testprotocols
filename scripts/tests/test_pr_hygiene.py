@@ -870,5 +870,6 @@ def test_every_proposal_item_names_its_mechanism(tmp_path: Path) -> None:
     assert check_proposal(pr("proposal: x", PROPOSAL, status="added"), tmp_path) == [
         f"{PROPOSAL}: P3 names no Mechanism (docs/proposals/README.md, The placement ladder)",
         f"{PROPOSAL}: P4 Mechanism 'a new protocol' is not a placement-ladder rung "
-        "(driver-only, reuse, defaulted field, white-box, new capability, breaking, archetype)",
+        "(driver-only, reuse, defaulted field, white-box, extend, deprecate, remove, "
+        "new capability, archetype)",
     ]

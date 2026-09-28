@@ -135,7 +135,9 @@ LADDER_DOC = """\
 | --- | --- | --- | --- | --- | --- | --- |
 | M1 | new field | `m:X.f` | defaulted field | core | no | accepted |
 | M2 | new protocol | `m:Y` | new capability | core | no | accepted |
-| M3 | rename | `m:Z` → `m:W` | breaking | core | yes | accepted |
+| M3 | rename | `m:Z` → `m:W`, deprecated alias | deprecate | core | no | accepted |
+| M6 | new member | `m:Y.more` | extend | core | yes | accepted |
+| M7 | removal | `m:Z` after its deprecation | remove | core | yes | accepted |
 | M4 | SPLITS entry | the rename | record | core | no | accepted |
 | M5 | new tier | `m:Tier` | archetype | tier-staged — x | no | accepted |
 """
@@ -155,13 +157,14 @@ def test_manifest_needs_a_mechanism_column() -> None:
 
 def test_mechanism_values_and_breaking_agreement() -> None:
     body = LADDER_DOC.replace("| defaulted field | core | no |", "| field-ish | core | no |")
-    body = body.replace("| breaking | core | yes |", "| breaking | core | no |")
+    body = body.replace("| extend | core | yes |", "| extend | core | no |")
     body = body.replace("| new capability | core | no |", "| New Capability | core | yes |")
     assert manifest_problems(body) == [
         "M1: Mechanism 'field-ish' is not a placement-ladder rung (driver-only, reuse, "
-        "defaulted field, white-box, new capability, breaking, archetype, record)",
+        "defaulted field, white-box, extend, deprecate, remove, new capability, "
+        "archetype, record)",
         "M2: Breaking is 'yes' but Mechanism 'new capability' is not breaking",
-        "M3: Mechanism 'breaking' needs Breaking 'yes'",
+        "M6: Mechanism 'extend' needs Breaking 'yes'",
     ]
 
 

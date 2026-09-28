@@ -145,11 +145,11 @@ the way it cites a proposal's `P<n>`.
 ## The placement ladder
 
 Every operation a design adds is placed on the placement ladder of
-`docs/proposals/README.md` ("The placement ladder"): the cheapest rung that
-genuinely fits, with the reason no cheaper rung does for every item above
+`docs/proposals/README.md` ("The placement ladder"): the lowest rung that
+genuinely fits, with the reason no lower rung does for every item above
 rung 2. The manifest records each row's rung in its Mechanism column, with
 `archetype` for an archetype or tier row and `record` for a tracking-file
-entry; the Breaking column is `yes` exactly for `breaking` rows. `hygiene`
+entry; the Breaking column is `yes` exactly for `extend` and `remove` rows. `hygiene`
 checks both.
 
 ## The evidence bar
