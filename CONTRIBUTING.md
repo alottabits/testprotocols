@@ -198,7 +198,7 @@ maintainer change with `no proposal` and its rationale.
   `verified`, a document with `tier-staged` manifest rows is named in
   `GAPS.md`; every manifest row names its Mechanism, a rung of the
   placement ladder (or `archetype` / `record`), and says Breaking `yes`
-  exactly for `breaking` rows;
+  exactly for `extend` and `remove` rows;
 - a `release:` PR sets both version fields to the title's version and
   renames the `[Unreleased]` heading to it, with a fresh `[Unreleased]`
   above; the released section has at least one entry, no
@@ -319,8 +319,11 @@ A tag is never moved or deleted. A broken release is yanked on PyPI and
 followed by a PATCH; the yank is noted in the changelog section. Fixes
 land on `main` first; there are no stable branches at 0.x, and a consumer
 that cannot take the next release carries the fix as a `Backport` patch.
-A removal or rename is preceded by a *Deprecated* entry where the two can
-coexist, and removed no earlier than the next MINOR.
+A removal, rename or retype is preceded by a deprecation period where the
+two forms can coexist: a *Deprecated* changelog entry and a runtime
+`DeprecationWarning`, for at least one MINOR release and at least six
+months, whichever is later. How a rename or a retype keeps both forms alive
+is in `docs/proposals/README.md` ("The placement ladder", rung 5).
 
 ## Branch protection on `main`
 

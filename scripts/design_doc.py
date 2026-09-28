@@ -91,18 +91,22 @@ MECHANISMS = (
     "reuse",
     "defaulted field",
     "white-box",
+    "extend",
+    "deprecate",
+    "remove",
     "new capability",
-    "breaking",
     "archetype",
     "record",
 )
+#: Rungs that break existing implementers or callers in the release that lands them.
+BREAKING_MECHANISMS = frozenset({"extend", "remove"})
 
 
 def manifest_problems(body: str) -> list[str]:
     """Placement-ladder checks on the landing manifest (docs/archetypes/README.md).
 
     Every row names its Mechanism, one of ``MECHANISMS``; the Breaking column
-    says yes exactly for the ``breaking`` rung.
+    says yes exactly for the rungs in ``BREAKING_MECHANISMS``.
     """
     section = manifest_section(body)
     if section is None:
@@ -133,8 +137,8 @@ def manifest_problems(body: str) -> list[str]:
         if breaking_at is None or len(cells) <= breaking_at:
             continue
         breaking = cells[breaking_at].lower().startswith("yes")
-        if mechanism == "breaking" and not breaking:
-            problems.append(f"{row}: Mechanism 'breaking' needs Breaking 'yes'")
-        elif mechanism != "breaking" and breaking:
+        if mechanism in BREAKING_MECHANISMS and not breaking:
+            problems.append(f"{row}: Mechanism {mechanism!r} needs Breaking 'yes'")
+        elif mechanism not in BREAKING_MECHANISMS and breaking:
             problems.append(f"{row}: Breaking is 'yes' but Mechanism {mechanism!r} is not breaking")
     return problems
