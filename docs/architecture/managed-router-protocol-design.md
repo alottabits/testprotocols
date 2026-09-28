@@ -2,7 +2,7 @@
 
 | Field | Value |
 | --- | --- |
-| Status | chartered |
+| Status | accepted for verification |
 | Author | rjvisser |
 | Date | 2026-09-27 |
 | Related | `docs/archetypes/README.md` (the track), `docs/architecture/sdwan-appliance-protocol-design.md` (the precedent), `docs/architecture/capability-only-archetypes.md`, `packages/testprotocols/SPLITS.md`, `packages/testprotocols/LEVELS.md`, `packages/testprotocols/GAPS.md` |
@@ -232,9 +232,11 @@ capability outside the archetype shape:
 ## 2. Cross-family matrix
 
 ✓ = fully present · ◐ = partial/caveated · ✗ = absent · ¹ = no official
-public source at command level (Ekinops publishes datasheets only); verify
-against the OneOS6 command/YANG reference or on first driver evidence before
-promoting to ✓; every ◐¹ cell is a stage-4 verification item (§9)
+public source at command level (Ekinops publishes datasheets and brochures
+only). Where a datasheet or brochure line claims the feature, §10 cites it and
+the cell records that claim; a ◐¹ with no such line is an unverified
+assumption pending stage-4 evidence, and §10 names which cells those are.
+Every ◐¹ cell is a stage-4 verification item (§9)
 
 | Capability | Cisco IOS-XE ≥ 17.9 | Huawei VRP 5.170 | Ekinops OneOS6 | Junos OS ≥ 22.4 | SR OS ≥ 22 | Comware 7 | FortiOS ≥ 7.2 | RouterOS v7 |
 | --- | :--: | :--: | :--: | :--: | :--: | :--: | :--: | :--: |
@@ -304,7 +306,9 @@ instance exposes it are driver facts, recorded in §8; they never decide a cell.
 
 - **Universal (mandatory baseline)** — interface admin (7 ✓ + 1 ◐¹);
   static/OSPF/BGP (8); ACL filtering (8); IPsec s2s (7 + 1 ◐); DHCP server
-  (8) + client (7 + 1 ◐); NTP/syslog/SNMP (7 + 1 ◐¹); VRRP-shaped FHRP (8);
+  (8) + client (7 + 1 ◐); NTP/syslog/SNMP (7 + 1 ◐¹ — the core composes NTP
+  and syslog; the SNMP agent's configuration is deferred, M19, and has no core
+  member); VRRP-shaped FHRP (8, configuration; §6);
   QoS *by intent* (6 + 2 ◐); flow telemetry (7 + 1 ◐); LLDP discovery
   (7 + 1 ◐¹).
 - **Strong-majority (baseline, per-method unsupported-capability)** — on-box
@@ -338,10 +342,24 @@ material claims (a datasheet or brochure feature line) without a
 command-level source; it is not a partial implementation. The classification
 counts it as present, which is weaker than a ✓, and the design does not hide
 that: much of the core rests on ◐¹ cells in the OneOS6 column. Every ◐¹ is a
-stage-4 verification item (§9). A ◐¹ that proves ✗ makes the member a
-documented per-method unsupported case on OneOS6, and the member is
-re-assessed against the evidence bar ("supported on every trigger family")
-before the design lands; one that proves ✓ closes.
+stage-4 verification item (§9).
+
+**If a OneOS6 ◐¹ proves ✗ — the rule, once, for the column.** The core
+members whose OneOS6 cell is ◐¹ are interface admin, NTP, discovery, reload,
+uptime, the per-VRF routing-table read, MTU, the physical-link read, image and
+configuration lifecycle, the running version, link aggregation, tunnel state,
+management-access filtering, command authorization, and capture. Every one of
+them is present (✓ or ◐) on all seven other families and ✓ on at least five
+of them, and ✓ on both other trigger families except link aggregation (◐ on
+IOS-XE, documented for its aggregation class), so a ✗ on OneOS6 alone leaves
+it present on a majority and on two trigger families: it **stays core as a documented per-method unsupported case** on
+OneOS6, recorded in the reference driver with its source, and no member moves
+to a tier on one family's ✗. The exception is **interface admin**, the class's
+defining lever (§1): a ✗ there means OneOS6 does not publish the operation
+that defines the class, which is a question about OneOS6's place among the
+trigger families, returned through a charter revision rather than by moving
+the lever to a tier. A ◐¹ that proves ✓ closes. Capture is argued the same way
+in §6.
 
 ## 3. Decision
 
@@ -444,7 +462,7 @@ class WanEdgeRouterDevice(ManagedRouterDevice, Protocol):
 @runtime_checkable
 class SwitchedRouterDevice(ManagedRouterDevice, Protocol):
     """Adds the integrated-switch facet — small-branch models with an integrated
-    switch, and EtherSwitch service modules. Reuses the existing switch layer."""
+    switch, and switch service modules in modular chassis. Reuses the existing switch layer."""
     switch_ports: SwitchPorts            # reuse
     switch_vlans: SwitchVlans            # reuse
     spanning_tree: SpanningTree          # reuse
@@ -528,7 +546,7 @@ rung 6), **defer** (a `GAPS.md` entry until a consumer), **new (tier)**
 | DHCP client | `DhcpClient` | reuse | 7 + 1 ◐ | Nokia's is ZTP/mgmt-oriented (◐) |
 | FHRP | `GatewayRedundancy` | reuse | 8 | **VRRP-shaped** (HSRP/GLBP are Cisco-local) |
 | One-shot reachability | `NetworkProbe` | reuse | 8 | on-box ping/traceroute; feeds `await_reachability`; §6 |
-| Configured probe + result series | `ReachabilityProbe` | **defer (GAPS)** | 5 + 3 ◐ | IP SLA/NQA/RPM/TWAMP-class; reuse `PathMetrics` when it lands; §6 |
+| Configured probe + result series | `ReachabilityProbe` | **defer (GAPS)** | 6 + 2 ◐ | IP SLA/NQA/RPM/TWAMP-class; reuse `PathMetrics` when it lands; §6 |
 | Flow telemetry | `FlowExport` | **defer (GAPS)** | 7 + 1 ◐ | exporter config intent; needs a collector-side consumer; §6 |
 | On-box packet capture | `PcapCapture` | **reuse; methods renamed (extend)** | 6 + 2 ◐ | device-vantage capture; the file is fetched off-box or pushed to the harness; §6 |
 | NTP / syslog | `NtpConfig` / `SyslogConfig` | reuse | 7 + 1 ◐¹ | telemetry path = syslog (as appliance) |
@@ -553,11 +571,11 @@ rung 6), **defer** (a `GAPS.md` entry until a consumer), **new (tier)**
 | WAN-uplink reads | `Router`, `ApplianceUplinks` | reuse (tier); `ApplianceUplinks` renamed on landing | n/a | `WanEdgeRouterDevice`; the two status records already coexist on the appliance (§6) |
 | Uplink wiring | `UplinkPorts` | reuse (tier) | n/a | `WanEdgeRouterDevice`; testbed topology fact |
 | Edge firewall triad | `L3Firewall` | reuse (tier) | 8 | `WanEdgeRouterDevice`; derived as interface ACLs on WAN / tunnel interfaces (§6) |
-| SD-WAN policy (SLA + uplink selection) | `SdwanPolicyManager` | reuse (tier), by composition | 5 + 2 ◐ + 1 ✗ | `WanEdgeRouterDevice`; probe + track + policy routing; per-method (§6) |
+| SD-WAN policy (SLA + uplink selection) | `SdwanPolicyManager` | reuse (tier), by composition | 5 + 3 ◐ | `WanEdgeRouterDevice`; probe + track + policy routing; per-method (§6) |
 | Security bundles | `L7Firewall` / `ContentFiltering` / `ThreatPrevention` | reuse (tier) | 5 + 2 ◐ + 1 ✗ | `SecuredRouterDevice` (§6) |
-| Integrated switching | `SwitchPorts`/`SwitchVlans`/`SpanningTree`/`PortPoe` | reuse (tier) | 7 + 1 ◐ | `SwitchedRouterDevice` |
-| Cellular WAN | `CellularWan` | **new (tier)** | 6 + 2 ◐ | `AccessWanRouterDevice` |
-| xDSL WAN | `DslWan` | **new (tier)** | 5 + 2 ◐ + 1 ✗ | `AccessWanRouterDevice` |
+| Integrated switching | `SwitchPorts`/`SwitchVlans`/`SpanningTree`/`PortPoe` | reuse (tier) | 6 + 2 ◐ | `SwitchedRouterDevice` |
+| Cellular WAN | `CellularWan` | **new (tier)** | 5 + 2 ◐ + 1 ✗ | `AccessWanRouterDevice` |
+| xDSL WAN | `DslWan` | **new (tier)** | 4 + 2 ◐ + 2 ✗ | `AccessWanRouterDevice` |
 | PPP/PPPoE | `PppSession` | **new (tier)** | with access-WAN | rides DSL/cellular encapsulation |
 | Voice gateway | `RouterVoice` | **new (tier)** | 4 | `VoiceGatewayRouterDevice`; 3/3 trigger families; §6 |
 
@@ -660,6 +678,18 @@ lever — and a convergence measurement therefore keeps its act on the traffic
 controller regardless of who owns the box, the `SPLITS.md` 2026-06-12
 rationale unchanged.
 
+**Where a routed interface has a switch-port counterpart.** On `L3Switch`,
+which composes both `SwitchPorts` and `RoutedInterfaces`, a routed port is
+visible through both, and both now carry `enabled`. They are two views of one
+device setting, not two settings: the physical port's administrative state.
+`SwitchPort.enabled` owns it for the port; `RoutedInterface.enabled` reads and
+writes the same setting for the routed view, and a driver backs both with one
+device read and one device write, so the two cannot disagree after a write
+through either — the same one-backing-object rule `SPLITS.md` 2026-06-15
+records for the AAA registry. On a managed router with no switch-port
+counterpart (the core), `RoutedInterface.enabled` is the only encoding. M3's
+`SPLITS.md` entry records this.
+
 ### LAN side — the L3-switch split; `ApplianceVlans` derivable
 The appliance's `lan: ApplianceVlans` folds VLAN, gateway address and DHCP into
 one `VlanConfig`. The L3-switch design split the same intent into
@@ -714,8 +744,9 @@ threshold state, and policy routing whose next hop is conditioned on the track
 static routes with `track nqa`; Junos RPM + ip-monitoring; Comware NQA + track
 + PBR; RouterOS netwatch + routing marks, scripted). FortiOS carries the object
 natively as SD-WAN rules; OneOS6 carries it natively under the SD-WAN licence
-(§11 asks about the unlicensed base); SR OS has no track-conditioned policy
-routing (✗). That is 5 ✓ + 2 ◐ + 1 ✗ — the bar the stateful firewall and
+(§11 asks about the unlicensed base); SR OS tracks static next hops by BFD
+or a CPE check but has no track-conditioned policy routing (◐). That is
+5 ✓ + 3 ◐ — the bar the stateful firewall and
 on-box capture clear — so `sdwan_policy` is composed on `WanEdgeRouterDevice`
 with per-method unsupported-capability.
 
@@ -785,7 +816,7 @@ precedent), and **both have an existing contract**:
   direction. `SwitchAcl.set_acl(binding, direction, rules)` binds to a
   free-form string documented as "a port or `vlan:<id>`"; binding to an
   interface name is a **zero-contract-change** derivation. Reuse as-is; the
-  de-branded name (`PacketFilterAcl`) is a `SPLITS.md` rename on landing.
+  de-branded name (`AccessLists`) is a `SPLITS.md` rename on landing.
 - **Stateful / zone firewall** (5 ✓ + 3 ◐) — return-traffic admission with
   per-session state, expressed by **behaviour**. `FirewallZones` already models
   zone CRUD, interface/network membership, zone defaults, and **zone-pair
@@ -865,7 +896,7 @@ not support seeding it.
 - **`ReachabilityProbe`** (**GAPS-deferred**). The configured-probe surface
   (IP SLA / NQA / RPM / TWAMP: a probe the router *keeps running* plus a result
   series) is a genuinely different shape — config + operational read — and
-  5 ✓ + 3 ◐ across the set — and it has no consumer. The repo's bar
+  6 ✓ + 2 ◐ across the set — and it has no consumer. The repo's bar
   (`HeldPrefixes` landed on first consumer evidence, the BGP awaits were
   deferred without it) says defer. When it lands: the result record reuses **`PathMetrics`**
   (latency/jitter/loss, already the return type of `Router.get_wan_path_metrics`
@@ -946,6 +977,11 @@ declared for the deprecation period and delegate. A protocol method rename
 adds a member, so the row is an `extend`: every `PcapCapture` implementer
 (the host, client, traffic and voice archetypes' drivers) adds the three new
 names, each a one-line delegation, in the release that lands it (§12 M37).
+M29 and M35 are recorded as `deprecate` because each lands in the same
+release as an `extend` of its own protocol (M26, M33), whose migration line
+already has every implementer adding members; `PcapCapture` has no such
+extension here, so its rename is the `extend` (`docs/proposals/README.md`,
+"How rung 5 is done").
 
 **Limits (driver notes, not contract shape).** On-box capture is buffer- and
 count-bounded, may be CPU-punted and rate-limited, is control-plane-only on
@@ -965,7 +1001,7 @@ placement ladder (`docs/archetypes/README.md`) that genuinely fits:
 | Tunnel state | 2 reuse | `SiteToSiteVpn.get_vpn_peers` | — |
 | Backup-WAN failover | 2 reuse (tier) | `Router` + composition | — |
 | Routing table per routing instance | 3 defaulted field | `RouteEntry.vrf: str \| None = None` | no capability reads another VRF's table; a defaulted field keeps every `RoutingRead` implementer compiling. It is the field `GAPS.md` 2026-06-14 pre-designed, landing ahead of the rest of that design (below) |
-| Interface MTU | 3 defaulted field | `RoutedInterface.mtu: int \| None = None` | the configured L3 interface already carries `enabled`; the MTU is one more attribute of it |
+| Interface MTU | 3 defaulted field | `RoutedInterface.mtu: int \| None = None` | the rung-2 candidate `IpInterface.get_interface_mtu_size` / `set_interface_mtu_size` carries the concern but is a host-substrate lever, kept off a closed router (§5 Boundary with the Linux twin); the configured L3 interface already carries `enabled`, and the MTU is one more attribute of it |
 | Routing-peer reset | 4 white-box | `BgpWhiteBox.reset_session(peer)` | a lever, not an intent; no appliance publishes it, so a `Bgp` member would break every appliance driver |
 | Reload and readiness | 2 reuse | `DeviceLifecycle.reset(method)`, `wait_for_boot(timeout_s)` | — |
 | Image stage / activate / roll back; configuration export / import | 5 extend | `DeviceLifecycle` | no capability carries them; `DeviceLifecycle` owns the device's lifecycle concern, and every archetype composing it (CPE today) can implement them, so no archetype is left permanently unsupported and a new capability is not earned. CPE drivers add `NotSupportedError` stubs until they implement them |
@@ -978,6 +1014,9 @@ placement ladder (`docs/archetypes/README.md`) that genuinely fits:
 | Capture method names | 5 extend | `PcapCapture.start_capture` / `stop_capture` / `read_capture` | the de-brand rule of M7 (above, On-box packet capture); a method rename adds members |
 | Boot detection | 5 deprecate | `DeviceLifecycle.verify_cpe_is_booting` → `verify_booting` | the only CPE-branded name the router would implement. Both names are declared for the deprecation period and the old one delegates; it lands in the same release as the extension, whose migration line already has every implementer adding members, so it costs nothing beyond that |
 | PPPoE session reset; cellular radio state | 6 new capability (tier) | `PppSession`, `CellularWan` | the access-WAN tier's own capabilities (§4) |
+| First-hop redundancy configuration (group, virtual address, priority role, interface) | 2 reuse | `GatewayRedundancy` (`list_groups` / `get_group` / `set_group` over `RedundancyGroup`) | — |
+| First-hop redundancy operational state (which member is active) | deferred | `GAPS.md` (M47) | `GatewayRedundancy` is configuration-only; an operational read is a sea-level addition that lands on the first test asserting convergence, as an `extend` or a defaulted field on the group record |
+| Forced first-hop failover | white-box candidate | `GatewayRedundancyWhiteBox` (§7) | a lever with no intent-level equivalent; recorded as a candidate, not seeded |
 | Setting speed and duplex; control-plane protection; management-plane posture | deferred | `GAPS.md` (M39–M41) | the demand reads negotiation from both ends; control-plane policies differ in shape per family; posture is a checklist, verified from the test host |
 
 **`DeviceLifecycle`, extended** (sketch; the design review settles the signatures; the existing members are unchanged except for the rename):
@@ -1051,8 +1090,8 @@ LOCAL_ACCOUNTS = "local"   # the reserved name for the device's own accounts
 class OperatorLogin(Protocol):
     def get_login_order(self) -> list[str]: ...
     def set_login_order(self, order: list[str]) -> None: ...          # registry server names, then LOCAL_ACCOUNTS as the fallback
-    def get_command_authorisation(self) -> list[str]: ...             # [] = local privilege levels only
-    def set_command_authorisation(self, order: list[str]) -> None: ...
+    def get_command_authorization(self) -> list[str]: ...             # [] = local privilege levels only
+    def set_command_authorization(self, order: list[str]) -> None: ...
     def get_accounting(self) -> list[str]: ...                        # [] = no accounting
     def set_accounting(self, servers: list[str]) -> None: ...
 ```
@@ -1203,7 +1242,9 @@ kinds the convention admits:
   operations); a NAT white-box `clear_translations()`;
   `SiteToSiteVpnWhiteBox.clear_security_associations(peer)`;
   `SdwanPolicyWhiteBox.force_track_state(name, up | down)` — simulate an SLA
-  breach without impairing the wire.
+  breach without impairing the wire; `GatewayRedundancyWhiteBox` — force a
+  first-hop failover (lower the local priority or shut the tracked interface)
+  without failing the member.
 
 Each candidate is recorded in `LEVELS.md` when a consumer or reviewer signal
 lands it, with the drivers expected to satisfy it (router drivers;
@@ -1250,6 +1291,17 @@ one lands with this entry (§12 M38):
   the boundary-fact rule of `capability-only-archetypes.md` puts it on
   `DeviceInfo` / `ConfigOwnership` as a read-only property, never on the
   archetype.
+- **`ConfigOwnership` is adopted for this class, ahead of its recorded
+  trigger.** `capability-only-archetypes.md` defers the capability beyond the
+  appliance until the first monitored-but-not-managed device in an inventory.
+  For this class the trigger is met in kind if not yet in an inventory:
+  controller-owned instances exist in every trigger family (the bullet above),
+  and the class definition (§1) keeps management mode out of the shape *by*
+  this capability. Composing it now costs a driver one property
+  (`manages_network`, true for the first drivers, §11 question 1); adding it
+  later would be a new mandatory member of the archetype, breaking every router
+  driver. The adoption is recorded against that document's deferral note
+  (§12 M49).
 - **Composition is a mechanism, not an approximation.** A capability is
   satisfied by a *sequence* of platform primitives — several CLI commands, a
   probe plus a track plus a policy route — on the same terms as by a single
@@ -1654,7 +1706,19 @@ interface zone and the management zone — a solution brief, so the cell stays
 (https://www.ekinops.com/images/resources/brochures/03sb_security-ekinops.pdf);
 SNMP v1/v2c/v3: ONE621 datasheet; backup-WAN failover: "Ethernet Backup over
 4G or 5G" (https://www.ekinops.com/solutions/voice-data-access/ethernet-backup-over-4g-or-5g).
-All other OneOS6 cells of the charter-operation rows are ◐¹.
+The remaining OneOS6 ◐¹ cells fall in two groups. **A feature line
+claims them** (the cell records that claim): configured reachability probing
+("QoS measurement probe", ONE621 datasheet); on-box capture ("flow capture
+and decoding", ONE2540, ONE521, ONE531 and ONE421 datasheets); cellular radio
+and subscription state (LTE Cat 6 / 5G, ONE621 and ONE-5G datasheets — the
+feature, with the state read itself unverified); management-access filtering
+(the security brochure's zone policy toward the management zone).
+**No official line claims them** — each an unverified assumption pending
+stage-4 evidence: interface admin; NTP; LLDP discovery; reload; the per-VRF
+routing-table read; routing-peer reset; wired access-session reset; physical
+interface parameters; interface MTU; image lifecycle; configuration export
+and import; control-plane protection; command authorization and accounting;
+tunnel-state read; link aggregation.
 
 **Juniper Junos OS ≥ 22.4** (juniper.net TechLibrary) — `request system
 reboot`; "Example: Control Management Access on Juniper Networking Devices";
@@ -1774,7 +1838,7 @@ restructure.
    routing on the base OneOS6? Decides the OneOS6 `sdwan_policy` cell.
 5. **De-branded names — resolved (maintainer, 2026-09-27).** `ApplianceNat`
    → `NatRules`, `ApplianceUplinks` → `WanUplinks`, `SwitchAcl` →
-   `PacketFilterAcl`, each with a deprecated alias for the deprecation period
+   `AccessLists`, each with a deprecated alias for the deprecation period
    (at least one MINOR and six months; §12).
 6. **Competitor cells against the pinned version lines — resolved
    (2026-09-27).** Every column was re-checked at its pinned line (§2, §10).
@@ -1790,34 +1854,34 @@ restructure.
 Every symbol change the body proposes. `core` rows land on this design's
 `archetype:` PR at stage 4 with changelog entries citing this document and
 the row id; `tier-staged` rows become `GAPS.md` pointers at merge. Outcomes
-record the design review: round 1 (2026-09-28) returned conditions C1–C15,
-and every row carries the conditions that bind it; round 2 confirms or
-revises them.
+record the design review: round 1 (2026-09-28) returned conditions C1–C15
+and round 2 (the same day) conditions R2 C1–R2 C13, approve with conditions;
+every row carries the conditions that bind it.
 
 | Id | Kind | Symbol | Mechanism | Placement | Breaking | Outcome |
 | --- | --- | --- | --- | --- | --- | --- |
-| M1 | new archetype | `testprotocols.devices:ManagedRouterDevice` (registered `managed_router`) | archetype | core | no | accepted with conditions (C1), 2026-09-28 |
+| M1 | new archetype | `testprotocols.devices:ManagedRouterDevice` (registered `managed_router`) | archetype | core | no | accepted with conditions (C1; R2 C1, R2 C10), 2026-09-28 |
 | M2 | new field | `testprotocols.models:RoutedInterface.enabled` (`bool = True`) | defaulted field | core | no | accepted, 2026-09-28 |
-| M3 | SPLITS entry | `RoutedInterface.enabled` and the addressing convention (§6 Interface admin) | record | core | no | accepted, 2026-09-28 |
+| M3 | SPLITS entry | `RoutedInterface.enabled` and the addressing convention (§6 Interface admin); where a routed interface has a `SwitchPort` counterpart (`L3Switch`), both `enabled` fields are views of the one port setting, `SwitchPort` owns it, and a driver backs both with one read and one write | record | core | no | accepted with conditions (R2 C4), 2026-09-28 |
 | M4 | rename | `testprotocols:ApplianceNat` → `testprotocols:NatRules`, deprecated alias for the deprecation period | deprecate | core | no | accepted, 2026-09-28 |
 | M5 | rename | `testprotocols:ApplianceUplinks` → `testprotocols:WanUplinks`, deprecated alias for the deprecation period | deprecate | core | no | accepted, 2026-09-28 |
-| M6 | rename | `testprotocols:SwitchAcl` → `testprotocols:PacketFilterAcl`, deprecated alias for the deprecation period; binding docstring "port, `vlan:<id>`, interface name, or `management` (traffic to the device's own services; `management:<service>` for one service)" | deprecate | core | no | accepted with conditions (C10), 2026-09-28 |
-| M7 | SPLITS entry | the four de-brandings (M4–M6, M37) and the rule that only a shared shape is de-branded (`ApplianceVlans` keeps its name) | record | core | no | accepted with conditions (C13), 2026-09-28 |
+| M6 | rename | `testprotocols:SwitchAcl` → `testprotocols:AccessLists` (not a `PacketFilter` name: that family is per-chain host rule administration over `FirewallRule`, a different shape), deprecated alias for the deprecation period; binding docstring "port, `vlan:<id>`, interface name, or `management` (traffic to the device's own services; `management:<service>` for one service)" | deprecate | core | no | accepted with conditions (C10; R2 C11), 2026-09-28 |
+| M7 | SPLITS entry | the four de-brandings (M4–M6, M37) and the rule that only a shared shape is de-branded (`ApplianceVlans` keeps its name) | record | core | no | accepted with conditions (C13; R2 C11), 2026-09-28 |
 | M8 | SPLITS entry | observations recorded without a change: two rule records on one archetype (`SwitchAclRule` core, `L3Rule` tier); composition read-back as a driver-contract note; `TrafficShaping` a de-brand candidate; the `ApplianceVlans` reshape candidate with its trigger and prerequisites | record | core | no | accepted with conditions (C13), 2026-09-28 |
 | M9 | GAPS entry | `ManagedRouterDevice` design record and matrix (this document) | record | core | no | accepted, 2026-09-28 |
 | M10 | new tier | `testprotocols.devices:WanEdgeRouterDevice` (`Router`, `WanUplinks`, `UplinkPorts`, `L3Firewall`, `SdwanPolicyManager`) | archetype | tier-staged — a WAN-edge router test from a second consumer or trigger family | no | accepted, 2026-09-28 |
-| M11 | new tier | `testprotocols.devices:SwitchedRouterDevice` (the switch capability layer) | archetype | tier-staged — a router test that drives the integrated switch | no | accepted, 2026-09-28 |
-| M12 | new tier + capabilities | `testprotocols.devices:AccessWanRouterDevice`, `testprotocols:CellularWan`, `testprotocols:DslWan`, `testprotocols:PppSession` | archetype | tier-staged — the first access-WAN router test | no | accepted, 2026-09-28 |
-| M13 | new tier + capability | `testprotocols.devices:VoiceGatewayRouterDevice`, `testprotocols:RouterVoice` | archetype | tier-staged — the first voice-gateway test | no | accepted, 2026-09-28 |
+| M11 | new tier | `testprotocols.devices:SwitchedRouterDevice` (the switch capability layer) | archetype | tier-staged — a router test that drives the integrated switch | no | accepted with conditions (R2 C1), 2026-09-28 |
+| M12 | new tier | `testprotocols.devices:AccessWanRouterDevice` (`CellularWan`, `DslWan`, `PppSession`, M43–M45) | archetype | tier-staged — the first access-WAN router test | no | accepted with conditions (R2 C5), 2026-09-28 |
+| M13 | new tier | `testprotocols.devices:VoiceGatewayRouterDevice` (`RouterVoice`, M46) | archetype | tier-staged — the first voice-gateway test | no | accepted with conditions (R2 C5), 2026-09-28 |
 | M14 | new tier | `testprotocols.devices:SecuredRouterDevice` (`L7Firewall`, `ContentFiltering`, `ThreatPrevention`) | archetype | tier-staged — the first router security test | no | accepted with conditions (C1, C6), 2026-09-28 |
 | M15 | GAPS entry | `testprotocols:ReachabilityProbe` (configured probe + result series, `PathMetrics`) | record | tier-staged — a test that needs a probe the router keeps running | no | accepted, 2026-09-28 |
 | M16 | GAPS entry | `testprotocols:FlowExport` (exporter configuration intent) | record | tier-staged — a test asserting on exported flows, with a harness-side collector | no | accepted, 2026-09-28 |
 | M17 | GAPS entry | an EIGRP-class proprietary IGP (plugin-local, never neutral) | record | tier-staged — a single-vendor test that must drive it through a typed surface | no | accepted, 2026-09-28 |
 | M18 | GAPS entry | `CarrierEthernet` (EVC) for carrier Metro-Ethernet switches | record | tier-staged — assessed separately on test evidence | no | accepted, 2026-09-28 |
-| M19 | GAPS entry | interface operational-state read beyond `Router.get_wan_interface_status`, and SNMP-agent configuration (communities, v3 users; the source restriction is the `management` ACL binding, M6) | record | tier-staged — a test that needs either | no | accepted with conditions (C14), 2026-09-28 |
-| M20 | LEVELS entry | the open white-box candidates of §7, recorded as candidates, not seeded (the seeded `BgpWhiteBox` is M38) | record | core | no | accepted with conditions (C14), 2026-09-28 |
+| M19 | GAPS entry | interface operational-state read beyond `Router.get_wan_interface_status`, and SNMP-agent configuration (communities, v3 users; the source restriction is the `management` ACL binding, M6) | record | tier-staged — a test that needs either | no | accepted with conditions (C14; R2 C8), 2026-09-28 |
+| M20 | LEVELS entry | the open white-box candidates of §7, recorded as candidates, not seeded (the seeded `BgpWhiteBox` is M38) | record | core | no | accepted with conditions (C14; R2 C9), 2026-09-28 |
 | M21 | new field | `testprotocols.models:RouteEntry.vrf` (`str \| None = None`, the global table), the `GAPS.md` 2026-06-14 shape | defaulted field | core | no | accepted with conditions (C2), 2026-09-28 |
-| M22 | new field | `testprotocols.models:RoutedInterface.mtu` (`int \| None = None`) | defaulted field | core | no | accepted, 2026-09-28 |
+| M22 | new field | `testprotocols.models:RoutedInterface.mtu` (`int \| None = None`) | defaulted field | core | no | accepted with conditions (R2 C6), 2026-09-28 |
 | M23 | composition | `testprotocols:PortStatus` on `ManagedRouterDevice` | reuse | core | no | accepted, 2026-09-28 |
 | M24 | composition | `testprotocols:LinkAggregation` on `ManagedRouterDevice` | reuse | core | no | accepted, 2026-09-28 |
 | M25 | white-box extension | `testprotocols:BgpWhiteBox` with `reset_session(peer)` | white-box | core | no | accepted with conditions (C14), 2026-09-28 |
@@ -1831,15 +1895,22 @@ revises them.
 | M33 | protocol extension | `testprotocols:RadiusClient.add_server` / `update_server` gain `protocol: AaaProtocol`; `add_server`'s `port` default widens to the protocol's default | extend | core | yes | accepted with conditions (C9), 2026-09-28 |
 | M34 | new field | `testprotocols.models:RadiusServerConfig.protocol` (`AaaProtocol = AaaProtocol.RADIUS`), with the `AaaProtocol` enum | defaulted field | core | no | accepted with conditions (C9), 2026-09-28 |
 | M35 | rename | `testprotocols:RadiusClient` → `testprotocols:AaaClient`, `RadiusServerConfig` → `AaaServerConfig`, deprecated aliases for the deprecation period; lands with M33 | deprecate | core | no | accepted with conditions (C9), 2026-09-28 |
-| M36 | new protocol | `testprotocols:OperatorLogin` (login order with local fallback, command authorisation, accounting; servers named from the `AaaClient` registry; `LOCAL_ACCOUNTS`) | new capability | core | no | accepted with conditions (C9, C10), 2026-09-28 |
-| M37 | method rename | `testprotocols:PcapCapture.start_tcpdump` / `stop_tcpdump` / `tshark_read_pcap` → `start_capture` / `stop_capture` / `read_capture`, both names declared for the deprecation period, the old delegating | extend | core | yes | accepted with conditions (C13), 2026-09-28 |
+| M36 | new protocol | `testprotocols:OperatorLogin` (login order with local fallback, command authorisation, accounting; servers named from the `AaaClient` registry; `LOCAL_ACCOUNTS`) | new capability | core | no | accepted with conditions (C9, C10; R2 C12), 2026-09-28 |
+| M37 | method rename | `testprotocols:PcapCapture.start_tcpdump` / `stop_tcpdump` / `tshark_read_pcap` → `start_capture` / `stop_capture` / `read_capture`, both names declared for the deprecation period, the old delegating | extend | core | yes | accepted with conditions (C13; R2 C13), 2026-09-28 |
 | M38 | LEVELS entry | `BgpWhiteBox` seeded (the entry in §7): signal, methods, black-box impact, rationale, drivers expected to satisfy and not | record | core | no | accepted with conditions (C14), 2026-09-28 |
 | M39 | GAPS entry | setting interface speed, duplex and auto-negotiation (the read is `PortStatus`, M23) | record | tier-staged — a test that must force a negotiation outcome from the router side | no | accepted with conditions (C14), 2026-09-28 |
 | M40 | GAPS entry | control-plane protection (policy shapes differ per family) | record | tier-staged — a test that needs the router's own control-plane policy | no | accepted with conditions (C14), 2026-09-28 |
 | M41 | GAPS entry | management-plane posture (unused services, stored secrets), verified from the test host meanwhile | record | tier-staged — a posture check that needs the device's own read | no | accepted with conditions (C14), 2026-09-28 |
 | M42 | GAPS entry | update to `GAPS.md` 2026-06-14 (`Vrf`): the read field landed first (M21); the `vrf` selector on the reads and the configuration fields wait for that entry's trigger | record | core | no | accepted with conditions (C2), 2026-09-28 |
+| M43 | new protocol (tier) | `testprotocols:CellularWan` (modem radio and subscription state, cellular interface configuration) | new capability | tier-staged — the first access-WAN router test (with M12) | no | accepted with conditions (R2 C5), 2026-09-28 |
+| M44 | new protocol (tier) | `testprotocols:DslWan` (xDSL line state and configuration) | new capability | tier-staged — the first access-WAN router test (with M12) | no | accepted with conditions (R2 C5), 2026-09-28 |
+| M45 | new protocol (tier) | `testprotocols:PppSession` (PPP/PPPoE session configuration, status and reset) | new capability | tier-staged — the first access-WAN router test (with M12) | no | accepted with conditions (R2 C5), 2026-09-28 |
+| M46 | new protocol (tier) | `testprotocols:RouterVoice` (voice-port inventory and admin state, trunk registration, active calls) | new capability | tier-staged — the first voice-gateway test (with M13) | no | accepted with conditions (R2 C5), 2026-09-28 |
+| M47 | GAPS entry | first-hop redundancy operational state (which member is active per group) on `GatewayRedundancy`; the forced failover is the `GatewayRedundancyWhiteBox` candidate (§7, M20) | record | tier-staged — a test asserting first-hop convergence | no | accepted with conditions (R2 C9), 2026-09-28 |
+| M48 | SPLITS entry | `AccessLists` named away from the `PacketFilter` family, and why the two stay distinct (M6) | record | core | no | accepted with conditions (R2 C11), 2026-09-28 |
+| M49 | design-note update | `docs/architecture/capability-only-archetypes.md`: `ConfigOwnership` adopted on `ManagedRouterDevice` ahead of its recorded trigger, with the reason (§8) | record | core | no | accepted with conditions (R2 C10), 2026-09-28 |
 
-M12's `PppSession` carries the PPPoE session reset (§6 Placement of the
+M45's `PppSession` carries the PPPoE session reset (§6 Placement of the
 charter operations).
 
 ## Review record
@@ -1911,6 +1982,32 @@ charter operations).
     is written out (§7, M38); M19 and the SNMP placement agree; M39–M41
     record the three deferrals.
   - C15 every row carries its round-1 outcome.
+- **2026-09-28 — design review, round 2: approve with conditions (R2 C1–C13,
+  none blocking). Status moved to `accepted for verification`.** Applied:
+  - R2 C1 the last vendor product term removed from a tier docstring.
+  - R2 C2 five §5/§6 counts brought into line with §2 (path steering, where
+    SR OS is ◐, not ✗; configured probing; cellular; xDSL; switching).
+  - R2 C3 the ◐¹ legend restated; §10 names which OneOS6 ◐¹ cells a feature
+    line claims and which are unverified assumptions.
+  - R2 C4 admin-state precedence where a routed interface has a switch-port
+    counterpart (§6 Interface admin, M3).
+  - R2 C5 the four tier capabilities carry their own rung (M43–M46).
+  - R2 C6 the rejected rung-2 MTU candidate named in the ladder row.
+  - R2 C7 the ◐¹ rule stated once for the OneOS6 column: every member stays
+    core as a per-method unsupported case on a single ✗, except interface
+    admin, whose ✗ is a charter question (§2).
+  - R2 C8 the SNMP part of the NTP/syslog/SNMP row marked deferred.
+  - R2 C9 the FHRP reuse scoped to configuration; the operational read
+    deferred (M47) and the forced failover a white-box candidate (§7).
+  - R2 C10 `ConfigOwnership` adopted with the reason recorded (§8, M49)
+    (maintainer decision).
+  - R2 C11 `PacketFilterAcl` renamed `AccessLists` (maintainer decision; M6,
+    M48).
+  - R2 C12 `-ization` in `OperatorLogin`'s method names.
+  - R2 C13 M37 kept as `extend` and argued against M29 and M35 (§6 On-box
+    packet capture): a protocol method rename alone adds a member (#65);
+    M29 and M35 ride their protocols' `extend` rows. Status and the PR body
+    refreshed.
 
 ### Exploration before the track (2026-08-20 to 2026-09-07)
 
