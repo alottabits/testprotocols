@@ -33,6 +33,7 @@ from design_doc import (
     STATUSES,
     doc_path,
     is_slug,
+    manifest_problems,
     manifest_section,
     numbered_sections,
     status_rank,
@@ -383,6 +384,7 @@ def check_archetype(pr: PullRequest, main_root: Path, head_root: Path) -> list[s
                 f"{path}: package source is present but there is no "
                 "`## 12. Landing manifest` section"
             )
+    problems += [f"{path}: {problem}" for problem in manifest_problems(body)]
     if head_status == "verified":
         rows = tier_staged_rows(body)
         if rows:

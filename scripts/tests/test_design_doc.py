@@ -7,6 +7,7 @@ from design_doc import (
     STATUSES,
     doc_path,
     is_slug,
+    manifest_problems,
     manifest_section,
     numbered_sections,
     status_rank,
@@ -123,3 +124,46 @@ def test_tier_rows_read_the_placement_cell_only() -> None:
         "| M3 | new field | `m:Z` | core | no | accepted; was tier-staged in round 1 |\n"
     )
     assert tier_staged_rows(body) == ["M1", "M2"]
+
+
+LADDER_DOC = """\
+# T
+
+## 12. Landing manifest
+
+| Id | Kind | Symbol | Mechanism | Placement | Breaking | Outcome |
+| --- | --- | --- | --- | --- | --- | --- |
+| M1 | new field | `m:X.f` | defaulted field | core | no | accepted |
+| M2 | new protocol | `m:Y` | new capability | core | no | accepted |
+| M3 | rename | `m:Z` → `m:W` | breaking | core | yes | accepted |
+| M4 | SPLITS entry | the rename | record | core | no | accepted |
+| M5 | new tier | `m:Tier` | archetype | tier-staged — x | no | accepted |
+"""
+
+
+def test_a_ladder_manifest_is_clean() -> None:
+    assert manifest_problems(LADDER_DOC) == []
+
+
+def test_manifest_needs_a_mechanism_column() -> None:
+    body = LADDER_DOC.replace(" Mechanism |", " Notes |")
+    assert manifest_problems(body) == [
+        "the landing manifest has no Mechanism column (docs/archetypes/README.md, "
+        "The placement ladder)"
+    ]
+
+
+def test_mechanism_values_and_breaking_agreement() -> None:
+    body = LADDER_DOC.replace("| defaulted field | core | no |", "| field-ish | core | no |")
+    body = body.replace("| breaking | core | yes |", "| breaking | core | no |")
+    body = body.replace("| new capability | core | no |", "| New Capability | core | yes |")
+    assert manifest_problems(body) == [
+        "M1: Mechanism 'field-ish' is not a placement-ladder rung (driver-only, reuse, "
+        "defaulted field, white-box, new capability, breaking, archetype, record)",
+        "M2: Breaking is 'yes' but Mechanism 'new capability' is not breaking",
+        "M3: Mechanism 'breaking' needs Breaking 'yes'",
+    ]
+
+
+def test_no_manifest_no_problems() -> None:
+    assert manifest_problems("# T\n\n## 1. Charter\n") == []

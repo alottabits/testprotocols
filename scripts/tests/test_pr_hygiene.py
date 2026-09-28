@@ -669,14 +669,15 @@ def design_doc(status: str, *, manifest: str = "") -> str:
     if manifest:
         body = body.replace(
             "## Review record",
-            "## 12. Landing manifest\n\n| Id | Kind | Symbol | Placement | Breaking | Outcome |\n"
-            f"| --- | --- | --- | --- | --- | --- |\n{manifest}\n## Review record",
+            "## 12. Landing manifest\n\n"
+            "| Id | Kind | Symbol | Mechanism | Placement | Breaking | Outcome |\n"
+            f"| --- | --- | --- | --- | --- | --- | --- |\n{manifest}\n## Review record",
         )
     return body
 
 
-CORE_ROW = "| M1 | new field | `m:X.enabled` | core | no | accepted |\n"
-TIER_ROW = "| M2 | new tier | `m:V` | tier-staged — 2nd consumer | no | accepted |\n"
+CORE_ROW = "| M1 | new field | `m:X.enabled` | defaulted field | core | no | accepted |\n"
+TIER_ROW = "| M2 | new tier | `m:V` | archetype | tier-staged — 2nd consumer | no | accepted |\n"
 
 
 def archetype_pr(*files: FileChange) -> PullRequest:
@@ -844,3 +845,15 @@ def test_run_checks_applies_the_archetype_rules(tmp_path: Path) -> None:
     result = run_checks(outsider, main_root, head_root)
     assert len(result.problems) == 1
     assert "is not listed" in result.problems[0]
+
+
+def test_archetype_manifest_walks_the_placement_ladder(tmp_path: Path) -> None:
+    head = design_doc("accepted for verification", manifest=CORE_ROW).replace(
+        " Mechanism |", " Notes |"
+    )
+    main_root, head_root = roots(tmp_path, CHARTER_DOC, head)
+    files = (FileChange(DESIGN, "modified"),)
+    assert check_archetype(archetype_pr(*files), main_root, head_root) == [
+        f"{DESIGN}: the landing manifest has no Mechanism column "
+        "(docs/archetypes/README.md, The placement ladder)"
+    ]
