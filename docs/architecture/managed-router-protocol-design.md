@@ -392,6 +392,10 @@ class ManagedRouterDevice(BaseDeviceProtocol, Protocol):
     discovery: Discovery                 # reuse — LLDP-shaped (CDP is a driver detail)
     info: DeviceInfo                     # reuse — hardware model = coverage axis
     ownership: ConfigOwnership           # reuse — monitored-vs-managed
+    port_status: PortStatus              # reuse as-is — link state, speed, duplex, error counters per physical port (§6 Placement of the charter operations)
+    link_aggregation: LinkAggregation    # reuse as-is — LACP groups on routed interfaces (§6)
+    maintenance: DeviceMaintenance       # NEW — reload and readiness, software image lifecycle, configuration export and import (§6)
+    management_access: ManagementAccess  # NEW — who may manage the device: service source restrictions, operator AAA, command authorisation and accounting, SNMP agent access (§6)
 
 register_device_type("managed_router", ManagedRouterDevice)
 ```
@@ -515,6 +519,17 @@ consumer), **new (tier)** (lands with the first consumer of the tier).
 | Discovery | `Discovery` | reuse | 7 + 1 ◐¹ | LLDP-shaped |
 | Model identity | `DeviceInfo` | reuse | 8 | coverage axis; firmware/mode facts are driver facts (§8) |
 | Config ownership | `ConfigOwnership` | reuse | n/a | monitored-vs-managed |
+| Physical link state, speed, duplex (read) | `PortStatus` | reuse | 7 + 1 ◐¹ | the switch archetype's status read, unchanged; setting speed and duplex deferred (GAPS) |
+| Interface MTU | `RoutedInterface.mtu` | **reuse + field** | 7 + 1 ◐¹ | defaulted `int | None = None` beside `enabled` |
+| Routing table per routing instance | `RouteEntry.instance` | **reuse + field** | 7 + 1 ◐¹ | defaulted `str = ""` (the default instance); a router returns every instance's entries, tagged |
+| Link aggregation | `LinkAggregation` | reuse | 6 + 2 ◐ | the switch archetype's LACP groups, on routed interfaces |
+| WAN DHCP release / renew | `DhcpClient` | reuse | with the access-session row | already on the core |
+| Tunnel state | `SiteToSiteVpn.get_vpn_peers` | reuse | 5 + 3 ◐ | already on the core |
+| Routing-peer reset | `BgpWhiteBox.reset_session` | **white-box, seeded** | 7 + 1 ◐¹ | a console lever no appliance publishes (§7) |
+| Reload, software image, configuration archive | `DeviceMaintenance` | **new** | 7 + 1 ◐¹ | one concern — maintaining the device (§6) |
+| Management access | `ManagementAccess` | **new** | 6–7 + ◐ | one concern — who may manage the device (§6) |
+| Backup-WAN failover | `Router` + composition | reuse (tier) | 7 + 1 ◐ | `WanEdgeRouterDevice`; floating / tracked routes (§6 SD-WAN policy) |
+| Cellular radio state, PPPoE session reset | `CellularWan`, `PppSession` | new (tier) | 4 + 3 ◐ + 1 ✗ / 6 + 2 ◐ | `AccessWanRouterDevice` |
 | WAN-uplink reads | `Router`, `ApplianceUplinks` | reuse (tier); `ApplianceUplinks` renamed on landing | n/a | `WanEdgeRouterDevice`; the two status records already coexist on the appliance (§6) |
 | Uplink wiring | `UplinkPorts` | reuse (tier) | n/a | `WanEdgeRouterDevice`; testbed topology fact |
 | Edge firewall triad | `L3Firewall` | reuse (tier) | 8 | `WanEdgeRouterDevice`; derived as interface ACLs on WAN / tunnel interfaces (§6) |
@@ -866,6 +881,66 @@ count-bounded, may be CPU-punted and rate-limited, is control-plane-only on
 some carrier platforms (Junos MX), and is never a line-rate instrument; the
 file must be fetched off-box before it is read (§8).
 
+### Placement of the charter operations — the placement ladder
+
+Every operation the charter adds is placed on the cheapest rung of the
+placement ladder (`docs/archetypes/README.md`) that genuinely fits:
+
+| Operation | Rung | Home | Why no cheaper rung |
+| --- | --- | --- | --- |
+| Link state, speed, duplex (read) | 2 reuse | `PortStatus` | — |
+| Link aggregation | 2 reuse | `LinkAggregation` | — |
+| WAN DHCP release / renew | 2 reuse | `DhcpClient` | — |
+| Tunnel state | 2 reuse | `SiteToSiteVpn.get_vpn_peers` | — |
+| Backup-WAN failover | 2 reuse (tier) | `Router` + composition | — |
+| Routing table per routing instance | 3 defaulted field | `RouteEntry.instance: str = ""` | no capability reads another instance's table; a defaulted field keeps every `RoutingRead` implementer compiling |
+| Interface MTU | 3 defaulted field | `RoutedInterface.mtu: int \| None = None` | the configured L3 interface already carries `enabled`; the MTU is one more attribute of it |
+| Routing-peer reset | 4 white-box | `BgpWhiteBox.reset_session(peer)` | a lever, not an intent; no appliance publishes it, so a `Bgp` member would break every appliance driver |
+| Reload; image stage / activate / roll back; configuration export / import | 5 new capability | `DeviceMaintenance` | `DeviceLifecycle` is CPE-shaped (`verify_cpe_is_booting`, `finalize_boot`, `factory_reset`) and its implementers are CPE drivers; reshaping it is rung 6 for them. One capability holds the whole maintenance concern |
+| Management-service source restriction; operator authentication with local fallback; command authorisation and accounting; SNMP agent access | 5 new capability | `ManagementAccess` | no capability owns management access; `RadiusClient` is a RADIUS server registry for port authentication on switches, a different concern. One capability holds the whole concern; syslog and NTP stay on their capabilities |
+| PPPoE session reset; cellular radio state | 5 new capability (tier) | `PppSession`, `CellularWan` | the access-WAN tier's own capabilities (§4) |
+| Setting speed and duplex; control-plane protection; management-plane posture | deferred | `GAPS.md` | the demand reads negotiation from both ends; control-plane policies differ in shape per family; posture is a checklist, verified from the test host |
+
+**`DeviceMaintenance`** (sketch; the design review settles the signatures):
+
+```python
+class DeviceMaintenance(Protocol):
+    def reload(self) -> None: ...
+    def wait_until_ready(self, timeout_s: float) -> None: ...
+    def get_uptime_s(self) -> int: ...
+    def get_running_version(self) -> str: ...
+    def stage_image(self, source_url: str) -> str: ...        # returns an image id
+    def activate_image(self, image_id: str) -> None: ...      # takes effect at the next reload
+    def rollback_image(self) -> None: ...
+    def export_configuration(self) -> str: ...                # opaque substrate text
+    def import_configuration(self, content: str, replace: bool = True) -> None: ...
+```
+
+The configuration payload is opaque substrate text, like a white-box raw read:
+a test round-trips it (export, change, import, compare), it never interprets it.
+
+**`ManagementAccess`** (sketch):
+
+```python
+class ManagementAccess(Protocol):
+    def get_allowed_sources(self, service: ManagementService) -> list[str]: ...
+    def set_allowed_sources(self, service: ManagementService, prefixes: list[str]) -> None: ...
+    def get_aaa_servers(self) -> list[AaaServer]: ...
+    def set_aaa_servers(self, servers: list[AaaServer]) -> None: ...
+    def get_authentication_order(self) -> list[AuthMethod]: ...          # e.g. [TACACS, LOCAL]
+    def set_authentication_order(self, order: list[AuthMethod]) -> None: ...
+    def set_command_authorisation(self, method: AuthMethod | None) -> None: ...   # None = local levels only
+    def set_accounting(self, method: AuthMethod | None) -> None: ...
+    def get_snmp_access(self) -> list[SnmpAccess]: ...
+    def set_snmp_access(self, entries: list[SnmpAccess]) -> None: ...
+```
+
+`ManagementService` (SSH, SNMP, NETCONF, HTTPS), `AuthMethod` (RADIUS, TACACS,
+LOCAL), `AaaServer` and `SnmpAccess` (version, name, read-only, allowed
+sources) are neutral models; per-method unsupported where a family lacks a
+binding (Comware: no HTTPS source restriction; FortiOS: no TACACS+
+accounting).
+
 ### Voice gateway — a fourth optional tier
 Voice is 4/8 across the reviewed set (IOS-XE, VRP, Comware, OneOS6) — below
 the core bar — but **present on every trigger family**: analog and digital
@@ -980,7 +1055,9 @@ convention admits:
   to the contract; verbs and return types stay vendor-neutral, and structured
   operational state is preferred over CLI text where published (§7).
 - *Levers with no intent-level equivalent* (reproducible convergence tests):
-  `BgpWhiteBox.reset_session(peer)`; a NAT white-box `clear_translations()`;
+  `BgpWhiteBox.reset_session(peer)` — **seeded with this archetype**, on the
+  charter's demand for routing-peer resets (§6 Placement of the charter
+  operations); a NAT white-box `clear_translations()`;
   `SiteToSiteVpnWhiteBox.clear_security_associations(peer)`;
   `SdwanPolicyWhiteBox.force_track_state(name, up | down)` — simulate an SLA
   breach without impairing the wire.
@@ -1490,22 +1567,10 @@ restructure.
    `PacketFilterAcl`, each with a deprecated alias for one MINOR (§12).
 6. **Competitor cells against the pinned version lines — resolved
    (2026-09-27).** Every column was re-checked at its pinned line (§2, §10).
-7. **Placement of the charter operations.** Each now has a matrix row (§2,
-   "Charter operations"); each still needs a placement — core, tier,
-   white-box, a separate capability, or out — before the design review:
-   - *class operations:* **reload** of the device; **management-access
-     filtering**; **operator authentication** with a local fallback;
-     **routing tables per routing instance** (`RoutingRead` has no instance
-     scope today); **reset of a routing peer and of a wired access session**
-     (today only white-box lever candidates, §7).
-   - *deferred operations* (charter, Demand): physical interface parameters,
-     MTU and header transparency; software image lifecycle; configuration
-     export and import; management-plane posture and control-plane
-     protection; monitoring access, command authorisation and accounting;
-     flow export (already deferred, §6); configured probes and tracking
-     (already deferred, §6); overlay tunnel state; link aggregation; cellular
-     radio and subscription state and backup-WAN failover (the access-WAN
-     tier, §4).
+7. **Placement of the charter operations — proposed (2026-09-28).** Each
+   operation is placed on the placement ladder in §6, with the reason no
+   cheaper rung fits; the manifest carries rows M21–M28. The design review
+   settles it.
 
 ## 12. Landing manifest
 
@@ -1514,31 +1579,39 @@ Every symbol change the body proposes. `core` rows land on this design's
 the row id; `tier-staged` rows become `GAPS.md` pointers at merge. Outcomes
 are set by the design review.
 
-| Id | Kind | Symbol | Placement | Breaking | Outcome |
-| --- | --- | --- | --- | --- | --- |
-| M1 | new archetype | `testprotocols.devices:ManagedRouterDevice` (registered `managed_router`) | core | no | proposed |
-| M2 | new field | `testprotocols.models:RoutedInterface.enabled` (`bool = True`) | core | no | proposed |
-| M3 | SPLITS entry | `RoutedInterface.enabled` and the addressing convention (§6 Interface admin) | core | no | proposed |
-| M4 | rename | `testprotocols:ApplianceNat` → `testprotocols:NatRules`, deprecated alias kept one MINOR | core | yes | proposed |
-| M5 | rename | `testprotocols:ApplianceUplinks` → `testprotocols:WanUplinks`, deprecated alias kept one MINOR | core | yes | proposed |
-| M6 | rename | `testprotocols:SwitchAcl` → `testprotocols:PacketFilterAcl`, binding docstring "port, `vlan:<id>`, or interface name", deprecated alias kept one MINOR | core | yes | proposed |
-| M7 | SPLITS entry | the three de-brandings (M4–M6) and the rule that only a shared shape is de-branded (`ApplianceVlans` keeps its name) | core | no | proposed |
-| M8 | SPLITS entry | observations recorded without a change: two rule records on one archetype (`SwitchAclRule` core, `L3Rule` tier); composition read-back as a driver-contract note; `TrafficShaping` and `PcapCapture` de-brand candidates; the `ApplianceVlans` reshape candidate with its trigger and prerequisites | core | no | proposed |
-| M9 | GAPS entry | `ManagedRouterDevice` design record and matrix (this document) | core | no | proposed |
-| M10 | new tier | `testprotocols.devices:WanEdgeRouterDevice` (`Router`, `WanUplinks`, `UplinkPorts`, `L3Firewall`, `SdwanPolicyManager`) | tier-staged — a WAN-edge router test from a second consumer or trigger family | no | proposed |
-| M11 | new tier | `testprotocols.devices:SwitchedRouterDevice` (the switch capability layer) | tier-staged — a router test that drives the integrated switch | no | proposed |
-| M12 | new tier + capabilities | `testprotocols.devices:AccessWanRouterDevice`, `testprotocols:CellularWan`, `testprotocols:DslWan`, `testprotocols:PppSession` | tier-staged — the first access-WAN router test | no | proposed |
-| M13 | new tier + capability | `testprotocols.devices:VoiceGatewayRouterDevice`, `testprotocols:RouterVoice` | tier-staged — the first voice-gateway test | no | proposed |
-| M14 | new tier | `testprotocols.devices:SecuredRouterDevice` (`L7Firewall`, `ContentFiltering`, `ThreatPrevention`) | tier-staged — the first router security test | no | proposed |
-| M15 | GAPS entry | `testprotocols:ReachabilityProbe` (configured probe + result series, `PathMetrics`) | tier-staged — a test that needs a probe the router keeps running | no | proposed |
-| M16 | GAPS entry | `testprotocols:FlowExport` (exporter configuration intent) | tier-staged — a test asserting on exported flows, with a harness-side collector | no | proposed |
-| M17 | GAPS entry | an EIGRP-class proprietary IGP (plugin-local, never neutral) | tier-staged — a single-vendor test that must drive it through a typed surface | no | proposed |
-| M18 | GAPS entry | `CarrierEthernet` (EVC) for carrier Metro-Ethernet switches | tier-staged — assessed separately on test evidence | no | proposed |
-| M19 | GAPS entry | interface operational-state read beyond `Router.get_wan_interface_status`, and SNMP-agent configuration | tier-staged — a test that needs either | no | proposed |
-| M20 | LEVELS entry | the white-box candidates of §7, recorded as candidates; none seeded | core | no | proposed |
+| Id | Kind | Symbol | Mechanism | Placement | Breaking | Outcome |
+| --- | --- | --- | --- | --- | --- | --- |
+| M1 | new archetype | `testprotocols.devices:ManagedRouterDevice` (registered `managed_router`) | archetype | core | no | proposed |
+| M2 | new field | `testprotocols.models:RoutedInterface.enabled` (`bool = True`) | defaulted field | core | no | proposed |
+| M3 | SPLITS entry | `RoutedInterface.enabled` and the addressing convention (§6 Interface admin) | record | core | no | proposed |
+| M4 | rename | `testprotocols:ApplianceNat` → `testprotocols:NatRules`, deprecated alias kept one MINOR | breaking | core | yes | proposed |
+| M5 | rename | `testprotocols:ApplianceUplinks` → `testprotocols:WanUplinks`, deprecated alias kept one MINOR | breaking | core | yes | proposed |
+| M6 | rename | `testprotocols:SwitchAcl` → `testprotocols:PacketFilterAcl`, binding docstring "port, `vlan:<id>`, or interface name", deprecated alias kept one MINOR | breaking | core | yes | proposed |
+| M7 | SPLITS entry | the three de-brandings (M4–M6) and the rule that only a shared shape is de-branded (`ApplianceVlans` keeps its name) | record | core | no | proposed |
+| M8 | SPLITS entry | observations recorded without a change: two rule records on one archetype (`SwitchAclRule` core, `L3Rule` tier); composition read-back as a driver-contract note; `TrafficShaping` and `PcapCapture` de-brand candidates; the `ApplianceVlans` reshape candidate with its trigger and prerequisites | record | core | no | proposed |
+| M9 | GAPS entry | `ManagedRouterDevice` design record and matrix (this document) | record | core | no | proposed |
+| M10 | new tier | `testprotocols.devices:WanEdgeRouterDevice` (`Router`, `WanUplinks`, `UplinkPorts`, `L3Firewall`, `SdwanPolicyManager`) | archetype | tier-staged — a WAN-edge router test from a second consumer or trigger family | no | proposed |
+| M11 | new tier | `testprotocols.devices:SwitchedRouterDevice` (the switch capability layer) | archetype | tier-staged — a router test that drives the integrated switch | no | proposed |
+| M12 | new tier + capabilities | `testprotocols.devices:AccessWanRouterDevice`, `testprotocols:CellularWan`, `testprotocols:DslWan`, `testprotocols:PppSession` | archetype | tier-staged — the first access-WAN router test | no | proposed |
+| M13 | new tier + capability | `testprotocols.devices:VoiceGatewayRouterDevice`, `testprotocols:RouterVoice` | archetype | tier-staged — the first voice-gateway test | no | proposed |
+| M14 | new tier | `testprotocols.devices:SecuredRouterDevice` (`L7Firewall`, `ContentFiltering`, `ThreatPrevention`) | archetype | tier-staged — the first router security test | no | proposed |
+| M15 | GAPS entry | `testprotocols:ReachabilityProbe` (configured probe + result series, `PathMetrics`) | record | tier-staged — a test that needs a probe the router keeps running | no | proposed |
+| M16 | GAPS entry | `testprotocols:FlowExport` (exporter configuration intent) | record | tier-staged — a test asserting on exported flows, with a harness-side collector | no | proposed |
+| M17 | GAPS entry | an EIGRP-class proprietary IGP (plugin-local, never neutral) | record | tier-staged — a single-vendor test that must drive it through a typed surface | no | proposed |
+| M18 | GAPS entry | `CarrierEthernet` (EVC) for carrier Metro-Ethernet switches | record | tier-staged — assessed separately on test evidence | no | proposed |
+| M19 | GAPS entry | interface operational-state read beyond `Router.get_wan_interface_status`, and SNMP-agent configuration | record | tier-staged — a test that needs either | no | proposed |
+| M20 | LEVELS entry | the white-box candidates of §7, recorded as candidates; none seeded | record | core | no | proposed |
+| M21 | new field | `testprotocols.models:RouteEntry.instance` (`str = ""`) | defaulted field | core | no | proposed |
+| M22 | new field | `testprotocols.models:RoutedInterface.mtu` (`int \| None = None`) | defaulted field | core | no | proposed |
+| M23 | composition | `testprotocols:PortStatus` on `ManagedRouterDevice` | reuse | core | no | proposed |
+| M24 | composition | `testprotocols:LinkAggregation` on `ManagedRouterDevice` | reuse | core | no | proposed |
+| M25 | white-box extension | `testprotocols:BgpWhiteBox.reset_session(peer)` | white-box | core | no | proposed |
+| M26 | new protocol | `testprotocols:DeviceMaintenance` | new capability | core | no | proposed |
+| M27 | new protocol | `testprotocols:ManagementAccess` with `ManagementService`, `AuthMethod`, `AaaServer`, `SnmpAccess` | new capability | core | no | proposed |
+| M28 | SPLITS entry | `DeviceLifecycle` and `DeviceMaintenance`: convergence candidate (the generic reset and boot-wait half), not scheduled | record | core | no | proposed |
 
-Rows for the charter operations still to be placed (§11 question 7) are
-added when the exploration places them.
+M12's `PppSession` carries the PPPoE session reset (§6 Placement of the
+charter operations).
 
 ## Review record
 
