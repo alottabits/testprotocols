@@ -322,8 +322,11 @@ that cannot take the next release carries the fix as a `Backport` patch.
 A removal, rename or retype is preceded by a deprecation period where the
 two forms can coexist: a *Deprecated* changelog entry and a runtime
 `DeprecationWarning`, for at least one MINOR release and at least six
-months, whichever is later. How a rename or a retype keeps both forms alive
-is in `docs/proposals/README.md` ("The placement ladder", rung 5).
+months, whichever is later. The period covers the published
+`testoperations` operations too: an operation that calls a renamed or
+retyped member accepts a driver with only the old form until the old form
+is removed. How a rename or a retype keeps both forms alive is in
+`docs/proposals/README.md` ("The placement ladder", rung 5).
 
 ## Branch protection on `main`
 
