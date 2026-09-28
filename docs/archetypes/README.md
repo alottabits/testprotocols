@@ -171,6 +171,21 @@ family's published operation and cites its source; an unsupported cell raises
 **shape** — that the proposed methods map onto each family's way of working —
 not driver behaviour, and they are never run against a device.
 
+Two properties every reference driver shows, because a real driver needs
+them and a design that makes them impossible is wrong:
+
+- **The plugin driver shape.** One route holder per transport whose capability
+  slots are annotated with the protocol types; every capability aliased from
+  the typed route holder onto the driver explicitly, one at a time; static
+  conformance checked by the type checker on the concrete driver class, not
+  only by `isinstance`.
+- **Verified writes.** A write whose change the device rejects fails, from the
+  device's own error output or status; a state write reads the state back
+  through the contract's own read and fails when it differs; a removal
+  verifies the object is gone; a lever names the observation that confirms
+  it. A write the contract gives no way to read back cannot be verified —
+  hence design question 8.
+
 The corpus is kept current with every archetype that went through this track:
 
 - a change that **extends** such an archetype is promoted only when enough
@@ -220,10 +235,19 @@ verdicts of `docs/proposals/README.md`.
    unsupported case.
 5. **Levels.** Sea-level vs. white-box per LEVELS.md; no vendor terms in method
    names at any level.
-6. **No siblings.** No near-duplicate of an existing protocol; renames flagged
-   breaking.
+6. **No siblings.** No near-duplicate of an existing protocol, and no new
+   name that reads as a variant of an unrelated existing one; every rename
+   carries its deprecated form for the period.
 7. **Manifest complete.** Every symbol change in the body has a row with its
    Mechanism, breaking flag and tracking-file entries.
+8. **Every write verifiable.** Each member that changes device state has a
+   read in the contract that shows the effect — `set_x` beside `get_x`, an
+   `add` beside the list or get that finds it — so a driver can read the
+   state back after the write and fail when it did not take. A member with no
+   state to read back (a reload, a session reset, a lease renewal) is a
+   **lever**, and the item names the observation that confirms it (the boot
+   wait, the uptime, the session or lease state). A write-only member with
+   neither is `not met`: no driver could ever show that it worked.
 
 **Verification** (`archetype:` PR with package source):
 
@@ -233,11 +257,17 @@ verdicts of `docs/proposals/README.md`.
    operation and fills the neutral model, citing its source; unsupported
    cells raise `NotSupportedError` with a source and nothing else. Citations
    are sampled against the published documentation.
-3. **Matrix agreement.** ✓ is an implemented method, ◐/✗ is unsupported; a
-   mismatch names which side is wrong.
+3. **Matrix agreement.** ✓ is an implemented method, ✗ is `NotSupportedError`,
+   ◐ is either, with a note naming what is partial; a mismatch names which
+   side is wrong.
 4. **Faithful mapping.** No vendor data carried in loosely typed fields; every
    lossy mapping recorded in the document.
-5. **Findings folded back** into the matrix, body, manifest and review record.
+5. **Driver shape.** Every reference driver has the plugin driver shape
+   above, and the type checker verifies its conformance statically.
+6. **Verified writes.** Every state write reads back through the contract's
+   read, every removal verifies absence, every lever names its confirming
+   observation, and a device-reported failure fails the write.
+7. **Findings folded back** into the matrix, body, manifest and review record.
 
 The posted review cites only public documentation, public protocol symbols
 and the corpus commit it verified against.
