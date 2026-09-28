@@ -144,26 +144,13 @@ the way it cites a proposal's `P<n>`.
 
 ## The placement ladder
 
-Every operation a design adds reaches the contract by one of six mechanisms.
-They cost different parties different things, so a design places each
-operation on the cheapest rung that genuinely fits, and says why for every
-item above rung 2:
-
-| Rung | Mechanism (manifest value) | Cost |
-| --- | --- | --- |
-| 1 | driver-only (`driver-only`) — no contract change | none |
-| 2 | reuse an existing capability as-is (`reuse`) | none |
-| 3 | a defaulted field on an existing model (`defaulted field`) | none: existing drivers compile unchanged and fill the default |
-| 4 | a white-box extension of an existing capability (`white-box`) | none for existing drivers; optional by construction |
-| 5 | a new capability (`new capability`) | grows the capability set: it must own a concern no existing capability owns, and the operations of one concern go into one capability, never one capability per verb |
-| 6 | a new member, retype or rename on an existing protocol (`breaking`) | breaks every implementer of that protocol: a MINOR release with a migration line |
-
-Rungs 5 and 6 are weighed, not ordered: extending an existing protocol is
-right when the operation belongs to its concern and its implementers are few
-(the design names them); a new capability is right for a distinct concern.
-The manifest records each row's rung in its Mechanism column, with `archetype`
-for an archetype or tier row and `record` for a tracking-file entry; the
-Breaking column is `yes` exactly for `breaking` rows. `hygiene` checks both.
+Every operation a design adds is placed on the placement ladder of
+`docs/proposals/README.md` ("The placement ladder"): the cheapest rung that
+genuinely fits, with the reason no cheaper rung does for every item above
+rung 2. The manifest records each row's rung in its Mechanism column, with
+`archetype` for an archetype or tier row and `record` for a tracking-file
+entry; the Breaking column is `yes` exactly for `breaking` rows. `hygiene`
+checks both.
 
 ## The evidence bar
 

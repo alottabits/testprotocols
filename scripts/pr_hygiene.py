@@ -30,6 +30,7 @@ from typing import Any, cast
 from changelog_section import VERSION_FILES, SectionError, section, version_problems
 from design_doc import (
     ARCH_DIR,
+    MECHANISMS,
     STATUSES,
     doc_path,
     is_slug,
@@ -155,6 +156,35 @@ HEADER_ROWS = ("Date", "Use case", "Round", "Status")
 _PROPOSAL_NAME = re.compile(r"^\d{4}-\d{2}-\d{2}-[a-z0-9]+(?:-[a-z0-9]+)*\.md$")
 _RELEASE_TITLE = re.compile(r"^release: (\d+\.\d+\.\d+)$")
 _P1_BLOCK = re.compile(r"^### P1\b", re.MULTILINE)
+_ITEM = re.compile(r"^### (P\d+)\b.*$", re.MULTILINE)
+_NEXT_HEADING = re.compile(r"^#{2,3} ", re.MULTILINE)
+_MECHANISM_LINE = re.compile(r"\*\*Mechanism\*\*\s*:?\s*(.*)$", re.MULTILINE)
+PROPOSAL_MECHANISMS = tuple(m for m in MECHANISMS if m != "record")
+
+
+def proposal_item_problems(path: str, body: str) -> list[str]:
+    """Every ``### P<n>`` item names its placement-ladder rung."""
+    problems: list[str] = []
+    for match in _ITEM.finditer(body):
+        rest = body[match.end() :]
+        following = _NEXT_HEADING.search(rest)
+        block = rest if following is None else rest[: following.start()]
+        line = _MECHANISM_LINE.search(block)
+        if line is None:
+            problems.append(
+                f"{path}: {match.group(1)} names no Mechanism "
+                "(docs/proposals/README.md, The placement ladder)"
+            )
+            continue
+        value = line.group(1).strip().strip("`").strip().rstrip(".").strip("`").lower()
+        if value not in PROPOSAL_MECHANISMS:
+            problems.append(
+                f"{path}: {match.group(1)} Mechanism {value!r} is not a placement-ladder rung "
+                f"({', '.join(PROPOSAL_MECHANISMS)})"
+            )
+    return problems
+
+
 _OUTCOME_SECTION = re.compile(
     r"^#+ [^\n]*Outcome[^\n]*\n(.*?)(?=^#+ |\Z)", re.MULTILINE | re.DOTALL
 )
@@ -232,6 +262,7 @@ def check_proposal(pr: PullRequest, head_root: Path) -> list[str]:
         problems.append(f"{path}: header table is missing rows: " + ", ".join(missing))
     if _P1_BLOCK.search(body) is None:
         problems.append(f"{path}: no `### P1` block")
+    problems += proposal_item_problems(path, body)
     return problems
 
 

@@ -6,6 +6,6 @@
 
 - [ ] One new file under `docs/proposals/`, named `YYYY-MM-DD-<slug>.md`
 - [ ] Header table: Date, Use case, Round, Status
-- [ ] One `### P<n>` block per item: Item, Need, Proposed design, Placement, Affected, Neutrality evidence
+- [ ] One `### P<n>` block per item: Item, Need, Proposed design, Mechanism (placement-ladder rung), Placement, Affected, Neutrality evidence
 - [ ] No organisation, customer, site, host, address, person or ticket identifiers; vendor and tool names only inside Neutrality evidence
 - [ ] Every commit is signed off (DCO)

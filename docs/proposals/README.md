@@ -47,6 +47,9 @@ this order:
 - **Need**: what, and which existing protocols and operations were checked
   and why each fails.
 - **Proposed design**: signature, models, framing rationale.
+- **Mechanism**: the item's rung of the placement ladder (below) — `driver-only`,
+  `reuse`, `defaulted field`, `white-box`, `new capability`, `breaking` or
+  `archetype` — and, above `reuse`, why no cheaper rung fits.
 - **Placement**: **promote** to `testprotocols` or `testoperations`, or
   **keep local** with the trigger that would promote it. For a promote
   item: **plugin-staged** (a `PROMOTED_AS = "module:Symbol"` marker in the
@@ -65,6 +68,29 @@ use-case id is allowed as a traceability key. Documentation uses the
 RFC 5737 / RFC 3849 address ranges. A violation is a blocking condition
 returned before any design question is answered.
 
+## The placement ladder
+
+Every operation a change adds reaches the contract by one of six mechanisms.
+They cost different parties different things, so a proposal or an archetype
+design places each operation on the cheapest rung that genuinely fits, and
+says why for every item above rung 2:
+
+| Rung | Mechanism (value) | Cost |
+| --- | --- | --- |
+| 1 | driver-only (`driver-only`) — no contract change | none |
+| 2 | reuse an existing capability as-is (`reuse`) | none |
+| 3 | a defaulted field on an existing model (`defaulted field`) | none: existing drivers compile unchanged and fill the default |
+| 4 | a white-box extension of an existing capability (`white-box`) | none for existing drivers; optional by construction |
+| 5 | a new capability (`new capability`) | grows the capability set: it must own a concern no existing capability owns, and the operations of one concern go into one capability, never one capability per verb |
+| 6 | a new member, retype or rename on an existing protocol (`breaking`) | breaks every implementer of that protocol: a MINOR release with a migration line |
+
+Rungs 5 and 6 are weighed, not ordered: extending an existing protocol is
+right when the operation belongs to its concern and its implementers are few
+(the proposal or design names them); a new capability is right for a distinct concern.
+
+A proposal names each item's rung on its **Mechanism** line; `hygiene`
+checks that every item names one.
+
 ## What a proposal is judged against
 
 The review answers these questions, in this order, for every item:
@@ -78,9 +104,10 @@ The review answers these questions, in this order, for every item:
    reviewed-family list, as recorded in the domain's design document? A
    domain with no recorded list gets a proposed list, presented as
    proposed, and ratifying it becomes a condition.
-3. **Zero-contract-change alternative.** Can the need be met in the
-   driver or plugin without changing a contract? Promote is earned, not
-   the default.
+3. **Placement ladder walked.** Can the need be met in the driver or plugin
+   without changing a contract? Promote is earned, not the default. When a
+   contract change is earned, the item sits on the cheapest rung of the
+   placement ladder that fits, and its Mechanism says so.
 4. **Correct home.** `testprotocols`, `testoperations`, or plugin-local?
 5. **Overlap with capability protocols.** Is there an existing protocol or
    a sibling of one?

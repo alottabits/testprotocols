@@ -177,7 +177,8 @@ maintainer change with `no proposal` and its rationale.
 - a PR that changes files under `packages/*/src/` also changes
   `CHANGELOG.md`, unless it carries the `skip-changelog` label;
 - a `proposal:` PR adds exactly one file under `docs/proposals/`, named
-  `YYYY-MM-DD-<slug>.md`, with the header table and a `### P1` block, and
+  `YYYY-MM-DD-<slug>.md`, with the header table, a `### P1` block and a
+  placement-ladder Mechanism on every item, and
   touches nothing else; a `delta:` PR modifies exactly one existing file
   there; a new document there enters only through a `proposal:` PR, and a
   `docs:`, `chore:`, `ci:` or `test:` PR may not change one; a `feat:`, `fix:`
