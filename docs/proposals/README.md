@@ -125,6 +125,13 @@ operations of one concern into one capability, never one capability per verb.
 - **The deprecation period** is at least one MINOR release and at least six
   months, whichever is later, announced by a *Deprecated* changelog entry and
   a runtime `DeprecationWarning`.
+- **Operations honour the period.** A published `testoperations` operation
+  that calls a renamed or retyped member keeps working with a driver that has
+  only the old form, for the whole period: it uses the new form when the
+  driver has it and falls back to the old one otherwise, so an operation
+  whose name did not change never breaks a consumer who has not migrated.
+  The fallback is removed in the release that removes the old form, and the
+  operation's changelog entry is *Changed*, not Breaking.
 
 A proposal names each item's rung on its **Mechanism** line; `hygiene`
 checks that every item names one.
