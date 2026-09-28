@@ -176,6 +176,14 @@ The review answers these questions, in this order, for every item:
    promoted on condition that every reference driver implements it before
    the `feat:` PR merges; below it, the item is a tier or optional member,
    or keep-local, and the count is the argument.
+8. **Every write verifiable.** Each member that changes device state has a
+   read in the contract that shows the effect — `set_x` beside `get_x`, an
+   `add` beside the list or get that finds it — so a driver can read the
+   state back after the write and fail when it did not take. A member with no
+   state to read back (a reload, a session reset, a lease renewal) is a
+   **lever**, and the item names the observation that confirms it (the boot
+   wait, the uptime, the session or lease state). A write-only member with
+   neither is `not met`: no driver could ever show that it worked.
 
 When the verdict hinges on a claimed vendor or tool behaviour, the review
 verifies it against published documentation and cites what it checked.
@@ -239,6 +247,8 @@ reviews, and the worst verdict sets the status.
    archetype in the reference corpus: every new or changed member is
    implemented by every reference driver, each mapping cites its source,
    and an unsupported cell raises `NotSupportedError` with a source. The
+   companion implementations have the plugin driver shape and verify their
+   writes (`docs/archetypes/README.md`, "The reference corpus"). The
    `conformance` status is the deterministic half; this question applies
    once a corpus archetype exists.
 
