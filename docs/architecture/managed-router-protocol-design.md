@@ -231,9 +231,10 @@ capability outside the archetype shape:
 
 ## 2. Cross-family matrix
 
-✓ = fully present · ◐ = partial/caveated · ✗ = absent · ¹ = public datasheets
-silent; verify against the OneOS6 command/YANG reference (customer portal)
-before promoting to ✓ · ² = competitor cell from product knowledge, not yet
+✓ = fully present · ◐ = partial/caveated · ✗ = absent · ¹ = no official
+public source at command level (Ekinops publishes datasheets only); verify
+against the OneOS6 command/YANG reference or on first driver evidence before
+promoting to ✓ · ² = competitor cell from product knowledge, not yet
 cited (the path-steering and security-bundle rows); the trigger-column cells
 of those rows are sourced (§10)
 
@@ -246,35 +247,52 @@ of those rows are sourced (§10)
 | EIGRP / proprietary IGP | ✓ | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ |
 | On-box NAT (source/PAT, static 1:1, port-forward) | ✓ | ✓ | ✓ | ✓ | ◐ CGN/hw | ✓ | ✓ | ✓ |
 | Stateful/zone firewall | ✓ ZBF | ✓ zones + ASPF | ◐ ZBF (licensed) | ✓ | ◐ stateful hw | ✓ | ✓ | ◐ chains, no zones |
-| Security bundles (IPS, URL filtering, app-aware firewall) | ✓ UTD (licensed) | ✓ IPS + URL filtering | ◐ DPI / app-ID only | ✓² SRX UTM | ✗² | ◐² | ✓² | ✗² |
+| Security bundles (IPS, URL filtering, app-aware firewall) | ✓ UTD (licensed) | ✓ IPS + URL filtering | ◐ DPI / app-ID only | ✓ SRX UTM (licensed) | ✗ | ◐ separate DPI engine | ✓ | ✗ |
 | ACL / packet filtering (interface + direction) | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | QoS (classify, mark DSCP, shape/police, queue) | ✓ MQC | ✓ MQC-style policy | ✓ CBQ/CB-WFQ/LLQ | ✓ CoS | ✓ H-QoS | ✓ | ◐ shaping-policy | ◐ mangle+queues |
-| IPsec site-to-site | ✓ | ✓ | ✓ | ✓ | ◐ hw on 7750 | ✓ | ✓ | ✓ |
+| IPsec site-to-site | ✓ | ✓ | ✓ | ✓ | ◐ 7750 / VSR with ISA or ESA; not SAR Gen 2 | ✓ | ✓ | ✓ |
 | Dynamic-overlay VPN (spoke-to-spoke shortcut) | ✓ DMVPN | ✓ DSVPN | ✗ (DVTI is hub-dynamic only) | ✓ ADVPN | ✗ | ✓ ADVPN(VAM) | ✓ ADVPN | ✗ |
-| SLA-conditioned path steering (probe + track + policy routing) | ✓ IP SLA + track + PBR | ✓ NQA + track + PBR | ◐ native under SD-WAN licence | ✓² RPM + ip-monitoring | ✗² | ✓² NQA + track + PBR | ✓² SD-WAN rules | ◐² netwatch + routing marks |
+| SLA-conditioned path steering (probe + track + policy routing) | ✓ IP SLA + track + PBR | ✓ NQA + track + PBR | ◐ native under SD-WAN licence | ✓ RPM + ip-monitoring | ◐ BFD- / ping-tracked static routes | ✓ NQA + track + PBR | ✓ SD-WAN rules | ◐ netwatch + routing marks |
 | DHCP server (on-box) | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | DHCP client | ✓ | ✓ | ✓ | ✓ | ◐ mgmt/ZTP | ✓ | ✓ | ✓ |
 | NTP / syslog / SNMP | ✓ | ✓ | ◐¹ (syslog, SNMP ✓; NTP unlisted) | ✓ | ✓ | ✓ | ✓ | ✓ |
 | FHRP (VRRP / HSRP-equivalent) | ✓ HSRP+VRRP | ✓ VRRP | ✓ VRRP | ✓ VRRP | ✓ VRRP | ✓ VRRP | ✓ VRRP | ✓ VRRP |
-| IP SLA / reachability probing (configured probe + result read) | ✓ IP SLA | ✓ NQA + TWAMP | ◐¹ "QoS measurement probe" | ✓ RPM | ✓ OAM/TWAMP | ✓ NQA | ◐ link-monitor | ◐ netwatch |
+| IP SLA / reachability probing (configured probe + result read) | ✓ IP SLA | ✓ NQA + TWAMP | ◐¹ "QoS measurement probe" | ✓ RPM | ✓ OAM/TWAMP | ✓ NQA | ✓ SD-WAN performance SLA | ◐ netwatch |
 | Flow telemetry (NetFlow/IPFIX-class) | ✓ FNF | ✓ NetStream | ✓ NetFlow | ✓ J-Flow/IPFIX | ✓ Cflowd/IPFIX | ✓ NetStream | ✓ IPFIX | ◐ Traffic-Flow |
-| On-box packet capture to file | ✓ EPC | ✓ capture-packet | ◐¹ "flow capture and decoding" | ◐ SRX datapath ✓ / MX RE-bound | ✓ mirror-dest pcap | ✓ packet-capture | ◐ sniffer (text stream) | ✓ /tool sniffer |
+| On-box packet capture to file | ✓ EPC | ✓ capture-packet | ◐¹ "flow capture and decoding" | ◐ SRX datapath ✓ / MX RE-bound | ✓ mirror-dest pcap | ✓ packet-capture | ✓ packet capture tool (PCAP) | ✓ /tool sniffer (PCAPNG) |
 | Discovery (LLDP) | ✓ (+CDP) | ✓ | ◐¹ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| Integrated L2 switching | ✓ | ✓ | ✓ | ✓ branch SRX | ◐ service-model | ✓ | ✓ | ✓ |
-| Cellular / LTE / 5G WAN | ✓ | ✓ | ✓ LTE + 5G | ✓ LTE mPIM | ◐ SAR-Hm only | ✓ | ◐ select models | ✓ |
-| xDSL WAN | ✓ | ✓ | ✓ model-scoped (VDSL2, ADSL2+, G.SHDSL EFM) | ✓ VDSL2 mPIM | ◐ SAR-M module | ✓ | ◐ 60E-DSL only | ✗ |
-| Voice gateway (FXS/FXO/BRI/PRI, SIP trunk / SBC-class) | ✓ | ✓ | ✓ + embedded SBC | ✗ | ✗ | ✓ | ✗ | ✗ |
+| Integrated L2 switching | ✓ | ✓ | ✓ | ✓ branch SRX | ◐ service-model | ◐ fixed MSR95x; module on MSR4000 | ✓ | ✓ |
+| Cellular / LTE / 5G WAN | ◐ ISR and IR platforms | ✓ | ✓ LTE + 5G | ✓ LTE mPIM | ✗ not on the pinned platforms | ✓ | ◐ select models | ✓ |
+| xDSL WAN | ◐ ISR with an xDSL module | ✓ | ✓ model-scoped (VDSL2, ADSL2+, G.SHDSL EFM) | ✓ VDSL2 mPIM | ✗ not on the pinned platforms | ✓ | ◐ 60E-DSL only | ✗ |
+| Voice gateway (FXS/FXO/BRI/PRI, SIP trunk / SBC-class) | ◐ ISR with voice modules | ✓ | ✓ + embedded SBC | ✗ | ✗ | ✓ | ✗ | ✗ |
+| **Charter operations** | | | | | | | | |
+| Device reload (+ uptime / readiness read) | ✓ | ✓ | ◐¹ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Management-access filtering (sources allowed to reach the management services) | ✓ | ✓ | ◐¹ | ✓ | ✓ | ◐ no HTTPS binding | ✓ | ✓ |
+| Operator authentication via RADIUS / TACACS+ with local fallback | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ◐ fallback via a local account | ✓ |
+| Routing-table read per routing instance | ✓ | ✓ | ◐¹ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Routing-peer reset (operator command) | ✓ | ✓ | ◐¹ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Wired access-session reset (PPPoE reconnect / WAN DHCP renew) | ✓ | ✓ | ◐¹ | ✓ | ◐ subscriber side only | ✓ | ✓ | ✓ |
+| Physical interface parameters (speed, duplex, auto-negotiation) | ✓ | ✓ | ◐¹ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Interface MTU | ✓ | ✓ | ◐¹ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Software image lifecycle (stage, activate, roll back) | ✓ | ✓ | ◐¹ | ✓ | ✓ | ✓ | ✓ physical units | ✓ |
+| Configuration export / import | ✓ | ✓ | ◐¹ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Management-plane posture (unused services, stored secrets) | ◐ checklist | ✓ | ◐ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Control-plane protection | ✓ CoPP | ✓ cpu-defend | ◐¹ | ✓ | ✓ | ✓ | ✓ local-in policy | ✓ input chain |
+| SNMP agent access (communities / v3 users, source-restricted) | ✓ | ✓ | ◐ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Command authorisation and accounting | ✓ | ✓ | ◐¹ | ✓ | ✓ | ✓ | ◐ no TACACS+ accounting | ✓ |
+| Overlay / IPsec tunnel state read | ✓ | ✓ | ◐¹ | ◐ SRX, MX with services card | ◐ 7750 / VSR | ✓ | ✓ | ✓ |
+| Link aggregation (LACP) on routed interfaces | ◐ documented for ASR | ✓ | ◐¹ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Cellular radio and subscription state read | ◐ ISR and IR platforms | ✓ | ◐¹ | ◐ SRX with LTE mPIM | ✗ | ✓ | ✓ model-scoped | ✓ |
+| Backup-WAN failover and fail-back | ✓ | ✓ | ✓ | ✓ | ◐ tracked static routes | ✓ | ✓ | ✓ |
 
-> **Citation status.** Every cell is backed by a source in §10. The trigger
-> columns are version-pinned to the §1 baselines (IOS-XE 17.9 guides and
-> release notes; NetEngine AR V300R019 configuration guides and NETCONF YANG
-> reference; OneOS6 datasheets dated 2022–2026). The four Ekinops cells marked
-> ¹ are the only cells where the public record is silent on the exact verb;
-> they are ◐ until verified, not ✗. The competitor capture cells are sourced;
-> the path-steering and security-bundle rows are sourced on the trigger
-> columns and marked ² on the competitor columns; the remaining competitor
-> cells are sourced against the families before their version lines were
-> pinned (§11, question 6).
+> **Citation status.** Every cell is backed by a source in §10, assessed at
+> the version lines the charter pins (§1): IOS-XE ≥ 17.9, VRP 5.170 on
+> NetEngine AR (V300R019 guides), the OneOS6 generation, Junos OS ≥ 22.4,
+> SR OS ≥ 22 (7705 SAR Gen 2 ≥ 25.3), Comware 7, FortiOS ≥ 7.2, RouterOS v7.
+> Ekinops publishes datasheets and brochures only, so the OneOS6 cells marked
+> ¹ have no official command-level source; they are ◐ until verified, not ✗.
+> A few cells rest on the existence of the cited document rather than a quoted
+> passage; §10 marks them.
 
 **What a cell asserts.** A ✓ records that the family *publishes the
 operations* behind the row — a configuration write with read-back, an
@@ -291,17 +309,30 @@ instance exposes it are driver facts, recorded in §8; they never decide a cell.
   QoS *by intent* (6 + 2 ◐); flow telemetry (7 + 1 ◐); LLDP discovery
   (7 + 1 ◐¹).
 - **Strong-majority (baseline, per-method unsupported-capability)** — on-box
-  NAT (7 + 1 ◐); stateful/zone firewall (5 ✓ + 3 ◐); dynamic-overlay VPN
-  (5 ✓ + 3 ✗ — now ✗ on one trigger family); configured reachability probing
-  (5 ✓ + 3 ◐); **on-box packet capture (5 ✓ + 3 ◐)**; **SLA-conditioned path
-  steering (5 ✓ + 2 ◐ + 1 ✗ — WAN-edge tier, by composition, §6)**.
-- **Minority / additive (optional tiers)** — integrated switching (7 + 1 ◐,
-  model-scoped); cellular WAN (6 + 2 ◐); xDSL WAN (5 + 2 ◐ + 1 ✗); **voice
-  gateway (4 ✓ — and 3 of 3 trigger families)**; **security bundles (4 ✓ +
-  2 ◐ + 2 ✗ — security tier, §6)**.
+  NAT (7 + 1 ◐); stateful/zone firewall (5 ✓ + 3 ◐); configured reachability
+  probing (6 ✓ + 2 ◐); **on-box packet capture (6 ✓ + 2 ◐)**;
+  dynamic-overlay VPN (5 ✓ + 3 ✗, ✗ on one trigger family); **SLA-conditioned
+  path steering (5 ✓ + 3 ◐ — WAN-edge tier, by composition, §6)**.
+- **Minority / additive (optional tiers)** — integrated switching (6 + 2 ◐,
+  model-scoped); cellular WAN (5 + 2 ◐ + 1 ✗); xDSL WAN (4 + 2 ◐ + 2 ✗);
+  **voice gateway (3 ✓ + 1 ◐ + 4 ✗ — on all three trigger families, ◐ on one)**;
+  **security bundles (4 ✓ + 2 ◐ + 2 ✗ — security tier, §6)**.
 - **Excluded from the neutral contract** — EIGRP (1/8).
 
-> **Version lines.** The competitor columns are pinned by the charter (§1, reviewed-family list): Junos OS ≥ 22.4, SR OS ≥ 22 (7705 SAR Gen 2 ≥ 25.3), Comware 7, FortiOS ≥ 7.2, RouterOS v7. Cells carried over from the pre-track exploration were assessed against the families without a version line; re-checking them against the pinned lines is an exploration task (§12).
+**Charter operations (of 8)** — placement in §6 and §12:
+
+- **Present on every family** (✓ or ◐, no ✗) — device reload (7 + 1 ◐¹);
+  routing table per routing instance (7 + 1 ◐¹); routing-peer reset
+  (7 + 1 ◐¹); physical interface parameters (7 + 1 ◐¹); interface MTU
+  (7 + 1 ◐¹); software image lifecycle (7 + 1 ◐¹); configuration export and
+  import (7 + 1 ◐¹); control-plane protection (7 + 1 ◐¹); operator
+  authentication with local fallback (7 + 1 ◐); SNMP agent access (7 + 1 ◐);
+  backup-WAN failover (7 + 1 ◐); management-access filtering (6 + 2 ◐);
+  command authorisation and accounting (6 + 2 ◐); wired access-session reset
+  (6 + 2 ◐); link aggregation (6 + 2 ◐); management-plane posture (6 + 2 ◐);
+  tunnel state read (5 + 3 ◐).
+- **Access-WAN facet** — cellular radio and subscription state (4 ✓ + 3 ◐ +
+  1 ✗).
 
 ## 3. Decision
 
@@ -1303,6 +1334,140 @@ convention the SD-WAN appliance doc follows.
   (`UplinkSelectionRule` / `SLAPolicy` semantics), `SPLITS.md` 2026-06-14
   (`SwitchAcl` vs the `l3_firewall` triad).
 
+### Sources for the charter-operation rows and the re-checked cells
+
+Cells marked *(existence)* rest on the cited document's existence and title
+rather than a quoted passage.
+
+**Cisco IOS-XE ≥ 17.9** (cisco.com) — reload: Configuration Fundamentals
+Command Reference (cf_r1); management-access filtering: "Management Plane
+Protection", QoS Configuration Guide, IOS XE 17.x
+(https://www.cisco.com/c/en/us/td/docs/routers/ios/config/17-x/qos/b-quality-of-service/m_qos-plcshp-mgt-plane-prt.html);
+AAA and fallback: "Configuring Authentication", AAA Configuration Guide;
+per-VRF routing table and DHCP release/renew: IP Addressing Services Command
+Reference [4000 Series ISRs]; BGP peer reset: "BGP 4 Soft Configuration", IP
+Routing Configuration Guide 17.x; speed, duplex, MTU: Interface and Hardware
+Component Command Reference [4000 Series ISRs]; image lifecycle: "Installing
+the Software using install Commands", ISR 4000 and ASR 1000 Software
+Configuration Guides, IOS XE 17; configuration replace: "Configuration Replace
+and Rollback", System Management Configuration Guide 17.x; posture: Cisco IOS
+XE Software Hardening Guide; control-plane protection: "Control Plane
+Policing", QoS Configuration Guide 17.x; SNMP: "Configuring SNMP Support",
+SNMP Configuration Guide IOS XE 17; command authorisation and accounting:
+"Configuring Authorization" and "Configuring Accounting", AAA Configuration
+Guides; tunnel state: `show crypto session`, Security Command Reference, and
+the DMVPN Configuration Guide; link aggregation: "Configuring IEEE 802.3ad
+Link Bundling", Carrier Ethernet Configuration Guide [ASR 1000]
+*(existence)*; cellular state: "LTE Support on Cisco 4000 Series ISR", ISR
+4000 Software Configuration Guide, IOS XE 17; backup-WAN failover: "Basic IP
+Routing", IP Routing Configuration Guide 17.x; platform scoping of voice and
+xDSL: "Configuring Voice Functionality", ISR 4000 Software Configuration
+Guide, IOS XE 17, and the Broadband Access Aggregation and DSL Configuration
+Guide. UTD licensing and DMVPN were not re-checked against a 17.9-specific
+source.
+
+**Huawei VRP 5.170** (support.huawei.com, NetEngine AR600/AR6100/AR6200/AR6300
+V300R019 Command Reference EDOC1100112391 and topic configuration guides) —
+reload: "Device Status Checking Commands"; management-access filtering:
+"Configuring and Applying a User ACL"; AAA: "AAA Configuration Commands";
+per-instance routing table: "IP Routing Basic Configuration Commands"; peer
+reset: "BGP Configuration Commands"; access session: "Resetting PPPoE
+Sessions" and "DHCP Configuration Commands"; physical parameters: "Configuring
+the Auto-Negotiation Function"; MTU: "Configuring the MTU on an Interface";
+image lifecycle: "Configuring System Startup Commands" and "Upgrade Commands";
+configuration export: "Saving the Configuration File" and "Backing Up the
+Configuration File"; posture: AR Router Security Hardening and Maintenance
+Guide, "Device Login Security"; control-plane protection: "Default Settings
+for Local Attack Defense"; SNMP: "Setting SNMP Parameters on a Managed
+Device", V300R019 MIB Reference; command authorisation: "AAA Configuration
+Commands"; tunnel state: "IPSec VPN", Web Configuration Guide; link
+aggregation: "Creating an Eth-Trunk"; cellular state: "Cellular Interface
+Configuration Commands"; backup-WAN failover: "Configuring Interface Backup in
+Active/Standby Mode". Huawei's pages render empty to automated fetches;
+these citations were taken from the indexed page titles and excerpts.
+
+**Ekinops OneOS6** (official material only) — operator authentication with
+RADIUS and TACACS+: ONE621 datasheet
+(https://www.ekinops.com/images/resources/datasheets/03ds-one621-ekinops.pdf);
+management-plane posture (secure boot, secure management protocols, password
+policies): Ekinops security brochure
+(https://www.ekinops.com/images/resources/brochures/03sb_security-ekinops.pdf);
+SNMP v1/v2c/v3: ONE621 datasheet; backup-WAN failover: "Ethernet Backup over
+4G or 5G" (https://www.ekinops.com/solutions/voice-data-access/ethernet-backup-over-4g-or-5g).
+All other OneOS6 cells of the charter-operation rows are ◐¹.
+
+**Juniper Junos OS ≥ 22.4** (juniper.net TechLibrary) — `request system
+reboot`; "Example: Control Management Access on Juniper Networking Devices";
+"Authentication Order for RADIUS, TACACS+, and Local Password"; `show route
+table` and `show route instance`; `clear bgp neighbor`; `clear pppoe sessions`
+and `clear dhcp client binding`; `auto-negotiation` and `mtu (interfaces)`;
+`request system software add` and `rollback`; "Loading Configuration Files";
+"Master Password for Configuration Encryption"; "Configuring Control Plane
+DDoS Protection"; "SNMP Communities" and "Configure SNMPv3"; "TACACS+
+Authentication"; "IKE for IPsec VPN" and "Service Sets for Static Endpoint
+IPsec Tunnels"; `show lacp interfaces`; "Configuring the LTE Mini-PIM on SRX
+Series Devices"; "Static Route Preferences and Qualified Next Hops" and
+"Real-Time Performance Monitoring Overview"; re-checked cells: UTM feature
+notes (22.2R1) and "Enhanced Web Filtering"; "Auto Discovery VPNs"; "Use
+Packet Capture to Analyze Network Traffic".
+
+**Nokia SR OS ≥ 22 / 7705 SAR Gen 2 ≥ 25.3** (documentation.nokia.com) —
+"Model-driven management interfaces" (24.7); 7705 SAR Gen 2 System Management
+and Interface Configuration Guides (25.3); System Management Guide, security
+(RADIUS / TACACS+, authorisation profiles, accounting); L3 Services Guide,
+VPRN show commands; BGP command reference; Triple Play Guide, PPPoE (subscriber
+side); "Boot Options" (22.10); "System Management" (23.10.1, rollback);
+Advanced Configuration Guide, "Distributed CPU Protection"; SNMP (23.3.1);
+Multiservice ISA and ESA Guide, "IP tunnels" (25.7, IPsec scope); 7705 SAR Gen 2
+documentation suite (25.3; its one hardware guide is for a single fixed chassis); BFD and VRRP
+configuration; DHCPv4 server; TWAMP Light and STAMP (OAM Guide 22.7); Cflowd /
+IPFIX; "Mirror services" (22.10.3). The DHCP-client cell and the ACL cell were
+not re-checked.
+
+**HPE Comware 7 (MSR)** — HPE's TechHub library no longer resolves; the cells
+cite H3C's MSR Comware 7 manuals (h3c.com; the same Comware 7 CLI) and HPE
+MSR Comware 7 manuals as published: Fundamentals Command Reference (reboot,
+boot-loader, `save`, `configuration replace`); Comware 7 Configuration Guides
+R0615 (management-access ACLs, AAA with local fallback); MSR5600 IP Routing and
+BGP configuration guides (per-instance routing table, `reset bgp`); Layer 2 —
+WAN Access Configuration Guide (`reset pppoe-client`); Interface Command
+Reference R0305 (speed, duplex, negotiation) *(existence)*; Layer 3 — IP
+Services Configuration Guide (MTU, NAT, DHCP, ADVPN); MSR5600 Command Reference
+V7-R6749 (login management, attack defence, SNMP, RBAC, AAA); IPsec and IKE
+command reference (MSR810/2600/3600); Layer 2 — LAN Switching Command
+Reference (route aggregation); mobile communication modem management commands
+(MSR5600); High Availability Command Reference (`backup interface`, `backup
+track`); MSR954 Network Management and Monitoring Command Reference (NQA,
+NetStream, NTP, SNMP, `packet-capture … write`); Security Configuration Guide
+(ASPF, IPsec; no IPS chapter — the DPI engine is a separate guide); VRRP and
+LLDP *(existence)*; platform scoping of integrated switching: MSR4000
+QuickSpecs and the FlexNetwork Router Series datasheet.
+
+**Fortinet FortiOS ≥ 7.2** (docs.fortinet.com) — `execute reboot`;
+"Hardening" (7.2.0 best practices); "Remote authentication for
+administrators" (7.2.4); inter-VDOM routing example; `execute router clear
+bgp`; `execute interface` (DHCP renew, PPPoE reconnect); "Interface MTU packet
+size"; "Upgrading individual device firmware" (7.2.0) and `execute
+set-next-reboot`; "Configuration backups"; `config firewall local-in-policy`
+(7.2.4); "SNMP v3 users" (7.2.4); "Remote administrators with TACACS+ VSA
+attributes" (7.2.4); "IPsec monitor" (7.2.4); "Aggregation and redundancy"
+(7.2.0); "Checking the modem status" (7.2.0); "Link monitoring and failover"
+(7.2.4) and "SD-WAN performance SLA"; re-checked cells: "Using the packet
+capture tool" (7.2.0), "Security profiles", "ADVPN and shortcut paths"
+(7.2.0), `config system netflow`, "LLDP reception", "Hardware switch" (7.2.0),
+"VRRP".
+
+**MikroTik RouterOS v7** (manual.mikrotik.com, help.mikrotik.com) — system
+reboot and resource; "Services"; AAA user and RADIUS; "VRF"; BGP session;
+DHCP and pppoe-client; interface ethernet (speed, auto-negotiation, MTU);
+system package (update, downgrade); configuration management and backup;
+"Securing your router" and the list of menus with sensitive parameters;
+firewall filter (input chain); SNMP; IPsec (active peers, installed SAs);
+bonding; LTE/5G; IP route (check-gateway) and Netwatch; re-checked cells:
+packet sniffer (PCAPNG), traffic flow, neighbour discovery, switch-chip
+features, OSPF, queues. The ✗ cells for EIGRP, xDSL and voice rest on the
+absence of any manual section.
+
 ## 11. Open questions
 
 Answers refine the design before the design review; none blocks the
@@ -1323,14 +1488,11 @@ restructure.
 5. **De-branded names — resolved (maintainer, 2026-09-27).** `ApplianceNat`
    → `NatRules`, `ApplianceUplinks` → `WanUplinks`, `SwitchAcl` →
    `PacketFilterAcl`, each with a deprecated alias for one MINOR (§12).
-6. **Competitor cells against the pinned version lines.** The competitor
-   columns were assessed before the charter pinned Junos OS ≥ 22.4, SR OS ≥ 22,
-   Comware 7, FortiOS ≥ 7.2 and RouterOS v7; each competitor cell is re-checked
-   against its line, with a source.
-7. **Charter operations the exploration did not place.** The charter defines
-   the class by operations the pre-track exploration never modelled. Each
-   needs a matrix row and a placement (core, tier, white-box, a separate
-   capability, or out) before the design review:
+6. **Competitor cells against the pinned version lines — resolved
+   (2026-09-27).** Every column was re-checked at its pinned line (§2, §10).
+7. **Placement of the charter operations.** Each now has a matrix row (§2,
+   "Charter operations"); each still needs a placement — core, tier,
+   white-box, a separate capability, or out — before the design review:
    - *class operations:* **reload** of the device; **management-access
      filtering**; **operator authentication** with a local fallback;
      **routing tables per routing instance** (`RoutingRead` has no instance
@@ -1561,3 +1723,11 @@ what the levels represent. Accepted; applied here.**
   with the Linux twin, a two-way table mirroring the §5 appliance table; the
   white-box candidate list moved to §12 under `LEVELS.md`; §3 states the
   decision without the revision narrative; cross-references updated.
+
+- **2026-09-27 — exploration: the charter operations and the pinned version
+  lines.** Eighteen matrix rows added for the charter's class and deferred
+  operations, and every column re-checked at its pinned version line, with a
+  public source per cell (§2, §10). Maintainer decisions: the OneOS6 column
+  cites official Ekinops material only — cells with no official
+  command-level source are ◐¹ — and the OneOS6 floor stays the OneOS6
+  generation.
