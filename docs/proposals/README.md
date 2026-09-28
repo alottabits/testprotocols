@@ -100,9 +100,15 @@ operations of one concern into one capability, never one capability per verb.
   migration line.
 - **Rename.** A capability or model class keeps its old name as a module
   alias that emits a `DeprecationWarning`; tests and drivers keep working
-  unchanged. A method or field rename declares both names for the
-  deprecation period: implementers add the new one and let the old one
-  delegate to it. The old name is removed after the period (`remove`).
+  unchanged. A model field rename declares both names for the
+  deprecation period, the new one defaulted from the old. A **protocol
+  method rename** declares both names too, and implementers add the new
+  one and let the old one delegate to it; but a structural protocol is
+  satisfied only by an implementer that has every member, so the new name
+  is a new member and the rename breaks every implementer on its own. It
+  therefore lands in the same release as an `extend` of that protocol,
+  whose migration line covers it, or is itself recorded as `extend`. The
+  old name is removed after the period (`remove`).
 - **Retype**, keeping the name:
   - *values going in* (parameters, constructor fields) — **widen, then
     narrow**: accept the old and the new type for the deprecation period,

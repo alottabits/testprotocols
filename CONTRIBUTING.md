@@ -258,7 +258,7 @@ Both packages carry one version, `0.MINOR.PATCH`, always equal.
 
 | Bump | When |
 | --- | --- |
-| MINOR | the release contains at least one entry under *Breaking for driver authors* in either package: a new mandatory protocol member, a retype, a rename, a removal, a moved symbol |
+| MINOR | the release contains at least one entry under *Breaking for driver authors* in either package: a new mandatory protocol member (a protocol method rename's new name included), a removal (the end of a deprecation period included), a moved symbol without an alias |
 | PATCH | everything else: new protocols, views, archetypes, operations, models; compatible changes; fixes |
 
 Consumers pin `testprotocols>=0.M.P,<0.(M+1).0`; a PATCH never breaks a
