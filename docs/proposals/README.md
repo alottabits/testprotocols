@@ -186,6 +186,11 @@ The review answers these questions, in this order, for every item:
    **lever**, and the item names the observation that confirms it (the boot
    wait, the uptime, the session or lease state). A write-only member with
    neither is `not met`: no driver could ever show that it worked.
+   For each write a reviewed family realises in more than one device step
+   (a list replace, delete-then-create, an ordered restore), the contract
+   states its failure outcome: a write that fails at any step, rejected or
+   not verified, leaves the as-found state. A multi-step write with no
+   stated failure outcome is `met with conditions`.
 9. **Precise types.** Every member and model the item adds or changes is
    typed precisely, so that the structural check of a `Protocol` verifies
    something: no `Any` or `object` in a signature or field; a value from a
