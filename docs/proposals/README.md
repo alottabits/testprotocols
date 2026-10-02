@@ -175,7 +175,9 @@ The review answers these questions, in this order, for every item:
    (every trigger family and a majority of the ratified list), the item is
    promoted on condition that every reference driver implements it before
    the `feat:` PR merges; below it, the item is a tier or optional member,
-   or keep-local, and the count is the argument.
+   or keep-local, and the count is the argument. Those implementations have
+   the plugin driver shape, verify their writes and acknowledge every call
+   (`docs/archetypes/README.md`, "The reference corpus").
 8. **Every write verifiable.** Each member that changes device state has a
    read in the contract that shows the effect — `set_x` beside `get_x`, an
    `add` beside the list or get that finds it — so a driver can read the
@@ -184,6 +186,17 @@ The review answers these questions, in this order, for every item:
    **lever**, and the item names the observation that confirms it (the boot
    wait, the uptime, the session or lease state). A write-only member with
    neither is `not met`: no driver could ever show that it worked.
+9. **Precise types.** Every member and model the item adds or changes is
+   typed precisely, so that the structural check of a `Protocol` verifies
+   something: no `Any` or `object` in a signature or field; a value from a
+   closed set (a mode, state, action, direction or protocol) is an `Enum`,
+   never a free-form `str`; `str` only for open values; records are
+   dataclasses, never a `dict` or a bare `tuple`; an absent value is
+   `X | None`, never an empty-string sentinel. An imprecisely typed added
+   or changed member is accepted with the precise type as a condition. An
+   existing member the item does not touch is noted, not blocking;
+   retyping one is a rung-5 `deprecate` (widen, then narrow), named as the
+   item's Mechanism.
 
 When the verdict hinges on a claimed vendor or tool behaviour, the review
 verifies it against published documentation and cites what it checked.
@@ -237,7 +250,11 @@ reviews, and the worst verdict sets the status.
    for an implemented item is met and cited.
 3. **Contract rules.** `Protocol`-typed boundary, typed models, no vendor
    leakage into a shared contract, no sibling of an existing protocol or
-   operation, no forwarder or test plumbing in either package.
+   operation, no forwarder or test plumbing in either package. Every added
+   or changed signature, field and model is typed precisely (proposal
+   question 9): a public member typed with `Any` or a free-form `str` for a
+   closed set is `not met`, and every added type-checker suppression names
+   its error code and says why.
 4. **Tests for both outcomes.** Every new or changed symbol has a test for
    the positive path and one for the negative or edge path.
 5. **Changelog entry.** Present under the right package and subsection, in
@@ -247,8 +264,9 @@ reviews, and the worst verdict sets the status.
    archetype in the reference corpus: every new or changed member is
    implemented by every reference driver, each mapping cites its source,
    and an unsupported cell raises `NotSupportedError` with a source. The
-   companion implementations have the plugin driver shape and verify their
-   writes (`docs/archetypes/README.md`, "The reference corpus"). The
+   companion implementations have the plugin driver shape, verify their
+   writes, acknowledge every call and keep vendor responses in typed records
+   (`docs/archetypes/README.md`, "The reference corpus"). The
    `conformance` status is the deterministic half; this question applies
    once a corpus archetype exists.
 
