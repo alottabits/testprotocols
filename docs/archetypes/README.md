@@ -171,7 +171,7 @@ family's published operation and cites its source; an unsupported cell raises
 **shape** — that the proposed methods map onto each family's way of working —
 not driver behaviour, and they are never run against a device.
 
-Two properties every reference driver shows, because a real driver needs
+Four properties every reference driver shows, because a real driver needs
 them and a design that makes them impossible is wrong:
 
 - **The plugin driver shape.** One route holder per transport whose capability
@@ -185,6 +185,25 @@ them and a design that makes them impossible is wrong:
   verifies the object is gone; a lever names the observation that confirms
   it. A write the contract gives no way to read back cannot be verified —
   hence design question 8.
+- **Acknowledged calls.** No call is one-shot. Every call — write, read and
+  lever — checks the device's immediate response before using its result or
+  reading back. The session classifies every response once, per family
+  (error output, a commit or check failure, an HTTP status, an error field
+  in a successful body), and raises a rejection error distinct from a
+  read-back difference, so a test can tell "the device refused" from "the
+  device accepted but the state differs". Where the family publishes a
+  positive acknowledgement (a commit confirmation, a created object's id, a
+  job id, a status field, a confirmation prompt), the driver requires it and
+  fails when it is missing; silence counts as success only where the
+  vendor documents a silent success, and the driver cites that source. A
+  read whose output does not parse fails; it never returns an empty
+  result. A rejection partway through a multi-step write restores the
+  as-found state, like a failed read-back.
+- **Precise types.** Vendor responses are parsed into typed records at the
+  session boundary; `Any` appears only where a third-party signature forces
+  it and is narrowed at once; a closed set the driver compares on is an
+  `Enum` or `Literal`; every type-checker suppression names its error code.
+  The corpus runs mypy and pyright in strict mode.
 
 The corpus is kept current with every archetype that went through this track:
 
@@ -248,6 +267,17 @@ verdicts of `docs/proposals/README.md`.
    **lever**, and the item names the observation that confirms it (the boot
    wait, the uptime, the session or lease state). A write-only member with
    neither is `not met`: no driver could ever show that it worked.
+9. **Precise types.** Every member and model the design adds or changes is
+   typed precisely, so that the structural check of a `Protocol` verifies
+   something: no `Any` or `object` in a signature or field; a value from a
+   closed set (a mode, state, action, direction or protocol) is an `Enum`,
+   never a free-form `str`; `str` only for open values (names,
+   descriptions, text the device returns verbatim); records are
+   dataclasses, never a `dict` or a bare `tuple`; an absent value is
+   `X | None` with its meaning stated, never an empty-string sentinel. An
+   added or changed member typed imprecisely is `not met`. An existing
+   member the design does not touch is noted, not blocking; retyping one is
+   a rung-5 `deprecate` (widen, then narrow) with its manifest row.
 
 **Verification** (`archetype:` PR with package source):
 
@@ -260,14 +290,22 @@ verdicts of `docs/proposals/README.md`.
 3. **Matrix agreement.** ✓ is an implemented method, ✗ is `NotSupportedError`,
    ◐ is either, with a note naming what is partial; a mismatch names which
    side is wrong.
-4. **Faithful mapping.** No vendor data carried in loosely typed fields; every
-   lossy mapping recorded in the document.
+4. **Faithful mapping and precise types.** No vendor data carried in loosely
+   typed fields; every lossy mapping recorded in the document; the package
+   source meets design question 9 and the reference drivers have the
+   precise types above, with mypy and pyright strict green.
 5. **Driver shape.** Every reference driver has the plugin driver shape
    above, and the type checker verifies its conformance statically.
 6. **Verified writes.** Every state write reads back through the contract's
    read, every removal verifies absence, every lever names its confirming
    observation, and a device-reported failure fails the write.
-7. **Findings folded back** into the matrix, body, manifest and review record.
+7. **Acknowledged calls.** Every call checks the device's immediate response
+   as above: a rejection raises its own error, a published acknowledgement is
+   required, a silent success cites its source, an unparsable read fails,
+   and a rejection partway through a write restores the as-found state. The
+   corpus's fakes emit each family's rejection output, so the negative path
+   is tested.
+8. **Findings folded back** into the matrix, body, manifest and review record.
 
 The posted review cites only public documentation, public protocol symbols
 and the corpus commit it verified against.
