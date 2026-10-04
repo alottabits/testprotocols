@@ -546,16 +546,27 @@ where one exists, also records its retype.
     implements `get_console` or `flash_via_bootloader`.
   - Callers of a returned console: `execute_command(cmd, timeout=...)` (every use case and
     device method that reads `hw.get_console("console")`; the dominant member);
-    `sendline`, `expect`, `expect_exact` (the console helpers they pass it to in boardfarm's
-    networking library, typed there by a structural protocol with those four members);
-    `start_interactive_session()` (the interactive shell over `get_interactive_consoles()`).
-    So `Console` has exactly those five members. `before`, `close`, `login_to_server` and
-    `timeout` are used only by an implementer on its own console, never by a caller of the
-    returned object, and are left out (the sketch in the plan had `sendline`, `expect` and
-    `before`; the evidence replaces it). `timeout` is `int` (every declaration seen); `expect`
-    patterns are a string or a list that also holds timeout and end-of-file exception classes
-    (`ExpectPattern`). The leading parameter is positional-only so an implementer's name for
-    it does not matter, while `timeout=` stays keyword-callable because callers use it.
+    `sendline` and `before` (the CPE software libraries read `console.before` after a
+    `sendline`/`expect` exchange: `cpe_sw`, `prplos_cpe`, `rpiprplos_cpe`);
+    `start_interactive_session()` (the interactive shell over `get_interactive_consoles()`);
+    and `expect`, `expect_exact` (boardfarm's networking helpers, typed there by a structural
+    protocol). The first plan's sketch had `sendline`, `expect`, `before`; an earlier draft of
+    this evidence wrongly left `before` out.
+  - Ruling: `Console` holds only members a stubbed `pexpect.spawn` subclass can satisfy
+    without this package depending on pexpect, so `expect` and `expect_exact` are NOT
+    members. With real `types-pexpect` stubs, `sendline` returns `int` (the protocol says
+    `object`), and `expect` takes pexpect's own pattern list: a parameter is contravariant
+    and `list` invariant, so only pexpect's exact type would match. Members: `execute_command`,
+    `sendline(...) -> object`, a read-only `before: str | bytes | None`,
+    `start_interactive_session`. A caller that pattern-matches keeps the concrete console type
+    (cost if wrong: callers of `expect` through `Console` need a cast). The example consumer
+    environments have no stubs, so the consumer gate cannot show this; a mypy-backed test
+    (`test_console_pexpect_conformance.py`, `types-pexpect` as a dev dependency) checks that a
+    `pexpect.spawn` subclass with `execute_command` and `start_interactive_session` satisfies
+    `Console`. `sendline` is positional-only, so a `Console` cannot be passed to a helper
+    protocol that takes `string` as a named parameter. `timeout` is `int` (every declaration
+    seen); the leading parameter is positional-only so an implementer's name for it does not
+    matter, while `timeout=` stays keyword-callable because callers use it.
   - `flash_via_bootloader`: every implementer seen raises "not supported" and never reads
     `tftp_devices` or `termination_sys`; the arguments are framework device objects passed
     through opaquely. Decision: the released `dict[str, Any]` and `Any` annotations are KEPT
@@ -566,7 +577,6 @@ where one exists, also records its retype.
     The existing `TftpServer` protocol is not used: no member of it is called. Task 13
     exempts these two lines from `disallow_any_explicit`. Cost if wrong: two `Any`
     parameters remain in the contract.
-  - Check: `VitroPexpect` satisfies `Console` under mypy against this branch.
 
 ## Effective now
 
@@ -698,10 +708,11 @@ the matching CHANGELOG entry sits under *Changed*.
 
 - **HwConsole** (hw-console task). Static only, no runtime change: `get_console` returns
   `Console` and `get_interactive_consoles` returns `Mapping[str, Console]` (were `Any` and
-  `dict[str, Any]`), so a reader sees only `execute_command`, `sendline`, `expect`,
-  `expect_exact` and `start_interactive_session` and cannot call `before` or other
-  pexpect members without narrowing, and cannot mutate the mapping; an implementer whose
-  console lacks one of the five no longer conforms. `flash_via_bootloader` is unchanged.
+  `dict[str, Any]`), so a reader sees only `execute_command`, `sendline`, `before` and
+  `start_interactive_session`; a caller that uses `expect`, `expect_exact` or other pexpect
+  members keeps the concrete console type or narrows, and one that mutates the mapping
+  (`popitem`) takes `dict(...)` first. An implementer whose console lacks one of the four
+  no longer conforms. `flash_via_bootloader` is unchanged.
 
 ## Pending narrow steps (announced, not yet taken)
 

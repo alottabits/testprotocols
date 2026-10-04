@@ -6,21 +6,20 @@ power cycling, and bootloader-level flashing of a device under test.
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping
 from typing import Any, Protocol, runtime_checkable
-
-ExpectPattern = str | type[Exception]
-"""One thing ``expect`` waits for: a regular expression, or a sentinel class such as a
-timeout or end-of-file exception class that a pexpect-style console accepts in a list."""
 
 
 @runtime_checkable
 class Console(Protocol):
-    """An interactive text console: run a command, or send a line and wait for a pattern.
+    """An interactive text console: run a command, or send a line and read what came before.
 
-    Exactly the members that callers of the consoles ``HwConsole`` returns were seen to
-    use (see ``docs/architecture/precise-types-design.md``, "HwConsole"). A pexpect-style
-    console satisfies it without inheriting from it.
+    Only the members that callers of the consoles ``HwConsole`` returns were seen to use
+    and that a ``pexpect.spawn`` subclass can satisfy without this package depending on
+    pexpect (see ``docs/architecture/precise-types-design.md``, "HwConsole"). A pexpect-based
+    console satisfies it without inheriting from it. Pattern matching (``expect``,
+    ``expect_exact``) is not here: a console's own pattern types cannot be matched by one
+    contract type, so a caller that matches patterns keeps the concrete console type.
     """
 
     def execute_command(self, command: str, /, timeout: int = -1) -> str:
@@ -30,26 +29,13 @@ class Console(Protocol):
         """
         ...
 
-    def sendline(self, text: str = "", /) -> None:
-        """Send *text* followed by a line end."""
+    def sendline(self, text: str = "", /) -> object:
+        """Send *text* followed by a line end; the return value is not part of the contract."""
         ...
 
-    def expect(
-        self,
-        pattern: ExpectPattern | Sequence[ExpectPattern],
-        /,
-        timeout: int = -1,
-    ) -> int:
-        """Wait for a regular expression (or any of a list) and return the matched index."""
-        ...
-
-    def expect_exact(
-        self,
-        pattern: ExpectPattern | Sequence[ExpectPattern],
-        /,
-        timeout: int = -1,
-    ) -> int:
-        """Wait for literal text (or any of a list) and return the matched index."""
+    @property
+    def before(self) -> str | bytes | None:
+        """The output received before the last match (``None`` before any match)."""
         ...
 
     def start_interactive_session(self) -> None:

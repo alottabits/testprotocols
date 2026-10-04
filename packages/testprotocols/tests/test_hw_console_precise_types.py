@@ -4,13 +4,13 @@ from __future__ import annotations
 
 import ast
 import typing
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping
 from pathlib import Path
 
 import testprotocols
 import testprotocols.hw_console as hw_console_module
 from _helpers import protocol_attrs
-from testprotocols.hw_console import Console, ExpectPattern, HwConsole
+from testprotocols.hw_console import Console, HwConsole
 
 
 class FakeConsole:
@@ -18,21 +18,19 @@ class FakeConsole:
 
     def __init__(self) -> None:
         self.sent: list[str] = []
+        self._before: str | None = None
 
     def execute_command(self, command: str, timeout: int = -1) -> str:
         self.sent.append(command)
         return f"ran {command} ({timeout})"
 
-    def sendline(self, text: str = "") -> None:
+    def sendline(self, text: str = "") -> int:
         self.sent.append(text)
+        return len(text)
 
-    def expect(self, pattern: ExpectPattern | Sequence[ExpectPattern], timeout: int = -1) -> int:
-        return 0
-
-    def expect_exact(
-        self, pattern: ExpectPattern | Sequence[ExpectPattern], timeout: int = -1
-    ) -> int:
-        return 0
+    @property
+    def before(self) -> str | None:
+        return self._before
 
     def start_interactive_session(self) -> None:
         return None
@@ -73,8 +71,7 @@ def test_console_members_are_exactly_those_callers_use() -> None:
     assert protocol_attrs(Console) == {
         "execute_command",
         "sendline",
-        "expect",
-        "expect_exact",
+        "before",
         "start_interactive_session",
     }
 
@@ -85,13 +82,15 @@ def test_console_is_runtime_checkable() -> None:
 
 
 def test_console_missing_a_member_does_not_conform() -> None:
-    class NoExpect:
+    class NoBefore:
         def execute_command(self, command: str, timeout: int = -1) -> str:
             return ""
 
         def sendline(self, text: str = "") -> None: ...
 
-    assert not isinstance(NoExpect(), Console)
+        def start_interactive_session(self) -> None: ...
+
+    assert not isinstance(NoBefore(), Console)
 
 
 def test_fake_hw_conforms_and_consoles_conform() -> None:
@@ -126,7 +125,15 @@ def test_released_flash_call_still_binds() -> None:
 
 def test_hw_console_any_is_only_the_two_flash_parameters() -> None:
     source = Path(hw_console_module.__file__).read_text()
-    tree = ast.parse(source)
-    lines = {n.lineno for n in ast.walk(tree) if isinstance(n, ast.Name) and n.id == "Any"}
-    assert len(lines) == 2
-    assert all("passed opaquely" in source.splitlines()[i - 3] for i in lines)
+    lines = source.splitlines()
+    any_lines = sorted(
+        {n.lineno for n in ast.walk(ast.parse(source)) if isinstance(n, ast.Name) and n.id == "Any"}
+    )
+    assert len(any_lines) == 2
+    for lineno in any_lines:
+        above: list[str] = []
+        i = lineno - 2
+        while i >= 0 and lines[i].lstrip().startswith("#"):
+            above.append(lines[i])
+            i -= 1
+        assert "passed opaquely" in " ".join(above), f"line {lineno}: no comment above"

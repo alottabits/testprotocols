@@ -290,14 +290,16 @@ their tags and PR history.
   the option string a driver that predates them would receive). Migration: none. Design
   `docs/architecture/precise-types-design.md` (Tool option strings); PR pending.
 
-- **protocol and alias** `testprotocols.hw_console:Console` (also `testprotocols.Console`) and
-  `ExpectPattern` — the interactive text console `HwConsole` hands out: `execute_command(command,
-  /, timeout=-1) -> str`, `sendline(text="", /)`, `expect(pattern, /, timeout=-1) -> int`,
-  `expect_exact(...)` and `start_interactive_session()`, exactly the members that callers of the
-  returned consoles were seen to use. `runtime_checkable`; a pexpect-style console satisfies it
-  without inheriting. `ExpectPattern` is `str | type[Exception]` (a regular expression, or a
-  timeout or end-of-file exception class, which callers put in the list). Migration: none.
-  Design `docs/architecture/precise-types-design.md` (HwConsole); PR pending.
+- **protocol** `testprotocols.hw_console:Console` (also `testprotocols.Console`) — the
+  interactive text console `HwConsole` hands out: `execute_command(command, /, timeout=-1) ->
+  str`, `sendline(text="", /) -> object`, a read-only `before: str | bytes | None` and
+  `start_interactive_session()`: the members callers of the returned consoles were seen to use
+  that a `pexpect.spawn` subclass can satisfy (checked against `types-pexpect`, a dev
+  dependency only). `runtime_checkable`. `expect` and `expect_exact` are not members: a
+  console's own pattern types cannot be matched by one contract type, so a caller that
+  matches patterns keeps the concrete console type. `sendline` is positional-only, so a
+  `Console` cannot be passed to a helper protocol that takes `string` as a named parameter.
+  Migration: none. Design `docs/architecture/precise-types-design.md` (HwConsole); PR pending.
 
 #### Breaking for driver authors
 
@@ -492,10 +494,13 @@ their tags and PR history.
 - **protocol members** `testprotocols.hw_console:HwConsole.get_console(console_name) ->
   Console` (was `Any`) and `get_interactive_consoles() -> Mapping[str, Console]` (was `dict[str,
   Any]`) — no `Any`. Static only. A reader of a returned console sees only the `Console`
-  members; an implementer whose console lacks one of them (`execute_command`, `sendline`,
-  `expect`, `expect_exact`, `start_interactive_session`) no longer conforms, and one that
-  returns a `dict` still does. `flash_via_bootloader` keeps its released `dict[str, Any]` and
-  `Any` parameters. Design `docs/architecture/precise-types-design.md` (HwConsole); PR pending.
+  members (`execute_command`, `sendline`, `before`, `start_interactive_session`): a caller that
+  uses `expect`, `expect_exact` or other pexpect members keeps the concrete console type or
+  narrows; an implementer whose console lacks one of the four no longer conforms, and one that
+  returns a `dict` still does. A caller that mutates the returned mapping (for example
+  `popitem`) must take `dict(...)` first. `flash_via_bootloader` keeps its released
+  `dict[str, Any]` and `Any` parameters. Design `docs/architecture/precise-types-design.md`
+  (HwConsole); PR pending.
 
 #### Deprecated
 
