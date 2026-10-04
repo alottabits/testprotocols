@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import copy
 import warnings
 from collections.abc import Callable
 from unittest.mock import MagicMock
@@ -68,34 +69,33 @@ class TestFullDictSurface:
             assert r.values() == list(released.values())
         assert len(w) == 1
 
-    def test_dict_and_unpacking_warn_once_per_call(
+    def test_dict_and_unpacking_warn_for_keys_and_each_key_read(
         self, make: Callable[[], ReleasedMapping], size: int
     ) -> None:
         r = make()
         with pytest.warns(DeprecationWarning) as w:
             converted = dict(r)
-        assert len(w) == 1 and len(converted) == size
+        assert len(w) == 1 + size and len(converted) == size
         with pytest.warns(DeprecationWarning) as w:
             unpacked = {**r}
-        assert len(w) == 1 and unpacked == converted
+        assert len(w) == 1 + size and unpacked == converted
 
-    def test_indexing_still_warns_each_time_after_a_conversion(
+    def test_a_later_separate_read_always_warns(
         self, make: Callable[[], ReleasedMapping], size: int
     ) -> None:
         r = make()
         with pytest.warns(DeprecationWarning):
-            dict(r)
+            keys = list(r.keys())
         with pytest.warns(DeprecationWarning, match="indexing"):
-            r[_keys(r)[0]]
+            r[keys[0]]
+        clone = copy.copy(r)
+        with pytest.warns(DeprecationWarning, match="indexing"):
+            clone[keys[0]]
+        with pytest.warns(DeprecationWarning, match="indexing"):
+            r[keys[0]]
 
     def test_fields_never_warn(self, make: Callable[[], ReleasedMapping], size: int) -> None:
         with warnings.catch_warnings():
             warnings.simplefilter("error")
             r = make()
             assert r == make()
-
-
-def _keys(r: ReleasedMapping) -> list[str]:
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore")
-        return list(r.as_dict())

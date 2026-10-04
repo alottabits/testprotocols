@@ -770,7 +770,7 @@ their tags and PR history.
   narrow to `DenyScope` and `RuleProtocol` in a later release. Design `docs/architecture/precise-types-design.md` (testoperations: segmentation); PR pending.
 - **access** reading `IperfSession`, `HomeVerification` or `FlowPair` as the released dict —
   `result["sender_pid"]`, `result["vlan_defined"]`, `result["a_to_b"]`, `.get`, `in`, `len`,
-  `keys`, `items`, `values`, iteration, `dict(result)`, `**result` (one warning per call), `==` against the released dict, and `as_dict()` — warns
+  `keys`, `items`, `values`, iteration, `dict(result)`, `**result` (a conversion warns once for `keys()` and once per key read), `==` against the released dict, and `as_dict()` — warns
   (`DeprecationWarning`) and returns the released values (for `verify_home`, `details` is the
   released nested dict with the peer states as text). Static types narrow: the records are not a
   `Mapping` and `[]` / `get` return `object`, so a typed caller needs the fields or `as_dict()`. The mapping access is removed in a later

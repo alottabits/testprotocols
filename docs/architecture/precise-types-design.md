@@ -672,7 +672,7 @@ output equals that of the commit before it).
   .ReleasedMapping`. The mixin keeps the released dict readable: indexing, `get`, `in`,
   iteration, `len`, `keys`, `items`, `values` (so `dict(result)` and `**result` work), `==`
   against the released dict and `as_dict()` all return the released values and warn, once per
-  call (a `dict(result)` conversion warns once); reading a field never warns, and two records
+  call (a `dict(result)` or `{**result}` conversion warns once for `keys()` and once per key read); reading a field never warns, and two records
   compare by field and hash by field when their fields hash (`HomeVerification` does not: its
   `peer_states` is a dict). Static types narrow: the records are not a `Mapping`, and `[]` and
   `get` return `object`, so a typed caller that relied on `dict[str, str]` reads the fields or

@@ -2,7 +2,7 @@
 
 An operation that returned a ``dict`` and now returns a frozen dataclass gives its callers a
 deprecation period: indexing, ``get``, ``in``, ``len``, ``keys``, ``items``, ``values``,
-iteration, ``dict(result)`` and ``**result`` (one warning per call), ``==`` against the
+iteration, ``dict(result)`` and ``**result`` (one warning per ``[]`` read), ``==`` against the
 released dict and :meth:`as_dict` all still work, each with a ``DeprecationWarning``; reading
 the record's fields never warns. The removal step deletes the mixin from the record.
 """
@@ -10,7 +10,7 @@ the record's fields never warns. The removal step deletes the mixin from the rec
 from __future__ import annotations
 
 import warnings
-from collections.abc import Iterable, Iterator, Mapping
+from collections.abc import Iterator, Mapping
 from dataclasses import fields
 from typing import override
 
@@ -44,11 +44,7 @@ class ReleasedMapping:
         return self._released()
 
     def __getitem__(self, key: str) -> object:
-        quiet: int = getattr(self, "_quiet", 0)
-        if quiet > 0:
-            object.__setattr__(self, "_quiet", quiet - 1)
-        else:
-            self._warn("indexing")
+        self._warn("indexing")
         return self._released()[key]
 
     def get(self, key: str, default: object = None) -> object:
@@ -56,11 +52,12 @@ class ReleasedMapping:
         self._warn("get()")
         return self._released().get(key, default)
 
-    def keys(self) -> Iterable[str]:
-        """Deprecated: the released dict's keys. ``dict(record)`` and ``**record`` read them
-        and then each value; that whole conversion warns once, here."""
+    def keys(self) -> list[str]:
+        """Deprecated: the released dict's keys. ``dict(record)`` and ``**record`` call this
+        and then read each value by index, so such a conversion warns once for ``keys()``
+        and once per key read."""
         self._warn("keys()")
-        return _Keys(self, list(self._released()))
+        return list(self._released())
 
     def items(self) -> list[tuple[str, object]]:
         """Deprecated: the released dict's items."""
@@ -96,19 +93,3 @@ class ReleasedMapping:
     @override
     def __hash__(self) -> int:
         return hash(tuple(getattr(self, f.name) for f in fields(self)))  # type: ignore[arg-type]
-
-
-class _Keys(list[str]):
-    """The keys ``keys()`` returns. Iterating them (which ``dict(record)`` and ``**record`` do,
-    before reading each value) lets the record's next ``len(keys)`` index reads pass without a
-    second warning: the conversion is one call, not one per key. (Iterating the keys and then
-    indexing by hand therefore skips the warning for those reads; ``keys()`` itself warned.)"""
-
-    def __init__(self, owner: ReleasedMapping, keys: list[str]) -> None:
-        super().__init__(keys)
-        self._owner = owner
-
-    @override
-    def __iter__(self) -> Iterator[str]:
-        object.__setattr__(self._owner, "_quiet", len(self))
-        return super().__iter__()
