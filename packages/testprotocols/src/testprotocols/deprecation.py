@@ -100,11 +100,11 @@ def coerce_int(
 ) -> int:
     """Return *value* as an ``int``.
 
-    An ``int`` (not a ``bool``) is returned unchanged. A string of decimal digits
-    (optionally signed) is accepted for the deprecation period: it warns and
-    returns the number. Text that is not a decimal integer raises ``ValueError``
-    naming *what* and the value; any other type (``bool``, ``float``, ``None``,
-    ``bytes``) raises ``TypeError``.
+    An ``int`` (not a ``bool``) is returned unchanged. A string of optionally signed
+    decimal digits (``"443"``, ``"-1"``, ``"+5"``) is accepted for the deprecation
+    period: it warns and returns the number. Text that is not a decimal integer
+    raises ``ValueError`` naming *what* and the value; any other type (``bool``,
+    ``float``, ``None``, ``bytes``) raises ``TypeError``.
 
     The warning frame works as in :func:`coerce_enum`: ``stacklevel=3`` for a driver
     method that coerces at its boundary, or the first frame outside

@@ -38,7 +38,7 @@ their tags and PR history.
   package. Migration: none. Design `docs/architecture/precise-types-design.md`
   (shapes 1 and 3); PR pending.
 - **function** `testprotocols.deprecation:coerce_int` — returns an `int` unchanged,
-  converts a string of decimal digits with a `DeprecationWarning` (the helper for a
+  converts a string of optionally signed decimal digits (`"443"`, `"-1"`, `"+5"`) with a `DeprecationWarning` (the helper for a
   released `str` parameter that is really a number), and raises `ValueError` for text
   that is not a decimal integer and `TypeError` for a `bool`, `float` or other type.
   Migration: none. Design `docs/architecture/precise-types-design.md` (shape 1i);

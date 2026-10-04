@@ -94,6 +94,12 @@ def test_coerce_int_warning_points_at_the_calling_frame_with_skip_prefixes() -> 
     assert caught[0].filename == __file__
 
 
+@pytest.mark.parametrize(("text", "number"), [("-1", -1), ("+5", 5), ("007", 7)])
+def test_coerce_int_accepts_signed_decimal_text_and_warns(text: str, number: int) -> None:
+    with pytest.warns(DeprecationWarning, match="deprecated"):
+        assert coerce_int(text, what="vlan") == number
+
+
 @pytest.mark.parametrize("text", ["http", "", " 80", "8 0", "1.5", "0x10", "\u0663"])
 def test_coerce_int_rejects_non_numeric_text(text: str) -> None:
     with pytest.raises(ValueError, match=rf"port: {text!r} is not a decimal integer"):
