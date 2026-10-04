@@ -28,11 +28,11 @@ from testprotocols.models import (
     format_port_ranges,
     match_fields,
     parse_port_ranges,
-    port_tuple,
     traffic_match,
 )
 from testprotocols.models._open_enum import OpenEnumPair
 from testprotocols.models._sync import SyncedField, SyncedFields, assign, settle
+from testprotocols.models.ports import port_tuple
 
 # --- a toy record with two SyncedField pairs ---
 

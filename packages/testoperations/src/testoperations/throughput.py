@@ -1009,6 +1009,19 @@ def _measure_rounds(
             return findings
 
 
+class _FlowMeasurer(Protocol):
+    """The shape of :func:`measure_external_flow`, for a caller that fakes it."""
+
+    def __call__(
+        self,
+        flow: ExternalFlow,
+        *,
+        duration_s: int,
+        result_timeout_s: float,
+        poll_interval_s: float,
+    ) -> FlowThroughput: ...
+
+
 def measure_external_path_until(
     *,
     sender: IperfClient,
@@ -1026,7 +1039,7 @@ def measure_external_path_until(
     on_round: Callable[[PathMeasurement], None] | None = None,
     on_retry: Callable[[Exception, int], None] | None = None,
     retry_when: Callable[[NonCompletion], bool] | None = None,
-    measure_flow: Callable[..., FlowThroughput] = measure_external_flow,
+    measure_flow: _FlowMeasurer = measure_external_flow,
     monotonic: Callable[[], float] = time.monotonic,
     sleep: Callable[[float], None] = time.sleep,
     busy_backoff_s: float = DEFAULT_BUSY_BACKOFF_S,

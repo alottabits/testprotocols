@@ -16,7 +16,7 @@ from testprotocols.models.networking import PingResult
 class IpRouting(Protocol):
     """Abstract contract for IP routing operations."""
 
-    def ping(
+    def ping(  # type: ignore[explicit-any]  # released signature kept until removal
         self,
         ping_ip: str,
         ping_count: int = 4,

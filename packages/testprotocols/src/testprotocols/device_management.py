@@ -45,7 +45,7 @@ class DeviceManagement(Protocol):
         """Return the device's memory figures, in bytes."""
         ...
 
-    def get_running_processes(self, ps_options: str = "-A") -> list[Any]:
+    def get_running_processes(self, ps_options: str = "-A") -> list[Any]:  # type: ignore[explicit-any]  # released signature kept until removal
         """Deprecated name of :meth:`read_running_processes`.
 
         Returns the list of running processes using the given ps options. For the default
@@ -68,7 +68,7 @@ class DeviceManagement(Protocol):
         """Return the board system log as a string, waiting up to *timeout* seconds."""
         ...
 
-    def read_event_logs(self) -> list[dict[str, Any]]:
+    def read_event_logs(self) -> list[dict[str, Any]]:  # type: ignore[explicit-any]  # released signature kept until removal
         """Deprecated: use :meth:`read_log_entries`, which returns typed entries.
 
         Returns the structured event log entries (``priority``, ``date``, ``hostname``,

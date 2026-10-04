@@ -17,7 +17,7 @@ from testprotocols.models.traffic import TransportProtocol
 class NmapScanner(Protocol):
     """Abstract contract for nmap network scanning operations."""
 
-    def nmap(
+    def nmap(  # type: ignore[explicit-any]  # released signature kept until removal
         self,
         ipaddr: str,
         ip_type: IpVersion | str,

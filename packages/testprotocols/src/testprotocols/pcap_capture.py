@@ -13,7 +13,7 @@ from typing import Any, Protocol, runtime_checkable
 class PcapCapture(Protocol):
     """Abstract contract for packet capture operations."""
 
-    def start_tcpdump(
+    def start_tcpdump(  # type: ignore[explicit-any]  # released signature kept until removal
         self,
         interface: str,
         port: str | None,

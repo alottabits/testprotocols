@@ -14,7 +14,7 @@ against the contracts with the type checkers.
 
 from __future__ import annotations
 
-from collections.abc import Callable, Sequence
+from collections.abc import Sequence
 from typing import Protocol, cast
 
 from testprotocols.models import (
@@ -26,14 +26,20 @@ from testprotocols.models import (
 )
 
 
-def _callable_member(driver: object, name: str) -> Callable[..., object]:
+class _Member(Protocol):
+    """A driver member, called with whatever arguments its released signature takes."""
+
+    def __call__(self, *args: object, **kwargs: object) -> object: ...
+
+
+def _callable_member(driver: object, name: str) -> _Member:
     member: object = getattr(driver, name)
     if not callable(member):
         raise TypeError(f"{type(driver).__name__}.{name} is not callable")
     return member
 
 
-def _new_member(driver: object, name: str) -> Callable[..., object] | None:
+def _new_member(driver: object, name: str) -> _Member | None:
     """*driver*'s *name* member when it has one, else ``None``."""
     if getattr(driver, name, None) is None:
         return None

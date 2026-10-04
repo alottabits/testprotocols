@@ -200,12 +200,12 @@ class Tr069Server(Protocol):
 
     # --- CWMP RPCs, deprecated names --------------------------------------------------
 
-    def GPV(
+    def GPV(  # type: ignore[explicit-any]  # released signature kept until removal
         self,
         param: str | list[str],
         timeout: int | None = None,
         cpe_id: str | None = None,
-    ) -> list[dict[str, Any]]:  # released signature kept
+    ) -> list[dict[str, Any]]:
         """Deprecated name of :meth:`get_parameter_values`.
 
         GetParameterValues. The driver warns with
@@ -213,9 +213,9 @@ class Tr069Server(Protocol):
         """
         ...
 
-    def SPV(
+    def SPV(  # type: ignore[explicit-any]  # released signature kept until removal
         self,
-        param_value: dict[str, Any] | list[dict[str, Any]],  # released signature kept
+        param_value: dict[str, Any] | list[dict[str, Any]],
         timeout: int | None = None,
         cpe_id: str | None = None,
     ) -> int:
@@ -226,11 +226,11 @@ class Tr069Server(Protocol):
         """
         ...
 
-    def GPA(
+    def GPA(  # type: ignore[explicit-any]  # released signature kept until removal
         self,
         param: str,
         cpe_id: str | None = None,
-    ) -> list[dict[str, Any]]:  # released signature kept
+    ) -> list[dict[str, Any]]:
         """Deprecated name of :meth:`get_parameter_attributes`.
 
         GetParameterAttributes. The driver warns with
@@ -238,14 +238,14 @@ class Tr069Server(Protocol):
         """
         ...
 
-    def SPA(
+    def SPA(  # type: ignore[explicit-any]  # released signature kept until removal
         self,
-        param: list[dict[str, Any]] | dict[str, Any],  # released signature kept
+        param: list[dict[str, Any]] | dict[str, Any],
         notification_param: bool = True,
         access_param: bool = False,
-        access_list: list[Any] | None = None,  # released signature kept
+        access_list: list[Any] | None = None,
         cpe_id: str | None = None,
-    ) -> list[dict[str, Any]]:  # released signature kept
+    ) -> list[dict[str, Any]]:
         """Deprecated name of :meth:`set_parameter_attributes`.
 
         SetParameterAttributes. The driver warns with
@@ -253,10 +253,10 @@ class Tr069Server(Protocol):
         """
         ...
 
-    def FactoryReset(
+    def FactoryReset(  # type: ignore[explicit-any]  # released signature kept until removal
         self,
         cpe_id: str | None = None,
-    ) -> list[dict[str, Any]]:  # released signature kept
+    ) -> list[dict[str, Any]]:
         """Deprecated name of :meth:`factory_reset_cpe`.
 
         FactoryReset. The driver warns with
@@ -264,11 +264,11 @@ class Tr069Server(Protocol):
         """
         ...
 
-    def Reboot(
+    def Reboot(  # type: ignore[explicit-any]  # released signature kept until removal
         self,
         CommandKey: str = "reboot",
         cpe_id: str | None = None,
-    ) -> list[dict[str, Any]]:  # released signature kept
+    ) -> list[dict[str, Any]]:
         """Deprecated name of :meth:`reboot`.
 
         Reboot. The driver warns with ``warn_renamed("Reboot", "reboot")`` and keeps its
@@ -276,12 +276,12 @@ class Tr069Server(Protocol):
         """
         ...
 
-    def AddObject(
+    def AddObject(  # type: ignore[explicit-any]  # released signature kept until removal
         self,
         param: str,
         param_key: str = "",
         cpe_id: str | None = None,
-    ) -> list[dict[str, Any]]:  # released signature kept
+    ) -> list[dict[str, Any]]:
         """Deprecated name of :meth:`add_object`.
 
         AddObject. The driver warns with ``warn_renamed("AddObject", "add_object")`` and
@@ -290,12 +290,12 @@ class Tr069Server(Protocol):
         """
         ...
 
-    def DelObject(
+    def DelObject(  # type: ignore[explicit-any]  # released signature kept until removal
         self,
         param: str,
         param_key: str = "",
         cpe_id: str | None = None,
-    ) -> list[dict[str, Any]]:  # released signature kept
+    ) -> list[dict[str, Any]]:
         """Deprecated name of :meth:`delete_object`.
 
         DeleteObject. The driver warns with ``warn_renamed("DelObject", "delete_object")``
@@ -304,13 +304,13 @@ class Tr069Server(Protocol):
         """
         ...
 
-    def GPN(
+    def GPN(  # type: ignore[explicit-any]  # released signature kept until removal
         self,
         param: str,
         next_level: bool,
         timeout: int | None = None,
         cpe_id: str | None = None,
-    ) -> list[dict[str, Any]]:  # released signature kept
+    ) -> list[dict[str, Any]]:
         """Deprecated name of :meth:`get_parameter_names`.
 
         GetParameterNames. The driver warns with
@@ -318,12 +318,12 @@ class Tr069Server(Protocol):
         """
         ...
 
-    def ScheduleInform(
+    def ScheduleInform(  # type: ignore[explicit-any]  # released signature kept until removal
         self,
         CommandKey: str = "Test",
         DelaySeconds: int = 20,
         cpe_id: str | None = None,
-    ) -> list[dict[str, Any]]:  # released signature kept
+    ) -> list[dict[str, Any]]:
         """Deprecated name of :meth:`schedule_inform`.
 
         ScheduleInform. The driver warns with
@@ -332,10 +332,10 @@ class Tr069Server(Protocol):
         """
         ...
 
-    def GetRPCMethods(
+    def GetRPCMethods(  # type: ignore[explicit-any]  # released signature kept until removal
         self,
         cpe_id: str | None = None,
-    ) -> list[dict[str, Any]]:  # released signature kept
+    ) -> list[dict[str, Any]]:
         """Deprecated name of :meth:`get_rpc_methods`.
 
         GetRPCMethods. The driver warns with
@@ -343,7 +343,7 @@ class Tr069Server(Protocol):
         """
         ...
 
-    def Download(
+    def Download(  # type: ignore[explicit-any]  # released signature kept until removal
         self,
         url: str,
         filetype: str = "1 Firmware Upgrade Image",
@@ -356,7 +356,7 @@ class Tr069Server(Protocol):
         successurl: str = "",
         failureurl: str = "",
         cpe_id: str | None = None,
-    ) -> list[dict[str, Any]]:  # released signature kept
+    ) -> list[dict[str, Any]]:
         """Deprecated name of :meth:`download`.
 
         Download. The driver warns with ``warn_renamed("Download", "download")`` and keeps

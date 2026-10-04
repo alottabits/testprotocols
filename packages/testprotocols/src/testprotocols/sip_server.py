@@ -104,7 +104,7 @@ class SipServer(Protocol):
         """
         ...
 
-    def get_rtpengine_stats(self) -> dict[str, Any]:
+    def get_rtpengine_stats(self) -> dict[str, Any]:  # type: ignore[explicit-any]  # released signature kept until removal
         """Deprecated name of :meth:`read_rtpengine_stats`.
 
         Returns ``read_rtpengine_stats().as_dict()``; the driver warns with
@@ -171,7 +171,7 @@ class SipServer(Protocol):
     # MWI — Message Waiting Indication (v0.2.0+)
     # ------------------------------------------------------------------
 
-    def get_mwi_status(self, user: str) -> dict[str, Any]:
+    def get_mwi_status(self, user: str) -> dict[str, Any]:  # type: ignore[explicit-any]  # released signature kept until removal
         """Deprecated name of :meth:`read_mwi_status`.
 
         Returns ``read_mwi_status(user).as_dict()`` (keys ``waiting``, ``new``,
@@ -237,7 +237,7 @@ class SipServer(Protocol):
         """
         ...
 
-    def get_offline_messages(self, user: str) -> list[dict[str, Any]]:
+    def get_offline_messages(self, user: str) -> list[dict[str, Any]]:  # type: ignore[explicit-any]  # released signature kept until removal
         """Deprecated name of :meth:`read_offline_messages`.
 
         Returns the entries as dicts (keys ``from``, ``body``, ``timestamp``): either

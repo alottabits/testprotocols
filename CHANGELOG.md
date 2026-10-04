@@ -23,9 +23,13 @@ their tags and PR history.
   `__getattr__` that resolves a renamed symbol's old name, with a
   `DeprecationWarning`) and `warn_renamed` (for a renamed protocol member's
   old-name method that delegates to the new one); typed `object`, not `Any`.
-  `tests/test_typing_ratchet.py` caps the explicit `Any` per package
-  (testprotocols 40, testoperations 7); a change may lower a ceiling, never
-  raise it. Migration: none. Design `docs/architecture/precise-types-design.md`; no
+  mypy now runs `disallow_any_explicit` on `testprotocols.*` and
+  `testoperations.*` (internal; the contract is unchanged). The only
+  exemptions are 22 released signatures kept for the deprecation period,
+  marked `# type: ignore[explicit-any]  # released signature kept until
+  removal` and removed with their members. `tests/test_typing_ratchet.py`
+  counts the non-exempt `Any` (ceiling 0) and pins the number of exempted
+  lines. Migration: none. Design `docs/architecture/precise-types-design.md`; no
   proposal (contract infrastructure); PR pending.
 - **function and constant** `testprotocols.deprecation:coerce_enum` and
   `MODEL_FRAMES` — `coerce_enum` normalises an `Enum | str` argument or field
@@ -46,11 +50,11 @@ their tags and PR history.
 - **model and functions** `testprotocols.models:PortRange` (`first`, `last`,
   inclusive, `1 <= first <= last <= 65535` else `ValueError`, a non-int
   `TypeError`; `PortRange.single(port)`), `parse_port_ranges`,
-  `format_port_ranges` and `port_tuple` — the typed L4 port range, the pure
-  converters for the released port text (`"any"` is `()`; `"80"`, `"80-90"`,
-  comma lists; `ValueError` otherwise), and the check a typed port field
-  applies (an iterable of `PortRange` becomes a tuple; a string, bytes, a
-  non-iterable or an item that is not a `PortRange` raises `TypeError`).
+  `format_port_ranges` — the typed L4 port range and the pure converters for
+  the released port text (`"any"` is `()`; `"80"`, `"80-90"`, comma lists;
+  `ValueError` otherwise). A typed port field takes an iterable of `PortRange`
+  (a string, bytes, a non-iterable or an item that is not a `PortRange` raises
+  `TypeError`).
   Migration: none. Design `docs/architecture/precise-types-design.md`
   (shape 4(ii)); PR pending.
 - **enum** `testprotocols.models:DefaultAction` (`ACCEPT`, `DROP`, `REJECT`) —

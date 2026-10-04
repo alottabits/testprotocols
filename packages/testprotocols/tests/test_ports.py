@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 import pytest
-from testprotocols.models import PortRange, format_port_ranges, parse_port_ranges, port_tuple
+from testprotocols.models import PortRange, format_port_ranges, parse_port_ranges
+from testprotocols.models.ports import port_tuple
 
 
 @pytest.mark.parametrize("text", ["any", "80", "80-90", "22,80-90"])

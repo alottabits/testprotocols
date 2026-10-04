@@ -398,17 +398,16 @@ def test_released_signatures_are_kept() -> None:
         assert str(inspect.signature(getattr(Tr069Server, name))) == released, name
 
 
-def test_every_any_line_is_marked_released_signature_kept() -> None:
+def test_every_any_signature_is_exempted_as_a_released_signature() -> None:
     source = Path(tr069_server_module.__file__).read_text()
     lines = source.splitlines()
-    any_lines = {
-        node.lineno
-        for node in ast.walk(ast.parse(source))
-        if isinstance(node, ast.Name) and node.id == "Any"
-    }
-    assert len(any_lines) == 14  # the released annotations
-    for lineno in any_lines:
-        assert lines[lineno - 1].endswith("# released signature kept"), lines[lineno - 1]
+    for node in ast.walk(ast.parse(source)):
+        if isinstance(node, ast.FunctionDef) and any(
+            isinstance(n, ast.Name) and n.id == "Any" for n in ast.walk(node.returns or node.args)
+        ):
+            assert lines[node.lineno - 1].endswith(
+                "# type: ignore[explicit-any]  # released signature kept until removal"
+            ), lines[node.lineno - 1]
 
 
 def test_a_migrated_drivers_old_name_warns() -> None:

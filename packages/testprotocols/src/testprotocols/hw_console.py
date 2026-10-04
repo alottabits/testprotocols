@@ -71,14 +71,10 @@ class HwConsole(Protocol):
         """Block until the hardware has completed its boot sequence."""
         ...
 
-    def flash_via_bootloader(
+    def flash_via_bootloader(  # type: ignore[explicit-any]  # released signature kept until removal
         self,
         image: str,
-        # framework objects passed opaquely; implementers declare framework types
-        # (released signature kept)
         tftp_devices: dict[str, Any],
-        # framework objects passed opaquely; implementers declare framework types
-        # (released signature kept)
         termination_sys: Any = None,
         method: str | None = None,
     ) -> None:

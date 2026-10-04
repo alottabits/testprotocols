@@ -32,10 +32,12 @@ shapes below are the only ones used.
 - Records are dataclasses, never a `dict` or a bare `tuple`; a new record is
   `@dataclass(frozen=True)` unless it extends a model that is already mutable.
 - An absent value is `X | None`, never an empty-string or zero sentinel.
-- No explicit `Any` in a signature or field. `tests/test_typing_ratchet.py`
-  caps the explicit-`Any` count per package; a retype may lower the ceiling and
-  never raises it. When the count reaches zero the ratchet is replaced by mypy's
-  `disallow_any_explicit`.
+- No explicit `Any` in a signature or field. mypy enforces it
+  (`disallow_any_explicit` for `testprotocols.*` and `testoperations.*`); the
+  one exception is a released signature kept for the deprecation period (see
+  "Exemption policy for explicit `Any`" below). `tests/test_typing_ratchet.py`
+  is the second line of defence, because pyright has no such rule: it counts
+  the non-exempt `Any` (ceiling 0) and pins the number of exempted lines.
 
 ## Deprecation shapes
 
@@ -574,9 +576,9 @@ where one exists, also records its retype.
     types (boardfarm: `dict[str, TFTP]`, `TerminationSystem`); a parameter is contravariant
     and `dict` invariant, so no contract type narrower than `Any` accepts them without
     breaking those declarations (`Mapping[str, object]` and `object` were tried and do).
-    The existing `TftpServer` protocol is not used: no member of it is called. Task 13
-    exempts these two lines from `disallow_any_explicit`. Cost if wrong: two `Any`
-    parameters remain in the contract.
+    The existing `TftpServer` protocol is not used: no member of it is called. The
+    `flash_via_bootloader` line is exempted from `disallow_any_explicit` (see "Exemption
+    policy"). Cost if wrong: two `Any` parameters remain in the contract.
 
 - **TR-069 RPCs** (O44–O46; shape 5 per RPC, shape 6 for the `""` defaults). `Tr069Server`
   took and returned `dict[str, Any]` / `list[dict[str, Any]]` for twelve CWMP RPCs. Evidence
@@ -643,9 +645,8 @@ where one exists, also records its retype.
     `GPA` took one name; `get_parameter_attributes` takes a sequence, as CWMP does.
     `set_parameter_attributes` keeps the released shared flags as `change_notification` and
     `change_access_list`.
-  - The released members keep their signatures, with the comment "released signature kept" on
-    each `Any` line (14 lines; the change that turns on `disallow_any_explicit` exempts exactly
-    these). A narrower annotation would
+  - The released members keep their signatures, exempted from `disallow_any_explicit` on
+    their `def` lines (12 lines; see "Exemption policy"). A narrower annotation would
     break boardfarm's `dict[str, str | int | bool]` declarations (`dict` is invariant), and the
     returns cannot narrow without breaking callers that index them. The ratchet does not move
     for this module: the new members and records add no `Any`.
@@ -659,8 +660,9 @@ where one exists, also records its retype.
 ### testoperations: typed records
 
 The last explicit `Any` of `testoperations` goes (ratchet `TESTOPERATIONS_CEILING` 7 to 0; no
-`Any` is kept on a released signature, so no "released signature kept" comment is needed in
-this package). Evidence: a search of vitro-bdd, boardfarm and the corpus found no caller of
+`Any` is kept on a released signature, so nothing in this package is exempted). The two
+`Callable[..., X]` seams that `disallow_any_explicit` also rejects become call protocols
+(`_Member` in `_renamed.py`, `_FlowMeasurer` in `throughput.py`). Evidence: a search of vitro-bdd, boardfarm and the corpus found no caller of
 `start_iperf`, `verify_home`, `saturate_link`, `iter_json_docs`, `NonCompletion*` or the
 `_capture` helpers; `apply_preset` is named in prose only (the example's testbed document, whose
 presets are strings from configuration). The consumer gate is unchanged by this task (the
@@ -704,6 +706,29 @@ output equals that of the commit before it).
   it now makes the protocol's calls. This is a fix, recorded under *Fixed*.
 - **`start_http_server`** is as the HTTP-service task left it: `port` stays `str` and
   `ip_version` is the text `"4"` / `"6"`.
+
+## Exemption policy for explicit `Any`
+
+`disallow_any_explicit = true` applies to every module of `testprotocols` and
+`testoperations` (a mypy per-module override in `pyproject.toml`). The only exemptions
+are released signatures kept for the deprecation period, 22 `def` lines:
+
+- the deprecated readers whose released `dict[str, Any]` / `list[Any]` returns or
+  parameters stay readable (`ip_routing.ping`, `dns_client.dns_lookup`, `nmap_scanner.nmap`,
+  `pcap_capture.start_tcpdump`, `device_management.get_running_processes` and
+  `read_event_logs`, `sip_server.get_rtpengine_stats`, `get_mwi_status` and
+  `get_offline_messages`);
+- `hw_console.flash_via_bootloader`, whose two framework-object parameters stay `Any`
+  because implementers declare framework types that no precise contract type accepts;
+- the released TR-069 RPCs (`GPV`, `SPV`, `GPA`, `SPA`, `FactoryReset`, `Reboot`,
+  `AddObject`, `DelObject`, `GPN`, `ScheduleInform`, `GetRPCMethods`, `Download`), whose
+  released `dict` annotations are invariant against the implementers' narrower ones.
+
+Each is marked, on the `def` line, `# type: ignore[explicit-any]  # released signature kept
+until removal`. Changing the annotation would break released implementers, so the
+exemption ends with the member: each line is deleted at the removal release, and
+`TESTPROTOCOLS_EXEMPT_LINES` in the ratchet drops with it. A new exemption needs a
+reviewed change to that pinned count.
 
 ## Effective now
 

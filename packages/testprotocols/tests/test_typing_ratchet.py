@@ -1,4 +1,10 @@
-"""Ratchet: explicit ``Any`` in the shipped packages may only go down.
+"""Second line of defence behind mypy's ``disallow_any_explicit`` (pyright has no such rule).
+
+The only exempt ``Any`` is a released signature kept for the deprecation period; its
+line carries ``EXEMPT_MARKER``. Non-exempt ``Any`` has a ceiling of 0 in both packages,
+and the number of exempted lines is pinned (``TESTPROTOCOLS_EXEMPT_LINES``), so a new
+exemption cannot be added silently: it needs a reviewed change to that constant, which
+only ever goes down, to 0 at the removal release.
 
 Counts, by AST, every use of ``Any`` as a name (including a name imported under an
 alias, ``from typing import Any as A``) or as an attribute of the ``typing`` /
@@ -6,9 +12,9 @@ alias, ``from typing import Any as A``) or as an attribute of the ``typing`` /
 ``"Any"`` as the first argument of ``cast`` / ``typing.cast``. Import statements,
 docstrings, comments and other strings are not counted.
 
-Ceilings re-measured 2026-10-04 after the blind spots were closed (no
-change): testprotocols 40, testoperations 7 (0 once testoperations was typed). A task
-that removes an ``Any`` lowers the constant; none may raise it.
+A line counts as exempt when it carries the marker; an ``Any`` on a multi-line signature
+is exempt when the ``def`` line that opens it carries the marker, which is where mypy
+reports it.
 """
 
 from __future__ import annotations
@@ -17,8 +23,10 @@ import ast
 import re
 from pathlib import Path
 
-TESTPROTOCOLS_CEILING = 27
+TESTPROTOCOLS_CEILING = 0
 TESTOPERATIONS_CEILING = 0
+TESTPROTOCOLS_EXEMPT_LINES = 22
+EXEMPT_MARKER = "# type: ignore[explicit-any]  # released signature kept until removal"
 
 _ROOT = Path(__file__).resolve().parents[2]
 _ANY_WORD = re.compile(r"\bAny\b")
@@ -57,34 +65,76 @@ def _cast_string_arguments(tree: ast.AST) -> set[int]:
     return ids
 
 
-def count_any(source: str) -> int:
+def _any_lines(source: str) -> list[int]:
+    """The line of every explicit ``Any`` (one entry per use)."""
     tree = ast.parse(source)
     any_names, module_names = _aliases(tree)
     cast_strings = _cast_string_arguments(tree)
-    total = 0
+    lines: list[int] = []
     for node in ast.walk(tree):
         if isinstance(node, ast.Name) and node.id in any_names:
-            total += 1
+            lines.append(node.lineno)
         elif (
             isinstance(node, ast.Attribute)
             and node.attr == "Any"
             and isinstance(node.value, ast.Name)
             and node.value.id in module_names
         ):
-            total += 1
+            lines.append(node.lineno)
         elif (
             isinstance(node, ast.Constant)
             and isinstance(node.value, str)
             and id(node) in cast_strings
             and _ANY_WORD.search(node.value)
         ):
-            total += 1
-    return total
+            lines.append(node.lineno)
+    return lines
+
+
+def _signature_start(tree: ast.AST, lineno: int) -> int:
+    """The ``def`` line of the signature holding *lineno*, else *lineno* itself."""
+    for node in ast.walk(tree):
+        if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):
+            if node.lineno <= lineno < node.body[0].lineno:
+                return node.lineno
+    return lineno
+
+
+def _split(source: str) -> tuple[int, int]:
+    """(non-exempt, exempt) counts of explicit ``Any``."""
+    tree = ast.parse(source)
+    text = source.splitlines()
+    exempt = 0
+    plain = 0
+    for lineno in _any_lines(source):
+        if EXEMPT_MARKER in text[_signature_start(tree, lineno) - 1]:
+            exempt += 1
+        else:
+            plain += 1
+    return plain, exempt
+
+
+def count_any(source: str) -> int:
+    """The explicit ``Any`` that no marker exempts."""
+    return _split(source)[0]
+
+
+def _exempt_signature_lines(source: str) -> int:
+    """How many marked ``def`` lines the source holds."""
+    return sum(EXEMPT_MARKER in line for line in source.splitlines())
+
+
+def _sources(package: str) -> list[str]:
+    src = _ROOT / package / "src"
+    return [p.read_text() for p in sorted(src.rglob("*.py"))]
 
 
 def _count_package(package: str) -> int:
-    src = _ROOT / package / "src"
-    return sum(count_any(p.read_text()) for p in sorted(src.rglob("*.py")))
+    return sum(count_any(s) for s in _sources(package))
+
+
+def _exempt_lines(package: str) -> int:
+    return sum(_exempt_signature_lines(s) for s in _sources(package))
 
 
 def test_count_any_rules() -> None:
@@ -129,9 +179,34 @@ def test_count_any_counts_a_string_any_only_as_the_first_argument_of_cast() -> N
     assert count_any(source) == 2
 
 
-def test_testprotocols_explicit_any_does_not_grow() -> None:
+def test_a_marked_signature_exempts_its_any() -> None:
+    source = (
+        "from typing import Any\n"
+        "def f(\n"
+        "    a: Any,\n"
+        ") -> None: ...\n"
+        f"def g(a: Any) -> None: ...  {EXEMPT_MARKER}\n"
+        f"def h(\n"
+        "    a: Any,\n"
+        "    b: Any,\n"
+        f") -> None: ...\n"
+    )
+    assert _split(source) == (3, 1)
+    marked = source.replace("def f(\n", f"def f(  {EXEMPT_MARKER}\n")
+    assert _split(marked) == (2, 2)
+
+
+def test_testprotocols_has_no_unexempted_explicit_any() -> None:
     assert _count_package("testprotocols") <= TESTPROTOCOLS_CEILING
 
 
-def test_testoperations_explicit_any_does_not_grow() -> None:
+def test_testoperations_has_no_unexempted_explicit_any() -> None:
     assert _count_package("testoperations") <= TESTOPERATIONS_CEILING
+
+
+def test_testoperations_exempts_nothing() -> None:
+    assert _exempt_lines("testoperations") == 0
+
+
+def test_the_exempted_lines_are_pinned() -> None:
+    assert _exempt_lines("testprotocols") == TESTPROTOCOLS_EXEMPT_LINES

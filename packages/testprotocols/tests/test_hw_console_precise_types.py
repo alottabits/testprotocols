@@ -126,14 +126,17 @@ def test_released_flash_call_still_binds() -> None:
 def test_hw_console_any_is_only_the_two_flash_parameters() -> None:
     source = Path(hw_console_module.__file__).read_text()
     lines = source.splitlines()
+    tree = ast.parse(source)
     any_lines = sorted(
-        {n.lineno for n in ast.walk(ast.parse(source)) if isinstance(n, ast.Name) and n.id == "Any"}
+        {n.lineno for n in ast.walk(tree) if isinstance(n, ast.Name) and n.id == "Any"}
+    )
+    flash = next(
+        n
+        for n in ast.walk(tree)
+        if isinstance(n, ast.FunctionDef) and n.name == "flash_via_bootloader"
     )
     assert len(any_lines) == 2
-    for lineno in any_lines:
-        above: list[str] = []
-        i = lineno - 2
-        while i >= 0 and lines[i].lstrip().startswith("#"):
-            above.append(lines[i])
-            i -= 1
-        assert "passed opaquely" in " ".join(above), f"line {lineno}: no comment above"
+    assert all(flash.lineno < line < flash.body[0].lineno for line in any_lines)
+    assert lines[flash.lineno - 1].endswith(
+        "# type: ignore[explicit-any]  # released signature kept until removal"
+    )

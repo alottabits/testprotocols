@@ -84,7 +84,7 @@ from testprotocols.models.networking import (
     parse_http_response,
 )
 from testprotocols.models.packets import RIPv2PacketData
-from testprotocols.models.ports import PortRange, format_port_ranges, parse_port_ranges, port_tuple
+from testprotocols.models.ports import PortRange, format_port_ranges, parse_port_ranges
 from testprotocols.models.qoe import (
     HttpVersion,
     MeasurementSpec,
@@ -491,7 +491,6 @@ __all__ = [
     "parse_http_response",
     "parse_port_ranges",
     "parse_window_size",
-    "port_tuple",
     "traffic_match",
     "transient_event",
 ]

@@ -15,7 +15,7 @@ from testprotocols.models.networking import DnsRecord, DnsRecordType
 class DnsClient(Protocol):
     """Abstract contract for DNS client operations."""
 
-    def dns_lookup(
+    def dns_lookup(  # type: ignore[explicit-any]  # released signature kept until removal
         self,
         domain_name: str,
         record_type: DnsRecordType | str,

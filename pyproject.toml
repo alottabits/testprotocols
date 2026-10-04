@@ -37,6 +37,12 @@ warn_unreachable = true
 # `scripts/` holds top-level modules the tests under `scripts/tests/` import.
 mypy_path = "scripts"
 
+[[tool.mypy.overrides]]
+# Every remaining explicit `Any` is a released signature kept for the deprecation
+# period and exempted line by line; see docs/architecture/precise-types-design.md.
+module = ["testprotocols.*", "testoperations.*"]
+disallow_any_explicit = true
+
 [tool.pyright]
 typeCheckingMode = "strict"
 pythonVersion = "3.12"
