@@ -49,7 +49,7 @@ from testprotocols.gateway_redundancy import GatewayRedundancy
 from testprotocols.held_prefixes import HeldPrefixes
 from testprotocols.http_client import HttpClient
 from testprotocols.http_server import HttpServer
-from testprotocols.hw_console import HwConsole
+from testprotocols.hw_console import Console, HwConsole
 from testprotocols.interface_dhcp import InterfaceDhcp
 from testprotocols.ip_interface import IpInterface
 from testprotocols.ip_routing import IpRouting
@@ -126,6 +126,7 @@ __all__ = [
     "ConfigOwnership",
     "Conntrack",
     "ConntrackWhiteBox",
+    "Console",
     "ContentFiltering",
     "CpeDevice",
     "DeviceInfo",

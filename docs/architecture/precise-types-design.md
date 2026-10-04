@@ -533,6 +533,38 @@ where one exists, also records its retype.
   - `NtpClient.set_date(opt, date_string)`: the one `opt` seen is `-s`. `set_date_time(value:
     datetime) -> bool` is a new mandatory member and `set_date` is deprecated.
 
+- **HwConsole** (hw-console task, O18; no deprecation shape: a return narrows from `Any`,
+  a parameter is retyped). `HwConsole` returned `Any` consoles and took `dict[str, Any]` /
+  `Any` for the flash arguments. Evidence (callers and implementers of `get_console`,
+  `get_interactive_consoles` and `flash_via_bootloader`, read-only, in boardfarm, the vitro-bdd
+  examples and downstream implementers; `testoperations` never touches a console):
+  - Implementers: boardfarm's CPE hardware classes (`rpirdkb_cpe`, `rpiprplos_cpe`,
+    `prplos_cpe`, `vcpe_ofw`, and the `CPEHW` template) return the pexpect-based
+    `BoardfarmPexpect` from `get_console` and a `dict` of them from `get_interactive_consoles`;
+    the vitro-bdd example devices and downstream implementers return `dict[str, VitroPexpect]`
+    (or their own pexpect subclass) from `get_interactive_consoles`. No vitro-bdd example
+    implements `get_console` or `flash_via_bootloader`.
+  - Callers of a returned console: `execute_command(cmd, timeout=...)` (every use case and
+    device method that reads `hw.get_console("console")`; the dominant member);
+    `sendline`, `expect`, `expect_exact` (the console helpers they pass it to in boardfarm's
+    networking library, typed there by a structural protocol with those four members);
+    `start_interactive_session()` (the interactive shell over `get_interactive_consoles()`).
+    So `Console` has exactly those five members. `before`, `close`, `login_to_server` and
+    `timeout` are used only by an implementer on its own console, never by a caller of the
+    returned object, and are left out (the sketch in the plan had `sendline`, `expect` and
+    `before`; the evidence replaces it). `timeout` is `int` (every declaration seen); `expect`
+    patterns are a string or a list that also holds timeout and end-of-file exception classes
+    (`ExpectPattern`). The leading parameter is positional-only so an implementer's name for
+    it does not matter, while `timeout=` stays keyword-callable because callers use it.
+  - `flash_via_bootloader`: every implementer seen raises "not supported" and never reads
+    `tftp_devices` or `termination_sys`; the arguments are framework device objects passed
+    through opaquely. They are typed `Mapping[str, object]` and `object` (not the existing
+    `TftpServer` protocol: no member of it is called, so naming one would invent a
+    requirement). Static caveat, recorded under *Changed*: an implementer that annotates
+    `dict[str, TFTP]` does not accept the protocol's wider argument, so it must widen its
+    declaration.
+  - Check: `VitroPexpect` satisfies `Console` under mypy against this branch.
+
 ## Effective now
 
 Changes that take effect in this release for code written against the released
@@ -660,6 +692,16 @@ the matching CHANGELOG entry sits under *Changed*.
   (mypy and pyright), and an implementer must provide `snmp_get`, `snmp_walk`, `snmp_set`,
   `snmp_bulk_get` and `set_date_time` (breaking for driver authors); a driver value no longer
   passes `isinstance` against `SnmpClient` or `NtpClient` until it has them.
+
+- **HwConsole** (hw-console task). Static only, no runtime change: `get_console` returns
+  `Console` and `get_interactive_consoles` returns `Mapping[str, Console]` (were `Any` and
+  `dict[str, Any]`), so a reader sees only `execute_command`, `sendline`, `expect`,
+  `expect_exact` and `start_interactive_session` and cannot call `before` or other
+  pexpect members without narrowing, and cannot mutate the mapping; an implementer whose
+  console lacks one of the five no longer conforms. `flash_via_bootloader` takes
+  `Mapping[str, object]` and `object` (were `dict[str, Any]` and `Any`): a caller's
+  arguments all still type-check, but an implementer declaring a narrower parameter such as
+  `dict[str, TFTP]` no longer matches and must widen it.
 
 ## Pending narrow steps (announced, not yet taken)
 
