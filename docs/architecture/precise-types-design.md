@@ -225,6 +225,35 @@ where one exists, also records its retype.
   `TrafficMatch` was the wrong carrier: it is one match of one kind and has no VLAN
   or protocol. A rule holds one source and one destination range at most, because
   the text spells one range per direction.
+- **Telemetry and policy** (shapes 5 and the no-successor deprecation). `Telemetry`
+  replaces the `dict[str, Any]` that `Router.get_telemetry` returned (shape 5); the old member now returns
+  `Mapping[str, float]`, so an implementer whose declared return is not
+  `float`-valued no longer conforms:
+  `Router.read_telemetry() -> Telemetry` is a new mandatory member, and the old name
+  is documented "Deprecated name of" it; a driver delegates with
+  `read_telemetry().as_dict()` after `warn_renamed`. The fields come from evidence,
+  not from design. The released docstring said only "a dict of current device
+  telemetry data" and named no key. The only implementer in the consumer examples
+  (a Linux router) returns `uptime_seconds`, `cpu_load_percent` and
+  `mem_used_percent`, all floats, and omits a CPU key when it cannot read one; so
+  `Telemetry` has exactly those three fields, the last two optional, and no other
+  field (a temperature or load average would be a guess). Each value is a finite,
+  non-negative number (`nan` and `inf` raise `ValueError`). `testoperations` does not
+  call `get_telemetry`, so there is no accessor in `_renamed.py`.
+  `SdwanPolicyManager.apply_policy` is deprecated with no successor (the typed
+  steering and SLA members cover it) and keeps its name and place; `Any` becomes
+  `object` (`dict[str, object]`). A `Mapping` parameter would be the wider type, but
+  a protocol parameter wider than an implementer's `dict` parameter makes the
+  implementer fail to conform statically, so the parameter stays a `dict`.
+- **Segmentation deny scope** (shape 1, `testoperations`). `build_deny_rule(scope,
+  proto)` takes `DenyScope | str` (`DenyScope`: `HOST`, `SUBNET`, defined in
+  `testoperations.segmentation`) and `RuleProtocol | str`; both are coerced once at
+  the top with `coerce_enum`, so a bad word raises before a rule is built. The
+  released text accepted `"host"`, `"subnet"` and a `RuleProtocol` value, all of which
+  still work and now warn. The released ``ValueError`` for an unknown scope read
+  `unknown rule scope 'vlan' (expected 'host' or 'subnet')`; it now reads
+  `scope: 'vlan' is not one of ['host', 'subnet']` (same exception type, still names
+  `scope`).
 
 ## Effective now
 
