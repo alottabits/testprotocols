@@ -670,9 +670,13 @@ output equals that of the commit before it).
   `verify_home` returns `HomeVerification` (with a nested `HomeDetails`) and `saturate_link`
   returns `FlowPair`: frozen records, each over the shared mixin `testoperations._released
   .ReleasedMapping`. The mixin keeps the released dict readable: indexing, `get`, `in`,
-  iteration, `keys` (so `dict(result)` and `**result` work), `==` against the released dict
-  and `as_dict()` all return the released values and warn; reading a field never warns, and
-  two records compare and hash by field. The operation keeps its name (no `*_dict` sibling), so
+  iteration, `len`, `keys`, `items`, `values` (so `dict(result)` and `**result` work), `==`
+  against the released dict and `as_dict()` all return the released values and warn, once per
+  call (a `dict(result)` conversion warns once); reading a field never warns, and two records
+  compare by field and hash by field when their fields hash (`HomeVerification` does not: its
+  `peer_states` is a dict). Static types narrow: the records are not a `Mapping`, and `[]` and
+  `get` return `object`, so a typed caller that relied on `dict[str, str]` reads the fields or
+  calls `as_dict()`. The operation keeps its name (no `*_dict` sibling), so
   a released caller needs no edit. `HomeVerification.details` reads as the released nested dict
   (peer states as text); the typed `HomeDetails.peer_states` holds `VpnPeerState` members.
 - **`start_iperf` calls protocol members.** The released body called `start_sender` and

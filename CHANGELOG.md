@@ -704,8 +704,8 @@ their tags and PR history.
   `Literal` aliases of the same names, with the same text values. Migration: none for a reader
   (`exc.which_side == "endpoint"` still holds); pass the member to `NonCompletion`. Design `docs/architecture/precise-types-design.md` (testoperations: typed records); PR pending.
 - **protocol** `testoperations.throughput:MeasureFn` — the call shape of the `measure`
-  parameters of `measure_path_rtt`, `measure_one_direction`, `measure_path_until` and
-  `measure_external_path_until` (the flows and the three keyword-only timings), replacing
+  parameters of `measure_path_rtt`, `measure_one_direction`, `measure_path_until` (and
+  the private `_probe_flow`) (the flows and the three keyword-only timings), replacing
   `Callable[..., list[FlowThroughput]]`. Migration: none; a stand-in that takes those keywords
   fits. Design `docs/architecture/precise-types-design.md` (testoperations: typed records); PR pending.
 
@@ -769,10 +769,11 @@ their tags and PR history.
   (`"host"`, `"icmp"`) is deprecated: it warns and is converted. The annotations
   narrow to `DenyScope` and `RuleProtocol` in a later release. Design `docs/architecture/precise-types-design.md` (testoperations: segmentation); PR pending.
 - **access** reading `IperfSession`, `HomeVerification` or `FlowPair` as the released dict —
-  `result["sender_pid"]`, `result["vlan_defined"]`, `result["a_to_b"]`, `.get`, `in`, `keys`,
-  `dict(result)`, `**result`, `==` against the released dict, and `as_dict()` — warns
+  `result["sender_pid"]`, `result["vlan_defined"]`, `result["a_to_b"]`, `.get`, `in`, `len`,
+  `keys`, `items`, `values`, iteration, `dict(result)`, `**result` (one warning per call), `==` against the released dict, and `as_dict()` — warns
   (`DeprecationWarning`) and returns the released values (for `verify_home`, `details` is the
-  released nested dict with the peer states as text). The mapping access is removed in a later
+  released nested dict with the peer states as text). Static types narrow: the records are not a
+  `Mapping` and `[]` / `get` return `object`, so a typed caller needs the fields or `as_dict()`. The mapping access is removed in a later
   release; read the fields. Design `docs/architecture/precise-types-design.md` (testoperations: typed records); PR pending.
 - **parameters** `apply_preset(preset_name)` and `NonCompletion(which_side, what)` — a plain
   `str` naming a member is deprecated: it warns and is converted; the annotations narrow to the
