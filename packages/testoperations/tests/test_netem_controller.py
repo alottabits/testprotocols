@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import warnings
 from unittest.mock import MagicMock
 
 import pytest
 from testoperations.netem_controller import (
+    _PRESETS,  # pyright: ignore[reportPrivateUsage]
+    NetemPreset,
     apply_preset,
     inject_blackout,
     inject_brownout,
@@ -26,14 +29,40 @@ _OLD_NAMES = ["inject_transient", "set_impairment_profile", "set_interface_profi
 class TestApplyPreset:
     def test_applies_known_preset(self) -> None:
         netem = MagicMock()
-        apply_preset(netem, "dsl")
+        apply_preset(netem, NetemPreset.DSL)
         netem.set_impairment_profile.assert_called_once()
         profile = netem.set_impairment_profile.call_args[0][0]
         assert isinstance(profile, ImpairmentProfile)
 
+    def test_a_plain_string_preset_warns_and_still_applies(self) -> None:
+        netem = MagicMock()
+        with pytest.warns(DeprecationWarning, match="NetemPreset.DSL"):
+            apply_preset(netem, "dsl")
+        assert netem.set_impairment_profile.call_args[0][0] == _PRESETS[NetemPreset.DSL]
+
+    def test_the_enum_is_the_preset_table(self) -> None:
+        assert {p.value for p in NetemPreset} == {
+            "clean",
+            "dsl",
+            "cable",
+            "lte",
+            "3g",
+            "satellite",
+            "degraded",
+            "lossy",
+        }
+        assert set(_PRESETS) == set(NetemPreset)
+
+    def test_a_member_applies_silently(self) -> None:
+        netem = MagicMock()
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+            for preset in NetemPreset:
+                apply_preset(netem, preset)
+
     def test_raises_for_unknown_preset(self) -> None:
         netem = MagicMock()
-        with pytest.raises(ValueError, match="unknown preset"):
+        with pytest.raises(ValueError, match="preset_name"):
             apply_preset(netem, "nonexistent_preset")
 
 

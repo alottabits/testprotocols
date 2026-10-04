@@ -8,6 +8,9 @@ method directly.
 
 from __future__ import annotations
 
+from enum import StrEnum
+
+from testprotocols.deprecation import coerce_enum
 from testprotocols.models.impairment import (
     Blackout,
     Brownout,
@@ -23,35 +26,54 @@ from testoperations._renamed import inject
 # Built-in impairment presets
 # ---------------------------------------------------------------------------
 
-_PRESETS: dict[str, ImpairmentProfile] = {
-    "clean": ImpairmentProfile(latency_ms=0, jitter_ms=0, loss_percent=0.0),
-    "dsl": ImpairmentProfile(latency_ms=20, jitter_ms=5, loss_percent=0.1, bandwidth_limit_mbps=20),
-    "cable": ImpairmentProfile(
+
+class NetemPreset(StrEnum):
+    """The built-in impairment presets :func:`apply_preset` knows."""
+
+    CLEAN = "clean"
+    DSL = "dsl"
+    CABLE = "cable"
+    LTE = "lte"
+    THREE_G = "3g"
+    SATELLITE = "satellite"
+    DEGRADED = "degraded"
+    LOSSY = "lossy"
+
+
+_PRESETS: dict[NetemPreset, ImpairmentProfile] = {
+    NetemPreset.CLEAN: ImpairmentProfile(latency_ms=0, jitter_ms=0, loss_percent=0.0),
+    NetemPreset.DSL: ImpairmentProfile(
+        latency_ms=20, jitter_ms=5, loss_percent=0.1, bandwidth_limit_mbps=20
+    ),
+    NetemPreset.CABLE: ImpairmentProfile(
         latency_ms=10, jitter_ms=2, loss_percent=0.05, bandwidth_limit_mbps=100
     ),
-    "lte": ImpairmentProfile(
+    NetemPreset.LTE: ImpairmentProfile(
         latency_ms=50, jitter_ms=10, loss_percent=0.2, bandwidth_limit_mbps=50
     ),
-    "3g": ImpairmentProfile(latency_ms=100, jitter_ms=20, loss_percent=1.0, bandwidth_limit_mbps=7),
-    "satellite": ImpairmentProfile(
+    NetemPreset.THREE_G: ImpairmentProfile(
+        latency_ms=100, jitter_ms=20, loss_percent=1.0, bandwidth_limit_mbps=7
+    ),
+    NetemPreset.SATELLITE: ImpairmentProfile(
         latency_ms=600, jitter_ms=50, loss_percent=0.5, bandwidth_limit_mbps=10
     ),
-    "degraded": ImpairmentProfile(latency_ms=200, jitter_ms=50, loss_percent=5.0),
-    "lossy": ImpairmentProfile(latency_ms=50, jitter_ms=10, loss_percent=10.0),
+    NetemPreset.DEGRADED: ImpairmentProfile(latency_ms=200, jitter_ms=50, loss_percent=5.0),
+    NetemPreset.LOSSY: ImpairmentProfile(latency_ms=50, jitter_ms=10, loss_percent=10.0),
 }
 
 
-def apply_preset(netem_controller: NetemController, preset_name: str) -> None:
+def apply_preset(netem_controller: NetemController, preset_name: NetemPreset | str) -> None:
     """Apply a named impairment preset.
 
-    Built-in presets: ``clean``, ``dsl``, ``cable``, ``lte``, ``3g``,
-    ``satellite``, ``degraded``, ``lossy``.
+    *preset_name* is a :class:`NetemPreset` (``clean``, ``dsl``, ``cable``, ``lte``, ``3g``,
+    ``satellite``, ``degraded``, ``lossy``). A plain string naming one (``"dsl"``) is
+    deprecated: it warns and converts.
 
-    Raises ``ValueError`` if *preset_name* is not recognised.
+    Raises ``ValueError`` if *preset_name* is not recognised (the message lists the legal
+    names).
     """
-    if preset_name not in _PRESETS:
-        raise ValueError(f"unknown preset {preset_name!r}; available: {sorted(_PRESETS)}")
-    netem_controller.set_impairment_profile(_PRESETS[preset_name])
+    preset = coerce_enum(NetemPreset, preset_name, what="apply_preset(preset_name)")
+    netem_controller.set_impairment_profile(_PRESETS[preset])
 
 
 def inject_blackout(netem_controller: NetemController, duration_ms: int) -> None:

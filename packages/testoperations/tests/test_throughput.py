@@ -15,7 +15,10 @@ from testoperations.throughput import (
     DirectionSpec,
     ExternalFlow,
     FlowThroughput,
+    MeasureFn,
     NonCompletion,
+    NonCompletionKind,
+    NonCompletionSide,
     PathMeasurement,
     ThroughputFlow,
     # Deliberate: the round engine's probe step and the shared retry mechanic
@@ -37,10 +40,8 @@ from testoperations.throughput import (
     measure_path_until,
 )
 
-# The seams these tests substitute for, named once. `measure` / `measure_flow`
-# are declared `Callable[..., ...]` by the operations themselves, so the stubs
-# below only have to agree on the return type.
-MeasureFn = Callable[..., list[FlowThroughput]]
+# The seams these tests substitute for, named once. `measure` is the operations'
+# `MeasureFn` Protocol (imported above); `measure_flow` is still a plain callable.
 MeasureFlowFn = Callable[..., FlowThroughput]
 StopWhen = Callable[[list[PathMeasurement]], bool]
 # What the two `both_chains` adapters return: the rounds, plus one recorded
@@ -140,7 +141,7 @@ class TestLogParsing:
         text = json.dumps({"note": "brace } in { string", "end": {}})
         docs = iter_json_docs(text)
         assert len(docs) == 1
-        assert docs[0]["note"] == "brace } in { string"
+        assert docs[0] == {"note": "brace } in { string", "end": {}}
 
     def test_count_sessions_empty_log(self) -> None:
         assert count_sessions("") == 0
@@ -421,7 +422,10 @@ class TestMeasureConcurrentThroughputWithRetry:
 
     def _nonc(self) -> NonCompletion:
         return NonCompletion(
-            which_side="local_receiver", what="no_completed_session", detail="stall", port=5303
+            which_side=NonCompletionSide.LOCAL_RECEIVER,
+            what=NonCompletionKind.NO_COMPLETED_SESSION,
+            detail="stall",
+            port=5303,
         )
 
     def _run(
@@ -1255,8 +1259,8 @@ class TestExternalFlowNonCompletion:
                 duration_s=10,
                 sleep=lambda _s: None,
             )
-        assert ei.value.which_side == "endpoint"
-        assert ei.value.what == "error_document"
+        assert ei.value.which_side is NonCompletionSide.ENDPOINT
+        assert ei.value.what is NonCompletionKind.ERROR_DOCUMENT
         assert "busy running a test" in ei.value.detail
         assert ei.value.port == 5201
 
@@ -1269,8 +1273,8 @@ class TestExternalFlowNonCompletion:
                 sleep=lambda _s: None,
                 result_timeout_s=0.0,
             )
-        assert ei.value.which_side == "unknown"
-        assert ei.value.what == "no_completed_session"
+        assert ei.value.which_side is NonCompletionSide.UNKNOWN
+        assert ei.value.what is NonCompletionKind.NO_COMPLETED_SESSION
         assert ei.value.port == 5207
 
 
@@ -1308,7 +1312,12 @@ class TestExternalRetryWhen:
         return findings, calls
 
     def _nonc(self) -> NonCompletion:
-        return NonCompletion(which_side="endpoint", what="error_document", detail="busy", port=0)
+        return NonCompletion(
+            which_side=NonCompletionSide.ENDPOINT,
+            what=NonCompletionKind.ERROR_DOCUMENT,
+            detail="busy",
+            port=0,
+        )
 
     def test_predicate_true_redraws_on_next_port(self) -> None:
         _, calls = self._run([self._nonc(), 1.0, 900.0], retry_when=lambda f: True)
@@ -1341,7 +1350,10 @@ class TestExternalRetryWhen:
     def test_a_path_statement_is_still_not_retried(self) -> None:
         # guard: a predicate that returns False for a non-refusal fails honestly
         nonc = NonCompletion(
-            which_side="endpoint", what="error_document", detail="access denied", port=0
+            which_side=NonCompletionSide.ENDPOINT,
+            what=NonCompletionKind.ERROR_DOCUMENT,
+            detail="access denied",
+            port=0,
         )
         with pytest.raises(NonCompletion):
             self._run([nonc], retry_when=lambda f: "denied" not in f.detail)
@@ -1391,8 +1403,8 @@ class TestInternalRetryWhen:
 
     def _nonc(self) -> NonCompletion:
         return NonCompletion(
-            which_side="local_receiver",
-            what="no_completed_session",
+            which_side=NonCompletionSide.LOCAL_RECEIVER,
+            what=NonCompletionKind.NO_COMPLETED_SESSION,
             detail="receiver produced no completed session",
             port=0,
         )
@@ -1445,8 +1457,8 @@ class TestConcurrentNonCompletion:
                 sleep=lambda _s: None,
                 result_timeout_s=0.0,
             )
-        assert ei.value.which_side == "local_receiver"
-        assert ei.value.what == "no_completed_session"
+        assert ei.value.which_side is NonCompletionSide.LOCAL_RECEIVER
+        assert ei.value.what is NonCompletionKind.NO_COMPLETED_SESSION
         assert ei.value.port == 5301
 
     def test_reverse_flow_sender_no_show_is_also_local_receiver(self) -> None:
@@ -1461,22 +1473,58 @@ class TestConcurrentNonCompletion:
                 sleep=lambda _s: None,
                 result_timeout_s=0.0,
             )
-        assert ei.value.which_side == "local_receiver"
+        assert ei.value.which_side is NonCompletionSide.LOCAL_RECEIVER
 
 
 class TestNonCompletion:
     def test_carries_provenance_fields_and_is_a_runtime_error(self) -> None:
         f = NonCompletion(
-            which_side="endpoint",
-            what="error_document",
+            which_side=NonCompletionSide.ENDPOINT,
+            what=NonCompletionKind.ERROR_DOCUMENT,
             detail="the server is busy running a test",
             port=5201,
         )
         assert isinstance(f, RuntimeError)  # catchable at the caller's RuntimeError seam
-        assert f.which_side == "endpoint"
-        assert f.what == "error_document"
+        assert f.which_side is NonCompletionSide.ENDPOINT
+        assert f.what is NonCompletionKind.ERROR_DOCUMENT
         assert f.port == 5201
         assert "busy running a test" in str(f)  # detail survives into the message
+
+    def test_a_plain_string_provenance_warns_and_converts(self) -> None:
+        with pytest.warns(DeprecationWarning, match="NonCompletionSide.ENDPOINT"):
+            f = NonCompletion(
+                which_side="endpoint", what=NonCompletionKind.ERROR_DOCUMENT, detail="x", port=1
+            )
+        assert f.which_side is NonCompletionSide.ENDPOINT
+        with pytest.warns(DeprecationWarning, match="NonCompletionKind.NO_COMPLETED_SESSION"):
+            g = NonCompletion(
+                which_side=NonCompletionSide.UNKNOWN,
+                what="no_completed_session",
+                detail="x",
+                port=1,
+            )
+        assert g.what is NonCompletionKind.NO_COMPLETED_SESSION
+
+    def test_the_enums_keep_the_released_text_and_message(self) -> None:
+        assert [m.value for m in NonCompletionSide] == ["endpoint", "local_receiver", "unknown"]
+        assert [m.value for m in NonCompletionKind] == ["error_document", "no_completed_session"]
+        f = NonCompletion(
+            which_side=NonCompletionSide.ENDPOINT,
+            what=NonCompletionKind.ERROR_DOCUMENT,
+            detail="busy",
+            port=1,
+        )
+        assert f.which_side == "endpoint" and f.what == "error_document"
+        assert str(f) == "iperf flow did not complete (endpoint/error_document): busy"
+
+    def test_an_unknown_provenance_raises(self) -> None:
+        with pytest.raises(ValueError, match="which_side"):
+            NonCompletion(which_side="elsewhere", what="error_document", detail="x", port=1)
+
+
+def test_measure_concurrent_throughput_is_a_measure_fn() -> None:
+    measure: MeasureFn = measure_concurrent_throughput
+    assert callable(measure)  # the assignment is the typing check
 
 
 # --- both chains, one engine ------------------------------------------------

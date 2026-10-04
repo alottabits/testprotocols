@@ -21,7 +21,7 @@ from dataclasses import dataclass
 from testprotocols.models import RuleProtocol
 from testprotocols.pcap_capture import PcapCapture
 
-from testoperations._capture import capture_shared_window, read_fields
+from testoperations._capture import CaptureSpec, FieldRead, capture_shared_window, read_fields
 
 #: tshark display-filter protocol names per ``RuleProtocol`` value.
 #: ``ICMP6`` is the divergent one (enum ``"icmp6"``, tool ``"icmpv6"``) —
@@ -157,8 +157,8 @@ def observe_flow_dscp(
     header winning on encapsulated frames; an empty histogram therefore
     means the flow was absent, never "wrong family".
     """
-    reads = [(_flow_filter(flow), _DSCP_FIELDS) for flow in flows.values()]
-    capture_shared_window([(pcap, interface, capture_file)], window_s)
+    reads = [FieldRead(_flow_filter(flow), _DSCP_FIELDS) for flow in flows.values()]
+    capture_shared_window([CaptureSpec(pcap, interface, capture_file)], window_s)
     outputs = read_fields(pcap, capture_file, reads)
     histograms: dict[str, dict[int, int]] = {}
     for name, lines in zip(flows, outputs, strict=True):

@@ -5,8 +5,11 @@ from __future__ import annotations
 from collections.abc import Callable, Iterable
 from unittest.mock import MagicMock
 
+import pytest
 from testoperations.homing import (
     HomeAssignment,
+    HomeDetails,
+    HomeVerification,
     home_client,
     realize,
     set_subnet_advertised,
@@ -113,9 +116,16 @@ def test_verify_home_all_true_when_defined_advertised_and_peers_reachable() -> N
 
     v = verify_home(vlan, target_lan, target_vpn)
 
-    assert v["vlan_defined"] is True
-    assert v["subnet_advertised"] is True
-    assert v["peers_reachable"] is True
+    assert v == HomeVerification(
+        vlan_defined=True,
+        subnet_advertised=True,
+        peers_reachable=True,
+        details=HomeDetails(
+            defined_subnet="10.1.30.0/24",
+            defined_gateway="10.1.30.1",
+            peer_states={"ermelo": VpnPeerState.REACHABLE, "amsterdam": VpnPeerState.REACHABLE},
+        ),
+    )
 
 
 def test_verify_home_false_when_vlan_absent() -> None:
@@ -127,9 +137,8 @@ def test_verify_home_false_when_vlan_absent() -> None:
 
     v = verify_home(vlan, target_lan, target_vpn)
 
-    assert v["vlan_defined"] is False
-    assert v["subnet_advertised"] is False
-    assert v["peers_reachable"] is False
+    assert (v.vlan_defined, v.subnet_advertised, v.peers_reachable) == (False, False, False)
+    assert v.details == HomeDetails(defined_subnet=None, defined_gateway=None, peer_states={})
 
 
 def test_verify_home_peers_reachable_false_when_any_unreachable() -> None:
@@ -143,7 +152,36 @@ def test_verify_home_peers_reachable_false_when_any_unreachable() -> None:
     ]
 
     v = verify_home(vlan, target_lan, target_vpn)
-    assert v["peers_reachable"] is False
+    assert v.peers_reachable is False
+
+
+def test_verify_home_released_dict_reads_through_the_record_with_a_warning() -> None:
+    vlan = _vlan()
+    target_lan = MagicMock()
+    target_lan.get_vlan.return_value = vlan
+    target_vpn = _vpn_mock([VpnSubnet(subnet="10.1.30.0/24", advertise=True)])
+    target_vpn.get_vpn_peers.return_value = [
+        VpnPeerStatus(name="ermelo", state=VpnPeerState.REACHABLE)
+    ]
+    v = verify_home(vlan, target_lan, target_vpn)
+
+    released = {
+        "vlan_defined": True,
+        "subnet_advertised": True,
+        "peers_reachable": True,
+        "details": {
+            "defined_subnet": "10.1.30.0/24",
+            "defined_gateway": "10.1.30.1",
+            "peer_states": {"ermelo": "reachable"},
+        },
+    }
+    with pytest.warns(DeprecationWarning, match="as_dict"):
+        assert v.as_dict() == released
+    with pytest.warns(DeprecationWarning, match="indexing"):
+        assert v["vlan_defined"] is True
+        assert v["details"] == released["details"]
+    with pytest.warns(DeprecationWarning):
+        assert v == released
 
 
 def _appliance(name: str, defined_vlan_ids: Iterable[int] = ()) -> MagicMock:

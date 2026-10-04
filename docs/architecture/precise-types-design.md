@@ -656,6 +656,51 @@ where one exists, also records its retype.
   - Consumer gate: the example ACS's capability attributes are typed `Any` in the example, so
     no static check compares it with `Tr069Server`; the gate shows no difference.
 
+### testoperations: typed records
+
+The last explicit `Any` of `testoperations` goes (ratchet `TESTOPERATIONS_CEILING` 7 to 0; no
+`Any` is kept on a released signature, so no "released signature kept" comment is needed in
+this package). Evidence: a search of vitro-bdd, boardfarm and the corpus found no caller of
+`start_iperf`, `verify_home`, `saturate_link`, `iter_json_docs`, `NonCompletion*` or the
+`_capture` helpers; `apply_preset` is named in prose only (the example's testbed document, whose
+presets are strings from configuration). The consumer gate is unchanged by this task (the
+output equals that of the commit before it).
+
+- **Released dict returns (shape 5, kept readable).** `start_iperf` returns `IperfSession`,
+  `verify_home` returns `HomeVerification` (with a nested `HomeDetails`) and `saturate_link`
+  returns `FlowPair`: frozen records, each over the shared mixin `testoperations._released
+  .ReleasedMapping`. The mixin keeps the released dict readable: indexing, `get`, `in`,
+  iteration, `keys` (so `dict(result)` and `**result` work), `==` against the released dict
+  and `as_dict()` all return the released values and warn; reading a field never warns, and
+  two records compare and hash by field. The operation keeps its name (no `*_dict` sibling), so
+  a released caller needs no edit. `HomeVerification.details` reads as the released nested dict
+  (peer states as text); the typed `HomeDetails.peer_states` holds `VpnPeerState` members.
+- **`start_iperf` calls protocol members.** The released body called `start_sender` and
+  `start_receiver`, declared by no protocol and implemented by no driver found, so the
+  parameters were `Any`. It now starts the receiver, then the sender, through `start_receiver_session`
+  / `start_sender_session`, or the released `start_traffic_*` names on a driver that has only
+  those (`_renamed` accessors). The sender needs the receiver's address, which the released
+  signature never took: `host` is a new required keyword-only parameter (a released signature
+  lacking a new keyword-only parameter; recorded under *Changed* as breaking for callers).
+  `ip_version` is `IpFamily | int` and `udp` maps to the sender's `udp_protocol` and the
+  receiver's `udp_only`.
+- **Closed sets.** `NonCompletionSide` and `NonCompletionKind` are `StrEnum` with the released
+  text (shape 1: `NonCompletion` coerces a plain string, with a warning); `NetemPreset` is a
+  `StrEnum` whose members are the keys of the preset table (`apply_preset` takes
+  `NetemPreset | str`, shape 1; a test checks the enum and the table agree).
+- **`MeasureFn`** is a Protocol with the call shape the path operations use (flows, then
+  keyword-only `duration_s`, `result_timeout_s`, `poll_interval_s`). `iter_json_docs` returns
+  `list[object]`; its callers already narrow through `_obj`, `_seq` and `_num`.
+- **`CaptureSpec` and `FieldRead`** (frozen, private module) replace the tuple records of
+  `_capture.capture_shared_window` and `read_fields`; `marking_observation` and `path_placement`
+  construct them.
+- **`tcpdump`** takes a `PcapCapture` (was `Any`). The released body called
+  `start_tcpdump(fname, interface, ...)` and `stop_tcpdump(fname)`, which does not match the
+  protocol (`interface` first, the file as `output_file`, the stop by the returned process id);
+  it now makes the protocol's calls. This is a fix, recorded under *Fixed*.
+- **`start_http_server`** is as the HTTP-service task left it: `port` stays `str` and
+  `ip_version` is the text `"4"` / `"6"`.
+
 ## Effective now
 
 Changes that take effect in this release for code written against the released
@@ -798,6 +843,17 @@ the matching CHANGELOG entry sits under *Changed*.
   for driver authors). `testoperations.is_cpe_online` calls `get_parameter_values` on a driver
   that has it (a `MagicMock` without a `spec` has every name, so it takes that path).
 
+- **`testoperations` records.** `start_iperf` requires the keyword-only `host`, takes only the
+  numbers 4 and 6 as `ip_version` (any other value raises `ValueError`; released: passed
+  through) and returns an `IperfSession`; `verify_home` and `saturate_link` return records.
+  The released dict reads through each with a `DeprecationWarning`; a caller that tests the
+  result with `isinstance(result, dict)` or serialises it with `json.dumps` must call
+  `as_dict()` or read the fields. `apply_preset` raises the `coerce_enum` `ValueError` for an
+  unknown name (message changed); `NonCompletion` raises `ValueError` for an unknown
+  `which_side` or `what` word (released: any string) and its attributes are enum members equal
+  to the released text. `iter_json_docs` reads as `list[object]`. `tcpdump` makes the
+  protocol's `start_tcpdump` / `stop_tcpdump` calls.
+
 ## Pending narrow steps (announced, not yet taken)
 
 Each lands in a later release with its own breaking changelog entry:
@@ -818,7 +874,9 @@ Each lands in a later release with its own breaking changelog entry:
 - `QosRule.match` is removed.
 - `Router.get_telemetry` and `SdwanPolicyManager.apply_policy` are removed.
 - `build_deny_rule(scope, proto)` narrows from `DenyScope | str` and
-  `RuleProtocol | str` to the enums.
+  `RuleProtocol | str` to the enums; `apply_preset(preset_name)` and `NonCompletion(which_side,
+  what)` narrow from `E | str` to the enums; the mapping access of `IperfSession`,
+  `HomeVerification` and `FlowPair` (and `as_dict()`) is removed.
 - Wi-Fi: the model fields and parameters narrow from `E | str` to `E` (`WifiBand`,
   `WifiSecurityMode`, `MfpMode`, `WifiAclMode`, `WifiPhyMode`, `MeshRole`;
   `ChannelWidth | int` stays, an `int` being its value); `list_radios`, `get_bandwidth`

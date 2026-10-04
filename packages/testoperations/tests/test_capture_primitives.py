@@ -5,7 +5,8 @@ from __future__ import annotations
 from collections.abc import Callable
 from unittest.mock import MagicMock, patch
 
-from testoperations._capture import capture_shared_window, read_fields
+import pytest
+from testoperations._capture import CaptureSpec, FieldRead, capture_shared_window, read_fields
 
 
 def _pcap(tshark_output: str = "") -> MagicMock:
@@ -32,7 +33,10 @@ class TestCaptureSharedWindow:
         one.stop_tcpdump.side_effect = _record("stop1")
         two.stop_tcpdump.side_effect = _record("stop2")
 
-        capture_shared_window([(one, "n0", "/tmp/a.pcap"), (two, "n0", "/tmp/b.pcap")], window_s=0)
+        capture_shared_window(
+            [CaptureSpec(one, "n0", "/tmp/a.pcap"), CaptureSpec(two, "n0", "/tmp/b.pcap")],
+            window_s=0,
+        )
 
         assert calls.index("start1") < calls.index("stop1")
         assert calls.index("start2") < calls.index("stop1")
@@ -40,7 +44,7 @@ class TestCaptureSharedWindow:
 
     def test_single_vantage_is_the_n1_case(self) -> None:
         pcap = _pcap()
-        capture_shared_window([(pcap, "north0", "/tmp/x.pcap")], window_s=0)
+        capture_shared_window([CaptureSpec(pcap, "north0", "/tmp/x.pcap")], window_s=0)
         pcap.start_tcpdump.assert_called_once_with("north0", None, output_file="/tmp/x.pcap")
         pcap.stop_tcpdump.assert_called_once_with("pid-1")
 
@@ -49,7 +53,8 @@ class TestCaptureSharedWindow:
         with patch("testoperations._capture.time.sleep", side_effect=KeyboardInterrupt):
             try:
                 capture_shared_window(
-                    [(one, "n0", "/tmp/a.pcap"), (two, "n0", "/tmp/b.pcap")], window_s=1
+                    [CaptureSpec(one, "n0", "/tmp/a.pcap"), CaptureSpec(two, "n0", "/tmp/b.pcap")],
+                    window_s=1,
                 )
             except KeyboardInterrupt:
                 pass
@@ -63,7 +68,10 @@ class TestReadFields:
         read_fields(
             pcap,
             "/tmp/x.pcap",
-            [("frame.len>=100", "-T fields -e frame.len"), ("udp", "-T fields -e frame.len")],
+            [
+                FieldRead("frame.len>=100", "-T fields -e frame.len"),
+                FieldRead("udp", "-T fields -e frame.len"),
+            ],
         )
         first, second = pcap.tshark_read_pcap.call_args_list
         assert first.args[0] == "/tmp/x.pcap"
@@ -72,16 +80,30 @@ class TestReadFields:
 
     def test_capture_file_removed_on_the_last_read_only(self) -> None:
         pcap = _pcap("")
-        read_fields(pcap, "/tmp/x.pcap", [("a", "-e f"), ("b", "-e f"), ("c", "-e f")])
+        read_fields(
+            pcap,
+            "/tmp/x.pcap",
+            [FieldRead("a", "-e f"), FieldRead("b", "-e f"), FieldRead("c", "-e f")],
+        )
         removals = [call.kwargs["rm_pcap"] for call in pcap.tshark_read_pcap.call_args_list]
         assert removals == [False, False, True]
 
     def test_removal_can_be_declined(self) -> None:
         pcap = _pcap("")
-        read_fields(pcap, "/tmp/x.pcap", [("a", "-e f")], remove_on_last=False)
+        read_fields(pcap, "/tmp/x.pcap", [FieldRead("a", "-e f")], remove_on_last=False)
         assert pcap.tshark_read_pcap.call_args.kwargs["rm_pcap"] is False
 
     def test_returns_nonempty_lines_per_read(self) -> None:
         pcap = _pcap("18\n\n  \n46\n")
-        (lines,) = read_fields(pcap, "/tmp/x.pcap", [("a", "-e f")])
+        (lines,) = read_fields(pcap, "/tmp/x.pcap", [FieldRead("a", "-e f")])
         assert lines == ["18", "46"]
+
+
+class TestRecords:
+    def test_capture_spec_and_field_read_are_frozen_records(self) -> None:
+        spec = CaptureSpec(_pcap(), "n0", "/tmp/a.pcap")
+        read = FieldRead("udp", "-e f")
+        assert (spec.interface, spec.capture_file) == ("n0", "/tmp/a.pcap")
+        assert (read.display_filter, read.field_args) == ("udp", "-e f")
+        with pytest.raises(AttributeError):
+            read.display_filter = "tcp"  # type: ignore[misc]

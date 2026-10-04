@@ -688,6 +688,26 @@ their tags and PR history.
   new-name driver is asked for duplication only when the caller passes it; an old-name driver
   still receives the released `duplicate_percent=100.0`. A packet storm keeps its released
   meaning, a loss burst. Migration: none. Design `docs/architecture/precise-types-design.md` (Host-tier records); PR pending.
+- **records** `testoperations.iperf_client:IperfSession` (`sender`, `receiver`: each an
+  `IperfProcess`), `testoperations.homing:HomeVerification` (`vlan_defined`,
+  `subnet_advertised`, `peers_reachable`, `details`) with `HomeDetails` (`defined_subnet`,
+  `defined_gateway`, `peer_states`: peer name to `VpnPeerState`), and
+  `testoperations.iperf_generator:FlowPair` (`a_to_b`, `b_to_a`) — frozen records replacing
+  the released `dict` returns of `start_iperf`, `verify_home` and `saturate_link`. Each keeps
+  the released dict readable for the deprecation period (see *Deprecated*). Migration: read the
+  fields. Design `docs/architecture/precise-types-design.md` (testoperations: typed records); PR pending.
+- **enum** `testoperations.netem_controller:NetemPreset` (`CLEAN`, `DSL`, `CABLE`, `LTE`,
+  `THREE_G` = `"3g"`, `SATELLITE`, `DEGRADED`, `LOSSY`) — the built-in presets `apply_preset`
+  knows. Migration: pass the member. Design `docs/architecture/precise-types-design.md` (testoperations: typed records); PR pending.
+- **enums** `testoperations.throughput:NonCompletionSide` (`ENDPOINT`, `LOCAL_RECEIVER`,
+  `UNKNOWN`) and `NonCompletionKind` (`ERROR_DOCUMENT`, `NO_COMPLETED_SESSION`) — replace the
+  `Literal` aliases of the same names, with the same text values. Migration: none for a reader
+  (`exc.which_side == "endpoint"` still holds); pass the member to `NonCompletion`. Design `docs/architecture/precise-types-design.md` (testoperations: typed records); PR pending.
+- **protocol** `testoperations.throughput:MeasureFn` — the call shape of the `measure`
+  parameters of `measure_path_rtt`, `measure_one_direction`, `measure_path_until` and
+  `measure_external_path_until` (the flows and the three keyword-only timings), replacing
+  `Callable[..., list[FlowThroughput]]`. Migration: none; a stand-in that takes those keywords
+  fits. Design `docs/architecture/precise-types-design.md` (testoperations: typed records); PR pending.
 
 #### Changed
 
@@ -713,12 +733,50 @@ their tags and PR history.
 - **operation** `testoperations.tr069_server:is_cpe_online` — calls
   `get_parameter_values([name], cpe_id=...)` through `testoperations._renamed` when the driver
   has it, else exactly the released `GPV(name, cpe_id=...)`. Design `docs/architecture/precise-types-design.md` (TR-069 RPCs); PR pending.
+- **operation** `testoperations.iperf_client:start_iperf` — breaking for callers: gains the
+  required keyword-only `host` (the address the sender connects to), returns an `IperfSession`
+  (was `dict[str, Any]`), and takes `iperf_client: IperfClient` and `iperf_server: IperfServer`
+  (were `Any`). The released operation called `start_sender` / `start_receiver`, which no
+  capability protocol declares and no driver in the consumer examples, the corpus or boardfarm
+  implements, and it could not name the receiver's address; it now calls `start_receiver_session`
+  / `start_sender_session` (or the released `start_traffic_receiver` / `start_traffic_sender` on
+  a driver that has only those). `ip_version` is `IpFamily | int` (default `IpFamily.V4`): `4` and
+  `6` are accepted as numbers, any other value is a `ValueError` (released: passed through).
+  Migration: pass `host=`; read the record's fields. Design `docs/architecture/precise-types-design.md` (testoperations: typed records); PR pending.
+- **operation** `testoperations.iperf_client:sender_life_record(iperf_client)` — typed
+  `IperfClient` (was `Any`); behaviour unchanged. Design `docs/architecture/precise-types-design.md` (testoperations: typed records); PR pending.
+- **operation** `testoperations.homing:verify_home` — returns a `HomeVerification` (was
+  `dict[str, object]`); the released keys still read through it with a `DeprecationWarning`.
+  Design `docs/architecture/precise-types-design.md` (testoperations: typed records); PR pending.
+- **operation** `testoperations.iperf_generator:saturate_link` — returns a `FlowPair` (was
+  `dict[str, str]`); the released keys still read through it with a `DeprecationWarning`. Design `docs/architecture/precise-types-design.md` (testoperations: typed records); PR pending.
+- **operation** `testoperations.netem_controller:apply_preset(preset_name)` — takes
+  `NetemPreset | str` (shape 1). A plain string naming a preset warns and converts. The error
+  for an unknown name is the `coerce_enum` `ValueError` (`apply_preset(preset_name): 'x' is not
+  one of [...]`), not `unknown preset 'x'; available: [...]`. Migration: pass `NetemPreset`.
+  Design `docs/architecture/precise-types-design.md` (testoperations: typed records); PR pending.
+- **class** `testoperations.throughput:NonCompletion` — `which_side` and `what` take
+  `NonCompletionSide | str` and `NonCompletionKind | str` (shape 1): a plain string naming a
+  member warns and converts, any other word is a `ValueError`; the attributes are the enum
+  members (equal to the released text). The message text is unchanged. Migration: pass the
+  members. Design `docs/architecture/precise-types-design.md` (testoperations: typed records); PR pending.
+- **function** `testoperations.throughput:iter_json_docs` — returns `list[object]` (was
+  `list[Any]`); a caller indexing a document narrows it first. Design `docs/architecture/precise-types-design.md` (testoperations: typed records); PR pending.
 
 #### Deprecated
 
 - **parameters** `build_deny_rule(scope, proto)` — a plain `str` naming a member
   (`"host"`, `"icmp"`) is deprecated: it warns and is converted. The annotations
   narrow to `DenyScope` and `RuleProtocol` in a later release. Design `docs/architecture/precise-types-design.md` (testoperations: segmentation); PR pending.
+- **access** reading `IperfSession`, `HomeVerification` or `FlowPair` as the released dict —
+  `result["sender_pid"]`, `result["vlan_defined"]`, `result["a_to_b"]`, `.get`, `in`, `keys`,
+  `dict(result)`, `**result`, `==` against the released dict, and `as_dict()` — warns
+  (`DeprecationWarning`) and returns the released values (for `verify_home`, `details` is the
+  released nested dict with the peer states as text). The mapping access is removed in a later
+  release; read the fields. Design `docs/architecture/precise-types-design.md` (testoperations: typed records); PR pending.
+- **parameters** `apply_preset(preset_name)` and `NonCompletion(which_side, what)` — a plain
+  `str` naming a member is deprecated: it warns and is converted; the annotations narrow to the
+  enums in a later release. Design `docs/architecture/precise-types-design.md` (testoperations: typed records); PR pending.
 
 #### Fixed
 
@@ -731,6 +789,11 @@ their tags and PR history.
   released drivers read a spike's latency as `spike_latency_ms`, so the value was ignored (they
   applied their 500 ms default). With a driver that implements `inject_event` it takes effect;
   an old-name driver still receives the released call (and still ignores it). Design `docs/architecture/precise-types-design.md` (Host-tier records); PR pending.
+- **operation** `testoperations.pcap_capture:tcpdump` — typed `PcapCapture` (was `Any`) and
+  calls `start_tcpdump(interface, None, output_file=fname, additional_filters=filters or "")`,
+  stopping the capture with the process id the start returned. The released operation called
+  `start_tcpdump(fname, interface, ...)` (the file name as the interface) and
+  `stop_tcpdump(fname)`, which does not match the protocol's signature. Design `docs/architecture/precise-types-design.md` (testoperations: typed records); PR pending.
 
 ## [0.12.1] — 2026-09-09
 

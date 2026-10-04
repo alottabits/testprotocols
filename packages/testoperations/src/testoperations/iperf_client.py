@@ -10,51 +10,93 @@ from __future__ import annotations
 import itertools
 import re
 from dataclasses import dataclass
-from typing import Any
+from typing import override
+
+from testprotocols.deprecation import coerce_enum
+from testprotocols.iperf_client import IperfClient
+from testprotocols.iperf_server import IperfServer
+from testprotocols.models import IperfProcess, IpFamily
+
+from testoperations._released import ReleasedMapping
+from testoperations._renamed import (
+    start_receiver_session_of,
+    start_sender_session_of,
+    start_traffic_receiver_of,
+    start_traffic_sender_of,
+)
+
+
+@dataclass(frozen=True, eq=False)
+class IperfSession(ReleasedMapping):
+    """A started iPerf session: the *sender* and *receiver* processes (each a pid and the log
+    file its output goes to).
+
+    Deprecated: reading the record like the released dict (``session["sender_pid"]``,
+    :meth:`as_dict`) still works and warns; the keys are ``sender_pid``, ``sender_log``,
+    ``receiver_pid`` and ``receiver_log``.
+    """
+
+    sender: IperfProcess
+    receiver: IperfProcess
+
+    @override
+    def _released(self) -> dict[str, object]:
+        return {
+            "sender_pid": self.sender.pid,
+            "sender_log": self.sender.log_file,
+            "receiver_pid": self.receiver.pid,
+            "receiver_log": self.receiver.log_file,
+        }
+
+
+def _start_receiver(server: IperfServer, port: int, family: IpFamily, udp: bool) -> IperfProcess:
+    udp_only = True if udp else None
+    start = start_receiver_session_of(server)
+    if start is not None:
+        return start(port, ip_version=family, udp_only=udp_only)
+    pid, log_file = start_traffic_receiver_of(server)(port, ip_version=family, udp_only=udp_only)
+    return IperfProcess(pid, log_file)
+
+
+def _start_sender(
+    client: IperfClient, host: str, port: int, time: int, family: IpFamily, udp: bool
+) -> IperfProcess:
+    start = start_sender_session_of(client)
+    if start is not None:
+        return start(host, port, time=time, udp_protocol=udp, ip_version=family)
+    pid, log_file = start_traffic_sender_of(client)(
+        host, port, time=time, udp_protocol=udp, ip_version=family
+    )
+    return IperfProcess(pid, log_file)
 
 
 def start_iperf(
-    iperf_client: Any,
-    iperf_server: Any,
+    iperf_client: IperfClient,
+    iperf_server: IperfServer,
     port: int,
     time: int = 10,
     udp: bool = False,
-    ip_version: int = 4,
-) -> dict[str, Any]:
+    ip_version: IpFamily | int = IpFamily.V4,
+    *,
+    host: str,
+) -> IperfSession:
     """Start an iPerf session: receiver first, then sender.
 
-    Returns a dict containing PIDs and log file paths for both sides:
-    ``sender_pid``, ``sender_log``, ``receiver_pid``, ``receiver_log``.
+    The receiver listens on *port*; the sender connects to *host* on *port* for *time* seconds
+    (over UDP when *udp* is true). A driver with ``start_receiver_session`` /
+    ``start_sender_session`` is called by those names, one with only the released
+    ``start_traffic_receiver`` / ``start_traffic_sender`` by those. *ip_version* is an
+    :class:`~testprotocols.models.IpFamily`; ``4`` and ``6`` are accepted as numbers, any other
+    value raises ``ValueError``. Returns the :class:`IperfSession` of both processes.
 
-    *iperf_client* and *iperf_server* are typed ``Any`` because the existing
-    operation calls ``start_sender`` / ``start_receiver``, which are not part
-    of the :class:`IperfClient` / :class:`IperfServer` protocol surfaces
-    (``start_traffic_sender`` / ``start_traffic_receiver`` are). Pre-existing
-    tech debt; logic is not modified here.
+    *host* is new and keyword-only: the released operation called ``start_sender`` and
+    ``start_receiver``, which no capability driver has, and had no way to name the receiver's
+    address.
     """
-    receiver_result = iperf_server.start_receiver(port, time=time, udp=udp, ip_version=ip_version)
-    sender_result = iperf_client.start_sender(port, time=time, udp=udp, ip_version=ip_version)
-
-    # Unpack (pid, log_file) tuples if the template returns them; otherwise
-    # store the raw return value under _pid and _log keys.
-    try:
-        receiver_pid, receiver_log = receiver_result
-    except (TypeError, ValueError):
-        receiver_pid = receiver_result
-        receiver_log = None
-
-    try:
-        sender_pid, sender_log = sender_result
-    except (TypeError, ValueError):
-        sender_pid = sender_result
-        sender_log = None
-
-    return {
-        "sender_pid": sender_pid,
-        "sender_log": sender_log,
-        "receiver_pid": receiver_pid,
-        "receiver_log": receiver_log,
-    }
+    family = coerce_enum(IpFamily, ip_version, what="start_iperf(ip_version)")
+    receiver = _start_receiver(iperf_server, port, family, udp)
+    sender = _start_sender(iperf_client, host, port, time, family, udp)
+    return IperfSession(sender=sender, receiver=receiver)
 
 
 @dataclass(frozen=True)
@@ -83,7 +125,7 @@ _UNIT_BYTES = {"": 1, "K": 1024, "M": 1024**2, "G": 1024**3}
 
 
 def sender_life_record(
-    iperf_client: Any,
+    iperf_client: IperfClient,
     log_file: str,
     gap_tolerance_s: float = 0.5,
 ) -> SenderLifeRecord:
@@ -98,9 +140,7 @@ def sender_life_record(
     interval's end and the next interval's start larger than
     *gap_tolerance_s* is recorded as a gap.
 
-    *iperf_client* is typed ``Any`` for consistency with this module's
-    existing operations; the only member used is the
-    :class:`~testprotocols.iperf_client.IperfClient` surface's
+    The only :class:`~testprotocols.iperf_client.IperfClient` member used is
     ``get_iperf_logs``.
     """
     log = iperf_client.get_iperf_logs(log_file)

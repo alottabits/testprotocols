@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import warnings
 from unittest.mock import MagicMock
 
 import pytest
 from testoperations.iperf_generator import (
+    FlowPair,
     saturate_link,
     stop_all_generators,
 )
@@ -34,7 +36,8 @@ class TestSaturateLink:
 
         peer_a.start_traffic.assert_called_once()
         peer_b.start_traffic.assert_called_once()
-        assert result == {"a_to_b": "flow-a", "b_to_a": "flow-b"}
+        assert result == FlowPair(a_to_b="flow-a", b_to_a="flow-b")
+        assert (result.a_to_b, result.b_to_a) == ("flow-a", "flow-b")
 
     def test_each_peer_targets_the_other_peers_server_ip(self) -> None:
         peer_a = _peer("PEER_A_ADDR", "flow-a")
@@ -143,3 +146,23 @@ class TestStopAllGenerators:
 
         result = stop_all_generators([gen1])
         assert result[0] == {"flow-a": r1}
+
+
+class TestFlowPairReleasedAccess:
+    def _pair(self) -> FlowPair:
+        return saturate_link(_peer("A", "flow-a"), _peer("B", "flow-b"), a_to_b_mbps=1.0)
+
+    def test_indexing_unpacking_and_equality_with_the_released_dict_still_work(self) -> None:
+        pair = self._pair()
+        with pytest.warns(DeprecationWarning):
+            assert pair["a_to_b"] == "flow-a"
+            assert pair["b_to_a"] == "flow-b"
+            assert pair == {"a_to_b": "flow-a", "b_to_a": "flow-b"}
+            assert dict(pair) == {"a_to_b": "flow-a", "b_to_a": "flow-b"}
+            assert pair.as_dict() == {"a_to_b": "flow-a", "b_to_a": "flow-b"}
+
+    def test_the_fields_never_warn(self) -> None:
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+            pair = self._pair()
+            assert pair.a_to_b == "flow-a"

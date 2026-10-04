@@ -7,8 +7,8 @@ alias, ``from typing import Any as A``) or as an attribute of the ``typing`` /
 docstrings, comments and other strings are not counted.
 
 Ceilings re-measured 2026-10-04 after the blind spots were closed (no
-change): testprotocols 40, testoperations 7. A task that removes an ``Any`` lowers the
-constant; none may raise it.
+change): testprotocols 40, testoperations 7 (0 once testoperations was typed). A task
+that removes an ``Any`` lowers the constant; none may raise it.
 """
 
 from __future__ import annotations
@@ -18,7 +18,7 @@ import re
 from pathlib import Path
 
 TESTPROTOCOLS_CEILING = 27
-TESTOPERATIONS_CEILING = 7
+TESTOPERATIONS_CEILING = 0
 
 _ROOT = Path(__file__).resolve().parents[2]
 _ANY_WORD = re.compile(r"\bAny\b")
