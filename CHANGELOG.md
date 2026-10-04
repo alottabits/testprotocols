@@ -143,6 +143,12 @@ their tags and PR history.
   category word, held only while `category` is `ApplicationCategory.OTHER`; the
   pair agrees after construction, `replace` and assignment (the rule of
   `Connection.state`). Migration: none. Design `docs/architecture/precise-types-design.md` (WAN-edge models); PR pending.
+- **field** `testprotocols.models:QosRule.classifier` — `TrafficMatch | None`
+  (`None`: every frame; only a `PortMatch` of destination ports can be
+  expressed, any other kind raises `ValueError`), kept in agreement with the
+  deprecated text `match` (typed fills text; text alone warns and fills typed;
+  disagreeing raises `ValueError`; the side that changed wins under `replace`
+  and assignment). Migration: pass `classifier`. Design `docs/architecture/precise-types-design.md` (switch QoS classifier); PR pending.
 
 #### Breaking for driver authors
 
@@ -230,6 +236,19 @@ their tags and PR history.
   `VPNPeerStatus` — no longer in `__all__`, so `from testprotocols.models import *`
   does not bind them; reaching them by name still works and warns (see
   *Deprecated*). Design `docs/architecture/precise-types-design.md` (WAN-edge models); PR pending.
+- **model** `testprotocols.models:QosRule.match` — the released free expression
+  now raises `ValueError` unless it is empty or a comma list of destination-port
+  terms (`dstPort=<port>`, `dstPortRange=<first>-<last>`), because
+  `TrafficMatch` expresses nothing else. Released forms that no longer
+  construct: every `vlan=` term, `protocol=` term (`any` included), `srcPort=`
+  and `srcPortRange=` term, any other key, and the free text `"vlan 10"`;
+  `match` is also optional now (`""`, every frame). A driver that builds
+  `QosRule` from a device's classifier fields (VLAN, protocol, source port)
+  cannot express them through `classifier`; see the design doc. A text is
+  canonical (`"dstPort=22, dstPort=80"` reads `"dstPort=22,dstPort=80"`); a non-text
+  `match` raises `TypeError`. Static only: unpacking a loosely typed dict into
+  `QosRule` fails type-checking (`classifier` and the private `_match_seen`). Listed
+  in the design doc's "Effective now". Design `docs/architecture/precise-types-design.md` (switch QoS classifier); PR pending.
 
 #### Deprecated
 
@@ -275,6 +294,8 @@ their tags and PR history.
   capability needs one. Design `docs/architecture/precise-types-design.md` (WAN-edge models); PR pending.
 - **placeholder** `LinkStatus.ip_address` — announced only: `""` means no
   address today and becomes `str | None` in a later release. Design `docs/architecture/precise-types-design.md` (WAN-edge models); PR pending.
+- **field** `QosRule.match` — the classifier text; assigning or constructing from
+  it warns. Use `classifier`. Design `docs/architecture/precise-types-design.md` (switch QoS classifier); PR pending.
 
 ### testoperations
 

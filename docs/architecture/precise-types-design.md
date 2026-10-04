@@ -203,6 +203,22 @@ where one exists, also records its retype.
   `models.__all__`, and still defined for type checkers under `TYPE_CHECKING`, so
   a consumer that imports them sees a `DeprecationWarning` and no static error.
   `TrafficShapingRule.match` is `Mapping[str, object]`.
+- **Switch QoS classifier** (shape 4(ii)). `QosRule.classifier` is `TrafficMatch | None`
+  synced with the deprecated `match` text. The released `match` is "a vendor-neutral
+  traffic-classifier expression (e.g. by VLAN, protocol, or port)"; the released
+  producers write a comma list of `key=value` terms (`vlan`, `protocol`, `srcPort`,
+  `srcPortRange`, `dstPort`, `dstPortRange`) and a pinned test used the free text
+  `"vlan 10"`. `TrafficMatch` is one match of one kind (application, category, host,
+  destination ports, address range), so of those forms only destination ports map:
+  `dstPort=<port>` and `dstPortRange=<first>-<last>` (a comma list of them is a
+  multi-range `PortMatch`; the empty text is `None`, every frame). Everything else
+  cannot be expressed and raises `ValueError`: a `vlan` term, a `protocol` term
+  (`protocol=any` too), a `srcPort` or `srcPortRange` term, an unknown key, free
+  text, and any conjunction of terms with a non-port one. Any other `TrafficMatch`
+  kind given as the classifier raises `ValueError`. A released rule that
+  classifies by VLAN or protocol therefore cannot be built from this model;
+  expressing those needs a richer classifier (a VLAN and protocol alongside ports),
+  which `TrafficMatch` is not.
 
 ## Effective now
 
@@ -248,6 +264,13 @@ the matching CHANGELOG entry sits under *Changed*.
   only: unpacking a loosely typed dict into `AppFlow` fails type-checking (the
   keyword parameters `category_raw` and the private `_category_seen`);
   `TrafficShapingRule.match` reads as `Mapping[str, object]` (was `dict[str, Any]`).
+- **Switch QoS classifier** (switch QoS task). `QosRule.match` raises `ValueError`
+  for every released expression except the empty text and destination-port terms
+  (`dstPort`, `dstPortRange`): a `vlan`, `protocol` (`any` too), `srcPort` or
+  `srcPortRange` term, another key, and free text such as `"vlan 10"` no longer
+  construct. `match` is now optional (`""`, every frame). Static only: unpacking a
+  loosely typed dict into `QosRule` fails type-checking (`classifier` and the private
+  `_match_seen`).
 
 ## Pending narrow steps (announced, not yet taken)
 
@@ -266,3 +289,4 @@ Each lands in a later release with its own breaking changelog entry:
   `UplinkState` and `AppFlow.category` from `ApplicationCategory | str` to
   `ApplicationCategory`; `LinkStatus.ip_address` `""` becomes `str | None`;
   `VPNPeerStatus` and `TrafficShapingRule` are removed.
+- `QosRule.match` is removed.
