@@ -14,10 +14,16 @@ against the contracts with the type checkers.
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from typing import Protocol, cast
 
-from testprotocols.models import IperfProcess, IpFamily, TransientEvent, parse_window_size
+from testprotocols.models import (
+    IperfProcess,
+    IpFamily,
+    ParameterValue,
+    TransientEvent,
+    parse_window_size,
+)
 
 
 def _callable_member(driver: object, name: str) -> Callable[..., object]:
@@ -234,3 +240,58 @@ def inject(
         inject_new(event, duration_ms)
         return
     inject_transient_of(driver)(event.event_name, duration_ms, **released_kwargs)
+
+
+# --- Tr069Server: GPV -> get_parameter_values -----------------------------------------
+
+
+class GetParameterValues(Protocol):
+    """``Tr069Server.get_parameter_values``: the new name's shape."""
+
+    def __call__(
+        self,
+        names: Sequence[str],
+        *,
+        timeout: int | None = ...,
+        cpe_id: str | None = ...,
+    ) -> list[ParameterValue]: ...
+
+
+class Gpv(Protocol):
+    """``Tr069Server.GPV``: the old name, with the keywords operations pass.
+
+    The released return (``list[dict[str, Any]]``) is not read by any operation, so it is
+    typed ``object`` here.
+    """
+
+    def __call__(
+        self,
+        param: str | list[str],
+        timeout: int | None = ...,
+        cpe_id: str | None = ...,
+    ) -> object: ...
+
+
+def get_parameter_values_of(driver: object) -> GetParameterValues | None:
+    """Return a driver's ``get_parameter_values`` (the new name), or ``None`` without it."""
+    member = _new_member(driver, "get_parameter_values")
+    return None if member is None else cast(GetParameterValues, member)
+
+
+def gpv_of(driver: object) -> Gpv:
+    """Return a driver's ``GPV`` (the old name, its released signature)."""
+    return cast(Gpv, _callable_member(driver, "GPV"))
+
+
+def get_parameter_value(driver: object, name: str, *, cpe_id: str | None = None) -> None:
+    """Run GetParameterValues for the one parameter *name* with the name *driver* has.
+
+    A driver with ``get_parameter_values`` gets ``[name]``; a driver with only ``GPV`` gets
+    exactly the released call (``name`` as a ``str``). Errors propagate; the result is not
+    read.
+    """
+    get_new = get_parameter_values_of(driver)
+    if get_new is not None:
+        get_new([name], cpe_id=cpe_id)
+        return
+    gpv_of(driver)(name, cpe_id=cpe_id)

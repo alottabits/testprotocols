@@ -9,6 +9,8 @@ not a test.
 from __future__ import annotations
 
 from testoperations._renamed import (
+    GetParameterValues,
+    Gpv,
     InjectEvent,
     InjectTransient,
     StartReceiverSession,
@@ -19,6 +21,13 @@ from testoperations._renamed import (
 from testprotocols.iperf_client import IperfClient
 from testprotocols.iperf_server import IperfServer
 from testprotocols.netem_controller import NetemController
+from testprotocols.tr069_server import Tr069Server
+
+
+def _tr069_accessor_shapes_match_the_contract(acs: Tr069Server) -> None:
+    get_parameter_values: GetParameterValues = acs.get_parameter_values
+    gpv: Gpv = acs.GPV
+    del get_parameter_values, gpv
 
 
 def _accessor_shapes_match_the_contract(
@@ -37,3 +46,4 @@ def _accessor_shapes_match_the_contract(
 def test_accessor_shapes_are_checked_by_the_type_checkers() -> None:
     # Nothing to run: the assignments above are the check.
     assert callable(_accessor_shapes_match_the_contract)
+    assert callable(_tr069_accessor_shapes_match_the_contract)
