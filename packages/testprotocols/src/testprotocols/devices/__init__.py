@@ -4,13 +4,19 @@ from __future__ import annotations
 
 import importlib
 from dataclasses import dataclass
-from typing import Any, cast, get_type_hints
+from typing import Protocol, cast, get_type_hints
 
 _registry: dict[str, DeviceTypeSpec] = {}
 
 #: The sole sanctioned non-capability members — BaseDeviceProtocol's universal
 #: identity pair (see devices/base.py).
 IDENTITY_MEMBERS = frozenset({"device_name", "device_type"})
+
+
+class _HasProtocolAttrs(Protocol):
+    """A ``typing.Protocol`` class as CPython 3.12 builds it: its member names."""
+
+    __protocol_attrs__: frozenset[str]
 
 
 def non_capability_members(protocol: type) -> frozenset[str]:
@@ -23,7 +29,7 @@ def non_capability_members(protocol: type) -> frozenset[str]:
     supersedes in 3.13; one cast keeps that knowledge here.
     """
     hints = get_type_hints(protocol)
-    members: frozenset[str] = frozenset(cast("Any", protocol).__protocol_attrs__)
+    members: frozenset[str] = frozenset(cast(_HasProtocolAttrs, protocol).__protocol_attrs__)
     return frozenset(
         member
         for member in members - IDENTITY_MEMBERS

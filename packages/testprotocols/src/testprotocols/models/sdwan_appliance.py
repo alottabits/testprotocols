@@ -20,6 +20,7 @@ from datetime import datetime
 from enum import StrEnum
 from typing import assert_never, cast, override
 
+from testprotocols.models import _checks
 from testprotocols.models._sync import SyncedField, assign, settle
 from testprotocols.models.ports import PortRange, format_port_ranges, parse_port_ranges, port_tuple
 
@@ -168,6 +169,27 @@ class ContentCategory(StrEnum):
     VIOLENCE = "violence"
     WEAPONS = "weapons"
     WEB_BASED_EMAIL = "web_based_email"
+
+
+@dataclass(frozen=True)
+class UrlRules:
+    """A content filter's explicit URL-pattern lists: *allowed* and *blocked*.
+
+    Patterns are free strings (host or glob patterns), as the appliance holds them. A list is
+    accepted and held as a tuple; anything else, or an item that is not text, raises
+    ``TypeError``. :meth:`as_tuple` is the released ``get_url_rules`` return.
+    """
+
+    allowed: tuple[str, ...] = ()
+    blocked: tuple[str, ...] = ()
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "allowed", _checks.texts("UrlRules", "allowed", self.allowed))
+        object.__setattr__(self, "blocked", _checks.texts("UrlRules", "blocked", self.blocked))
+
+    def as_tuple(self) -> tuple[list[str], list[str]]:
+        """The released ``(allowed, blocked)`` pair of lists."""
+        return list(self.allowed), list(self.blocked)
 
 
 class ApplicationCategory(StrEnum):

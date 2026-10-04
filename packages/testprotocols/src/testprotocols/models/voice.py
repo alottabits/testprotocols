@@ -22,6 +22,8 @@ from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
 
+from testprotocols.models import _checks
+
 
 class PhoneState(StrEnum):
     """A state a SIP phone can be in, one per ``is_*`` predicate of ``SipPhone``.
@@ -84,28 +86,6 @@ class SipMethod(StrEnum):
     OTHER = "OTHER"
 
 
-def _count(owner: str, name: str, value: object) -> None:
-    if isinstance(value, bool) or not isinstance(value, int):
-        raise TypeError(f"{owner}.{name} takes an int, not {value!r}")
-    if value < 0:
-        raise ValueError(f"{owner}.{name} cannot be negative: {value}")
-
-
-def _flag(owner: str, name: str, value: object) -> None:
-    if not isinstance(value, bool):
-        raise TypeError(f"{owner}.{name} takes a bool, not {value!r}")
-
-
-def _text(owner: str, name: str, value: object) -> None:
-    if not isinstance(value, str):
-        raise TypeError(f"{owner}.{name} takes text, not {value!r}")
-
-
-def _when(owner: str, name: str, value: object) -> None:
-    if not isinstance(value, datetime):
-        raise TypeError(f"{owner}.{name} takes a datetime, not {value!r}")
-
-
 @dataclass(frozen=True)
 class RtpStats:
     """What a SIP server's media relay reports: whether it is engaged on any call and
@@ -115,8 +95,8 @@ class RtpStats:
     sessions: int
 
     def __post_init__(self) -> None:
-        _flag("RtpStats", "engaged", self.engaged)
-        _count("RtpStats", "sessions", self.sessions)
+        _checks.flag("RtpStats", "engaged", self.engaged)
+        _checks.count("RtpStats", "sessions", self.sessions)
 
     def as_dict(self) -> dict[str, object]:
         """The released ``get_rtpengine_stats`` dict (``engaged``, ``sessions``)."""
@@ -133,9 +113,9 @@ class MwiStatus:
     old: int
 
     def __post_init__(self) -> None:
-        _flag("MwiStatus", "waiting", self.waiting)
-        _count("MwiStatus", "new", self.new)
-        _count("MwiStatus", "old", self.old)
+        _checks.flag("MwiStatus", "waiting", self.waiting)
+        _checks.count("MwiStatus", "new", self.new)
+        _checks.count("MwiStatus", "old", self.old)
 
     def as_dict(self) -> dict[str, object]:
         """The released ``get_mwi_status`` dict (``waiting``, ``new``, ``old``)."""
@@ -152,9 +132,9 @@ class OfflineMessage:
     stored_at: datetime
 
     def __post_init__(self) -> None:
-        _text("OfflineMessage", "sender", self.sender)
-        _text("OfflineMessage", "body", self.body)
-        _when("OfflineMessage", "stored_at", self.stored_at)
+        _checks.text("OfflineMessage", "sender", self.sender)
+        _checks.text("OfflineMessage", "body", self.body)
+        _checks.when("OfflineMessage", "stored_at", self.stored_at)
 
     def as_dict(self) -> dict[str, object]:
         """The released ``get_offline_messages`` entry shape: ``from``, ``body`` and

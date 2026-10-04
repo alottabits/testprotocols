@@ -6,6 +6,12 @@ from typing import TYPE_CHECKING
 
 from testprotocols.deprecation import deprecated_attribute
 from testprotocols.models import wan_edge as _wan_edge
+from testprotocols.models.device_management import (
+    EventLogEntry,
+    MemoryUtilization,
+    ProcessInfo,
+    SyslogSeverity,
+)
 from testprotocols.models.dhcp import DhcpLeaseObservation, DHCPTraceData, DHCPV6TraceData
 from testprotocols.models.emission import EmitResult, ReplayResult
 from testprotocols.models.firewall import (
@@ -32,12 +38,16 @@ from testprotocols.models.l2_common import (
     StpPortState,
 )
 from testprotocols.models.multicast import (
+    GroupRecord,
     McastGroup,
     McastSource,
     MulticastGroupRecord,
     MulticastGroupRecordType,
+    group_records,
 )
 from testprotocols.models.networking import (
+    ArpEntry,
+    DnsRecord,
     DnsRecordType,
     HTTPResult,
     HttpScheme,
@@ -46,6 +56,10 @@ from testprotocols.models.networking import (
     IpFamily,
     IpVersion,
     LinkAdminState,
+    NmapPort,
+    NmapPortState,
+    NmapResult,
+    PingResult,
     parse_http_response,
 )
 from testprotocols.models.packets import RIPv2PacketData
@@ -116,6 +130,7 @@ from testprotocols.models.sdwan_appliance import (
     UplinkSelectionRule,
     UplinkState,
     UplinkStatus,
+    UrlRules,
     VlanConfig,
     VpnHub,
     VpnPeerState,
@@ -224,6 +239,7 @@ __all__ = [
     # sdwan_appliance
     "ApplicationCategory",
     "ApplicationMatch",
+    "ArpEntry",
     "BgpConfig",
     "BgpNeighbor",
     "BgpPeerStatus",
@@ -250,11 +266,13 @@ __all__ = [
     "DhcpOptionType",
     "DhcpReservation",
     "DiscoveryProtocol",
+    "DnsRecord",
     "DnsRecordType",
     "Duplex",
     "EapMethod",
     # emission
     "EmitResult",
+    "EventLogEntry",
     "FhsBinding",
     "FhsScope",
     "FhsTrustState",
@@ -262,6 +280,7 @@ __all__ = [
     "FirewallRuleAction",
     "FlowMatch",
     # networking
+    "GroupRecord",
     "HTTPResult",
     "HostMatch",
     "HttpScheme",
@@ -297,6 +316,7 @@ __all__ = [
     "McastSource",
     # qoe
     "MeasurementSpec",
+    "MemoryUtilization",
     "MeshRole",
     "MfpMode",
     "MulticastGroupRecord",
@@ -306,6 +326,9 @@ __all__ = [
     "NatInboundAllow",
     "NatMode",
     "NatRule",
+    "NmapPort",
+    "NmapPortState",
+    "NmapResult",
     "NtpServer",
     "OfflineMessage",
     "OneToManyNatRule",
@@ -316,6 +339,7 @@ __all__ = [
     "PageCompletion",
     "PathMetrics",
     "PhoneState",
+    "PingResult",
     "PoePortStatus",
     "PoePriority",
     "PoeStatus",
@@ -328,6 +352,7 @@ __all__ = [
     "PortRange",
     "PortStatusEntry",
     "PresenceStatus",
+    "ProcessInfo",
     "QoEResult",
     "QoeCompletion",
     "QoeScenario",
@@ -374,6 +399,7 @@ __all__ = [
     "SwitchPort",
     "SyslogRole",
     "SyslogServer",
+    "SyslogSeverity",
     "Telemetry",
     "ThreatCategory",
     "TrafficMatch",
@@ -384,6 +410,7 @@ __all__ = [
     "UplinkSelectionRule",
     "UplinkState",
     "UplinkStatus",
+    "UrlRules",
     "VlanConfig",
     "VlanDef",
     "VpnHub",
@@ -414,6 +441,7 @@ __all__ = [
     "ZonePolicy",
     # ports
     "format_port_ranges",
+    "group_records",
     "match_fields",
     "parse_http_response",
     "parse_port_ranges",

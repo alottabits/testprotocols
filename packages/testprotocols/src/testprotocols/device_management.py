@@ -8,6 +8,12 @@ from __future__ import annotations
 
 from typing import Any, Protocol, runtime_checkable
 
+from testprotocols.models.device_management import (
+    EventLogEntry,
+    MemoryUtilization,
+    ProcessInfo,
+)
+
 
 @runtime_checkable
 class DeviceManagement(Protocol):
@@ -26,11 +32,31 @@ class DeviceManagement(Protocol):
         ...
 
     def get_memory_utilization(self) -> dict[str, int]:
-        """Return memory utilization in bytes, keyed by metric name."""
+        """Deprecated name of :meth:`read_memory_utilization`.
+
+        Returns ``read_memory_utilization().as_dict()``: memory utilization in bytes, keyed
+        by metric name (``total``, ``used``, ``free`` and, when reported, ``shared``,
+        ``cache``, ``available``); the driver warns with
+        ``warn_renamed("get_memory_utilization", "read_memory_utilization")``.
+        """
+        ...
+
+    def read_memory_utilization(self) -> MemoryUtilization:
+        """Return the device's memory figures, in bytes."""
         ...
 
     def get_running_processes(self, ps_options: str = "-A") -> list[Any]:
-        """Return the list of running processes using the given ps options."""
+        """Deprecated name of :meth:`read_running_processes`.
+
+        Returns the list of running processes using the given ps options. For the default
+        ``"-A"`` that is ``[p.as_dict() for p in read_running_processes()]``; the driver warns
+        with ``warn_renamed("get_running_processes", "read_running_processes")``. Other
+        options keep the driver's released output until the removal step.
+        """
+        ...
+
+    def read_running_processes(self) -> list[ProcessInfo]:
+        """Return every process running on the device (``ps -A`` on a Linux host)."""
         ...
 
     def get_board_logs(self, timeout: int = 300) -> str:
@@ -38,7 +64,17 @@ class DeviceManagement(Protocol):
         ...
 
     def read_event_logs(self) -> list[dict[str, Any]]:
-        """Return structured event log entries from the device."""
+        """Deprecated name of :meth:`read_event_log`.
+
+        Returns ``[e.as_dict() for e in read_event_log()]``, the structured event log
+        entries (``priority``, ``date``, ``hostname``, ``tag``, ``content``); the driver warns
+        with ``warn_renamed("read_event_logs", "read_event_log")``.
+        """
+        ...
+
+    def read_event_log(self) -> list[EventLogEntry]:
+        """Return the entries of the device's event log, oldest first. A line the driver
+        cannot parse as a syslog entry is left out."""
         ...
 
     def get_boottime_log(self) -> list[str]:

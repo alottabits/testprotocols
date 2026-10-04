@@ -6,6 +6,7 @@ date retrieval, date setting, and time synchronisation.
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Protocol, runtime_checkable
 
 
@@ -14,7 +15,20 @@ class NtpClient(Protocol):
     """Abstract contract for NTP client operations."""
 
     def get_date(self) -> str | None:
-        """Return the current date/time string from the device."""
+        """Deprecated: use :meth:`read_date`, which returns a ``datetime``.
+
+        Returns the current date/time string from the device, in the device's own format
+        (``None`` when it cannot be read). A driver keeps returning that text until the
+        removal step (it warns with ``warn_renamed("get_date", "read_date")``).
+        """
+        ...
+
+    def read_date(self) -> datetime | None:
+        """Return the device's current date and time, or ``None`` when it cannot be read.
+
+        The value is naive, in the device's local time, unless the device reports its UTC
+        offset; then it is aware.
+        """
         ...
 
     def set_date(self, opt: str, date_string: str) -> bool:

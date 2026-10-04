@@ -3,12 +3,17 @@
 from __future__ import annotations
 
 import warnings
-from dataclasses import dataclass
+from collections.abc import Sequence
+from dataclasses import dataclass, field
 from enum import IntEnum, StrEnum
 from ipaddress import IPv4Address, IPv6Address
 from typing import cast
 
-from testprotocols.deprecation import MODEL_FRAMES
+from testprotocols.deprecation import MODEL_FRAMES, coerce_enum
+from testprotocols.models import _checks
+from testprotocols.models._open_enum import OpenEnumPair
+from testprotocols.models._sync import settle
+from testprotocols.models.traffic import TransportProtocol
 
 
 class IpVersion(StrEnum):
@@ -29,7 +34,13 @@ class IpFamily(IntEnum):
 
 
 class DnsRecordType(StrEnum):
-    """A DNS resource-record type (RFC 1035 and the IANA registry). Grows on evidence."""
+    """A DNS resource-record type (RFC 1035 and the IANA registry). Grows on evidence.
+
+    The registry is open, and an answer can hold a type this enum does not name: a
+    :class:`DnsRecord` read back holds ``OTHER`` and the type's own name in
+    ``record_type_raw`` (shape 3o). ``OTHER`` is a read-back value only; a lookup for it is
+    refused (``ValueError``).
+    """
 
     A = "A"
     AAAA = "AAAA"
@@ -40,6 +51,7 @@ class DnsRecordType(StrEnum):
     SOA = "SOA"
     SRV = "SRV"
     TXT = "TXT"
+    OTHER = "other"
 
 
 class HttpScheme(StrEnum):
@@ -159,3 +171,152 @@ def _split_response(response: str) -> tuple[str, str, str]:
     elif body.startswith("\n"):
         body = body[1:]
     return code, body, reason
+
+
+_DNS_PAIRS = (OpenEnumPair(DnsRecordType, DnsRecordType.OTHER, "record_type", "record_type_raw"),)
+
+
+@dataclass(frozen=True)
+class DnsRecord:
+    """One resource record of a DNS answer: the owner *name* (as the resolver prints it,
+    usually fully qualified with a trailing dot), its *record_type*, its *ttl* in seconds and
+    its *data* (the record data as text: an address, a target name, ...).
+
+    *record_type* is open (shape 3o): a type :class:`DnsRecordType` does not name is
+    ``OTHER`` and its name is in *record_type_raw*, verbatim (``"CAA"``); *record_type_raw* is
+    ``None`` otherwise, and a raw name beside a named type raises ``ValueError``. A plain
+    string naming a member converts with a ``DeprecationWarning``; a driver reading device
+    text builds the member itself (``DnsRecordType(word)``, ``OTHER`` and the word when that
+    raises).
+    """
+
+    name: str
+    record_type: DnsRecordType
+    ttl: int
+    data: str
+    record_type_raw: str | None = None
+    _record_type_seen: tuple[tuple[DnsRecordType | None, str | None], ...] | None = field(
+        default=None, kw_only=True, repr=False, compare=False
+    )
+
+    def __post_init__(self) -> None:
+        _checks.text("DnsRecord", "name", self.name)
+        _checks.count("DnsRecord", "ttl", self.ttl)
+        _checks.text("DnsRecord", "data", self.data)
+        settle(self, _DNS_PAIRS, "_record_type_seen")
+
+
+@dataclass(frozen=True)
+class PingResult:
+    """The summary of an ICMP echo run: the *destination* as given, the echo requests
+    *transmitted*, the distinct replies *received*, the *duplicates* among the replies, the
+    *packet_loss_percent* (0 to 100) and the round-trip times in milliseconds (minimum,
+    average, maximum and standard deviation; ``None`` when no reply came back)."""
+
+    destination: str
+    transmitted: int
+    received: int
+    packet_loss_percent: float
+    duplicates: int = 0
+    rtt_min_ms: float | None = None
+    rtt_avg_ms: float | None = None
+    rtt_max_ms: float | None = None
+    rtt_stddev_ms: float | None = None
+
+    def __post_init__(self) -> None:
+        _checks.text("PingResult", "destination", self.destination)
+        for name in ("transmitted", "received", "duplicates"):
+            _checks.count("PingResult", name, getattr(self, name))
+        _checks.number("PingResult", "packet_loss_percent", self.packet_loss_percent, high=100)
+        for name in ("rtt_min_ms", "rtt_avg_ms", "rtt_max_ms", "rtt_stddev_ms"):
+            _checks.optional_number("PingResult", name, getattr(self, name))
+
+
+class NmapPortState(StrEnum):
+    """A port state as nmap reports it (its six documented states)."""
+
+    OPEN = "open"
+    CLOSED = "closed"
+    FILTERED = "filtered"
+    UNFILTERED = "unfiltered"
+    OPEN_FILTERED = "open|filtered"
+    CLOSED_FILTERED = "closed|filtered"
+
+
+@dataclass(frozen=True)
+class NmapPort:
+    """One scanned port: its number, transport *protocol*, *state* and the *service* name
+    nmap guessed (``None`` when it named none). A plain string naming a member of
+    :class:`~testprotocols.models.TransportProtocol` or :class:`NmapPortState` converts with a
+    ``DeprecationWarning``; any other raises ``ValueError``."""
+
+    port: int
+    protocol: TransportProtocol
+    state: NmapPortState
+    service: str | None = None
+
+    def __post_init__(self) -> None:
+        _checks.count("NmapPort", "port", self.port)
+        if not 1 <= self.port <= 65535:
+            raise ValueError(f"NmapPort.port must be 1 to 65535: {self.port}")
+        protocol = coerce_enum(
+            TransportProtocol,
+            cast("TransportProtocol | str", self.protocol),
+            what="NmapPort.protocol",
+            skip_file_prefixes=MODEL_FRAMES,
+        )
+        state = coerce_enum(
+            NmapPortState,
+            cast("NmapPortState | str", self.state),
+            what="NmapPort.state",
+            skip_file_prefixes=MODEL_FRAMES,
+        )
+        object.__setattr__(self, "protocol", protocol)
+        object.__setattr__(self, "state", state)
+        _checks.optional_text("NmapPort", "service", self.service)
+
+
+@dataclass(frozen=True)
+class NmapResult:
+    """What a port scan found on its target: whether the host is *up*, the *addresses* nmap
+    reported for it (as text, in report order) and the scanned *ports* in scan order. A list
+    is accepted and held as a tuple."""
+
+    up: bool
+    addresses: tuple[str, ...] = ()
+    ports: tuple[NmapPort, ...] = ()
+
+    def __post_init__(self) -> None:
+        _checks.flag("NmapResult", "up", self.up)
+        object.__setattr__(
+            self, "addresses", _checks.texts("NmapResult", "addresses", self.addresses)
+        )
+        ports = cast(object, self.ports)
+        if not isinstance(ports, list | tuple):
+            raise TypeError(f"NmapResult.ports takes a tuple of NmapPort, not {ports!r}")
+        held: list[NmapPort] = []
+        for item in cast("Sequence[object]", ports):
+            if not isinstance(item, NmapPort):
+                raise TypeError(f"NmapResult.ports holds NmapPort only, not {item!r}")
+            held.append(item)
+        object.__setattr__(self, "ports", tuple(held))
+
+
+@dataclass(frozen=True)
+class ArpEntry:
+    """One complete entry of a host's ARP table (IPv4 neighbours): the neighbour's
+    *address*, the hardware type (*hw_type*, ``"ether"``), its hardware address
+    (*hw_address*, as the host prints it), the entry *flags* (``"C"`` complete, ``"M"``
+    permanent, ``"P"`` published) and the *interface* it was learnt on."""
+
+    address: IPv4Address
+    hw_type: str
+    hw_address: str
+    flags: str
+    interface: str
+
+    def __post_init__(self) -> None:
+        if not isinstance(cast(object, self.address), IPv4Address):
+            raise TypeError(f"ArpEntry.address takes an IPv4Address, not {self.address!r}")
+        for name in ("hw_type", "hw_address", "flags", "interface"):
+            _checks.text("ArpEntry", name, getattr(self, name))

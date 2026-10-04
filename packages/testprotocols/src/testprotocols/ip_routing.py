@@ -9,6 +9,8 @@ from __future__ import annotations
 from ipaddress import IPv4Address
 from typing import Any, Protocol, runtime_checkable
 
+from testprotocols.models.networking import PingResult
+
 
 @runtime_checkable
 class IpRouting(Protocol):
@@ -23,7 +25,25 @@ class IpRouting(Protocol):
         timeout: int = 50,
         json_output: bool = False,
     ) -> bool | dict[str, Any]:
-        """Send ICMP echo requests to *ping_ip* and return success or parsed output."""
+        """Send ICMP echo requests to *ping_ip* and return success or parsed output.
+
+        Returns ``True`` when every request was answered. With ``json_output=True`` it
+        returns the tool's parsed output instead; that form is deprecated: use
+        :meth:`ping_stats`, which returns a typed summary (a driver warns when
+        ``json_output`` is true, and keeps its released parsed output until the removal
+        step, since that output carries more than the summary holds).
+        """
+        ...
+
+    def ping_stats(
+        self,
+        ping_ip: str,
+        ping_count: int = 4,
+        ping_interface: str | None = None,
+        timeout: int = 50,
+    ) -> PingResult:
+        """Send *ping_count* ICMP echo requests to *ping_ip* (from *ping_interface* when
+        given, waiting up to *timeout* seconds) and return the run's summary."""
         ...
 
     def traceroute(

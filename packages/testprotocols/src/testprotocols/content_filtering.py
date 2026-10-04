@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from typing import Protocol, runtime_checkable
 
-from testprotocols.models.sdwan_appliance import ContentCategory
+from testprotocols.models.sdwan_appliance import ContentCategory, UrlRules
 
 
 @runtime_checkable
@@ -43,5 +43,13 @@ class ContentFiltering(Protocol):
         ...
 
     def get_url_rules(self) -> tuple[list[str], list[str]]:
-        """Return ``(allowed, blocked)`` URL-pattern lists."""
+        """Deprecated name of :meth:`read_url_rules`.
+
+        Returns ``read_url_rules().as_tuple()``, the ``(allowed, blocked)`` URL-pattern
+        lists; the driver warns with ``warn_renamed("get_url_rules", "read_url_rules")``.
+        """
+        ...
+
+    def read_url_rules(self) -> UrlRules:
+        """Return the explicit allow / block URL-pattern lists."""
         ...

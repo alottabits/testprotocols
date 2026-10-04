@@ -73,7 +73,7 @@ def _ann(fn: object, name: str) -> object:
 def test_enum_members() -> None:
     assert _values(IpVersion) == ["ipv4", "ipv6"]
     assert _values(DnsRecordType) == [
-        "A", "AAAA", "CNAME", "MX", "NS", "PTR", "SOA", "SRV", "TXT",
+        "A", "AAAA", "CNAME", "MX", "NS", "PTR", "SOA", "SRV", "TXT", "other",
     ]  # fmt: skip
     assert _values(HttpScheme) == ["http", "https"]
     assert _values(LinkAdminState) == ["up", "down"]

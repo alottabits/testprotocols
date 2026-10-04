@@ -43,6 +43,7 @@ PROTOCOLS = [
             "get_blocked_categories",
             "set_url_rules",
             "get_url_rules",
+            "read_url_rules",
         },
     ),
     (
