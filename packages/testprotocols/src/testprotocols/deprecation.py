@@ -41,6 +41,27 @@ def renamed_attribute(
     return namespace[new]
 
 
+def deprecated_attribute(
+    module: str, name: str, reason: str, namespace: Mapping[str, object]
+) -> object:
+    """Resolve a deprecated module attribute *name* that has no successor.
+
+    Call from a module-level ``__getattr__``, as :func:`renamed_attribute` does
+    for a rename: *namespace* maps the deprecated names to their objects (not the
+    module's ``globals()``: the module deletes the names at run time, under
+    ``if not TYPE_CHECKING:``, so that every runtime access reaches
+    ``__getattr__`` and warns, while type checkers still see the definitions).
+    The warning reads ``{module}.{name} is deprecated; {reason}``. A name not in
+    *namespace* raises ``AttributeError`` as a normal missing attribute would.
+    """
+    try:
+        obj = namespace[name]
+    except KeyError:
+        raise AttributeError(f"module {module!r} has no attribute {name!r}") from None
+    warnings.warn(f"{module}.{name} is deprecated; {reason}", DeprecationWarning, stacklevel=3)
+    return obj
+
+
 def warn_renamed(old: str, new: str) -> None:
     """Warn that the protocol member *old* is deprecated in favour of *new*.
 

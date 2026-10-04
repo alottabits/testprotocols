@@ -131,6 +131,18 @@ their tags and PR history.
   rewritten to the canonical form (for a text with several equal spellings, such
   as an ISO-8601 `Z` or `+00:00`); used by `SecurityEvent.ts`. Not public API.
   Migration: none. Design `docs/architecture/precise-types-design.md` (SD-WAN models); PR pending.
+- **function** `testprotocols.deprecation:deprecated_attribute` — for a module
+  `__getattr__` that resolves a deprecated name with no successor, with a
+  `DeprecationWarning` that gives the reason; the counterpart of
+  `renamed_attribute`. Migration: none. Design `docs/architecture/precise-types-design.md` (WAN-edge models); PR pending.
+- **enum members** `testprotocols.models:UplinkState.UNKNOWN` (a state the
+  product could not determine, such as a link with no health data) and
+  `ApplicationCategory.OTHER` (the catch-all of an observed flow; `CategoryMatch`
+  refuses it, so no rule can match on it). Migration: none. Design `docs/architecture/precise-types-design.md` (WAN-edge models); PR pending.
+- **field** `testprotocols.models:AppFlow.category_raw` — the product's own
+  category word, held only while `category` is `ApplicationCategory.OTHER`; the
+  pair agrees after construction, `replace` and assignment (the rule of
+  `Connection.state`). Migration: none. Design `docs/architecture/precise-types-design.md` (WAN-edge models); PR pending.
 
 #### Breaking for driver authors
 
@@ -200,6 +212,24 @@ their tags and PR history.
   private provenance fields (`_ports_seen`, `_ts_seen`; not API) are keyword
   parameters; type the dict or pass the fields explicitly. Listed in the design
   doc's "Effective now". Design `docs/architecture/precise-types-design.md` (SD-WAN models); PR pending.
+- **models** `testprotocols.models:LinkStatus.state`, `LinkHealthReport.state` and
+  `AppFlow.category` — now `UplinkState | str` (both link states) and
+  `ApplicationCategory | str`, and always hold the enum after construction,
+  `replace` and assignment. A link state word that is not an `UplinkState` value
+  (released: any string) now raises `ValueError`; the vocabulary is the existing
+  `up`, `down`, `degraded` plus `unknown` (a probe with no data), so the words a
+  reference implementer returns still work. `AppFlow.category` never raises: an
+  unknown word becomes `ApplicationCategory.OTHER` plus `category_raw`, without a
+  warning. A plain string naming a member warns and converts. Migration: pass the
+  members. Static only: unpacking a loosely typed dict into `AppFlow` fails
+  type-checking (`category_raw` and the private `_category_seen` are parameters),
+  and `TrafficShapingRule.match` is `Mapping[str, object]` (was `dict[str, Any]`),
+  so a reader gets `object` values. Listed in the design doc's "Effective now".
+  Design `docs/architecture/precise-types-design.md` (WAN-edge models); PR pending.
+- **module attributes** `testprotocols.models:TrafficShapingRule` and
+  `VPNPeerStatus` — no longer in `__all__`, so `from testprotocols.models import *`
+  does not bind them; reaching them by name still works and warns (see
+  *Deprecated*). Design `docs/architecture/precise-types-design.md` (WAN-edge models); PR pending.
 
 #### Deprecated
 
@@ -233,6 +263,18 @@ their tags and PR history.
   `NetworkAttachment.segment` (`""`) — announced only: they mean
   unconstrained or not reported today and become `str | None` (`None`) in a
   later release. Design `docs/architecture/precise-types-design.md` (SD-WAN models); PR pending.
+- **parameters and fields** `LinkStatus.state`, `LinkHealthReport.state` and
+  `AppFlow.category` — a plain `str` naming a member (`"up"`, `"degraded"`,
+  `"video_streaming"`) is deprecated: it warns and is converted. The annotations
+  narrow to `UplinkState` and `ApplicationCategory` in a later release. Design `docs/architecture/precise-types-design.md` (WAN-edge models); PR pending.
+- **models** `testprotocols.models.wan_edge:VPNPeerStatus` and
+  `TrafficShapingRule` (also reached as `testprotocols.models.VPNPeerStatus` and
+  `TrafficShapingRule`) — deprecated with no successor: no capability uses them;
+  every access warns, and they are removed in a later release. Use
+  `VpnPeerStatus` for site-to-site peers and `ShapingRule` for shaping where a
+  capability needs one. Design `docs/architecture/precise-types-design.md` (WAN-edge models); PR pending.
+- **placeholder** `LinkStatus.ip_address` — announced only: `""` means no
+  address today and becomes `str | None` in a later release. Design `docs/architecture/precise-types-design.md` (WAN-edge models); PR pending.
 
 ### testoperations
 

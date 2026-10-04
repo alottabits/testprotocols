@@ -158,8 +158,9 @@ asked to do*, not how any product's API spells it. Models live in
 
 ### `traffic_shaping: TrafficShaping`
 Per-uplink and global per-client bandwidth caps plus an ordered list of shaping
-rules (whole-list replace). Reuses `wan_edge.TrafficShapingRule` (match, DSCP
-tag, bandwidth limit, priority), covering DSCP marking and per-application
+rules (whole-list replace). Uses `ShapingRule` (match, DSCP
+tag, bandwidth limit, priority; `wan_edge.TrafficShapingRule` is deprecated, see
+`precise-types-design.md`), covering DSCP marking and per-application
 shaping. Cross-vendor: per-link + per-app shaping and DSCP marking exist on
 every reviewed appliance.
 

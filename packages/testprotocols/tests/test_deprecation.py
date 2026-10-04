@@ -6,7 +6,13 @@ import warnings
 from enum import StrEnum
 
 import pytest
-from testprotocols.deprecation import coerce_enum, coerce_int, renamed_attribute, warn_renamed
+from testprotocols.deprecation import (
+    coerce_enum,
+    coerce_int,
+    deprecated_attribute,
+    renamed_attribute,
+    warn_renamed,
+)
 
 
 class _New:
@@ -110,3 +116,27 @@ def test_coerce_int_rejects_bool_and_float() -> None:
     for bad in (True, False, 1.5, None, b"1"):
         with pytest.raises(TypeError, match="port"):
             coerce_int(bad, what="port")  # type: ignore[arg-type]
+
+
+def test_deprecated_attribute_warns_with_the_reason_and_returns_the_object() -> None:
+    with pytest.warns(
+        DeprecationWarning, match=r"pkg\.mod\.Orphan is deprecated; it has no successor"
+    ):
+        got = deprecated_attribute("pkg.mod", "Orphan", "it has no successor", {"Orphan": _New})
+    assert got is _New
+
+
+def test_deprecated_attribute_unknown_name_is_an_attribute_error() -> None:
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        with pytest.raises(AttributeError, match=r"module 'pkg\.mod' has no attribute 'Nope'"):
+            deprecated_attribute("pkg.mod", "Nope", "why", {"Orphan": _New})
+
+
+def test_deprecated_attribute_points_at_the_accessing_module() -> None:
+    def __getattr__(name: str) -> object:
+        return deprecated_attribute("pkg.mod", name, "why", {"Orphan": _New})
+
+    with pytest.warns(DeprecationWarning) as record:
+        __getattr__("Orphan")
+    assert record[0].filename == __file__

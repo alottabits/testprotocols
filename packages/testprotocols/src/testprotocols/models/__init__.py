@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
+from testprotocols.deprecation import deprecated_attribute
+from testprotocols.models import wan_edge as _wan_edge
 from testprotocols.models.dhcp import DhcpLeaseObservation, DHCPTraceData, DHCPV6TraceData
 from testprotocols.models.emission import EmitResult, ReplayResult
 from testprotocols.models.firewall import (
@@ -149,8 +153,6 @@ from testprotocols.models.wan_edge import (
     RouteEntry,
     RouteOrigin,
     SLAPolicy,
-    TrafficShapingRule,
-    VPNPeerStatus,
 )
 from testprotocols.models.wifi import (
     WifiAcl,
@@ -309,12 +311,10 @@ __all__ = [
     "TrafficMatch",
     # traffic
     "TrafficResult",
-    "TrafficShapingRule",
     "TrafficSpec",
     "UplinkSelectionRule",
     "UplinkState",
     "UplinkStatus",
-    "VPNPeerStatus",
     "VlanConfig",
     "VlanDef",
     "VpnHub",
@@ -345,3 +345,15 @@ __all__ = [
     "port_tuple",
     "traffic_match",
 ]
+
+if TYPE_CHECKING:
+    # Deprecated, with no successor: not in ``__all__``, and reached at run time through
+    # ``__getattr__`` below, which warns. Type checkers still see the names.
+    from testprotocols.models.wan_edge import TrafficShapingRule as TrafficShapingRule
+    from testprotocols.models.wan_edge import VPNPeerStatus as VPNPeerStatus
+
+
+def __getattr__(name: str) -> object:
+    return deprecated_attribute(
+        __name__, name, _wan_edge.ORPHAN_REASON, _wan_edge.DEPRECATED_ORPHANS
+    )

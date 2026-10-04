@@ -186,6 +186,23 @@ where one exists, also records its retype.
   so omitting one still raises `TypeError`. The `"any"` cidr placeholders of
   `L3Rule`, the `""` placeholders of `UplinkStatus` and `NetworkAttachment.segment`
   are announced only (shape 6).
+- **WAN-edge models** (shapes 3, 3o and the orphan deprecation). `LinkStatus.state`
+  and `LinkHealthReport.state` are `UplinkState` (shape 3): the released words `up`,
+  `down` and `degraded` are existing members, and `UplinkState` gains `UNKNOWN`
+  because the reference implementer reports `"unknown"` for a link with no health
+  data (a value the released contract did not forbid, so it must keep working); an
+  `UplinkState` is not the appliance's state of record, only the shared vocabulary.
+  `AppFlow.category` is `ApplicationCategory` with `category_raw` (shape 3o, an
+  `OpenEnumPair`, the rule of `Connection.state`); `ApplicationCategory` gains
+  `OTHER`, which `CategoryMatch` refuses, so no L7 or shaping rule can match on it.
+  A record holds either `SyncedField` pairs or one `OpenEnumPair` under its single
+  provenance field; `AppFlow` has only the latter. `VPNPeerStatus` and
+  `TrafficShapingRule` have no consumer and no successor: both are deprecated by a
+  module `__getattr__` (`deprecated_attribute`, the no-successor counterpart of
+  `renamed_attribute`) in `wan_edge` and in `testprotocols.models`, removed from
+  `models.__all__`, and still defined for type checkers under `TYPE_CHECKING`, so
+  a consumer that imports them sees a `DeprecationWarning` and no static error.
+  `TrafficShapingRule.match` is `Mapping[str, object]`.
 
 ## Effective now
 
@@ -223,6 +240,14 @@ the matching CHANGELOG entry sits under *Changed*.
   `SecurityEvent` fails type-checking, as for `FirewallRule` (the keyword
   parameters `src_ports`, `dst_ports`, `timestamp` and the private `_ports_seen`
   and `_ts_seen`).
+- **WAN-edge models** (WAN-edge task). A `LinkStatus.state` or
+  `LinkHealthReport.state` word that is not an `UplinkState` value raises
+  `ValueError` (released: any string). `AppFlow.category` never raises; an unknown
+  word becomes `OTHER` plus `category_raw`. `testprotocols.models.TrafficShapingRule`
+  and `VPNPeerStatus` are not star-exported any more (they warn on access). Static
+  only: unpacking a loosely typed dict into `AppFlow` fails type-checking (the
+  keyword parameters `category_raw` and the private `_category_seen`);
+  `TrafficShapingRule.match` reads as `Mapping[str, object]` (was `dict[str, Any]`).
 
 ## Pending narrow steps (announced, not yet taken)
 
@@ -237,3 +262,7 @@ Each lands in a later release with its own breaking changelog entry:
 - The `L3Rule` cidr `"any"` placeholders, the `UplinkStatus` address `""`
   placeholders and `NetworkAttachment.segment` `""` become `str | None`; the
   `L3Rule` port text fields and `SecurityEvent.ts` are removed.
+- `LinkStatus.state`, `LinkHealthReport.state` narrow from `UplinkState | str` to
+  `UplinkState` and `AppFlow.category` from `ApplicationCategory | str` to
+  `ApplicationCategory`; `LinkStatus.ip_address` `""` becomes `str | None`;
+  `VPNPeerStatus` and `TrafficShapingRule` are removed.

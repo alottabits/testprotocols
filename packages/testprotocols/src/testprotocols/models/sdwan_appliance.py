@@ -179,6 +179,11 @@ class ApplicationCategory(StrEnum):
     application-category id; add members on evidence. (Individual application
     identifiers — a far larger, more divergent catalog — are deliberately not
     seeded here; add an ``Application`` registry if/when a test needs one.)
+
+    ``OTHER`` is the catch-all for an observed flow whose category a product
+    reports but this set does not list (the product's own word travels in
+    ``AppFlow.category_raw``). It is not a category a rule can match on:
+    ``CategoryMatch`` refuses it.
     """
 
     ADVERTISING = "advertising"
@@ -202,6 +207,7 @@ class ApplicationCategory(StrEnum):
     VOIP_AND_VIDEO_CONFERENCING = "voip_and_video_conferencing"
     VPN_AND_PROXY = "vpn_and_proxy"
     WEB_FILE_TRANSFER = "web_file_transfer"
+    OTHER = "other"
 
 
 # --- Traffic match (what an L7 or shaping rule selects) ---
@@ -227,7 +233,10 @@ class CategoryMatch:
     category: ApplicationCategory
 
     def __post_init__(self) -> None:
-        object.__setattr__(self, "category", ApplicationCategory(self.category))
+        category = ApplicationCategory(self.category)
+        if category is ApplicationCategory.OTHER:
+            raise ValueError("a category match names a category; 'other' is not one")
+        object.__setattr__(self, "category", category)
 
 
 @dataclass(frozen=True)
@@ -399,7 +408,9 @@ class UplinkState(StrEnum):
 
     ``DEGRADED`` covers vendor states reporting a link that is forwarding but
     impaired (unstable / lossy / connecting) — normalized here so drivers do
-    not collapse such states into ``UP``.
+    not collapse such states into ``UP``. ``UNKNOWN`` is a state the product could
+    not determine (for example a link with no health data yet), distinct from
+    ``DOWN``.
     """
 
     UP = "up"
@@ -407,6 +418,7 @@ class UplinkState(StrEnum):
     DOWN = "down"
     STANDBY = "standby"
     NOT_CONNECTED = "not_connected"
+    UNKNOWN = "unknown"
 
 
 @dataclass

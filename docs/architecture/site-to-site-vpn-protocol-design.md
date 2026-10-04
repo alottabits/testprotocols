@@ -78,7 +78,8 @@ Decisions recorded:
 - **Peers/hubs by testbed-level name**, never vendor ids — same
   normalized-vocabulary-vs-plugin-mapping rule as content categories.
 - New normalized `VpnPeerStatus` is used; `wan_edge.VPNPeerStatus`
-  (free-string reachability, zero consumers) is left untouched for the twin.
+  (free-string reachability, zero consumers) is deprecated, with no successor
+  (see `precise-types-design.md`).
 
 ## Protocol (`site_to_site_vpn.py`)
 

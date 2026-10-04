@@ -17,7 +17,7 @@ import ast
 import re
 from pathlib import Path
 
-TESTPROTOCOLS_CEILING = 40
+TESTPROTOCOLS_CEILING = 39
 TESTOPERATIONS_CEILING = 7
 
 _ROOT = Path(__file__).resolve().parents[2]
