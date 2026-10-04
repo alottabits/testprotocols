@@ -22,8 +22,17 @@ from __future__ import annotations
 import ipaddress
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
+from enum import StrEnum
 
+from testprotocols.deprecation import coerce_enum
 from testprotocols.models import L3Rule, RuleAction, RuleProtocol
+
+
+class DenyScope(StrEnum):
+    """How wide a deny rule built by :func:`build_deny_rule` matches."""
+
+    HOST = "host"
+    SUBNET = "subnet"
 
 
 @dataclass(frozen=True)
@@ -86,8 +95,8 @@ def select_roles(candidates: Sequence[SpokeCandidate], source_mx_model: str) -> 
 
 def build_deny_rule(
     *,
-    scope: str,
-    proto: str,
+    scope: DenyScope | str,
+    proto: RuleProtocol | str,
     source_subnet: str,
     source_host: str,
     dest_subnet: str,
@@ -97,22 +106,24 @@ def build_deny_rule(
 ) -> L3Rule:
     """Build the directional source->destination deny rule for a rule shape.
 
-    *scope* selects the match width: ``"host"`` denies a single ``/32`` host
-    pair (built from *source_host* / *dest_host*); ``"subnet"`` denies the whole
-    *source_subnet* -> *dest_subnet*. *proto* is a ``RuleProtocol`` value
-    (``"icmp"`` / ``"tcp"`` / ``"udp"`` / ``"any"``). ``syslog_enabled`` defaults
-    on so the denial is auditable (Success Guarantee 2).
+    *scope* is a :class:`DenyScope` and selects the match width: ``HOST`` denies a
+    single ``/32`` host pair (built from *source_host* / *dest_host*); ``SUBNET``
+    denies the whole *source_subnet* -> *dest_subnet*. *proto* is a
+    ``RuleProtocol``. A plain string naming a member (``"host"``, ``"icmp"``) is
+    deprecated: it warns and is converted; any other string raises ``ValueError``
+    listing the legal values. ``syslog_enabled`` defaults on so the denial is
+    auditable (Success Guarantee 2).
     """
-    if scope == "host":
+    width = coerce_enum(DenyScope, scope, what="scope")
+    protocol = coerce_enum(RuleProtocol, proto, what="proto")
+    if width is DenyScope.HOST:
         src_cidr, dst_cidr = f"{source_host}/32", f"{dest_host}/32"
-    elif scope == "subnet":
-        src_cidr, dst_cidr = source_subnet, dest_subnet
     else:
-        raise ValueError(f"unknown rule scope {scope!r} (expected 'host' or 'subnet')")
+        src_cidr, dst_cidr = source_subnet, dest_subnet
 
     return L3Rule(
         action=RuleAction.DENY,
-        protocol=RuleProtocol(proto),
+        protocol=protocol,
         src_cidr=src_cidr,
         dst_cidr=dst_cidr,
         comment=comment,

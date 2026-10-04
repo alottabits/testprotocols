@@ -236,6 +236,15 @@ where one exists, also records its retype.
   `object` (`dict[str, object]`). A `Mapping` parameter would be the wider type, but
   a protocol parameter wider than an implementer's `dict` parameter makes the
   implementer fail to conform statically, so the parameter stays a `dict`.
+- **Segmentation deny scope** (shape 1, `testoperations`). `build_deny_rule(scope,
+  proto)` takes `DenyScope | str` (`DenyScope`: `HOST`, `SUBNET`, defined in
+  `testoperations.segmentation`) and `RuleProtocol | str`; both are coerced once at
+  the top with `coerce_enum`, so a bad word raises before a rule is built. The
+  released text accepted `"host"`, `"subnet"` and a `RuleProtocol` value, all of which
+  still work and now warn. The released ``ValueError`` for an unknown scope read
+  `unknown rule scope 'vlan' (expected 'host' or 'subnet')`; it now reads
+  `scope: 'vlan' is not one of ['host', 'subnet']` (same exception type, still names
+  `scope`).
 
 ## Effective now
 
@@ -314,3 +323,5 @@ Each lands in a later release with its own breaking changelog entry:
   `VPNPeerStatus` and `TrafficShapingRule` are removed.
 - `QosRule.match` is removed.
 - `Router.get_telemetry` and `SdwanPolicyManager.apply_policy` are removed.
+- `build_deny_rule(scope, proto)` narrows from `DenyScope | str` and
+  `RuleProtocol | str` to the enums.

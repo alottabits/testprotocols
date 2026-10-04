@@ -321,7 +321,26 @@ their tags and PR history.
 
 ### testoperations
 
-- no entries yet
+#### Added
+
+- **enum** `testoperations.segmentation:DenyScope` (`HOST`, `SUBNET`) — how wide
+  a deny rule built by `build_deny_rule` matches. Migration: pass the member. Design `docs/architecture/precise-types-design.md` (testoperations: segmentation); PR pending.
+
+#### Changed
+
+- **operation** `testoperations.segmentation:build_deny_rule` — `scope` is now
+  `DenyScope | str` and `proto` `RuleProtocol | str` (shape 1). A plain string
+  naming a member warns (`DeprecationWarning`) and converts. The error for an
+  unknown scope changes: it is the `coerce_enum` `ValueError` (`scope: 'vlan' is
+  not one of ['host', 'subnet']`), still naming `scope`; an unknown `proto` is the
+  same kind of `ValueError`, naming `proto`. Migration: pass `DenyScope` and
+  `RuleProtocol` members. Design `docs/architecture/precise-types-design.md` (testoperations: segmentation); PR pending.
+
+#### Deprecated
+
+- **parameters** `build_deny_rule(scope, proto)` — a plain `str` naming a member
+  (`"host"`, `"icmp"`) is deprecated: it warns and is converted. The annotations
+  narrow to `DenyScope` and `RuleProtocol` in a later release. Design `docs/architecture/precise-types-design.md` (testoperations: segmentation); PR pending.
 
 ## [0.12.1] — 2026-09-09
 
