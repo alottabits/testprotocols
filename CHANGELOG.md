@@ -233,6 +233,45 @@ their tags and PR history.
   also be `None` (no value reported), which carries no raw word; used by
   `QoEResult.protocol`. Not public API. Migration: none. Design `docs/architecture/precise-types-design.md` (Host-tool and service vocabularies); PR pending.
 
+- **models** `testprotocols.models:UrlRules` (`allowed`, `blocked`; `as_tuple()`),
+  `MemoryUtilization` (`total_bytes`, `used_bytes`, `free_bytes`, optional `shared_bytes`,
+  `cache_bytes`, `available_bytes`; `as_dict()`), `ProcessInfo` (`pid`, `tty`, `cpu_time:
+  timedelta`, `command`; `as_dict()`), `EventLogEntry` (`timestamp` text, `hostname`, `tag`,
+  `message`, `priority`; `severity`; `as_dict()`), `DnsRecord` (`name`, `record_type`, `ttl`,
+  `data`, `record_type_raw`), `IperfProcess` (`pid`, `log_file`; `as_tuple()`), `PingResult`
+  (`destination`, `transmitted`, `received`, `packet_loss_percent`, `duplicates`, `rtt_*_ms`),
+  `NmapResult` (`up`, `addresses`, `ports`) and `NmapPort` (`port`, `protocol:
+  TransportProtocol`, `state`, `service`), `ArpEntry` (`address: IPv4Address`, `hw_type`,
+  `hw_address`, `flags`, `interface`) — frozen records for the host-tier readers; a wrong type
+  raises `TypeError`, an out-of-range value `ValueError`. `as_dict()` / `as_tuple()` give
+  exactly what the deprecated reader returned (keys, value types, text formats: memory in
+  bytes, the procps `[DD-]hh:mm:ss` time, the syslog keys `priority`, `date`, `hostname`,
+  `tag`, `content`). Migration: none. Design `docs/architecture/precise-types-design.md` (Host-tier records); PR pending.
+- **enums** `testprotocols.models:SyslogSeverity` (`IntEnum`, RFC 5424 severities 0 to 7),
+  `NmapPortState` (nmap's six port states: `open`, `closed`, `filtered`, `unfiltered`,
+  `open|filtered`, `closed|filtered`) and the member `DnsRecordType.OTHER` (a read-back value
+  for an answer record of a type the enum does not name; its name is in
+  `DnsRecord.record_type_raw`). Migration: none. Design `docs/architecture/precise-types-design.md` (Host-tier records); PR pending.
+- **models and functions** `testprotocols.models:Blackout`, `Brownout(latency_ms, jitter_ms,
+  loss_percent)`, `LatencySpike(latency_ms, jitter_ms)`, `PacketStorm(loss_percent, latency_ms,
+  jitter_ms, duplicate_percent)`, the union `TransientEvent`, and `transient_event(event,
+  **kwargs)` — the typed transient impairment events (every field optional: `None` is the
+  driver's default; `event_name` and `as_kwargs()` give the released `inject_transient` word
+  and keywords, a spike's latency being `spike_latency_ms` there) and the converter from a
+  released call (an unknown event or keyword raises `ValueError`). Migration: none. Design `docs/architecture/precise-types-design.md` (Host-tier records); PR pending.
+- **functions** `testprotocols.models:coerce_impairment_profile(profile, *, what)`,
+  `group_records(records, *, what)` and `parse_window_size(text)` — a driver's converters:
+  a netem `dict` profile to `ImpairmentProfile` (warns), plain group-record tuples to
+  `GroupRecord` (warns), and an iperf size (`"8M"`, binary units) to bytes (`ValueError` for
+  text that is not a size). Migration: none. Design `docs/architecture/precise-types-design.md` (Host-tier records); PR pending.
+- **internal module** `testprotocols.models._checks` — the field checks the frozen records
+  share (`TypeError` for a wrong type, `ValueError` out of range; a `bool` is never a number);
+  the voice records use it too. Not public API. Migration: none. Design `docs/architecture/precise-types-design.md` (Host-tier records); PR pending.
+- **model** `testprotocols.models:GroupRecord(sources, group, record_type)` — a `NamedTuple`,
+  so it is the released `(sources, group, record_type)` tuple and fits the released
+  `MulticastGroupRecord` parameter type; a wrong type raises `TypeError`. Migration: none.
+  Design `docs/architecture/precise-types-design.md` (Host-tier records); PR pending.
+
 #### Breaking for driver authors
 
 - **protocol members** `testprotocols.packet_filter:PacketFilter.get_rule_counter_values(chain, name) -> RuleCounters`
@@ -261,6 +300,27 @@ their tags and PR history.
   — new mandatory member: True when the interface is administratively up (the state
   `set_link_state` sets), whether or not a carrier is present. Migration: implement it
   (a Linux host reads the `UP` flag of `ip link show`). Design `docs/architecture/precise-types-design.md` (Host-tool and service vocabularies); PR pending.
+
+- **protocol members** `ContentFiltering.read_url_rules() -> UrlRules`,
+  `DeviceManagement.read_memory_utilization() -> MemoryUtilization`,
+  `read_running_processes() -> list[ProcessInfo]` and `read_event_log() -> list[EventLogEntry]`,
+  `DnsClient.resolve(domain_name, record_type: DnsRecordType) -> list[DnsRecord]`,
+  `IperfClient.start_sender_session(host, traffic_port, *, ..., window_bytes) -> IperfProcess`,
+  `IperfServer.start_receiver_session(traffic_port, *, ...) -> IperfProcess`,
+  `IpRouting.ping_stats(ping_ip, ping_count, ping_interface, timeout) -> PingResult`,
+  `NmapScanner.scan(target, ip_version: IpVersion, *, ports, protocol, max_retries, min_rate,
+  timeout) -> NmapResult`, `ArpClient.read_arp_table() -> list[ArpEntry]`,
+  `NtpClient.read_date() -> datetime | None` and `NetemController.inject_event(event:
+  TransientEvent, duration_ms)` — new mandatory members. The iperf pair has two names because
+  one class implements both protocols; the window is `window_bytes` (bytes) on the new member
+  only. The new members take no free tool-option string. Migration: implement them; make
+  `get_url_rules`, `get_memory_utilization`, `read_event_logs`, `start_traffic_sender` /
+  `start_traffic_receiver` warn with `warn_renamed(old, new)` and return the record's
+  `as_tuple()` / `as_dict()` (a list of `as_dict()` for the event log, and for
+  `get_running_processes` with the default `"-A"`); make `inject_transient` warn and call
+  `inject_event(transient_event(event, **kwargs), duration_ms)`. `dns_lookup`,
+  `ping(json_output=True)`, `nmap`, `get_arp_table` and `get_date` keep their released output
+  (a tool's full parse or device text, which the records cannot rebuild) and warn. Design `docs/architecture/precise-types-design.md` (Host-tier records); PR pending.
 
 #### Changed
 
@@ -419,6 +479,17 @@ their tags and PR history.
   (`HttpServer` `port`, `ip_version`, `UpnpClient` `int_port` / `ext_port`, `VlanClient`
   `vlan_id`) and `IpRouting.traceroute(version)` stay `str`, because released implementers
   declare `str`; they are documented and their narrowing is announced. Design `docs/architecture/precise-types-design.md` (Host-tool and service vocabularies); PR pending.
+- **protocol members** `NetemController.set_impairment_profile` / `set_interface_profile`
+  (`profile: ImpairmentProfile | dict[str, object]`, was `dict[str, Any]`) and
+  `DhcpServer.provision_cpe` (`dhcpv4_options` / `dhcpv6_options: dict[str, dict[str, object]]`,
+  was `dict[str, Any]`: a service-pool name to an option-name map, as the released implementer
+  reads them) — no `Any`; static only: a caller's loosely typed dict variable no longer
+  type-checks, and an implementer declaring `dict` or `dict[str, Any]` still conforms.
+  `HeldPrefixes.hold(address)` stays `str` (released implementers declare `str`). Design `docs/architecture/precise-types-design.md` (Host-tier records); PR pending.
+- **models** `DHCPTraceData.dhcp_packet` and `DHCPV6TraceData.dhcpv6_packet` —
+  `Mapping[str, object]` (was `dict[str, Any]`): a decoder's nested bag with no fixed typed
+  shape; static only, a reader narrows each value it uses. Design `docs/architecture/precise-types-design.md` (Host-tier records); PR pending.
+
 #### Deprecated
 
 - **parameters and fields** `PacketFilter` (`chain`, `set_default_policy(policy)`),
@@ -525,12 +596,29 @@ their tags and PR history.
   `eap_methods_known` and `eap_methods_unknown`. Design `docs/architecture/precise-types-design.md` (Host-tool and service vocabularies); PR pending.
 - **fields** `MeasurementSpec`, `TrafficSpec`, `RadiusAccountingRecord` as above: a plain
   `str` for a typed field is deprecated; the annotations narrow to the enums later. Design `docs/architecture/precise-types-design.md` (Host-tool and service vocabularies); PR pending.
+- **protocol members** `ContentFiltering.get_url_rules`, `DeviceManagement.get_memory_utilization`,
+  `get_running_processes` and `read_event_logs`, `DnsClient.dns_lookup`,
+  `IperfClient.start_traffic_sender`, `IperfServer.start_traffic_receiver`,
+  `NmapScanner.nmap`, `ArpClient.get_arp_table`, `NtpClient.get_date` and
+  `NetemController.inject_transient` — deprecated names of the new members (see *Breaking for
+  driver authors*); they keep their released signatures and returns until a later release
+  removes them. `IpRouting.ping(json_output=True)` is deprecated: use `ping_stats`. Design `docs/architecture/precise-types-design.md` (Host-tier records); PR pending.
+- **parameters** the netem `profile` as a `dict` (use `ImpairmentProfile`; the driver converts
+  with `coerce_impairment_profile`, which warns) and a plain tuple in `send_mldv2_report`'s
+  records (use `GroupRecord`; the driver converts with `group_records`, which warns). The
+  `profile` annotation narrows to `ImpairmentProfile` and the records to
+  `Sequence[GroupRecord]` in a later release; `HeldPrefixes.hold` / `release` narrow to
+  `IPv4Interface | IPv6Interface` (announced only). Design `docs/architecture/precise-types-design.md` (Host-tier records); PR pending.
+
 ### testoperations
 
 #### Added
 
 - **enum** `testoperations.segmentation:DenyScope` (`HOST`, `SUBNET`) — how wide
   a deny rule built by `build_deny_rule` matches. Migration: pass the member. Design `docs/architecture/precise-types-design.md` (testoperations: segmentation); PR pending.
+- **parameter** `testoperations.netem_controller:inject_packet_storm(loss_percent=None)` —
+  keyword-only: the share of packets lost during the storm, which the released drivers apply
+  for a packet storm. Migration: none. Design `docs/architecture/precise-types-design.md` (Host-tier records); PR pending.
 
 #### Changed
 
@@ -545,6 +633,14 @@ their tags and PR history.
   `TransportProtocol | str` (default `UDP`) and converts it at its boundary with `coerce_enum`:
   a plain `"udp"` / `"tcp"` warns at the caller; any other word is a `ValueError`. Migration:
   pass `TransportProtocol`. Design `docs/architecture/precise-types-design.md` (Host-tool and service vocabularies); PR pending.
+- **operations** `testoperations.throughput:measure_concurrent_throughput` and
+  `measure_external_flow` (and the operations built on them), `testoperations.netem_controller`
+  `inject_blackout`, `inject_brownout`, `inject_latency_spike`, `inject_packet_storm` and
+  `testoperations.sdwan:measure_failover_convergence` — call the new member names
+  (`start_sender_session` with the window in bytes, `start_receiver_session`, `inject_event`)
+  through `testoperations._renamed`, falling back to the released names; a driver with only
+  the released names receives exactly the released call. With a new-name driver, a flow
+  `window` that is not an iperf size raises `ValueError` before anything starts. Design `docs/architecture/precise-types-design.md` (Host-tier records); PR pending.
 
 #### Deprecated
 
@@ -559,6 +655,11 @@ their tags and PR history.
   command takes `-4` / `-6`. The default is now `"4"` and `ip_version` is documented as `"4"`
   or `"6"`. A caller that passed `"ipv4"` / `"ipv6"` explicitly reaches the same bug and
   should pass `"4"` / `"6"`. Design `docs/architecture/precise-types-design.md` (Host-tool and service vocabularies); PR pending.
+- **operations** `testoperations.netem_controller:inject_latency_spike(latency_ms)` and
+  `inject_packet_storm(duplicate_percent)` — the released drivers read a spike's latency as
+  `spike_latency_ms` and a storm's `loss_percent`, so both values were ignored. With a driver
+  that implements `inject_event` they now take effect; an old-name driver still receives the
+  released call (and still ignores them). Design `docs/architecture/precise-types-design.md` (Host-tier records); PR pending.
 
 ## [0.12.1] — 2026-09-09
 
