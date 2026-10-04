@@ -21,7 +21,8 @@ from __future__ import annotations
 
 from typing import Protocol, runtime_checkable
 
-from testprotocols.models.firewall import Connection, ConntrackStats
+from testprotocols.models.firewall import Connection, ConnState, ConntrackStats
+from testprotocols.models.sdwan_appliance import RuleProtocol
 
 
 @runtime_checkable
@@ -39,30 +40,36 @@ class Conntrack(Protocol):
     def list_connections(
         self,
         *,
-        protocol: str | None = None,
+        protocol: RuleProtocol | str | None = None,
         src_ip: str | None = None,
         dst_ip: str | None = None,
         dst_port: int | None = None,
-        state: str | None = None,
+        state: ConnState | str | None = None,
     ) -> list[Connection]:
         """Return tracked flows, optionally filtered.
 
-        Filters compose with AND. *protocol*, when set, must be one of
-        ``"tcp"``, ``"udp"``, ``"icmp"`` — raises ValueError otherwise.
-        Empty list when no flow matches.
+        Filters compose with AND. *protocol*, when set, is a
+        :class:`~testprotocols.models.RuleProtocol` naming a transport the device
+        tracks (``tcp``, ``udp``, ``icmp``; ``icmp6`` where tracked) — raises
+        ValueError otherwise, and for ``any``, which is no flow's transport. A
+        plain ``str`` is deprecated: a driver coerces it with ``coerce_enum``
+        (it warns). *state*, when set, is a :class:`~testprotocols.models.ConnState`;
+        the set is open, so a driver coerces it with ``coerce_open_enum`` and a
+        word that names no member (``OTHER`` plus the raw word) matches flows whose
+        ``state_raw`` equals that word. Empty list when no flow matches.
         """
         ...
 
     def count_connections(
         self,
         *,
-        protocol: str | None = None,
-        state: str | None = None,
+        protocol: RuleProtocol | str | None = None,
+        state: ConnState | str | None = None,
     ) -> int:
         """Return the number of tracked flows matching the optional filters.
 
-        *protocol*, when set, must be one of ``"tcp"``, ``"udp"``,
-        ``"icmp"`` — raises ValueError otherwise. Cheaper than
+        *protocol* and *state* are as for ``list_connections``; *protocol* raises
+        ValueError when it is not a tracked transport. Cheaper than
         ``len(list_connections(...))`` on drivers that can ask the
         kernel directly.
         """
@@ -70,7 +77,7 @@ class Conntrack(Protocol):
 
     def get_connection(
         self,
-        protocol: str,
+        protocol: RuleProtocol | str,
         src_ip: str,
         dst_ip: str,
         src_port: int | None,
@@ -78,6 +85,7 @@ class Conntrack(Protocol):
     ) -> Connection:
         """Return the tracked flow exactly matching the supplied 5-tuple.
 
+        *protocol* is a ``RuleProtocol`` (a plain ``str`` is deprecated).
         *src_port* / *dst_port* are ``None`` for ICMP.
 
         Raises KeyError if no flow matches.
@@ -88,7 +96,7 @@ class Conntrack(Protocol):
 
     def drop_connection(
         self,
-        protocol: str,
+        protocol: RuleProtocol | str,
         src_ip: str,
         dst_ip: str,
         src_port: int | None,
@@ -96,6 +104,7 @@ class Conntrack(Protocol):
     ) -> None:
         """Drop the tracked flow exactly matching the supplied 5-tuple.
 
+        *protocol* is a ``RuleProtocol`` (a plain ``str`` is deprecated).
         *src_port* / *dst_port* are ``None`` for ICMP.
 
         Raises KeyError if no flow matches.

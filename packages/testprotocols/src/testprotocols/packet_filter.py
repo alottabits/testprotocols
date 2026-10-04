@@ -24,7 +24,7 @@ from __future__ import annotations
 
 from typing import Protocol, runtime_checkable
 
-from testprotocols.models.firewall import FirewallRule
+from testprotocols.models.firewall import Chain, DefaultAction, FirewallRule
 
 
 @runtime_checkable
@@ -35,15 +35,18 @@ class PacketFilter(Protocol):
 
     def add_rule(
         self,
-        chain: str,
+        chain: Chain | str,
         rule: FirewallRule,
         position: int | None = None,
     ) -> None:
         """Insert *rule* into *chain* at *position*.
 
-        *chain* is one of ``"INPUT"``, ``"OUTPUT"``, ``"FORWARD"``.
-        *position* is 1-based: ``1`` inserts at the top, ``None`` appends
-        at the end.
+        *chain* is a :class:`~testprotocols.models.Chain` (``INPUT``, ``OUTPUT``,
+        ``FORWARD``); a plain ``str`` naming one is deprecated and, like every
+        other *chain* parameter here, a driver coerces it once with
+        ``coerce_enum(Chain, chain, what=...)`` before any device I/O (it warns;
+        an unknown string raises ``ValueError``). *position* is 1-based: ``1``
+        inserts at the top, ``None`` appends at the end.
 
         Raises ValueError if *chain* is unknown, if a rule named
         ``rule.name`` already exists in *chain*, or if *position* is
@@ -51,7 +54,7 @@ class PacketFilter(Protocol):
         """
         ...
 
-    def remove_rule(self, chain: str, name: str) -> None:
+    def remove_rule(self, chain: Chain | str, name: str) -> None:
         """Remove the rule identified by *name* from *chain*.
 
         Raises ValueError if *chain* is unknown.
@@ -59,14 +62,14 @@ class PacketFilter(Protocol):
         """
         ...
 
-    def list_rules(self, chain: str) -> list[FirewallRule]:
+    def list_rules(self, chain: Chain | str) -> list[FirewallRule]:
         """Return all rules currently installed in *chain*, in evaluation order.
 
         Raises ValueError if *chain* is unknown.
         """
         ...
 
-    def get_rule(self, chain: str, name: str) -> FirewallRule:
+    def get_rule(self, chain: Chain | str, name: str) -> FirewallRule:
         """Return the rule identified by *name* in *chain*.
 
         Raises ValueError if *chain* is unknown.
@@ -74,7 +77,7 @@ class PacketFilter(Protocol):
         """
         ...
 
-    def flush_chain(self, chain: str) -> None:
+    def flush_chain(self, chain: Chain | str) -> None:
         """Remove every rule from *chain*. Default policy is unchanged.
 
         Raises ValueError if *chain* is unknown.
@@ -83,17 +86,24 @@ class PacketFilter(Protocol):
 
     # --- Default policy ---
 
-    def set_default_policy(self, chain: str, policy: str) -> None:
+    def set_default_policy(self, chain: Chain | str, policy: DefaultAction | str) -> None:
         """Set the default action for traffic on *chain* that matches no rule.
 
-        *policy* is one of ``"accept"``, ``"drop"``, ``"reject"``.
-        Raises ValueError if *chain* is unknown or *policy* is not
-        a valid value.
+        *policy* is a :class:`~testprotocols.models.DefaultAction` (``accept``,
+        ``drop``, ``reject``); a plain ``str`` naming one is deprecated: a driver
+        coerces it with ``coerce_enum`` (it warns). Raises ValueError if
+        *chain* is unknown or *policy* is not a valid value.
         """
         ...
 
-    def get_default_policy(self, chain: str) -> str:
+    def get_default_policy(self, chain: Chain | str) -> str:
         """Return the current default policy of *chain*.
+
+        Deprecated return type: the result is a ``str`` (``"accept"``,
+        ``"drop"``, ``"reject"``) today and narrows to
+        :class:`~testprotocols.models.DefaultAction` in a later release; a
+        ``DefaultAction`` is a ``str``, so a caller that compares with the plain
+        words keeps working. A driver may already return the member.
 
         Raises ValueError if *chain* is unknown.
         """
@@ -101,7 +111,7 @@ class PacketFilter(Protocol):
 
     # --- Counters ---
 
-    def get_rule_counters(self, chain: str, name: str) -> tuple[int, int]:
+    def get_rule_counters(self, chain: Chain | str, name: str) -> tuple[int, int]:
         """Return ``(packets, bytes)`` matched by the rule since it was added.
 
         Raises ValueError if *chain* is unknown.

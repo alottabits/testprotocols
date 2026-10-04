@@ -41,7 +41,9 @@ class Firewall(PacketFilter, Protocol):
 
         Raises ValueError on a duplicate ``mapping.name``, on
         *external_port* / *internal_port* outside ``1..65535``, or on
-        *protocol* not in ``{"tcp", "udp", "tcp-udp"}``.
+        *mapping.protocol* that is not a
+        :class:`~testprotocols.models.PortMappingProtocol` (``tcp``, ``udp``,
+        ``tcp-udp``; the record converts a plain string and warns).
         """
         ...
 

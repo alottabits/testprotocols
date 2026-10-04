@@ -108,3 +108,42 @@ per pair and calls `settle` from `__post_init__` and `assign` from
   `settle` raises `TypeError` otherwise.
 - Text is kept in its canonical form, so two records that agree compare equal
   whichever side built them.
+
+## Retypes
+
+Each retype that has landed, with its shape. A capability's own design document,
+where one exists, also records its retype.
+
+- **Firewall, NAT and conntrack vocabularies** (shapes 1, 3, 3o and 6). Five
+  enums in `testprotocols.models`: `Chain` (`INPUT`, `OUTPUT`, `FORWARD`),
+  `FirewallRuleAction` (`allow`, `deny`, `reject`, `log`), `NatMode` (`snat`,
+  `dnat`, `1to1`), `PortMappingProtocol` (`tcp`, `udp`, `tcp-udp`) and
+  `ConnState`. A rule's, NAT rule's and connection's transport is the existing
+  `RuleProtocol`; a chain default policy is `DefaultAction`. The `chain`,
+  `policy`, `mode`, `protocol` and `state` parameters of `PacketFilter`, `Nat`
+  and `Conntrack` are `E | str` and a driver coerces once at each member
+  (shape 1). The four closed vocabularies on `FirewallRule`, `NatRule`,
+  `PortMapping` and `Connection` are shape 3: the records are mutable, so the
+  coercion is a `__setattr__`, and a plain string warns while an unknown one
+  raises `ValueError`. `ConnState` is open (shape 3o): the released contract
+  listed nine TCP states, `UNREPLIED` and `ASSURED`, "or driver-specific
+  values", so it has those members plus `OTHER`, and `Connection.state_raw`
+  holds the device's own word when the state is `OTHER`. An unknown word never
+  raises and never warns; a named plain string warns (in either letter case,
+  because the released text spelled the states in upper case; the new values
+  are lower case). The pair stays consistent: assigning a member clears the raw
+  word, assigning an unknown string sets it, and assigning a raw word to a
+  named state raises `ValueError` (`replace` drops the old raw word of a
+  changed state). A `state` filter with an unknown word matches flows whose
+  `state_raw` equals it. A conntrack `protocol` filter of `any` is refused: a
+  flow has one transport. `get_default_policy` keeps returning `str`
+  (shape 6, announced only).
+
+## Pending narrow steps (announced, not yet taken)
+
+Each lands in a later release with its own breaking changelog entry:
+
+- Enum-only parameters and fields: the firewall, NAT and conntrack parameters
+  and fields (`Chain`, `DefaultAction`, `NatMode`, `RuleProtocol`,
+  `FirewallRuleAction`, `PortMappingProtocol`, `ConnState`) narrow from
+  `E | str` to `E`; `get_default_policy` narrows to `DefaultAction`.

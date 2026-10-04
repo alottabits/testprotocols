@@ -22,7 +22,7 @@ from __future__ import annotations
 
 from typing import Protocol, runtime_checkable
 
-from testprotocols.models.firewall import NatRule
+from testprotocols.models.firewall import NatMode, NatRule
 
 
 @runtime_checkable
@@ -34,11 +34,11 @@ class Nat(Protocol):
     def add_nat_rule(self, rule: NatRule) -> None:
         """Install a NAT rule.
 
-        Validates that *rule.mode* is one of ``"snat"``, ``"dnat"``,
-        ``"1to1"`` and that the per-mode field invariants hold (see
+        Validates that *rule.mode* is a :class:`~testprotocols.models.NatMode`
+        (``snat``, ``dnat``, ``1to1``) and that the per-mode field invariants hold (see
         ``NatRule`` docstring). Raises ValueError on a duplicate
         ``rule.name``, on an unknown mode, or on mode/field
-        inconsistency (e.g. *translated_src* set with ``mode="dnat"``).
+        inconsistency (e.g. *translated_src* set with ``mode=NatMode.DNAT``).
         """
         ...
 
@@ -49,12 +49,13 @@ class Nat(Protocol):
         """
         ...
 
-    def list_nat_rules(self, mode: str | None = None) -> list[NatRule]:
+    def list_nat_rules(self, mode: NatMode | str | None = None) -> list[NatRule]:
         """Return installed NAT rules, optionally filtered by *mode*.
 
-        *mode* is one of ``None`` (all), ``"snat"``, ``"dnat"``,
-        ``"1to1"``. Raises ValueError if *mode* is set but not one of
-        the recognized values.
+        *mode* is ``None`` (all) or a :class:`~testprotocols.models.NatMode`. A
+        plain ``str`` naming one is deprecated: a driver coerces it with
+        ``coerce_enum(NatMode, mode, what=...)`` (it warns). Raises ValueError
+        if *mode* is set but not one of the recognized values.
         """
         ...
 

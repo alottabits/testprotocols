@@ -10,6 +10,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import StrEnum
+from typing import cast, override
+
+from testprotocols.deprecation import MODEL_FRAMES, coerce_enum
+from testprotocols.models._open_enum import OpenEnumField
+from testprotocols.models.sdwan_appliance import RuleProtocol
 
 
 class DefaultAction(StrEnum):
@@ -20,6 +25,86 @@ class DefaultAction(StrEnum):
     REJECT = "reject"
 
 
+class Chain(StrEnum):
+    """A packet-filter chain: the path a packet takes through the device."""
+
+    INPUT = "INPUT"
+    OUTPUT = "OUTPUT"
+    FORWARD = "FORWARD"
+
+
+class FirewallRuleAction(StrEnum):
+    """What a packet-filter rule does with a matching packet."""
+
+    ALLOW = "allow"
+    DENY = "deny"
+    REJECT = "reject"
+    LOG = "log"
+
+
+class NatMode(StrEnum):
+    """The translation a NAT rule performs."""
+
+    SNAT = "snat"
+    DNAT = "dnat"
+    ONE_TO_ONE = "1to1"
+
+
+class PortMappingProtocol(StrEnum):
+    """The transport a port mapping forwards."""
+
+    TCP = "tcp"
+    UDP = "udp"
+    TCP_UDP = "tcp-udp"
+
+
+class ConnState(StrEnum):
+    """The state of a tracked connection. The set is open: ``OTHER`` stands for a
+    state this enum does not name, and the device's own word is kept in
+    ``Connection.state_raw``.
+
+    The TCP states and the two datagram states (``UNREPLIED``, ``ASSURED``) are the
+    ones the released contract named. The values are lower case; a released upper
+    case spelling (``"ESTABLISHED"``) still names its member.
+    """
+
+    SYN_SENT = "syn_sent"
+    SYN_RECV = "syn_recv"
+    ESTABLISHED = "established"
+    FIN_WAIT = "fin_wait"
+    CLOSE_WAIT = "close_wait"
+    LAST_ACK = "last_ack"
+    TIME_WAIT = "time_wait"
+    CLOSE = "close"
+    LISTEN = "listen"
+    UNREPLIED = "unreplied"
+    ASSURED = "assured"
+    OTHER = "other"
+
+
+_STATE = OpenEnumField(ConnState, ConnState.OTHER, "state", "state_raw", casefold=True)
+
+_RULE_ENUMS: dict[str, type[StrEnum]] = {"action": FirewallRuleAction, "protocol": RuleProtocol}
+_NAT_ENUMS: dict[str, type[StrEnum]] = {"mode": NatMode, "protocol": RuleProtocol}
+_MAPPING_ENUMS: dict[str, type[StrEnum]] = {"protocol": PortMappingProtocol}
+_CONN_ENUMS: dict[str, type[StrEnum]] = {"protocol": RuleProtocol}
+
+
+def _set(
+    obj: object, owner: str, name: str, value: object, enums: dict[str, type[StrEnum]]
+) -> None:
+    """Assign *name* on *obj*, converting it first when it is one of *enums*' fields."""
+    enum_type = enums.get(name)
+    if enum_type is not None:
+        value = coerce_enum(
+            enum_type,
+            cast("StrEnum | str", value),
+            what=f"{owner}.{name}",
+            skip_file_prefixes=MODEL_FRAMES,
+        )
+    object.__setattr__(obj, name, value)
+
+
 @dataclass
 class FirewallRule:
     """Holds a stateless or stateful packet-filter rule with match criteria and action.
@@ -28,16 +113,19 @@ class FirewallRule:
     rule lists). The IPv4 / IPv6 split is not a contract dimension
     — each rule's address family is inferred from its CIDR fields.
 
-    *action* is one of ``"allow"``, ``"deny"``, ``"reject"``, ``"log"``.
-    *protocol* is one of ``"tcp"``, ``"udp"``, ``"icmp"``, ``"any"``.
+    *action* is a :class:`FirewallRuleAction` (``allow``, ``deny``, ``reject``,
+    ``log``) and *protocol* a :class:`~testprotocols.models.RuleProtocol`
+    (``tcp``, ``udp``, ``icmp``, ``any``; also ``icmp6``). A plain ``str`` naming
+    one is deprecated: it warns and is converted, also on assignment, so a reader
+    always holds the enum. Any other string raises ``ValueError``.
     *dst_port* is a port number, a range like ``"1024-65535"``, or ``"any"``.
     *application* / *application_category* are L7 classifiers used by
     SD-WAN policy; they are ignored by simple packet-filter drivers.
     """
 
     name: str
-    action: str
-    protocol: str
+    action: FirewallRuleAction | str
+    protocol: RuleProtocol | str
     src_cidr: str
     dst_cidr: str
     dst_port: str
@@ -45,12 +133,21 @@ class FirewallRule:
     application_category: str | None = None
     log: bool = True
 
+    @override
+    def __setattr__(self, name: str, value: object) -> None:
+        # Mutable model: the coercion runs on every assignment, and the generated
+        # ``__init__`` (hence ``dataclasses.replace``) assigns through here too.
+        _set(self, "FirewallRule", name, value, _RULE_ENUMS)
+
 
 @dataclass
 class NatRule:
     """A NAT translation rule.
 
-    Three modes are supported via the *mode* discriminator:
+    Three modes are supported via the *mode* discriminator, a :class:`NatMode`
+    (a plain ``str`` naming one is deprecated: it warns and is converted, also on
+    assignment; any other string raises ``ValueError``). *protocol* is a
+    :class:`~testprotocols.models.RuleProtocol`, with the same rule:
 
     - ``"snat"`` — source-NAT (rewrite source on egress). Requires
       *translated_src* (or empty string to fall back to the egress
@@ -69,9 +166,9 @@ class NatRule:
     """
 
     name: str
-    mode: str
+    mode: NatMode | str
     interface: str
-    protocol: str = "any"
+    protocol: RuleProtocol | str = RuleProtocol.ANY
     src_cidr: str = ""
     dst_cidr: str = ""
     dst_port: str = ""
@@ -79,6 +176,10 @@ class NatRule:
     translated_dst: str = ""
     translated_port: str = ""
     enabled: bool = True
+
+    @override
+    def __setattr__(self, name: str, value: object) -> None:
+        _set(self, "NatRule", name, value, _NAT_ENUMS)
 
 
 @dataclass
@@ -90,7 +191,9 @@ class PortMapping:
     UPnP-IGD / PCP entry, or a vendor port-forward CLI — tests never
     need to know which.
 
-    *protocol* is one of ``"tcp"``, ``"udp"``, ``"tcp-udp"``.
+    *protocol* is a :class:`PortMappingProtocol` (``tcp``, ``udp``,
+    ``tcp-udp``). A plain ``str`` naming one is deprecated: it warns and is
+    converted, also on assignment; any other string raises ``ValueError``.
     *external_interface* of ``None`` means "all external interfaces".
     *src_cidr* may restrict the mapping to a specific source range
     (firewall hardening); the default ``"0.0.0.0/0"`` accepts any source.
@@ -98,13 +201,17 @@ class PortMapping:
 
     name: str
     external_port: int
-    protocol: str
+    protocol: PortMappingProtocol | str
     internal_host: str
     internal_port: int
     external_interface: str | None = None
     src_cidr: str = "0.0.0.0/0"
     description: str = ""
     enabled: bool = True
+
+    @override
+    def __setattr__(self, name: str, value: object) -> None:
+        _set(self, "PortMapping", name, value, _MAPPING_ENUMS)
 
 
 @dataclass
@@ -115,24 +222,33 @@ class Connection:
     the original direction; *bytes_reply* / *packets_reply* count the
     reverse path.
 
-    *state* is protocol-specific:
+    *protocol* is a :class:`~testprotocols.models.RuleProtocol` (never ``ANY``:
+    a flow has one transport). *state* is a :class:`ConnState`, protocol-specific:
 
-    - TCP: ``"SYN_SENT"``, ``"SYN_RECV"``, ``"ESTABLISHED"``,
-      ``"FIN_WAIT"``, ``"CLOSE_WAIT"``, ``"LAST_ACK"``, ``"TIME_WAIT"``,
-      ``"CLOSE"``, ``"LISTEN"``.
-    - UDP / ICMP / other: ``"UNREPLIED"``, ``"ASSURED"``, or
-      driver-specific values.
+    - TCP: ``SYN_SENT``, ``SYN_RECV``, ``ESTABLISHED``, ``FIN_WAIT``,
+      ``CLOSE_WAIT``, ``LAST_ACK``, ``TIME_WAIT``, ``CLOSE``, ``LISTEN``.
+    - UDP / ICMP / other: ``UNREPLIED``, ``ASSURED``, or a driver-specific
+      state, which is ``OTHER`` with the device's own word in *state_raw*.
+
+    The set is open, so an unknown string is not an error: it becomes ``OTHER``
+    plus *state_raw*, without a warning. A plain ``str`` naming a member (in
+    either letter case, so a released ``"ESTABLISHED"`` still works) is
+    deprecated: it warns and is converted. *state_raw* is ``None`` unless *state*
+    is ``OTHER``; assigning a member clears it, and assigning an unknown string
+    sets it. Assigning *state_raw* while *state* is a named member raises
+    ``ValueError``. *protocol* follows the same deprecation rule as the other
+    firewall records.
 
     *translated_src* / *translated_dst* are populated (non-None) when NAT
     is altering this flow. *src_port* / *dst_port* are ``None`` for ICMP.
     """
 
-    protocol: str
+    protocol: RuleProtocol | str
     src_ip: str
     dst_ip: str
     src_port: int | None
     dst_port: int | None
-    state: str
+    state: ConnState | str
     timeout_seconds: int
     bytes_orig: int
     bytes_reply: int
@@ -142,6 +258,12 @@ class Connection:
     translated_dst: str | None = None
     mark: int | None = None
     zone: str | None = None
+    state_raw: str | None = None
+
+    @override
+    def __setattr__(self, name: str, value: object) -> None:
+        if not _STATE.assign(self, name, value, "Connection"):
+            _set(self, "Connection", name, value, _CONN_ENUMS)
 
 
 @dataclass

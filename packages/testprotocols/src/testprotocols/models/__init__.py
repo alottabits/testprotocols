@@ -5,12 +5,17 @@ from __future__ import annotations
 from testprotocols.models.dhcp import DhcpLeaseObservation, DHCPTraceData, DHCPV6TraceData
 from testprotocols.models.emission import EmitResult, ReplayResult
 from testprotocols.models.firewall import (
+    Chain,
     Connection,
+    ConnState,
     ConntrackStats,
     DefaultAction,
     FirewallRule,
+    FirewallRuleAction,
+    NatMode,
     NatRule,
     PortMapping,
+    PortMappingProtocol,
     Zone,
     ZonePolicy,
 )
@@ -179,7 +184,9 @@ __all__ = [
     "BgpSessionState",
     "BindingSource",
     "CategoryMatch",
+    "Chain",
     # firewall
+    "ConnState",
     "Connection",
     "ConntrackStats",
     "ContentCategory",
@@ -203,6 +210,7 @@ __all__ = [
     "FhsScope",
     "FhsTrustState",
     "FirewallRule",
+    "FirewallRuleAction",
     "FlowMatch",
     # networking
     "HTTPResult",
@@ -238,6 +246,7 @@ __all__ = [
     "MulticastGroupRecord",
     "MulticastGroupRecordType",
     "NatInboundAllow",
+    "NatMode",
     "NatRule",
     "NtpServer",
     "OneToManyNatRule",
@@ -252,6 +261,7 @@ __all__ = [
     "PortAdminState",
     "PortForwardRule",
     "PortMapping",
+    "PortMappingProtocol",
     "PortMatch",
     "PortMode",
     "PortRange",

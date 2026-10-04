@@ -43,6 +43,19 @@ their tags and PR history.
   that is not a decimal integer and `TypeError` for a `bool`, `float` or other type.
   Migration: none. Design `docs/architecture/precise-types-design.md` (shape 1i);
   PR pending.
+- **enums** `testprotocols.models:Chain` (`INPUT`, `OUTPUT`, `FORWARD`),
+  `FirewallRuleAction` (`ALLOW`, `DENY`, `REJECT`, `LOG`), `NatMode` (`SNAT`,
+  `DNAT`, `ONE_TO_ONE`), `PortMappingProtocol` (`TCP`, `UDP`, `TCP_UDP`) and the
+  open `ConnState` (the nine TCP states, `UNREPLIED`, `ASSURED`, `OTHER`).
+  Migration: none. Design `docs/architecture/precise-types-design.md` (firewall, NAT and conntrack vocabularies); PR pending.
+- **field** `testprotocols.models:Connection.state_raw` — the device's own state
+  word, set only when `state` is `ConnState.OTHER`. Migration: none. Same design
+  section; PR pending.
+- **function** `testprotocols.deprecation:coerce_open_enum` — for an open enum:
+  a member is returned as is, a string naming a member converts with a
+  `DeprecationWarning`, and any other string gives `(other, word)` without a
+  warning; `casefold=True` matches a member in any letter case. Migration: none.
+  Design `docs/architecture/precise-types-design.md` (shape 3o); PR pending.
 - **model and functions** `testprotocols.models:PortRange` (`first`, `last`,
   inclusive, `1 <= first <= last <= 65535` else `ValueError`, a non-int
   `TypeError`; `PortRange.single(port)`), `parse_port_ranges`,
@@ -82,6 +95,47 @@ their tags and PR history.
   raises `TypeError` naming the class (it would silently drop its own fields). Not
   public API; listed because later retypes build on it. Migration: none.
   Design `docs/architecture/precise-types-design.md`; PR pending.
+
+#### Changed
+
+- **protocol members** `testprotocols.packet_filter:PacketFilter` (every `chain`
+  parameter; `set_default_policy(policy)`), `testprotocols.nat:Nat.list_nat_rules(mode)`
+  and `testprotocols.conntrack:Conntrack` (`protocol` on `list_connections`,
+  `count_connections`, `get_connection`, `drop_connection`; `state` on the two
+  filters) — now annotated `Chain | str`, `DefaultAction | str`,
+  `NatMode | str | None`, `RuleProtocol | str` and `ConnState | str | None`. A
+  driver coerces each once at its boundary with `coerce_enum(…, what=…)`; the
+  `state` filter uses `coerce_open_enum`, and a word that names no member
+  filters on `Connection.state_raw`. An unknown chain, policy, mode or
+  protocol raises `ValueError`; a conntrack `protocol` of `any` is refused,
+  because no flow has it. Migration: pass the members; a driver adds the
+  annotations and the coercion. Design `docs/architecture/precise-types-design.md` (firewall, NAT and conntrack vocabularies); PR pending.
+- **models** `testprotocols.models:FirewallRule` (`action`, `protocol`),
+  `NatRule` (`mode`, `protocol`), `PortMapping` (`protocol`) and `Connection`
+  (`protocol`, `state`) — each field is now `Enum | str` and always holds the
+  enum after construction, `replace` and assignment; the enums are
+  `FirewallRuleAction`, `RuleProtocol`, `NatMode`, `PortMappingProtocol` and
+  `ConnState`. `NatRule.protocol` defaults to `RuleProtocol.ANY`. An unknown
+  string raises `ValueError`, except `Connection.state`: the set is open, so an
+  unknown word becomes `ConnState.OTHER` plus `state_raw`, without a warning. A
+  plain string naming a `ConnState` converts in either letter case, so a
+  released `"ESTABLISHED"` keeps working (the member values are lower case).
+  Migration: pass the members. Design `docs/architecture/precise-types-design.md` (firewall, NAT and conntrack vocabularies); PR pending.
+
+#### Deprecated
+
+- **parameters and fields** `PacketFilter` (`chain`, `set_default_policy(policy)`),
+  `Nat.list_nat_rules(mode)`, `Conntrack` (`protocol`, `state`), `FirewallRule.action` /
+  `protocol`, `NatRule.mode` / `protocol`, `PortMapping.protocol` and
+  `Connection.protocol` / `state` — a plain `str` naming a member (`"FORWARD"`,
+  `"drop"`, `"snat"`, `"tcp"`, `"allow"`, `"tcp-udp"`, `"established"`) is
+  deprecated: it warns and is converted. The annotations narrow to the enums in
+  a later release. Use `Chain`, `DefaultAction`, `NatMode`, `RuleProtocol`,
+  `FirewallRuleAction`, `PortMappingProtocol` and `ConnState`. Design `docs/architecture/precise-types-design.md` (firewall, NAT and conntrack vocabularies); PR pending.
+- **return type** `PacketFilter.get_default_policy` — announced only: it returns
+  `str` today and narrows to `DefaultAction` in a later release (a
+  `DefaultAction` is a `str`, so comparisons with the plain words keep working).
+  Design `docs/architecture/precise-types-design.md` (firewall, NAT and conntrack vocabularies); PR pending.
 
 ### testoperations
 

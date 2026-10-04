@@ -5,14 +5,14 @@ from __future__ import annotations
 from unittest.mock import MagicMock, call
 
 from testoperations.firewall import reset_to_factory_default
-from testprotocols.models.firewall import PortMapping
+from testprotocols.models.firewall import PortMapping, PortMappingProtocol
 
 
 def _mapping(name: str) -> PortMapping:
     return PortMapping(
         name=name,
         external_port=80,
-        protocol="tcp",
+        protocol=PortMappingProtocol.TCP,
         internal_host="10.0.0.2",
         internal_port=80,
     )
