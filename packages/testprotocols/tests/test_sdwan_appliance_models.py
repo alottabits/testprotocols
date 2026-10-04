@@ -160,14 +160,15 @@ def test_threat_prevention_vocabularies() -> None:
     assert {s.value for s in IntrusionSensitivity} == {"low", "medium", "high"}
     cfg = IntrusionConfig(mode=IntrusionMode.PREVENTION, sensitivity=IntrusionSensitivity.HIGH)
     assert cfg.mode == "prevention"
-    evt = SecurityEvent(
-        ts="2026-06-11T10:00:00Z",
-        src_ip="10.0.0.5",
-        dst_ip="1.2.3.4",
-        protocol=RuleProtocol.TCP,
-        action=SecurityAction.BLOCKED,
-        category=ThreatCategory.MALWARE,
-    )
+    with pytest.warns(DeprecationWarning, match="SecurityEvent.ts"):  # the released spelling
+        evt = SecurityEvent(
+            ts="2026-06-11T10:00:00Z",
+            src_ip="10.0.0.5",
+            dst_ip="198.51.100.4",
+            protocol=RuleProtocol.TCP,
+            action=SecurityAction.BLOCKED,
+            category=ThreatCategory.MALWARE,
+        )
     assert evt.action == "blocked"
     assert evt.category == "malware"
 

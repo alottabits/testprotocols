@@ -115,6 +115,22 @@ their tags and PR history.
   fields `dst_port` / `translated_port` (typed fills text; text alone warns and
   fills typed; disagreeing raises `ValueError`; the side that changed wins under
   `replace` and assignment). Migration: pass `PortRange` tuples. Design `docs/architecture/precise-types-design.md` (firewall and NAT ports and counters); PR pending.
+- **fields** `testprotocols.models:L3Rule.src_ports` and `dst_ports` —
+  `tuple[PortRange, ...]`, the empty tuple meaning any port, kept in agreement
+  with the deprecated text fields `src_port` / `dst_port` (typed fills text;
+  text alone warns and fills typed; disagreeing raises `ValueError`; the side
+  that changed wins under `replace` and assignment). Migration: pass `PortRange`
+  tuples. Design `docs/architecture/precise-types-design.md` (SD-WAN models); PR pending.
+- **field** `testprotocols.models:SecurityEvent.timestamp` — `datetime | None`
+  (`None`: the product reports no time), kept in agreement with the deprecated
+  ISO-8601 text `ts` by the same rule. A timezone-naive value stays naive; a
+  text that parses is kept as given (`"…Z"` reads back `"…Z"`), a typed value
+  writes `datetime.isoformat()`. Migration: pass `timestamp`. Design `docs/architecture/precise-types-design.md` (SD-WAN models); PR pending.
+- **internal option** `testprotocols.models._sync:SyncedField.keep_text` — a text
+  that parses to the agreed value stays exactly as given instead of being
+  rewritten to the canonical form (for a text with several equal spellings, such
+  as an ISO-8601 `Z` or `+00:00`); used by `SecurityEvent.ts`. Not public API.
+  Migration: none. Design `docs/architecture/precise-types-design.md` (SD-WAN models); PR pending.
 
 #### Breaking for driver authors
 
@@ -169,6 +185,21 @@ their tags and PR history.
   type-checking, because `dst_ports` and the private `_ports_seen` are keyword
   parameters (`_ports_seen` shows in signatures and error text); type the dict or
   pass the fields explicitly. Listed in the design doc's "Effective now". Design `docs/architecture/precise-types-design.md` (firewall and NAT ports and counters); PR pending.
+- **models** `testprotocols.models:L3Rule` ports and `SecurityEvent` timestamp —
+  `L3Rule.src_port` / `dst_port` now raise `ValueError` for malformed text
+  (`""`, `"http"`, `"80:90"`, a trailing comma; the released contract allowed
+  `"any"`, a number, `a-b` or a comma list) and `TypeError` for a non-text
+  value; text normalises to its canonical form (`"22, 80"` reads `"22,80"`).
+  `SecurityEvent.ts` now raises `ValueError` for text that
+  `datetime.fromisoformat` does not parse (released: any string) and `TypeError`
+  for a non-text value; it defaults to `""` (no time), so the fields after it
+  take a required-argument placeholder and omitting one still raises
+  `TypeError`. Static only, no runtime change: unpacking a loosely typed dict
+  (for example `L3Rule(**dict[str, str])`) into `L3Rule` or `SecurityEvent` now
+  fails type-checking, because `src_ports`, `dst_ports`, `timestamp` and the
+  private provenance fields (`_ports_seen`, `_ts_seen`; not API) are keyword
+  parameters; type the dict or pass the fields explicitly. Listed in the design
+  doc's "Effective now". Design `docs/architecture/precise-types-design.md` (SD-WAN models); PR pending.
 
 #### Deprecated
 
@@ -194,6 +225,14 @@ their tags and PR history.
 - **placeholders** `NatRule.src_cidr`, `dst_cidr`, `translated_src` and
   `translated_dst` — announced only: `""` means absent today and becomes `None`
   in a later release. Design `docs/architecture/precise-types-design.md` (firewall and NAT ports and counters); PR pending.
+- **fields** `L3Rule.src_port` and `dst_port`, `SecurityEvent.ts` — the port and
+  timestamp text; assigning or constructing from it warns. Use `src_ports` /
+  `dst_ports` and `timestamp`. Design `docs/architecture/precise-types-design.md` (SD-WAN models); PR pending.
+- **placeholders** `L3Rule.src_cidr` and `dst_cidr` (`"any"`),
+  `UplinkStatus.ip`, `gateway`, `public_ip` and `primary_dns` (`""`), and
+  `NetworkAttachment.segment` (`""`) — announced only: they mean
+  unconstrained or not reported today and become `str | None` (`None`) in a
+  later release. Design `docs/architecture/precise-types-design.md` (SD-WAN models); PR pending.
 
 ### testoperations
 

@@ -169,6 +169,23 @@ where one exists, also records its retype.
   `PacketFilter.get_rule_counter_values` and `Nat.get_nat_rule_counter_values`
   are mandatory (breaking for driver authors), the old names deprecated (shape 5).
   `testoperations` does not call either old name.
+- **SD-WAN models** (shapes 4(ii) and 6). `L3Rule` gains `src_ports` and
+  `dst_ports`, `tuple[PortRange, ...]` synced with the deprecated `src_port` /
+  `dst_port` text through `_sync`, one provenance field (`_ports_seen`) for both
+  pairs, as on `FirewallRule`. `SecurityEvent` gains `timestamp: datetime | None`
+  synced with the deprecated ISO-8601 `ts`. The codec is `datetime.fromisoformat`
+  and `datetime.isoformat()`; a timezone-naive value stays naive and no zone is
+  assumed. An ISO-8601 instant has several equal spellings (`Z` or `+00:00`, `T` or
+  a space), and `isoformat()` writes one, so `isoformat()` does not round-trip a
+  producer's text: the pair is a `SyncedField` with `keep_text=True`, which keeps a
+  text that parses to the agreed value exactly as given (a typed value alone writes
+  `isoformat()`). Two events with the same instant in two spellings therefore
+  compare unequal on `ts`. `ts` gained a default (`""`, no time) so an event can
+  be built from `timestamp` alone; the fields after it keep their released
+  positions and take a required-argument placeholder that `__post_init__` refuses,
+  so omitting one still raises `TypeError`. The `"any"` cidr placeholders of
+  `L3Rule`, the `""` placeholders of `UplinkStatus` and `NetworkAttachment.segment`
+  are announced only (shape 6).
 
 ## Effective now
 
@@ -196,6 +213,16 @@ the matching CHANGELOG entry sits under *Changed*.
   the dict's value type against each. The caller types the dict or passes the fields
   explicitly. The private `_ports_seen` also appears in `__init__` signatures and in
   static error text; it is not API.
+- **SD-WAN models** (SD-WAN task). `L3Rule.src_port` / `dst_port` follow the
+  `FirewallRule` port rule: only `"any"`, numbers, `a-b` ranges and comma lists are
+  text that parses (`""`, `"http"`, `"80:90"` and a trailing comma raise
+  `ValueError`; a non-text value raises `TypeError`), and text reads back
+  canonical. `SecurityEvent.ts` raises `ValueError` for text `datetime.fromisoformat`
+  does not parse (released: any string was accepted) and `TypeError` for a
+  non-text value. Static only: unpacking a loosely typed dict into `L3Rule` or
+  `SecurityEvent` fails type-checking, as for `FirewallRule` (the keyword
+  parameters `src_ports`, `dst_ports`, `timestamp` and the private `_ports_seen`
+  and `_ts_seen`).
 
 ## Pending narrow steps (announced, not yet taken)
 
@@ -207,3 +234,6 @@ Each lands in a later release with its own breaking changelog entry:
   `E | str` to `E`; `get_default_policy` narrows to `DefaultAction`.
 - The `NatRule` cidr and translated-address `""` placeholders become `str | None`;
   the port text fields and the old counter names are removed.
+- The `L3Rule` cidr `"any"` placeholders, the `UplinkStatus` address `""`
+  placeholders and `NetworkAttachment.segment` `""` become `str | None`; the
+  `L3Rule` port text fields and `SecurityEvent.ts` are removed.

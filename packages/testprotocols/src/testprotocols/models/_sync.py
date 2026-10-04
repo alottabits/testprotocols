@@ -122,6 +122,10 @@ class SyncedField[T]:
     format: Callable[[T], str]
     normalize: Callable[[T], T]
     empty_text: str
+    keep_text: bool = False
+    """Keep a text that parses to the agreed value exactly as given, instead of
+    rewriting it to ``format``'s form (for text whose released spelling has
+    several equal readings, such as an ISO-8601 offset ``Z`` or ``+00:00``)."""
 
     @property
     def label(self) -> str:
@@ -132,9 +136,9 @@ class SyncedField[T]:
 
     def settle(self, obj: object, seen: str | None, owner: str) -> str:
         """Bring *obj*'s pair into agreement; return the agreed text."""
-        return self._put(
-            obj, _agree(self, getattr(obj, self.old), getattr(obj, self.new), seen, owner)
-        )
+        given: str = getattr(obj, self.old)
+        typed = _agree(self, given, getattr(obj, self.new), seen, owner)
+        return self._put(obj, typed, given)
 
     def assign(self, obj: object, name: str, value: object, owner: str) -> str:
         """Set *name* (one of the pair) to *value* and the other side to match;
@@ -144,12 +148,13 @@ class SyncedField[T]:
                 raise TypeError(f"{owner}.{self.old} takes text, not {value!r}")
             typed = self.parse(value)
             _warn(self.old, self.new, owner)
-        else:
-            typed = self.normalize(cast(T, value))
-        return self._put(obj, typed)
+            return self._put(obj, typed, value)
+        return self._put(obj, self.normalize(cast(T, value)))
 
-    def _put(self, obj: object, typed: T) -> str:
+    def _put(self, obj: object, typed: T, given: str | None = None) -> str:
         text = self.format(typed)
+        if self.keep_text and given and self.parse(given) == typed:
+            text = given
         object.__setattr__(obj, self.old, text)
         object.__setattr__(obj, self.new, typed)
         return text

@@ -408,7 +408,7 @@ Concretely:
   lacking a mapped entry surfaces as a clear *unsupported-capability* error in
   the driver — a coverage gap, **not** a contract leak. `testprotocols` stays
   clean.
-- **Read models carry only normalized fields.** e.g. `SecurityEvent(ts, src_ip,
+- **Read models carry only normalized fields.** e.g. `SecurityEvent(timestamp, src_ip,
   dst_ip, protocol, action: SecurityAction, category: ThreatCategory,
   description)`; `UplinkStatus(name, state: UplinkState, ip, gateway,
   public_ip)`. **No `native` bucket.** If a test needs a vendor-only datum with
