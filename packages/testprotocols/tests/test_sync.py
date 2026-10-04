@@ -9,6 +9,8 @@ has one :class:`SyncedFields` pair (the ``(match_type, value)`` text spelling a
 
 from __future__ import annotations
 
+import dataclasses
+import typing
 import warnings
 from dataclasses import dataclass, field, fields, replace
 from typing import override
@@ -159,13 +161,16 @@ def test_assigning_the_old_field_reparses_and_warns() -> None:
     record = _ranged()
     with pytest.warns(DeprecationWarning):
         record.dst_port = "443"
-    assert record.dst_ports == (PortRange.single(443),)
+    ports: tuple[object, ...] = record.dst_ports  # widened: mypy would narrow it to one item
+    assert ports == (PortRange.single(443),)
     with pytest.warns(DeprecationWarning):
         record.dst_port = "any"
-    assert not record.dst_ports
+    ports = record.dst_ports
+    assert not ports
     with pytest.raises(ValueError):
         record.dst_port = "http"
-    assert not record.dst_ports and record.dst_port == "any"  # a refused value changes nothing
+    ports = record.dst_ports
+    assert not ports and record.dst_port == "any"  # a refused value changes nothing
 
 
 def test_assigning_the_old_field_a_non_text_raises_type_error_and_changes_nothing() -> None:
@@ -227,11 +232,41 @@ def test_a_misordered_provenance_field_is_refused() -> None:
         def __post_init__(self) -> None:
             settle(self, pairs, "seen")
 
+        @override
         def __setattr__(self, name: str, value: object) -> None:
             assign(self, name, value, pairs, "seen")
 
     with pytest.raises(TypeError, match=r"Misordered.*last field"):
         Misordered()
+
+
+def test_pseudo_fields_after_the_provenance_field_are_not_fields() -> None:
+    pairs = (SyncedField[int]("text", "typed", int, str, int, "0"),)
+
+    @dataclass
+    class Tidy:
+        text: str = "0"
+        typed: int = 0
+        seen: tuple[str, ...] | None = field(default=None, repr=False, compare=False)
+        marker: typing.ClassVar[int] = 1  # after the provenance field, but not a field
+        hint: dataclasses.InitVar[int] = 0  # likewise
+
+        def __post_init__(self, hint: int) -> None:
+            settle(self, pairs, "seen")
+
+        @override
+        def __setattr__(self, name: str, value: object) -> None:
+            assign(self, name, value, pairs, "seen")
+
+    assert Tidy(typed=5).text == "5"
+
+
+def test_an_undecorated_subclass_of_a_synced_model_is_refused_by_name() -> None:
+    class Loose(_Ported):  # not re-decorated with @dataclass
+        extra: int = 1
+
+    with pytest.raises(TypeError, match=r"Loose.*@dataclass"):
+        Loose()
 
 
 @pytest.mark.parametrize("bad", ["80", b"80", (1, 2), ("80",)])

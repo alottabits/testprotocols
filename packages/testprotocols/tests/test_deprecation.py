@@ -6,7 +6,7 @@ import warnings
 from enum import StrEnum
 
 import pytest
-from testprotocols.deprecation import coerce_enum, renamed_attribute, warn_renamed
+from testprotocols.deprecation import coerce_enum, coerce_int, renamed_attribute, warn_renamed
 
 
 class _New:
@@ -68,3 +68,39 @@ def test_coerce_enum_direct_warning_points_at_the_callers_caller() -> None:
     with pytest.warns(DeprecationWarning) as caught:
         boundary("red")
     assert caught[0].filename == __file__
+
+
+def test_coerce_int_returns_an_int_unchanged_without_warning() -> None:
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        assert coerce_int(443, what="port") == 443
+
+
+def test_coerce_int_accepts_digits_and_warns() -> None:
+    def boundary(value: str) -> int:
+        return coerce_int(value, what="port")
+
+    with pytest.warns(DeprecationWarning, match=r"port: .*'443'.*int") as caught:
+        assert boundary("443") == 443
+    assert caught[0].filename == __file__
+
+
+def test_coerce_int_warning_points_at_the_calling_frame_with_skip_prefixes() -> None:
+    def api(value: str) -> int:
+        return coerce_int(value, what="port", skip_file_prefixes=("/nowhere",))
+
+    with pytest.warns(DeprecationWarning) as caught:
+        api("80")
+    assert caught[0].filename == __file__
+
+
+@pytest.mark.parametrize("text", ["http", "", " 80", "8 0", "1.5", "0x10", "\u0663"])
+def test_coerce_int_rejects_non_numeric_text(text: str) -> None:
+    with pytest.raises(ValueError, match=rf"port: {text!r} is not a decimal integer"):
+        coerce_int(text, what="port")
+
+
+def test_coerce_int_rejects_bool_and_float() -> None:
+    for bad in (True, False, 1.5, None, b"1"):
+        with pytest.raises(TypeError, match="port"):
+            coerce_int(bad, what="port")  # type: ignore[arg-type]

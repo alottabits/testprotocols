@@ -37,6 +37,12 @@ their tags and PR history.
   construction site; `MODEL_FRAMES` is that value for the models of this
   package. Migration: none. Design `docs/architecture/precise-types-design.md`
   (shapes 1 and 3); PR pending.
+- **function** `testprotocols.deprecation:coerce_int` — returns an `int` unchanged,
+  converts a string of decimal digits with a `DeprecationWarning` (the helper for a
+  released `str` parameter that is really a number), and raises `ValueError` for text
+  that is not a decimal integer and `TypeError` for a `bool`, `float` or other type.
+  Migration: none. Design `docs/architecture/precise-types-design.md` (shape 1i);
+  PR pending.
 - **model and functions** `testprotocols.models:PortRange` (`first`, `last`,
   inclusive, `1 <= first <= last <= 65535` else `ValueError`, a non-int
   `TypeError`; `PortRange.single(port)`), `parse_port_ranges`,
@@ -71,7 +77,9 @@ their tags and PR history.
   at construction the typed side fills the text and the text alone warns;
   through `dataclasses.replace` and assignment the side that changed wins;
   malformed text raises before it warns; a hidden provenance field, which must
-  be the model's last field, tells a changed side from an unchanged one. Not
+  be the model's last field, tells a changed side from an unchanged one; a
+  subclass of a synced model that is not itself decorated with `@dataclass`
+  raises `TypeError` naming the class (it would silently drop its own fields). Not
   public API; listed because later retypes build on it. Migration: none.
   Design `docs/architecture/precise-types-design.md`; PR pending.
 

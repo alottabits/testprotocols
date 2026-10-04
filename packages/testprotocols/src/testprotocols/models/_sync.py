@@ -228,6 +228,10 @@ class Settler[S](Protocol):
 def settle[S](obj: object, pairs: Sequence[Settler[S]], seen_attr: str) -> None:
     """Call from ``__post_init__``: agree every pair and record the agreed texts."""
     owner = type(obj).__name__
+    if "__dataclass_fields__" not in vars(type(obj)):
+        # an undecorated subclass inherits its parent's fields and would silently drop its own
+        raise TypeError(f"{owner}: a subclass of a synced model must be decorated with @dataclass")
+    # fields() lists real fields only: ClassVar and InitVar pseudo-fields are excluded
     if dataclasses.fields(cast("DataclassInstance", obj))[-1].name != seen_attr:
         raise TypeError(f"{owner}: the provenance field {seen_attr!r} must be its last field")
     seen: tuple[S, ...] | None = getattr(obj, seen_attr)

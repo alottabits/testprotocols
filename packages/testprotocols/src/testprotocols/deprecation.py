@@ -11,10 +11,12 @@ one delegate, calling :func:`warn_renamed` first.
 from __future__ import annotations
 
 import dataclasses
+import re
 import warnings
 from collections.abc import Mapping
 from enum import Enum
 from pathlib import Path
+from typing import cast
 
 MODEL_FRAMES = (str(Path(__file__).parent / "models"), "<string>", dataclasses.__file__)
 """The *skip_file_prefixes* of a warning raised inside a model's ``__post_init__`` or
@@ -85,3 +87,42 @@ def coerce_enum[E: Enum](
         skip_file_prefixes=skip_file_prefixes,
     )
     return member
+
+
+_DECIMAL = re.compile(r"[+-]?[0-9]+")
+
+
+def coerce_int(
+    value: int | str,
+    *,
+    what: str,
+    skip_file_prefixes: tuple[str, ...] = (),
+) -> int:
+    """Return *value* as an ``int``.
+
+    An ``int`` (not a ``bool``) is returned unchanged. A string of decimal digits
+    (optionally signed) is accepted for the deprecation period: it warns and
+    returns the number. Text that is not a decimal integer raises ``ValueError``
+    naming *what* and the value; any other type (``bool``, ``float``, ``None``,
+    ``bytes``) raises ``TypeError``.
+
+    The warning frame works as in :func:`coerce_enum`: ``stacklevel=3`` for a driver
+    method that coerces at its boundary, or the first frame outside
+    *skip_file_prefixes* for a model.
+    """
+    given = cast(object, value)  # checked at run time too: callers are not all type-checked
+    if isinstance(given, bool) or not isinstance(given, (int, str)):
+        raise TypeError(f"{what}: takes an int, not {given!r}")
+    if isinstance(given, int):
+        return given
+    value = given
+    if not _DECIMAL.fullmatch(value):
+        raise ValueError(f"{what}: {value!r} is not a decimal integer")
+    number = int(value)
+    warnings.warn(
+        f"{what}: plain string {value!r} is deprecated; pass the int {number}",
+        DeprecationWarning,
+        stacklevel=2 if skip_file_prefixes else 3,
+        skip_file_prefixes=skip_file_prefixes,
+    )
+    return number
