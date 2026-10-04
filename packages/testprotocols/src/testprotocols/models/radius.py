@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import warnings
 from dataclasses import dataclass, field
 from enum import Enum, StrEnum
 from typing import cast, override
 
+from testprotocols.deprecation import MODEL_FRAMES
 from testprotocols.models._open_enum import OpenEnumPair
 from testprotocols.models._open_set import OpenSetPair
 from testprotocols.models._sync import Settler, assign, settle
@@ -38,11 +40,12 @@ class EapMethod(StrEnum):
 class AcctStatusType(StrEnum):
     """The ``Acct-Status-Type`` of an accounting record, spelled as the RADIUS attribute
     dictionary spells it: ``Start``, ``Interim-Update`` and ``Stop`` (RFC 2866, the three
-    the released contract named), ``Accounting-On`` and ``Accounting-Off`` (RFC 2866), and
-    the tunnel values of RFC 2867 (``Tunnel-Start`` ... ``Tunnel-Link-Reject``, and
-    ``Failed``). The registry has an open assignment policy, so the set is open: ``OTHER``
-    stands for a value this enum does not name, which a record keeps in
-    ``RadiusAccountingRecord.record_type_raw``."""
+    the released contract named), ``Accounting-On``, ``Accounting-Off`` and ``Failed``
+    (RFC 2866), the tunnel values of RFC 2867 (``Tunnel-Start`` ... ``Tunnel-Link-Reject``)
+    and ``Subsystem-On`` / ``Subsystem-Off`` (IANA RADIUS registry); :attr:`code` is the
+    registered number (``None`` for ``OTHER``). The registry has an open assignment policy,
+    so the set is open: ``OTHER`` stands for a value this enum does not name, which a
+    record keeps in ``RadiusAccountingRecord.record_type_raw``."""
 
     START = "Start"
     STOP = "Stop"
@@ -56,7 +59,32 @@ class AcctStatusType(StrEnum):
     TUNNEL_LINK_STOP = "Tunnel-Link-Stop"
     TUNNEL_LINK_REJECT = "Tunnel-Link-Reject"
     FAILED = "Failed"
+    SUBSYSTEM_ON = "Subsystem-On"
+    SUBSYSTEM_OFF = "Subsystem-Off"
     OTHER = "other"
+
+    @property
+    def code(self) -> int | None:
+        """The registered attribute value (``Start`` is 1), or ``None`` for ``OTHER``."""
+        return _STATUS_CODES.get(self)
+
+
+_STATUS_CODES: dict[AcctStatusType, int] = {
+    AcctStatusType.START: 1,
+    AcctStatusType.STOP: 2,
+    AcctStatusType.INTERIM_UPDATE: 3,
+    AcctStatusType.ACCOUNTING_ON: 7,
+    AcctStatusType.ACCOUNTING_OFF: 8,
+    AcctStatusType.TUNNEL_START: 9,
+    AcctStatusType.TUNNEL_STOP: 10,
+    AcctStatusType.TUNNEL_REJECT: 11,
+    AcctStatusType.TUNNEL_LINK_START: 12,
+    AcctStatusType.TUNNEL_LINK_STOP: 13,
+    AcctStatusType.TUNNEL_LINK_REJECT: 14,
+    AcctStatusType.FAILED: 15,
+    AcctStatusType.SUBSYSTEM_ON: 18,
+    AcctStatusType.SUBSYSTEM_OFF: 19,
+}
 
 
 class AcctTerminateCause(Enum):
@@ -64,15 +92,18 @@ class AcctTerminateCause(Enum):
 
     The registered values are ``User-Request`` to ``Host-Request`` (RFC 2866, 1 to 18) and
     ``Supplicant-Restart``, ``Reauthentication-Failure``, ``Port-Reinit`` and
-    ``Port-Disabled`` (RFC 3580, 19 to 22), spelled as the attribute dictionary spells them.
+    ``Port-Disabled`` (RFC 3580, 19 to 22) and ``Lost-Power`` (23, IANA RADIUS registry),
+    spelled as the attribute dictionary spells them.
     The registry has an open assignment policy, so the set is open: ``OTHER`` stands for a
     cause this enum does not name, which a record keeps in
     ``RadiusAccountingRecord.terminate_cause_raw``.
 
     A pure ``Enum``: a member does not equal a ``str``, so compare with the member. A
     member's value is its dictionary spelling and :attr:`code` is the registered number
-    (``None`` for ``OTHER``). A plain ``str`` naming a member converts in either spelling,
-    ``"User-Request"`` or the RFC's prose ``"User Request"`` (case-sensitive).
+    (``None`` for ``OTHER``). A plain ``str`` naming a member converts in its dictionary
+    spelling (``"User-Request"``) or in the registry's prose spelling (``"User Request"``,
+    ``"Port Reinitialized"``, ``"Port Administratively Disabled"``, ``"Lost Power"``); the
+    match is case-sensitive.
     """
 
     USER_REQUEST = "User-Request"
@@ -97,6 +128,7 @@ class AcctTerminateCause(Enum):
     REAUTHENTICATION_FAILURE = "Reauthentication-Failure"
     PORT_REINIT = "Port-Reinit"
     PORT_DISABLED = "Port-Disabled"
+    LOST_POWER = "Lost-Power"
     OTHER = "other"
 
     @property
@@ -113,12 +145,23 @@ class AcctTerminateCause(Enum):
 
 
 def _prose_cause(value: object) -> AcctTerminateCause | None:
-    """The member whose dictionary spelling is *value* written with spaces, or ``None``."""
-    if isinstance(value, str) and " " in value:
+    """The member the registry's prose spelling *value* names, or ``None``: the hyphenated
+    dictionary spelling written with spaces, or one of the prose names that differ."""
+    if not isinstance(value, str):
+        return None
+    if value in _PROSE_CAUSES:
+        return _PROSE_CAUSES[value]
+    if " " in value:
         for member in AcctTerminateCause:
             if member.value == value.replace(" ", "-"):
                 return member
     return None
+
+
+_PROSE_CAUSES: dict[str, AcctTerminateCause] = {
+    "Port Reinitialized": AcctTerminateCause.PORT_REINIT,
+    "Port Administratively Disabled": AcctTerminateCause.PORT_DISABLED,
+}
 
 
 _TERMINATE_CODES: dict[AcctTerminateCause, int] = {
@@ -144,6 +187,7 @@ _TERMINATE_CODES: dict[AcctTerminateCause, int] = {
     AcctTerminateCause.REAUTHENTICATION_FAILURE: 20,
     AcctTerminateCause.PORT_REINIT: 21,
     AcctTerminateCause.PORT_DISABLED: 22,
+    AcctTerminateCause.LOST_POWER: 23,
 }
 
 
@@ -274,8 +318,14 @@ class RadiusAccountingRecord:
     def __setattr__(self, name: str, value: object) -> None:
         if name == "terminate_cause":
             prose = _prose_cause(value)
-            if prose is not None:  # the RFC's prose spelling: a deprecated plain string
-                value = prose.value
+            if prose is not None:  # the registry's prose spelling: a deprecated plain string
+                warnings.warn(
+                    f"RadiusAccountingRecord.terminate_cause: plain string {value!r} is "
+                    f"deprecated; pass AcctTerminateCause.{prose.name}",
+                    DeprecationWarning,
+                    skip_file_prefixes=MODEL_FRAMES,
+                )
+                value = prose
         if name == "_acct_seen" or any(pair.owns(name) for pair in _ACCT_PAIRS):
             assign(self, name, value, _ACCT_PAIRS, "_acct_seen")
             return

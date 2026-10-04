@@ -391,12 +391,15 @@ where one exists, also records its retype.
   - M24 `AcctStatusType` and M25 `AcctTerminateCause` are shape 3o (`OpenEnumPair` with a raw
     companion on `RadiusAccountingRecord`, two pairs sharing one provenance field), because
     the IANA registries have an open assignment policy. They carry every registered value
-    cited from RFC 2866 (status 1 to 3, 7, 8; causes 1 to 18), RFC 2867 (status 9 to 15: the
-    tunnel values and `Failed`) and RFC 3580 (causes 19 to 22), spelled as the attribute
+    cited from RFC 2866 (status 1 to 3, 7, 8 and `Failed` 15; causes 1 to 18), RFC 2867 (status
+    9 to 14: the tunnel values), RFC 3580 (causes 19 to 22) and the IANA RADIUS registry
+    (status `Subsystem-On` 18 and `Subsystem-Off` 19; cause `Lost-Power` 23), spelled as the attribute
     dictionary spells them; `Start`, `Interim-Update` and `Stop` are the released words, and
     the released docstring spells no cause. `AcctTerminateCause` is a pure `Enum` with an
-    explicit code table (`.code`, `None` for `OTHER`) and also converts the RFC's prose
-    spelling (`User Request`). A pure `Enum` does not equal a `str`.
+    explicit code table (`.code`, `None` for `OTHER`, also on `AcctStatusType`) and also
+    converts the registry's prose spellings (`User Request`, `Port Reinitialized`, `Port
+    Administratively Disabled`, `Lost Power`); the conversion warns quoting the word the
+    caller passed. A pure `Enum` does not equal a `str`.
   - M26 `RadiusUser.eap_methods: list[str]` is a multi-valued open set (shape 3o, many
     words, `OpenSetPair`): `eap_methods_known` and `eap_methods_unknown` sync with the
     released list. `EapMethod` has the two words of the released docstring and five more

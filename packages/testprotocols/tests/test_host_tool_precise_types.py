@@ -439,12 +439,12 @@ def test_acct_status_type_is_open_and_keeps_the_raw_word() -> None:
 def test_acct_terminate_cause_is_a_pure_enum_with_the_registry() -> None:
     assert not issubclass(AcctTerminateCause, str)
     registered = [m for m in AcctTerminateCause if m is not AcctTerminateCause.OTHER]
-    assert [m.code for m in registered] == list(range(1, 23))  # RFC 2866 1-18, RFC 3580 19-22
+    assert [m.code for m in registered] == list(range(1, 24))  # RFC 2866 1-18, RFC 3580 19-22, 23
     assert AcctTerminateCause.OTHER.code is None
     expected = {
         1: "User-Request", 4: "Idle-Timeout", 5: "Session-Timeout", 9: "NAS-Error",
         15: "Service-Unavailable", 18: "Host-Request", 19: "Supplicant-Restart",
-        20: "Reauthentication-Failure", 21: "Port-Reinit", 22: "Port-Disabled",
+        20: "Reauthentication-Failure", 21: "Port-Reinit", 22: "Port-Disabled", 23: "Lost-Power",
     }  # fmt: skip
     for code, word in expected.items():
         assert AcctTerminateCause(word).code == code
@@ -473,6 +473,52 @@ def test_terminate_cause_conversion() -> None:
     with pytest.warns(DeprecationWarning):
         record.terminate_cause = "Port Disabled"
     assert _equal(record.terminate_cause, AcctTerminateCause.PORT_DISABLED)
+
+
+@pytest.mark.parametrize(
+    ("prose", "member"),
+    [
+        ("User Request", AcctTerminateCause.USER_REQUEST),
+        ("Lost Power", AcctTerminateCause.LOST_POWER),
+        ("Port Reinitialized", AcctTerminateCause.PORT_REINIT),
+        ("Port Administratively Disabled", AcctTerminateCause.PORT_DISABLED),
+        ("Reauthentication Failure", AcctTerminateCause.REAUTHENTICATION_FAILURE),
+    ],
+)
+def test_terminate_cause_prose_spellings_alias_and_warn_with_the_given_word(
+    prose: str, member: AcctTerminateCause
+) -> None:
+    with pytest.warns(DeprecationWarning) as record:
+        built = _record(terminate_cause=prose)
+        built.terminate_cause = None
+        built.terminate_cause = prose
+    assert _equal(built.terminate_cause, member)
+    assert built.terminate_cause_raw is None
+    assert len(record) == 2
+    for warning in record:
+        assert repr(prose) in str(warning.message)
+        assert f"AcctTerminateCause.{member.name}" in str(warning.message)
+        assert warning.filename == __file__
+    assert AcctTerminateCause(prose) is member  # the enum constructor takes the alias too
+
+
+def test_terminate_cause_unlisted_prose_is_an_unknown_word() -> None:
+    record = _record(terminate_cause="Port Disable")  # names no member in any spelling
+    assert record.terminate_cause is AcctTerminateCause.OTHER
+    assert record.terminate_cause_raw == "Port Disable"
+
+
+def test_acct_status_type_codes_and_new_values() -> None:
+    codes = {
+        "Start": 1, "Stop": 2, "Interim-Update": 3, "Accounting-On": 7, "Accounting-Off": 8,
+        "Tunnel-Start": 9, "Tunnel-Stop": 10, "Tunnel-Reject": 11, "Tunnel-Link-Start": 12,
+        "Tunnel-Link-Stop": 13, "Tunnel-Link-Reject": 14, "Failed": 15,
+        "Subsystem-On": 18, "Subsystem-Off": 19,
+    }  # fmt: skip
+    for word, code in codes.items():
+        assert AcctStatusType(word).code == code
+    assert AcctStatusType.OTHER.code is None
+    assert {m.value for m in AcctStatusType} == {*codes, "other"}
 
 
 def test_terminate_cause_is_open_and_keeps_the_raw_word() -> None:

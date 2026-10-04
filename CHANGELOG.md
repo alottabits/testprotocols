@@ -209,9 +209,11 @@ their tags and PR history.
   `H2 = "h2"`, `H3 = "h3"`, `OTHER`), `TransportProtocol` (`TCP`, `UDP`), `ServiceStatus`
   (`RUNNING`, `STOPPED`, `ERROR`), `StormControlUnit` (`PERCENT`, `PPS`), the open
   `AcctStatusType` (RFC 2866 `Start`, `Stop`, `Interim-Update`, `Accounting-On`,
-  `Accounting-Off`; RFC 2867 `Tunnel-Start` ... `Tunnel-Link-Reject` and `Failed`; `OTHER`),
+  `Accounting-Off`, `Failed`; RFC 2867 `Tunnel-Start` ... `Tunnel-Link-Reject`; IANA
+  `Subsystem-On`, `Subsystem-Off`; `OTHER`; `.code` is the registered number),
   the open pure `Enum` `AcctTerminateCause` (RFC 2866 causes 1 to 18, RFC 3580 causes 19 to 22,
-  `OTHER`; `.code` is the registered number) and `EapMethod` (`PEAP-MSCHAPv2` and `TTLS-PAP`,
+  IANA `Lost-Power` 23, `OTHER`; `.code` is the registered number; the registry's prose
+  spellings, such as `User Request` and `Port Reinitialized`, convert too) and `EapMethod` (`PEAP-MSCHAPv2` and `TTLS-PAP`,
   the two words of the released docstring, plus `PEAP-GTC`, `TTLS-MSCHAPv2`, `EAP-TLS`,
   `EAP-SIM`, `EAP-AKA`, named by analogy to them and not used by any local driver). Where the
   released contract or an implementer used a word, the member equals it; the registry values
