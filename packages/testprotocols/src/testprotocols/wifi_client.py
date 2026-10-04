@@ -8,6 +8,8 @@ from __future__ import annotations
 
 from typing import Protocol, runtime_checkable
 
+from testprotocols.models.wifi import WifiBand
+
 
 @runtime_checkable
 class WifiClient(Protocol):
@@ -32,7 +34,14 @@ class WifiClient(Protocol):
         security_mode: str | None = None,
         bssid: str | None = None,
     ) -> None:
-        """Connect to *ssid_name* using the supplied credentials and security mode."""
+        """Connect to *ssid_name* using the supplied credentials and security mode.
+
+        *security_mode* stays free text: it is the client's own scheme word (a
+        supplicant key-management word such as ``"NONE"``, ``"WPA-PSK"`` or
+        ``"WPA-EAP"``), which is not the access-point vocabulary of
+        :class:`~testprotocols.models.wifi.WifiSecurityMode`; mapping between them
+        is a separate decision.
+        """
         ...
 
     def wifi_disconnect(self) -> None:
@@ -47,12 +56,33 @@ class WifiClient(Protocol):
         """Return a list of visible SSIDs from a scan."""
         ...
 
-    def set_wlan_scan_channel(self, channel: str) -> None:
-        """Set the WiFi scan channel to *channel*."""
+    def set_wlan_scan_channel(self, channel: int | str) -> None:
+        """Set the WiFi scan channel to *channel*, a channel number.
+
+        A numeric ``str`` (``"6"``) is deprecated: the driver converts it with
+        ``coerce_int`` (it warns); text that is not a decimal integer raises ``ValueError``.
+        """
         ...
 
     def iwlist_supported_channels(self, wifi_band: str) -> list[str]:
-        """Return the list of channels supported by the adapter for *wifi_band*."""
+        """Return the list of channels supported by the adapter for *wifi_band*.
+
+        Deprecated name of :meth:`supported_channels`, which returns channel numbers
+        as ``int`` and takes a :class:`~testprotocols.models.wifi.WifiBand`. This
+        member keeps its released signature: *wifi_band* is the short frequency
+        text a client's tooling uses (``"2.4"``, ``"5"``), not a ``WifiBand`` value,
+        and the channels are text (``"36"``). A driver implements the new member and
+        lets this one warn with ``warn_renamed`` and return
+        ``[str(c) for c in self.supported_channels(band)]``.
+        """
+        ...
+
+    def supported_channels(self, band: WifiBand) -> list[int]:
+        """Return the channel numbers the adapter supports on *band*.
+
+        Replaces :meth:`iwlist_supported_channels`, which returned the numbers as text.
+        Raises ``ValueError`` if the adapter has no radio on *band*.
+        """
         ...
 
     def change_wifi_region(self, country: str) -> None:

@@ -74,6 +74,15 @@ copied: `testprotocols.deprecation` (`coerce_enum`, `coerce_int`,
   record calls `settle` from `__post_init__` alone; a mutable one adds `assign`
   in `__setattr__`. `coerce_open_enum` is the function-level form, for a driver
   boundary: it returns `(member, raw)`.
+- **Shape 3o, many words: a multi-valued open set.** A record that holds several
+  device words of an open set (a station's capability flags) cannot use a per-word
+  `OTHER`: the typed field is `tuple[E, ...]` of the words that name a member and a
+  companion `<field>_unknown: tuple[str, ...]` holds the others, verbatim and in
+  order. The released `list[str]` stays and holds the device's full word list in its
+  own order; the three are an `OpenSetPair` (`models/_open_set.py`), a `_sync` pair
+  with the same hidden provenance field (the agreed text is the word list), and the
+  side that changed wins as in the other shapes. A word names a member exactly,
+  letter case included. A refused assignment changes nothing.
 - **Shape 4(ii): a released field holding a grammar becomes structured.** A
   new typed field is added beside the text field and the two are kept in
   agreement through `_sync` (below).
@@ -254,6 +263,42 @@ where one exists, also records its retype.
   `unknown rule scope 'vlan' (expected 'host' or 'subnet')`; it now reads
   `scope: 'vlan' is not one of ['host', 'subnet']` (same exception type, still names
   `scope`).
+- **Wi-Fi vocabularies** (shapes 1, 1i, 3, 3o many words, 5 and 6). Seven closed
+  enums and one open set in `testprotocols.models`, all equal to their released
+  strings: `WifiBand` (`2.4GHz`, `5GHz`, `6GHz`), `WifiSecurityMode` (the eight words
+  of the `create_bss` docstring, `WPA2-WPA3-PSK-Mixed` included), `MfpMode`,
+  `WifiAclMode`, `WifiPhyMode`, `ChannelWidth` (an `IntEnum`) and `MeshRole`, and
+  `WifiCapability`. The `band`, `security_mode`, `mfp`, `mode`, `bandwidth_mhz` and
+  `set_acl_mode` parameters are `E | str` (`ChannelWidth | int`), coerced by the
+  driver once; `coerce_enum` now returns an `IntEnum` member for a plain `int`
+  with no warning (the number is the value, not a deprecated spelling), and refuses
+  a `bool`, a `float` and text. `WifiClient.set_wlan_scan_channel` takes `int | str`
+  (`coerce_int`). The model fields (`WifiBssConfig`, `WifiStation`, `WifiNeighbor`,
+  `WifiChannelUtilization`, `WifiRadioStats`, `WifiMeshLink`, `WifiAcl`,
+  `WifiMeshStatus`, `WifiMeshNode`) are shape 3, a `__setattr__` coercion. Decisions
+  taken on evidence rather than from the survey: `WifiNeighbor.security_mode` stays free text
+  (a best-effort identification of a foreign network); `WifiClient.wifi_client_connect`'s
+  `security_mode` stays `str | None` because the only implementer passes a client
+  key-management word (`NONE`, `WPA-PSK`, `WPA-EAP`), not an access-point
+  `WifiSecurityMode`; `WifiClient.iwlist_supported_channels(wifi_band)` keeps its
+  `wifi_band: str` because that implementer passes `"2.4"` and `"5"`, not `WifiBand`
+  values; `WifiRadio.set_mode` documents that a compound mode (`"n/ac/ax"`, which the
+  released contract allowed at a driver's discretion) names no member and is the
+  driver's own `str`, and `get_mode` stays `str` for the same reason (announced,
+  shape 6, like `list_radios` and `get_bandwidth`). `WifiCapability` is open but has
+  no `OTHER`: `WifiStation.capabilities` holds the members and
+  `capability_flags_unknown` the other words (the multi-valued variant of shape 3o
+  above), synced with the released `capability_flags`. The typed side is named
+  `capabilities` because `capability_flags` is the released word list. One record
+  carries one provenance field: `WifiStation` has the one `OpenSetPair` (its `band` is a
+  plain shape 3 coercion), so no shared provenance was needed.
+  `WifiClient.iwlist_supported_channels -> list[str]` is shape 5: the new mandatory
+  member `supported_channels(band: WifiBand) -> list[int]` replaces it (breaking for
+  driver authors; a driver delegates with `warn_renamed`); `testoperations` does not
+  call either. `WifiMeshWhiteBox.get_raw_easymesh_tlvs(message_type)` stays `str |
+  None`: no local source lists the EasyMesh message names (the repository mentions
+  two examples in a docstring and no vocabulary), and an enum from memory would
+  guess; it is revisited when a reference driver and the specification supply them.
 
 ## Effective now
 
@@ -315,6 +360,18 @@ the matching CHANGELOG entry sits under *Changed*.
   `dict[str, object]` (was `dict[str, Any]`), so a caller's `dict[str, str]` variable
   no longer type-checks. A driver must implement `Router.read_telemetry` (breaking for
   driver authors).
+- **Wi-Fi vocabularies** (Wi-Fi task). A `band`, `security_mode`, `mfp`, ACL `mode` or
+  mesh `role` string on a Wi-Fi model that is not a member raises `ValueError`
+  (released: any string); `WifiNeighbor.security_mode` is unchanged. A model reader
+  now always holds the enum (`StrEnum` members compare equal to the old strings). A
+  `WifiStation` built or assigned from `capability_flags` warns and also fills
+  `capabilities` and `capability_flags_unknown`; a word matches a member exactly
+  (`"he"` is an unknown word). Mutating the `capability_flags` list in place is not
+  seen until the next `replace`; assign a list instead. Static only: unpacking a
+  loosely typed dict into `WifiStation` fails type-checking (`capabilities`,
+  `capability_flags_unknown` and the private `_caps_seen` are keyword parameters), and
+  an implementer must provide `WifiClient.supported_channels` (breaking for driver
+  authors).
 
 ## Pending narrow steps (announced, not yet taken)
 
@@ -337,3 +394,9 @@ Each lands in a later release with its own breaking changelog entry:
 - `Router.get_telemetry` and `SdwanPolicyManager.apply_policy` are removed.
 - `build_deny_rule(scope, proto)` narrows from `DenyScope | str` and
   `RuleProtocol | str` to the enums.
+- Wi-Fi: the model fields and parameters narrow from `E | str` to `E` (`WifiBand`,
+  `WifiSecurityMode`, `MfpMode`, `WifiAclMode`, `WifiPhyMode`, `MeshRole`;
+  `ChannelWidth | int` stays, an `int` being its value); `list_radios`, `get_bandwidth`
+  and (once compound modes are settled) `get_mode` narrow to `list[WifiBand]`,
+  `ChannelWidth` and `WifiPhyMode`; `set_wlan_scan_channel` narrows to `int`;
+  `WifiStation.capability_flags` and `WifiClient.iwlist_supported_channels` are removed.

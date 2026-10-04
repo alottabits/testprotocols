@@ -14,7 +14,7 @@ import dataclasses
 import re
 import warnings
 from collections.abc import Mapping
-from enum import Enum
+from enum import Enum, IntEnum
 from pathlib import Path
 from typing import cast
 
@@ -76,7 +76,7 @@ def warn_renamed(old: str, new: str) -> None:
 
 def coerce_enum[E: Enum](
     enum_type: type[E],
-    value: E | str,
+    value: E | str | int,
     *,
     what: str,
     skip_file_prefixes: tuple[str, ...] = (),
@@ -85,6 +85,9 @@ def coerce_enum[E: Enum](
 
     A member is returned as is. A plain string naming a member's value is
     accepted for the deprecation period: it warns and returns the member.
+    For an ``IntEnum`` the number is the value, not a deprecated spelling: a plain
+    ``int`` (never a ``bool``) naming a member returns it with no warning, so a
+    parameter typed ``ChannelWidth | int`` keeps accepting ``80``.
     Any other value raises ``ValueError`` listing the legal values.
 
     The warning points at the caller's caller (``stacklevel=3``), which is the
@@ -97,10 +100,16 @@ def coerce_enum[E: Enum](
     if isinstance(value, enum_type):
         return value
     try:
+        if isinstance(value, bool) or (
+            issubclass(enum_type, IntEnum) and not isinstance(value, int)
+        ):
+            raise ValueError(value)  # True == 1 and 80.0 == 80 must not pick an IntEnum member
         member = enum_type(value)
     except ValueError:
         legal = [m.value for m in enum_type]
         raise ValueError(f"{what}: {value!r} is not one of {legal}") from None
+    if issubclass(enum_type, IntEnum):
+        return member  # a number is an IntEnum's value, not a deprecated spelling
     warnings.warn(
         f"{what}: plain string {value!r} is deprecated; pass {enum_type.__name__}.{member.name}",
         DeprecationWarning,

@@ -157,8 +157,14 @@ from testprotocols.models.wan_edge import (
     Telemetry,
 )
 from testprotocols.models.wifi import (
+    ChannelWidth,
+    MeshRole,
+    MfpMode,
     WifiAcl,
+    WifiAclMode,
+    WifiBand,
     WifiBssConfig,
+    WifiCapability,
     WifiCaptiveConfig,
     WifiChannelUtilization,
     WifiDfsState,
@@ -167,7 +173,9 @@ from testprotocols.models.wifi import (
     WifiMeshStatus,
     WifiMeshTopology,
     WifiNeighbor,
+    WifiPhyMode,
     WifiRadioStats,
+    WifiSecurityMode,
     WifiStation,
     WifiTransitionConfig,
 )
@@ -190,6 +198,7 @@ __all__ = [
     "BindingSource",
     "CategoryMatch",
     "Chain",
+    "ChannelWidth",
     # firewall
     "ConnState",
     "Connection",
@@ -248,6 +257,8 @@ __all__ = [
     "McastSource",
     # qoe
     "MeasurementSpec",
+    "MeshRole",
+    "MfpMode",
     "MulticastGroupRecord",
     "MulticastGroupRecordType",
     "NatInboundAllow",
@@ -328,7 +339,10 @@ __all__ = [
     "VpnSubnet",
     # wifi
     "WifiAcl",
+    "WifiAclMode",
+    "WifiBand",
     "WifiBssConfig",
+    "WifiCapability",
     "WifiCaptiveConfig",
     "WifiChannelUtilization",
     "WifiDfsState",
@@ -337,7 +351,9 @@ __all__ = [
     "WifiMeshStatus",
     "WifiMeshTopology",
     "WifiNeighbor",
+    "WifiPhyMode",
     "WifiRadioStats",
+    "WifiSecurityMode",
     "WifiStation",
     "WifiTransitionConfig",
     "Zone",

@@ -19,7 +19,12 @@ from __future__ import annotations
 
 from typing import Protocol, runtime_checkable
 
-from testprotocols.models.wifi import WifiDfsState
+from testprotocols.models.wifi import (
+    ChannelWidth,
+    WifiBand,
+    WifiDfsState,
+    WifiPhyMode,
+)
 
 
 @runtime_checkable
@@ -29,22 +34,31 @@ class WifiRadio(Protocol):
     # --- Discovery ---
 
     def list_radios(self) -> list[str]:
-        """Return the bands present on this device (e.g. ``["2.4GHz", "5GHz", "6GHz"]``)."""
+        """Return the bands present on this device (e.g. ``["2.4GHz", "5GHz", "6GHz"]``).
+
+        Every *band* parameter of this Protocol is a
+        :class:`~testprotocols.models.wifi.WifiBand`; a plain ``str`` naming one
+        (``"5GHz"``) is deprecated: the driver coerces it once with ``coerce_enum``
+        (it warns) and raises ``ValueError`` for any other string.
+
+        Announced, not yet changed: the return narrows to ``list[WifiBand]`` in a
+        later release (each element is a ``str`` equal to its ``WifiBand`` today).
+        """
         ...
 
     # --- Admin state ---
 
-    def set_enabled(self, band: str, enabled: bool) -> None:
+    def set_enabled(self, band: WifiBand | str, enabled: bool) -> None:
         """Enable or disable the radio on *band*. Disabling shuts down the PHY entirely."""
         ...
 
-    def get_enabled(self, band: str) -> bool:
+    def get_enabled(self, band: WifiBand | str) -> bool:
         """Return True if the radio on *band* is administratively enabled."""
         ...
 
     # --- Channel / bandwidth / power / mode ---
 
-    def set_channel(self, band: str, channel: int) -> None:
+    def set_channel(self, band: WifiBand | str, channel: int) -> None:
         """Set the operating channel on *band* to a specific channel number.
 
         Auto-channel selection is not modelled in this release — pass an explicit
@@ -53,27 +67,35 @@ class WifiRadio(Protocol):
         """
         ...
 
-    def get_channel(self, band: str) -> int:
+    def get_channel(self, band: WifiBand | str) -> int:
         """Return the channel currently in use on *band*."""
         ...
 
-    def list_supported_channels(self, band: str) -> list[int]:
+    def list_supported_channels(self, band: WifiBand | str) -> list[int]:
         """Return the channels the radio can operate on under the current regulatory domain."""
         ...
 
-    def set_bandwidth(self, band: str, bandwidth_mhz: int) -> None:
-        """Set channel bandwidth on *band*: one of 20, 40, 80, 160, 320.
+    def set_bandwidth(self, band: WifiBand | str, bandwidth_mhz: ChannelWidth | int) -> None:
+        """Set channel bandwidth on *band*: a :class:`~testprotocols.models.wifi.ChannelWidth`
+        (20, 40, 80, 160 or 320 MHz).
+
+        A plain ``int`` is accepted with no warning (``coerce_enum`` returns the
+        member for an ``IntEnum``); a number that is no member raises ``ValueError``.
 
         Raises ValueError if the radio does not support *bandwidth_mhz*
         (e.g. 320 on a non-Wi-Fi-7 radio).
         """
         ...
 
-    def get_bandwidth(self, band: str) -> int:
-        """Return the channel bandwidth currently in use on *band* (MHz)."""
+    def get_bandwidth(self, band: WifiBand | str) -> int:
+        """Return the channel bandwidth currently in use on *band* (MHz).
+
+        Announced, not yet changed: the return narrows to ``ChannelWidth`` in a
+        later release (a ``ChannelWidth`` is an ``int``, so comparisons keep working).
+        """
         ...
 
-    def set_tx_power(self, band: str, power_dbm: int) -> None:
+    def set_tx_power(self, band: WifiBand | str, power_dbm: int) -> None:
         """Set the transmit power on *band* in dBm.
 
         Drivers translate to vendor units (percentage / index) internally.
@@ -81,21 +103,30 @@ class WifiRadio(Protocol):
         """
         ...
 
-    def get_tx_power(self, band: str) -> int:
+    def get_tx_power(self, band: WifiBand | str) -> int:
         """Return the transmit power currently in use on *band* (dBm)."""
         ...
 
-    def set_mode(self, band: str, mode: str) -> None:
+    def set_mode(self, band: WifiBand | str, mode: WifiPhyMode | str) -> None:
         """Set the 802.11 PHY mode on *band*.
 
-        Values: ``"a"``, ``"b"``, ``"g"``, ``"n"``, ``"ac"``, ``"ax"``, ``"be"``.
-        Drivers may accept compound forms (``"n/ac/ax"``) at their discretion.
+        *mode* is a :class:`~testprotocols.models.wifi.WifiPhyMode` (``"a"``, ``"b"``,
+        ``"g"``, ``"n"``, ``"ac"``, ``"ax"``, ``"be"``); a plain ``str`` naming one is
+        deprecated (the driver coerces it with ``coerce_enum``, which warns).
+        Drivers may accept compound forms (``"n/ac/ax"``) at their discretion: such
+        a string names no member and is not coerced by the Protocol, so a driver
+        that accepts it handles that ``str`` itself and only coerces a single mode.
         Raises ValueError if the radio does not support *mode*.
         """
         ...
 
-    def get_mode(self, band: str) -> str:
-        """Return the 802.11 PHY mode currently in use on *band*."""
+    def get_mode(self, band: WifiBand | str) -> str:
+        """Return the 802.11 PHY mode currently in use on *band*.
+
+        Announced, not yet changed: the return narrows to ``WifiPhyMode`` in a later
+        release. It stays a ``str`` for now because a radio may run a compound mode
+        (``"n/ac/ax"``).
+        """
         ...
 
     # --- Regulatory domain (device-wide) ---
@@ -110,7 +141,7 @@ class WifiRadio(Protocol):
 
     # --- DFS ---
 
-    def get_dfs_state(self, band: str) -> WifiDfsState:
+    def get_dfs_state(self, band: WifiBand | str) -> WifiDfsState:
         """Return the current DFS state of the radio on *band*.
 
         Includes Channel-Availability-Check status, time remaining, and
@@ -132,7 +163,7 @@ class WifiRadioWhiteBox(WifiRadio, Protocol):
     drivers that don't satisfy it (per the ``@white_box`` scenario tag rule).
     """
 
-    def inject_radar_event(self, band: str, channel: int | None = None) -> None:
+    def inject_radar_event(self, band: WifiBand | str, channel: int | None = None) -> None:
         """Inject a synthetic radar detection event on *band*.
 
         Test hook for DFS automation testing. *channel* defaults to the

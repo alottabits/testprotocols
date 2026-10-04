@@ -21,7 +21,14 @@ from __future__ import annotations
 
 from typing import Protocol, runtime_checkable
 
-from testprotocols.models.wifi import WifiAcl, WifiBssConfig
+from testprotocols.models.wifi import (
+    MfpMode,
+    WifiAcl,
+    WifiAclMode,
+    WifiBand,
+    WifiBssConfig,
+    WifiSecurityMode,
+)
 
 
 @runtime_checkable
@@ -33,13 +40,13 @@ class WifiBss(Protocol):
     def create_bss(
         self,
         name: str,
-        band: str,
+        band: WifiBand | str,
         ssid: str,
-        security_mode: str,
+        security_mode: WifiSecurityMode | str,
         *,
         passphrase: str | None = None,
         radius_server_name: str | None = None,
-        mfp: str = "optional",
+        mfp: MfpMode | str = MfpMode.OPTIONAL,
         vlan_id: int | None = None,
         max_clients: int | None = None,
         broadcast_enabled: bool = True,
@@ -47,11 +54,17 @@ class WifiBss(Protocol):
     ) -> None:
         """Create a new BSS on *band*, identified by *name*.
 
-        *security_mode* is one of: ``"Open"``, ``"OWE"``, ``"WPA2-PSK"``,
-        ``"WPA2-EAP"``, ``"WPA3-SAE"``, ``"WPA3-EAP"``,
-        ``"WPA2-WPA3-PSK-Mixed"``, ``"WPA2-WPA3-EAP-Mixed"``.
+        *band* is a :class:`~testprotocols.models.wifi.WifiBand`. *security_mode* is
+        a :class:`~testprotocols.models.wifi.WifiSecurityMode`: ``OPEN``, ``OWE``,
+        ``WPA2_PSK``, ``WPA2_EAP``, ``WPA3_SAE``, ``WPA3_EAP``,
+        ``WPA2_WPA3_PSK_MIXED`` or ``WPA2_WPA3_EAP_MIXED`` (the released strings
+        ``"Open"``, ``"WPA2-PSK"`` and so on). *mfp* is a
+        :class:`~testprotocols.models.wifi.MfpMode`: ``OFF``, ``OPTIONAL`` or
+        ``REQUIRED`` (``"off"``, ``"optional"``, ``"required"``).
 
-        *mfp* is one of ``"off"``, ``"optional"``, ``"required"``.
+        A plain ``str`` naming a member is deprecated: the driver coerces each of
+        these once, before any device I/O, with ``coerce_enum`` (it warns and
+        converts), and raises ``ValueError`` for any other string.
 
         Required arguments per security_mode:
         - PSK / SAE / mixed-PSK modes: *passphrase* required
@@ -107,15 +120,16 @@ class WifiBss(Protocol):
     def set_security(
         self,
         name: str,
-        mode: str,
+        mode: WifiSecurityMode | str,
         *,
         passphrase: str | None = None,
         radius_server_name: str | None = None,
-        mfp: str = "optional",
+        mfp: MfpMode | str = MfpMode.OPTIONAL,
     ) -> None:
         """Reconfigure the security of an existing BSS.
 
-        Same value space and required-argument rules as ``create_bss``.
+        Same value space (``WifiSecurityMode``, ``MfpMode``) and required-argument
+        rules as ``create_bss``.
         Reconfiguration disconnects currently associated clients on most
         drivers; tests should expect re-association.
         """
@@ -123,13 +137,16 @@ class WifiBss(Protocol):
 
     # --- MAC ACL — per-BSS authorization scheme ---
 
-    def set_acl_mode(self, name: str, mode: str) -> None:
+    def set_acl_mode(self, name: str, mode: WifiAclMode | str) -> None:
         """Set the per-BSS MAC ACL mode.
 
-        *mode* is one of:
-        - ``"disabled"`` — no MAC filtering; the BSS's ACL list is ignored
-        - ``"allow"`` — allow-list (whitelist); only MACs in the ACL may associate
-        - ``"deny"`` — deny-list (blacklist); MACs in the ACL are blocked
+        *mode* is a :class:`~testprotocols.models.wifi.WifiAclMode`:
+        - ``DISABLED`` (``"disabled"``) — no MAC filtering; the BSS's ACL list is ignored
+        - ``ALLOW`` (``"allow"``) — allow-list (whitelist); only MACs in the ACL may associate
+        - ``DENY`` (``"deny"``) — deny-list (blacklist); MACs in the ACL are blocked
+
+        A plain ``str`` naming a member is deprecated: the driver coerces it with
+        ``coerce_enum`` (it warns); any other string raises ``ValueError``.
 
         Raises KeyError if *name* is not registered.
         """

@@ -160,6 +160,26 @@ their tags and PR history.
   report them; a bool or non-number raises `TypeError`, a negative number
   `ValueError`; `as_dict()` is the released `get_telemetry` mapping) — a device's
   resource telemetry. Migration: none. Design `docs/architecture/precise-types-design.md` (telemetry and policy); PR pending.
+- **enums** `testprotocols.models:WifiBand` (`GHZ_2_4`, `GHZ_5`, `GHZ_6`),
+  `WifiSecurityMode` (`OPEN`, `OWE`, `WPA2_PSK`, `WPA2_EAP`, `WPA3_SAE`, `WPA3_EAP`,
+  `WPA2_WPA3_PSK_MIXED`, `WPA2_WPA3_EAP_MIXED`), `MfpMode` (`OFF`, `OPTIONAL`,
+  `REQUIRED`), `WifiAclMode` (`DISABLED`, `ALLOW`, `DENY`), `WifiPhyMode` (`A`, `B`,
+  `G`, `N`, `AC`, `AX`, `BE`), `ChannelWidth` (an `IntEnum`: 20, 40, 80, 160, 320 MHz),
+  `MeshRole` (`CONTROLLER`, `AGENT`, `CONTROLLER_AND_AGENT`, `UNCOMMISSIONED`) and the
+  open `WifiCapability` (`HT`, `VHT`, `HE`, `EHT`, `MLO`) — the Wi-Fi vocabularies;
+  every value is the string the released contract used (`WifiBand.GHZ_5 == "5GHz"`).
+  Migration: none. Design `docs/architecture/precise-types-design.md` (Wi-Fi vocabularies); PR pending.
+- **fields** `testprotocols.models:WifiStation.capabilities` (`tuple[WifiCapability, ...]`)
+  and `capability_flags_unknown` (`tuple[str, ...]`) — the device's capability words
+  split into the members and the words no member names, synced with the released
+  `capability_flags`: the side that changed wins. Migration: read `capabilities` and
+  `capability_flags_unknown`. Design `docs/architecture/precise-types-design.md` (Wi-Fi vocabularies); PR pending.
+- **internal module** `testprotocols.models._open_set` (`OpenSetPair`) — the
+  multi-valued counterpart of `_open_enum`: a `_sync` pair that splits a released
+  word list into known members and unknown words. Not public API. Migration: none. Design `docs/architecture/precise-types-design.md` (Wi-Fi vocabularies); PR pending.
+- **behaviour** `testprotocols.deprecation:coerce_enum` — for an `IntEnum`, a plain
+  `int` naming a member returns it with no warning (a `bool`, a `float` or a number
+  that is no member raises `ValueError`). Migration: none. Design `docs/architecture/precise-types-design.md` (Wi-Fi vocabularies); PR pending.
 
 #### Breaking for driver authors
 
@@ -173,6 +193,12 @@ their tags and PR history.
   new mandatory member. Migration: implement it, and make `get_telemetry` warn
   with `warn_renamed("get_telemetry", "read_telemetry")` and return
   `self.read_telemetry().as_dict()`. Design `docs/architecture/precise-types-design.md` (telemetry and policy); PR pending.
+- **protocol member** `testprotocols.wifi_client:WifiClient.supported_channels(band: WifiBand) -> list[int]` —
+  new mandatory member, replacing `iwlist_supported_channels` (which returned the
+  channel numbers as text). Migration: implement it and make
+  `iwlist_supported_channels` warn with `warn_renamed("iwlist_supported_channels",
+  "supported_channels")` and return `[str(c) for c in self.supported_channels(band)]`.
+  Design `docs/architecture/precise-types-design.md` (Wi-Fi vocabularies); PR pending.
 
 #### Changed
 
@@ -268,6 +294,24 @@ their tags and PR history.
   parameter still conforms). An implementer whose declared `get_telemetry` return
   is not `float`-valued (for example `dict[str, object]`) no longer conforms and
   must narrow it. Listed in the design doc's "Effective now". Design `docs/architecture/precise-types-design.md` (telemetry and policy); PR pending.
+- **models** `testprotocols.models` `WifiBssConfig` (`band`, `security_mode`, `mfp`),
+  `WifiStation.band`, `WifiNeighbor.band`, `WifiChannelUtilization.band`,
+  `WifiRadioStats.band`, `WifiMeshLink.band`, `WifiAcl.mode`, `WifiMeshStatus.role` and
+  `WifiMeshNode.role` — now enums (`WifiBand`, `WifiSecurityMode`, `MfpMode`,
+  `WifiAclMode`, `MeshRole`); a plain string naming a member warns and converts
+  (also on assignment and `replace`), and a string that is no member raises
+  `ValueError` (released: any string). `WifiStation` gains `capabilities`,
+  `capability_flags_unknown` and the private `_caps_seen`, so unpacking a loosely typed
+  dict into `WifiStation` fails type-checking (static only). Listed in the design
+  doc's "Effective now". Design `docs/architecture/precise-types-design.md` (Wi-Fi vocabularies); PR pending.
+- **protocol members** `WifiBss.create_bss` / `set_security` (`band`, `security_mode`,
+  `mfp`; the `mfp` default is `MfpMode.OPTIONAL`, equal to `"optional"`),
+  `WifiBss.set_acl_mode`, every `band` of `WifiRadio` and `WifiRf`,
+  `WifiRadio.set_bandwidth` (`ChannelWidth | int`), `WifiRadio.set_mode`,
+  `WifiMesh.set_backhaul_band` and `WifiClient.set_wlan_scan_channel` (`int | str`) —
+  parameter annotations widen to `E | str`, so every released call still type-checks;
+  a driver coerces once at the boundary. An `int` for a `ChannelWidth` parameter
+  needs no coercion warning. Design `docs/architecture/precise-types-design.md` (Wi-Fi vocabularies); PR pending.
 
 #### Deprecated
 
@@ -321,6 +365,28 @@ their tags and PR history.
   members (`configure_sla_policy`, `set_uplink_selection`, `set_default_uplink`,
   `set_active_active_vpn`) cover what a policy expresses; the member stays,
   unchanged, until a later release removes it. Design `docs/architecture/precise-types-design.md` (telemetry and policy); PR pending.
+- **parameters** `WifiBss` (`band`, `security_mode`, `mfp`, `set_acl_mode(mode)`),
+  `WifiRadio` (`band`, `set_mode(mode)`), `WifiRf` (`band`) and
+  `WifiMesh.set_backhaul_band` — a plain `str` naming a member (`"5GHz"`,
+  `"WPA2-PSK"`, `"required"`, `"deny"`, `"ax"`) is deprecated: it warns and is
+  converted. The annotations narrow to the enums in a later release. A compound PHY
+  mode (`"n/ac/ax"`), which the released `set_mode` allowed at a driver's discretion,
+  names no member and is not coerced by the contract. Design `docs/architecture/precise-types-design.md` (Wi-Fi vocabularies); PR pending.
+- **parameter** `WifiClient.set_wlan_scan_channel(channel)` — a numeric `str` is
+  deprecated: the driver converts it with `coerce_int` (it warns). Narrows to `int`
+  in a later release. Design `docs/architecture/precise-types-design.md` (Wi-Fi vocabularies); PR pending.
+- **fields** the Wi-Fi model fields listed under *Changed* — a plain `str` naming a member is deprecated (warns, converts). The
+  annotations narrow to the enums in a later release. Design `docs/architecture/precise-types-design.md` (Wi-Fi vocabularies); PR pending.
+- **field** `WifiStation.capability_flags` — the released word list; giving or assigning
+  it warns. Use `capabilities` and `capability_flags_unknown`. Design `docs/architecture/precise-types-design.md` (Wi-Fi vocabularies); PR pending.
+- **protocol member** `WifiClient.iwlist_supported_channels` — deprecated name of
+  `supported_channels` (see *Breaking for driver authors*); it keeps its released
+  signature (`wifi_band: str`, `list[str]`). Design `docs/architecture/precise-types-design.md` (Wi-Fi vocabularies); PR pending.
+- **return types** `WifiRadio.list_radios`, `get_mode` and `get_bandwidth` — announced
+  only: they return `list[str]`, `str` and `int` today and narrow to
+  `list[WifiBand]`, `WifiPhyMode` and `ChannelWidth` in a later release (members equal
+  their strings and numbers, so comparisons keep working; `get_mode` stays `str`
+  until the compound-mode question is settled). Design `docs/architecture/precise-types-design.md` (Wi-Fi vocabularies); PR pending.
 
 ### testoperations
 

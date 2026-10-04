@@ -115,6 +115,7 @@ PROTOCOLS = [
             "list_wifi_ssids",
             "set_wlan_scan_channel",
             "iwlist_supported_channels",
+            "supported_channels",
             "change_wifi_region",
             "enable_monitor_mode",
             "disable_monitor_mode",
