@@ -154,6 +154,21 @@ where one exists, also records its retype.
   flow has one transport, and so is `Connection.protocol`, which raises
   `ValueError` for `RuleProtocol.ANY`. `get_default_policy` keeps returning `str`
   (shape 6, announced only).
+- **Firewall and NAT ports and counters** (shapes 4(ii), 5 and 6). `FirewallRule`
+  gains `dst_ports` and `NatRule` gains `dst_ports` and `translated_ports`, each a
+  `tuple[PortRange, ...]` synced with its deprecated text field through `_sync`.
+  A record has one provenance field (`_ports_seen`, last), shared by all its pairs,
+  and the same `__setattr__` also applies the enum coercion of the vocabularies
+  retype. `FirewallRule.dst_port` now defaults to `"any"` (its released contract
+  allowed `"any"`; the default lets a rule be built from `dst_ports` alone). The
+  released `NatRule` contract used `""` for no port, so its pairs use `""` as the
+  canonical empty text (`"any"` is accepted and reads back `""`), while
+  `FirewallRule` keeps `"any"`. The `NatRule` cidr and translated-address `""`
+  placeholders are announced only (shape 6). `RuleCounters(packets, bytes)`
+  replaces the `(int, int)` tuple: the new members
+  `PacketFilter.get_rule_counter_values` and `Nat.get_nat_rule_counter_values`
+  are mandatory (breaking for driver authors), the old names deprecated (shape 5).
+  `testoperations` does not call either old name.
 
 ## Pending narrow steps (announced, not yet taken)
 
@@ -163,3 +178,5 @@ Each lands in a later release with its own breaking changelog entry:
   and fields (`Chain`, `DefaultAction`, `NatMode`, `RuleProtocol`,
   `FirewallRuleAction`, `PortMappingProtocol`, `ConnState`) narrow from
   `E | str` to `E`; `get_default_policy` narrows to `DefaultAction`.
+- The `NatRule` cidr and translated-address `""` placeholders become `str | None`;
+  the port text fields and the old counter names are removed.

@@ -106,6 +106,25 @@ their tags and PR history.
   later retypes build on it. Migration: none. Design
   `docs/architecture/precise-types-design.md` (shape 3o); PR pending.
 
+- **model** `testprotocols.models:RuleCounters` (`packets`, `bytes`; frozen;
+  a negative number raises `ValueError`, a non-int, bool included, `TypeError`) —
+  what a rule has matched since it was added. Migration: none. Design `docs/architecture/precise-types-design.md` (firewall and NAT ports and counters); PR pending.
+- **fields** `testprotocols.models:FirewallRule.dst_ports`, `NatRule.dst_ports`
+  and `NatRule.translated_ports` — `tuple[PortRange, ...]`, the empty tuple
+  meaning no port restriction, kept in agreement with the deprecated text
+  fields `dst_port` / `translated_port` (typed fills text; text alone warns and
+  fills typed; disagreeing raises `ValueError`; the side that changed wins under
+  `replace` and assignment). Migration: pass `PortRange` tuples. Design `docs/architecture/precise-types-design.md` (firewall and NAT ports and counters); PR pending.
+
+#### Breaking for driver authors
+
+- **protocol members** `testprotocols.packet_filter:PacketFilter.get_rule_counter_values(chain, name) -> RuleCounters`
+  and `testprotocols.nat:Nat.get_nat_rule_counter_values(name) -> RuleCounters`
+  (so also `Firewall`, which inherits `PacketFilter`) — new mandatory members,
+  taking the parameters of the old counter members. Migration: implement them
+  and make `get_rule_counters` / `get_nat_rule_counters` warn with
+  `warn_renamed` and delegate. Design `docs/architecture/precise-types-design.md` (firewall and NAT ports and counters); PR pending.
+
 #### Changed
 
 - **protocol members** `testprotocols.packet_filter:PacketFilter` (every `chain`
@@ -134,6 +153,15 @@ their tags and PR history.
   `Connection.protocol` refuses `RuleProtocol.ANY` with `ValueError`, as its
   docstring says (a flow has one transport). Migration: pass the members. Design `docs/architecture/precise-types-design.md` (firewall, NAT and conntrack vocabularies); PR pending.
 
+- **models** `testprotocols.models:FirewallRule.dst_port` — now defaults to
+  `"any"`, so a rule can be built from `dst_ports` alone (released: required).
+  `NatRule.dst_port` and `translated_port` read `""` for no port, as released,
+  including after `"any"` was given (it is accepted and reads back `""`). A
+  malformed port text (for example `"http"`, or `""` on `FirewallRule`) raises
+  `ValueError`, and a non-text `dst_port` or a non-`PortRange` `dst_ports`
+  raises `TypeError`; no value the released documentation allowed raises.
+  A text is canonical (`"22, 80"` reads `"22,80"`). Design `docs/architecture/precise-types-design.md` (firewall and NAT ports and counters); PR pending.
+
 #### Deprecated
 
 - **parameters and fields** `PacketFilter` (`chain`, `set_default_policy(policy)`),
@@ -148,6 +176,16 @@ their tags and PR history.
   `str` today and narrows to `DefaultAction` in a later release (a
   `DefaultAction` is a `str`, so comparisons with the plain words keep working).
   Design `docs/architecture/precise-types-design.md` (firewall, NAT and conntrack vocabularies); PR pending.
+- **fields** `FirewallRule.dst_port`, `NatRule.dst_port` and
+  `NatRule.translated_port` — the port text; assigning or constructing from it
+  warns. Use `dst_ports` / `translated_ports`. Design `docs/architecture/precise-types-design.md` (firewall and NAT ports and counters); PR pending.
+- **protocol members** `PacketFilter.get_rule_counters` and
+  `Nat.get_nat_rule_counters` — deprecated names of `get_rule_counter_values` and
+  `get_nat_rule_counter_values`; they return `RuleCounters` from the new names.
+  Design `docs/architecture/precise-types-design.md` (firewall and NAT ports and counters); PR pending.
+- **placeholders** `NatRule.src_cidr`, `dst_cidr`, `translated_src` and
+  `translated_dst` — announced only: `""` means absent today and becomes `None`
+  in a later release. Design `docs/architecture/precise-types-design.md` (firewall and NAT ports and counters); PR pending.
 
 ### testoperations
 

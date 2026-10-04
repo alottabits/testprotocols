@@ -22,7 +22,7 @@ from __future__ import annotations
 
 from typing import Protocol, runtime_checkable
 
-from testprotocols.models.firewall import NatMode, NatRule
+from testprotocols.models.firewall import NatMode, NatRule, RuleCounters
 
 
 @runtime_checkable
@@ -79,8 +79,20 @@ class Nat(Protocol):
 
     # --- Counters ---
 
+    def get_nat_rule_counter_values(self, name: str) -> RuleCounters:
+        """Return what the rule has matched since it was added, as
+        :class:`~testprotocols.models.RuleCounters`.
+
+        Raises KeyError if no rule with that name exists.
+        Drivers without per-rule counter support raise NotImplementedError.
+        """
+        ...
+
     def get_nat_rule_counters(self, name: str) -> tuple[int, int]:
-        """Return ``(packets, bytes)`` matched by the rule since it was added.
+        """Deprecated name of :meth:`get_nat_rule_counter_values`.
+
+        Return ``(packets, bytes)`` matched by the rule since it was added. A
+        driver's old name warns with ``warn_renamed`` and delegates to the new one.
 
         Raises KeyError if no rule with that name exists.
         Drivers without per-rule counter support raise NotImplementedError.

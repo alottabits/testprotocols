@@ -24,7 +24,7 @@ from __future__ import annotations
 
 from typing import Protocol, runtime_checkable
 
-from testprotocols.models.firewall import Chain, DefaultAction, FirewallRule
+from testprotocols.models.firewall import Chain, DefaultAction, FirewallRule, RuleCounters
 
 
 @runtime_checkable
@@ -111,8 +111,21 @@ class PacketFilter(Protocol):
 
     # --- Counters ---
 
+    def get_rule_counter_values(self, chain: Chain | str, name: str) -> RuleCounters:
+        """Return what the rule has matched since it was added, as
+        :class:`~testprotocols.models.RuleCounters`.
+
+        Raises ValueError if *chain* is unknown.
+        Raises KeyError if no rule with that name exists in *chain*.
+        Drivers without per-rule counter support raise NotImplementedError.
+        """
+        ...
+
     def get_rule_counters(self, chain: Chain | str, name: str) -> tuple[int, int]:
-        """Return ``(packets, bytes)`` matched by the rule since it was added.
+        """Deprecated name of :meth:`get_rule_counter_values`.
+
+        Return ``(packets, bytes)`` matched by the rule since it was added. A
+        driver's old name warns with ``warn_renamed`` and delegates to the new one.
 
         Raises ValueError if *chain* is unknown.
         Raises KeyError if no rule with that name exists in *chain*.

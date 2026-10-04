@@ -14,7 +14,13 @@ from typing import cast, override
 
 from testprotocols.deprecation import MODEL_FRAMES, coerce_enum
 from testprotocols.models._open_enum import OpenEnumPair
-from testprotocols.models._sync import assign, settle
+from testprotocols.models._sync import SyncedField, assign, settle
+from testprotocols.models.ports import (
+    PortRange,
+    format_port_ranges,
+    parse_port_ranges,
+    port_tuple,
+)
 from testprotocols.models.sdwan_appliance import RuleProtocol
 
 
@@ -85,6 +91,28 @@ class ConnState(StrEnum):
 
 _STATE_PAIRS = (OpenEnumPair(ConnState, ConnState.OTHER, "state", "state_raw"),)
 
+
+def _parse_nat_ports(text: str) -> tuple[PortRange, ...]:
+    # The released NatRule text for "no port" is the empty string; "any" is also accepted.
+    return () if text == "" else parse_port_ranges(text)
+
+
+def _format_nat_ports(ranges: tuple[PortRange, ...]) -> str:
+    return "" if not ranges else format_port_ranges(ranges)
+
+
+_RULE_PAIRS = (
+    SyncedField[tuple[PortRange, ...]](
+        "dst_port", "dst_ports", parse_port_ranges, format_port_ranges, port_tuple, "any"
+    ),
+)
+_NAT_PAIRS = tuple(
+    SyncedField[tuple[PortRange, ...]](
+        old, new, _parse_nat_ports, _format_nat_ports, port_tuple, ""
+    )
+    for old, new in (("dst_port", "dst_ports"), ("translated_port", "translated_ports"))
+)
+
 _RULE_ENUMS: dict[str, type[StrEnum]] = {"action": FirewallRuleAction, "protocol": RuleProtocol}
 _NAT_ENUMS: dict[str, type[StrEnum]] = {"mode": NatMode, "protocol": RuleProtocol}
 _MAPPING_ENUMS: dict[str, type[StrEnum]] = {"protocol": PortMappingProtocol}
@@ -111,6 +139,43 @@ def _set(
     object.__setattr__(obj, name, _coerce_field(owner, name, value, enums))
 
 
+def _set_synced(
+    obj: object,
+    owner: str,
+    name: str,
+    value: object,
+    enums: dict[str, type[StrEnum]],
+    pairs: tuple[SyncedField[tuple[PortRange, ...]], ...],
+) -> None:
+    """Assign *name*: a port field re-syncs its pair, an enum field is converted."""
+    if name == "_ports_seen" or any(pair.owns(name) for pair in pairs):
+        assign(obj, name, value, pairs, "_ports_seen")
+    else:
+        _set(obj, owner, name, value, enums)
+
+
+@dataclass(frozen=True)
+class RuleCounters:
+    """What a rule has matched since it was added.
+
+    *packets* and *bytes* are non-negative ints (a bool, float or other type
+    raises ``TypeError``, a negative number ``ValueError``). Returned by
+    ``PacketFilter.get_rule_counter_values`` and
+    ``Nat.get_nat_rule_counter_values``.
+    """
+
+    packets: int
+    bytes: int
+
+    def __post_init__(self) -> None:
+        for name in ("packets", "bytes"):
+            value: object = getattr(self, name)
+            if type(value) is not int:
+                raise TypeError(f"RuleCounters.{name} must be an int, not {type(value).__name__}")
+            if value < 0:
+                raise ValueError(f"RuleCounters.{name} must not be negative, got {value}")
+
+
 @dataclass
 class FirewallRule:
     """Holds a stateless or stateful packet-filter rule with match criteria and action.
@@ -124,7 +189,18 @@ class FirewallRule:
     (``tcp``, ``udp``, ``icmp``, ``any``; also ``icmp6``). A plain ``str`` naming
     one is deprecated: it warns and is converted, also on assignment, so a reader
     always holds the enum. Any other string raises ``ValueError``.
-    *dst_port* is a port number, a range like ``"1024-65535"``, or ``"any"``.
+    Ports are *dst_ports*: a tuple of :class:`~testprotocols.models.PortRange`, the
+    empty tuple meaning any port. *dst_port* is the released text form (a port
+    number, a range like ``"1024-65535"``, a comma list, or ``"any"``, its
+    default), deprecated; the two always agree, so a reader of either sees the
+    same ports. At construction the typed field fills the text; the text alone
+    warns (``DeprecationWarning``) and fills the typed field; both given and
+    disagreeing raise ``ValueError``. Afterwards, through ``dataclasses.replace``
+    and through assignment, the side that changed wins: ``rule.dst_ports = ...``
+    rewrites the text, while ``rule.dst_port = "443"`` re-parses the text into the
+    typed field and warns. A text normalises to its canonical form (``"22, 80"``
+    reads ``"22,80"``); malformed text raises ``ValueError`` and a non-text
+    *dst_port* or non-``PortRange`` *dst_ports* raises ``TypeError``.
     *application* / *application_category* are L7 classifiers used by
     SD-WAN policy; they are ignored by simple packet-filter drivers.
     """
@@ -134,16 +210,23 @@ class FirewallRule:
     protocol: RuleProtocol | str
     src_cidr: str
     dst_cidr: str
-    dst_port: str
+    dst_port: str = "any"
     application: str | None = None
     application_category: str | None = None
     log: bool = True
+    dst_ports: tuple[PortRange, ...] = field(default=(), kw_only=True)
+    _ports_seen: tuple[str, ...] | None = field(
+        default=None, kw_only=True, repr=False, compare=False
+    )
+
+    def __post_init__(self) -> None:
+        settle(self, _RULE_PAIRS, "_ports_seen")
 
     @override
     def __setattr__(self, name: str, value: object) -> None:
-        # Mutable model: the coercion runs on every assignment, and the generated
-        # ``__init__`` (hence ``dataclasses.replace``) assigns through here too.
-        _set(self, "FirewallRule", name, value, _RULE_ENUMS)
+        # Mutable model: the coercion and the port sync run on every assignment, and
+        # the generated ``__init__`` (hence ``dataclasses.replace``) assigns through here too.
+        _set_synced(self, "FirewallRule", name, value, _RULE_ENUMS, _RULE_PAIRS)
 
 
 @dataclass
@@ -166,6 +249,20 @@ class NatRule:
       an outside and inside address). Requires *translated_dst* (the
       inside address). Port fields must be empty.
 
+    Ports are *dst_ports* (the match) and *translated_ports* (the rewrite): tuples
+    of :class:`~testprotocols.models.PortRange`, the empty tuple meaning no port
+    (any, for the match). *dst_port* and *translated_port* are the released text
+    forms (``""`` by default, also ``"any"``, a port number, a range, or a comma
+    list), deprecated; each pair always agrees and follows the rule of
+    :class:`FirewallRule`'s ports (typed fills text; text alone warns and fills
+    typed; disagreeing raises ``ValueError``; the side that changed wins under
+    ``replace`` and assignment). The canonical text of no port is ``""``, so
+    ``"any"`` reads back as ``""``.
+
+    ``src_cidr`` / ``dst_cidr`` ``""`` and ``translated_src`` / ``translated_dst``
+    ``""`` will become ``str | None``, with ``None`` meaning absent; ``""`` means
+    absent until then.
+
     Match criteria default to ``""`` meaning "any". *interface* is the
     egress interface for snat / 1to1, the ingress interface for dnat;
     drivers may also accept a logical name resolved via ``IpInterface``.
@@ -182,10 +279,18 @@ class NatRule:
     translated_dst: str = ""
     translated_port: str = ""
     enabled: bool = True
+    dst_ports: tuple[PortRange, ...] = field(default=(), kw_only=True)
+    translated_ports: tuple[PortRange, ...] = field(default=(), kw_only=True)
+    _ports_seen: tuple[str, ...] | None = field(
+        default=None, kw_only=True, repr=False, compare=False
+    )
+
+    def __post_init__(self) -> None:
+        settle(self, _NAT_PAIRS, "_ports_seen")
 
     @override
     def __setattr__(self, name: str, value: object) -> None:
-        _set(self, "NatRule", name, value, _NAT_ENUMS)
+        _set_synced(self, "NatRule", name, value, _NAT_ENUMS, _NAT_PAIRS)
 
 
 @dataclass

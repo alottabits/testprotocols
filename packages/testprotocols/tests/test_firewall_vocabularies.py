@@ -23,6 +23,7 @@ from testprotocols.models import (
     NatRule,
     PortMapping,
     PortMappingProtocol,
+    RuleCounters,
     RuleProtocol,
 )
 from testprotocols.nat import Nat
@@ -94,12 +95,15 @@ class _FakeFilter:
     def get_default_policy(self, chain: Chain | str) -> str:
         return self.policy[coerce_enum(Chain, chain, what="get_default_policy chain")]
 
+    def get_rule_counter_values(self, chain: Chain | str, name: str) -> RuleCounters:
+        return RuleCounters(0, 0)
+
     def get_rule_counters(self, chain: Chain | str, name: str) -> tuple[int, int]:
         return (0, 0)
 
 
 def _rule() -> FirewallRule:
-    return FirewallRule("r", FirewallRuleAction.ALLOW, RuleProtocol.TCP, "any", "any", "80")
+    return FirewallRule("r", FirewallRuleAction.ALLOW, RuleProtocol.TCP, "any", "any")
 
 
 def test_the_fake_conforms_to_packet_filter() -> None:
@@ -157,6 +161,9 @@ class _FakeNat:
 
     def set_nat_rule_enabled(self, name: str, enabled: bool) -> None: ...
     def flush_nat_rules(self) -> None: ...
+    def get_nat_rule_counter_values(self, name: str) -> RuleCounters:
+        return RuleCounters(0, 0)
+
     def get_nat_rule_counters(self, name: str) -> tuple[int, int]:
         return (0, 0)
 
@@ -306,7 +313,7 @@ def test_models_built_from_members_do_not_warn_and_defaults_are_members() -> Non
 
 def test_firewall_rule_coerces_on_construction_replace_and_assignment() -> None:
     with pytest.warns(DeprecationWarning) as caught:
-        rule = FirewallRule("r", "deny", "udp", "any", "any", "53")
+        rule = FirewallRule("r", "deny", "udp", "any", "any")
     assert [str(w.message).split(":")[0] for w in caught] == [
         "FirewallRule.action",
         "FirewallRule.protocol",
@@ -323,7 +330,7 @@ def test_firewall_rule_coerces_on_construction_replace_and_assignment() -> None:
         again.action = "permit"
     assert again.action is FirewallRuleAction.LOG
     with pytest.raises(ValueError, match="gre"):
-        FirewallRule("r", FirewallRuleAction.ALLOW, "gre", "any", "any", "1")
+        FirewallRule("r", FirewallRuleAction.ALLOW, "gre", "any", "any")
 
 
 def test_nat_rule_coerces_on_construction_replace_and_assignment() -> None:

@@ -16,6 +16,7 @@ from testprotocols.models.firewall import (
     NatRule,
     PortMapping,
     PortMappingProtocol,
+    RuleCounters,
     Zone,
     ZonePolicy,
 )
@@ -284,6 +285,7 @@ __all__ = [
     "RouteOrigin",
     "RoutedInterface",
     "RuleAction",
+    "RuleCounters",
     "RuleProtocol",
     "SLAPolicy",
     "SecurityAction",
