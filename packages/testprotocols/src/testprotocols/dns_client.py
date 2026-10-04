@@ -33,6 +33,10 @@ class DnsClient(Protocol):
         annotation stays ``DnsRecordType | str`` until the removal step, as a record type the
         enum does not name yet (``"CAA"``) is still passed as text. ``DnsRecordType.OTHER``
         names no record type and is refused (``ValueError``).
+
+        *opts* (extra resolver options) is deprecated with no typed replacement: no caller
+        was seen to pass a particular option, and :meth:`resolve` takes none. A driver warns
+        when it is non-empty.
         """
         ...
 

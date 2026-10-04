@@ -32,7 +32,19 @@ class NtpClient(Protocol):
         ...
 
     def set_date(self, opt: str, date_string: str) -> bool:
-        """Set the device date/time using *opt* and *date_string*."""
+        """Deprecated: use :meth:`set_date_time`.
+
+        Sets the device date/time using *opt* and *date_string*. A driver keeps this form until
+        the removal step and warns with ``warn_renamed("set_date", "set_date_time")``; no
+        caller was seen to pass an *opt* other than the set-the-date flag.
+        """
+        ...
+
+    def set_date_time(self, value: datetime) -> bool:
+        """Set the device's date and time to *value*; ``True`` when the device took it.
+
+        A naive *value* is in the device's local time; an aware one is converted to it.
+        """
         ...
 
     def execute_time_sync(self, time_server: str) -> str:

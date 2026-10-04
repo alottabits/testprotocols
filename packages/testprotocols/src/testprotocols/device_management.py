@@ -53,6 +53,10 @@ class DeviceManagement(Protocol):
         ``[p.as_dict() for p in read_running_processes()]``; the driver warns with
         ``warn_renamed("get_running_processes", "read_running_processes")``. Other
         options keep the driver's released output until the removal step.
+
+        *ps_options* other than the default ``"-A"`` is deprecated with no typed replacement
+        (no caller was seen to pass one, and :meth:`read_running_processes` lists every
+        process): a driver warns when it differs from ``"-A"``.
         """
         ...
 

@@ -279,8 +279,33 @@ their tags and PR history.
   `_make` and `_replace`. Migration: none.
   Design `docs/architecture/precise-types-design.md` (Host-tier records); PR pending.
 
+- **module** `testprotocols.tool_options` — `settle_option_string` (a driver's one rule for a
+  deprecated tool option string: a warning when it is non-empty, `ValueError` when a typed
+  parameter is also set, the released default such as `ps_options="-A"` not counted),
+  `ping_options`, `traceroute_options`, `http_get_options`, `nmap_options` and `option_text`
+  (the renderers a driver uses to build the tool's arguments from the typed parameters, and
+  the option string a driver that predates them would receive). Migration: none. Design
+  `docs/architecture/precise-types-design.md` (Tool option strings); PR pending.
+
 #### Breaking for driver authors
 
+- **protocol members** `testprotocols.snmp_client:SnmpClient.snmp_get(host, oid, community, *,
+  timeout_s=10, retries=3, command_timeout=30) -> str` and `snmp_walk(...)` (same parameters,
+  `timeout_s=100`), and `testprotocols.ntp_client:NtpClient.set_date_time(value: datetime) ->
+  bool` — new mandatory members. Migration: implement them (`snmp_get` runs
+  `snmpget -v 2c -On -c <community> -t <timeout_s> -r <retries> <host> <oid>`, `snmp_walk` the
+  same with `snmpwalk`; `set_date_time` formats `value` for the device's `date`); make
+  `set_date` warn with `warn_renamed("set_date", "set_date_time")` and `execute_snmp_command`
+  warn. Design `docs/architecture/precise-types-design.md` (Tool option strings); PR pending.
+- **protocol members** `testprotocols.ip_routing:IpRouting.ping` (`reply_timeout_s`,
+  `interval_s`) and `traceroute` (`numeric`), `testprotocols.http_client:HttpClient.curl` and
+  `http_get` (`no_proxy`, `insecure`, `follow_redirects`), `testprotocols.nmap_scanner:NmapScanner.nmap`
+  and `scan_ports` (`fast`) — gain keyword-only parameters with defaults. Callers need
+  no change; an implementer's declaration without them no longer matches under pyright
+  (mypy does not check a missing keyword-only parameter), and a caller that passes one of them to
+  such a driver fails. Migration: add the keyword-only parameters, build the tool's arguments
+  from them with the `testprotocols.tool_options` renderers, and call `settle_option_string`
+  on the old string first (so that passing both raises `ValueError`). Design `docs/architecture/precise-types-design.md` (Tool option strings); PR pending.
 - **protocol members** `testprotocols.packet_filter:PacketFilter.get_rule_counter_values(chain, name) -> RuleCounters`
   and `testprotocols.nat:Nat.get_nat_rule_counter_values(name) -> RuleCounters`
   (so also `Firewall`, which inherits `PacketFilter`) — new mandatory members,
@@ -501,6 +526,17 @@ their tags and PR history.
 
 #### Deprecated
 
+- **parameters** `IpRouting.ping` and `traceroute` `options`, `HttpClient.curl` and `http_get`
+  `options`, `NmapScanner.nmap` `opts` — the free option string is deprecated in favour of
+  the typed keyword-only parameters (see *Breaking for driver authors*); a driver warns when it
+  is non-empty and raises `ValueError` when both forms are given. `DnsClient.dns_lookup` `opts`
+  and a `DeviceManagement.get_running_processes` `ps_options` other than `"-A"` are
+  deprecated with no typed replacement (no caller was seen to pass one). They keep their
+  released types and positions until a later release removes them. Design `docs/architecture/precise-types-design.md` (Tool option strings); PR pending.
+- **protocol members** `NtpClient.set_date` (use `set_date_time`) and
+  `SnmpClient.execute_snmp_command` (use `snmp_get` or `snmp_walk`; no successor for
+  `snmpset` or `snmpbulkget`) — deprecated; a driver keeps them and warns until a later
+  release removes them. Design `docs/architecture/precise-types-design.md` (Tool option strings); PR pending.
 - **parameters and fields** `PacketFilter` (`chain`, `set_default_policy(policy)`),
   `Nat.list_nat_rules(mode)`, `Conntrack` (`protocol`, `state`), `FirewallRule.action` /
   `protocol`, `NatRule.mode` / `protocol`, `PortMapping.protocol` and

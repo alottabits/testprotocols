@@ -27,6 +27,8 @@ class NmapScanner(Protocol):
         min_rate: int | None = None,
         opts: str | None = None,
         timeout: int = 30,
+        *,
+        fast: bool = False,
     ) -> dict[str, Any]:
         """Deprecated: use :meth:`scan_ports`, which returns a typed result.
 
@@ -40,6 +42,10 @@ class NmapScanner(Protocol):
         plain ``str`` naming a member is deprecated: the driver converts it and warns.
         *protocol* stays free text: it is the scan-type option the tool is given
         (``"-sU"``), not an IP protocol.
+
+        *fast* scans fewer ports than the tool's default set. It replaces the released *opts*
+        string, which is deprecated (a driver warns when it is non-empty and raises
+        ``ValueError`` when it is given together with *fast*).
         """
         ...
 
@@ -53,6 +59,7 @@ class NmapScanner(Protocol):
         max_retries: int | None = None,
         min_rate: int | None = None,
         timeout: int = 30,
+        fast: bool = False,
     ) -> NmapResult:
         """Port-scan *target* (an address or host name) over *ip_version*
         (:class:`~testprotocols.models.IpFamily`) and return what was found.
@@ -60,6 +67,7 @@ class NmapScanner(Protocol):
         *ports* are the ranges to scan (``()``: the tool's default set); *protocol* the
         transport to scan (``None``: the tool's default, TCP); *max_retries* caps probe
         retransmissions and *min_rate* sets the minimum probe rate (packets per second);
-        *timeout* is in seconds.
+        *timeout* is in seconds; *fast* scans fewer ports than the default set (an explicit
+        *ports* wins).
         """
         ...
