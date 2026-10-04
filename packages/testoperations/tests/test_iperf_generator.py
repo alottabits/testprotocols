@@ -9,7 +9,7 @@ from testoperations.iperf_generator import (
     saturate_link,
     stop_all_generators,
 )
-from testprotocols.models.traffic import TrafficResult
+from testprotocols.models.traffic import TrafficResult, TransportProtocol
 
 
 def _peer(server_ip: str, flow_id: str) -> MagicMock:
@@ -82,7 +82,7 @@ class TestSaturateLink:
             a_to_b_mbps=50.0,
             dscp=46,
             duration_s=30,
-            protocol="tcp",
+            protocol=TransportProtocol.TCP,
         )
 
         a_spec = peer_a.start_traffic.call_args[0][0]

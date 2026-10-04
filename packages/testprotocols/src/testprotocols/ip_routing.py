@@ -9,6 +9,8 @@ from __future__ import annotations
 from ipaddress import IPv4Address
 from typing import Any, Protocol, runtime_checkable
 
+from testprotocols.models.networking import IpVersion
+
 
 @runtime_checkable
 class IpRouting(Protocol):
@@ -29,11 +31,18 @@ class IpRouting(Protocol):
     def traceroute(
         self,
         host_ip: str | IPv4Address,
-        version: str = "",
+        version: IpVersion | str = "",
         options: str = "",
         timeout: int = 60,
     ) -> str | None:
-        """Run a traceroute to *host_ip* and return the output."""
+        """Run a traceroute to *host_ip* and return the output.
+
+        *version* is an :class:`~testprotocols.models.IpVersion`; ``""`` (the default)
+        leaves the version to the tool and will become ``None`` at the removal step. A
+        plain ``str`` naming a member is deprecated: the driver converts it and warns.
+        The released implementers also take the suffix their command uses (``"6"`` for
+        ``traceroute6``) as a plain word, which is still accepted.
+        """
         ...
 
     def add_route(self, destination: str, gw_interface: str) -> None:

@@ -13,6 +13,8 @@ The rule, for construction, ``dataclasses.replace`` and assignment alike:
   converts and warns (``coerce_open_enum``) and clears it too;
 - any other string, the empty one included, sets the field to the catch-all and the
   raw word to that string, kept verbatim, without a warning: the set is open;
+- with ``optional=True`` the field may also be ``None`` (nothing reported), which
+  carries no raw word;
 - a raw word given with a named (non-catch-all) field raises ``ValueError``, and so
   does a raw word that disagrees with the unknown word the field was given;
 - **the side that changed wins**: under ``replace`` and assignment, changing the
@@ -59,15 +61,17 @@ class OpenEnumPair[E: Enum]:
     other: E
     field: str
     raw_field: str
+    optional: bool = False
+    """The field may also be ``None`` (no value reported): then the raw word is ``None`` too."""
 
     def owns(self, name: str) -> bool:
         return name in (self.field, self.raw_field)
 
     def settle(
-        self, obj: object, seen: tuple[E, str | None] | None, owner: str
-    ) -> tuple[E, str | None]:
+        self, obj: object, seen: tuple[E | None, str | None] | None, owner: str
+    ) -> tuple[E | None, str | None]:
         """Bring *obj*'s pair into agreement; return the agreed ``(member, raw)``."""
-        state = cast("E | str", getattr(obj, self.field))
+        state = cast("E | str | None", getattr(obj, self.field))
         raw = self._raw(getattr(obj, self.raw_field), owner)
         if seen is None:  # construction: both sides are as the caller gave them
             agreed = self._resolve(state, raw, owner)
@@ -85,13 +89,15 @@ class OpenEnumPair[E: Enum]:
                 agreed = seen
         return self._put(obj, agreed)
 
-    def assign(self, obj: object, name: str, value: object, owner: str) -> tuple[E, str | None]:
+    def assign(
+        self, obj: object, name: str, value: object, owner: str
+    ) -> tuple[E | None, str | None]:
         """Set *name* (one of the pair) to *value* and the other side to match; return the
         agreed ``(member, raw)``. A refused value leaves *obj* untouched."""
         if name == self.field:
-            agreed = self._resolve(cast("E | str", value), None, owner)
+            agreed = self._resolve(cast("E | str | None", value), None, owner)
         else:
-            member = cast(E, getattr(obj, self.field))
+            member = cast("E | None", getattr(obj, self.field))
             agreed = self._resolve(member, self._raw(value, owner), owner)
         return self._put(obj, agreed)
 
@@ -100,10 +106,19 @@ class OpenEnumPair[E: Enum]:
             raise TypeError(f"{owner}.{self.raw_field} takes text or None, not {value!r}")
         return value
 
-    def _resolve(self, state: E | str, raw: str | None, owner: str) -> tuple[E, str | None]:
+    def _resolve(
+        self, state: E | str | None, raw: str | None, owner: str
+    ) -> tuple[E | None, str | None]:
+        if state is None and self.optional:
+            if raw is not None:
+                raise ValueError(
+                    f"{owner}.{self.raw_field} {raw!r} needs {owner}.{self.field} to be "
+                    f"{self.enum_type.__name__}.{self.other.name}, not None"
+                )
+            return None, None
         member, word = coerce_open_enum(
             self.enum_type,
-            state,
+            cast("E | str", state),
             what=f"{owner}.{self.field}",
             other=self.other,
             skip_file_prefixes=MODEL_FRAMES,
@@ -121,7 +136,7 @@ class OpenEnumPair[E: Enum]:
             )
         return member, raw
 
-    def _put(self, obj: object, agreed: tuple[E, str | None]) -> tuple[E, str | None]:
+    def _put(self, obj: object, agreed: tuple[E | None, str | None]) -> tuple[E | None, str | None]:
         object.__setattr__(obj, self.field, agreed[0])
         object.__setattr__(obj, self.raw_field, agreed[1])
         return agreed

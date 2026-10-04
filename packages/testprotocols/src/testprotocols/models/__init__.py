@@ -37,15 +37,37 @@ from testprotocols.models.multicast import (
     MulticastGroupRecord,
     MulticastGroupRecordType,
 )
-from testprotocols.models.networking import HTTPResult, ICMPPacketData, IPAddresses
+from testprotocols.models.networking import (
+    DnsRecordType,
+    HTTPResult,
+    HttpScheme,
+    ICMPPacketData,
+    IPAddresses,
+    IpVersion,
+    LinkAdminState,
+    coerce_ip_version,
+    parse_http_response,
+)
 from testprotocols.models.packets import RIPv2PacketData
 from testprotocols.models.ports import PortRange, format_port_ranges, parse_port_ranges, port_tuple
-from testprotocols.models.qoe import MeasurementSpec, QoEResult
+from testprotocols.models.qoe import (
+    HttpVersion,
+    MeasurementSpec,
+    PageCompletion,
+    QoeCompletion,
+    QoEResult,
+    QoeScenario,
+    QoeTool,
+)
 from testprotocols.models.radius import (
+    AcctStatusType,
+    AcctTerminateCause,
+    EapMethod,
     RadiusAccountingRecord,
     RadiusServerConfig,
     RadiusSession,
     RadiusUser,
+    ServiceStatus,
 )
 from testprotocols.models.sdwan_appliance import (
     ApplicationCategory,
@@ -129,6 +151,7 @@ from testprotocols.models.switch import (
     QosTrustMode,
     StormControlConfig,
     StormControlType,
+    StormControlUnit,
     StpPortConfig,
     SwitchAclRule,
     SwitchPort,
@@ -145,7 +168,7 @@ from testprotocols.models.switch_routing import (
     RoutedInterface,
 )
 from testprotocols.models.tr069 import CpeConnectionStatus
-from testprotocols.models.traffic import TrafficResult, TrafficSpec
+from testprotocols.models.traffic import TrafficResult, TrafficSpec, TransportProtocol
 from testprotocols.models.voice import (
     MwiStatus,
     OfflineMessage,
@@ -192,6 +215,8 @@ __all__ = [
     # switch
     "AccessPolicy",
     "AccessPolicyType",
+    "AcctStatusType",
+    "AcctTerminateCause",
     "AclDirection",
     "AggregationMode",
     # wan_edge
@@ -225,7 +250,9 @@ __all__ = [
     "DhcpOptionType",
     "DhcpReservation",
     "DiscoveryProtocol",
+    "DnsRecordType",
     "Duplex",
+    "EapMethod",
     # emission
     "EmitResult",
     "FhsBinding",
@@ -237,6 +264,8 @@ __all__ = [
     # networking
     "HTTPResult",
     "HostMatch",
+    "HttpScheme",
+    "HttpVersion",
     "ICMPPacketData",
     "IPAddresses",
     # impairment
@@ -248,9 +277,11 @@ __all__ = [
     "IntrusionMode",
     "IntrusionSensitivity",
     "IpRangeMatch",
+    "IpVersion",
     "L3Rule",
     "L7MatchType",
     "L7Rule",
+    "LinkAdminState",
     "LinkAggregationGroup",
     "LinkHealthReport",
     "LinkState",
@@ -281,6 +312,7 @@ __all__ = [
     "OspfConfig",
     "OspfInterfaceSettings",
     "OspfVersion",
+    "PageCompletion",
     "PathMetrics",
     "PhoneState",
     "PoePortStatus",
@@ -296,6 +328,9 @@ __all__ = [
     "PortStatusEntry",
     "PresenceStatus",
     "QoEResult",
+    "QoeCompletion",
+    "QoeScenario",
+    "QoeTool",
     "QosClassifier",
     "QosRule",
     "QosTrustMode",
@@ -320,6 +355,7 @@ __all__ = [
     "SLAPolicy",
     "SecurityAction",
     "SecurityEvent",
+    "ServiceStatus",
     "ShapingPriority",
     "ShapingRule",
     "SipMethod",
@@ -328,6 +364,7 @@ __all__ = [
     "SteeringScope",
     "StormControlConfig",
     "StormControlType",
+    "StormControlUnit",
     "StpGuard",
     "StpMode",
     "StpPortConfig",
@@ -342,6 +379,7 @@ __all__ = [
     # traffic
     "TrafficResult",
     "TrafficSpec",
+    "TransportProtocol",
     "UplinkSelectionRule",
     "UplinkState",
     "UplinkStatus",
@@ -373,9 +411,11 @@ __all__ = [
     "WifiTransitionConfig",
     "Zone",
     "ZonePolicy",
+    "coerce_ip_version",
     # ports
     "format_port_ranges",
     "match_fields",
+    "parse_http_response",
     "parse_port_ranges",
     "port_tuple",
     "traffic_match",

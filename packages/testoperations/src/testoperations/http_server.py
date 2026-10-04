@@ -9,13 +9,14 @@ from collections.abc import Generator
 from contextlib import contextmanager
 
 from testprotocols.http_server import HttpServer
+from testprotocols.models.networking import IpVersion
 
 
 @contextmanager
 def start_http_server(
     http_server: HttpServer,
-    port: str,
-    ip_version: str = "ipv4",
+    port: int | str,
+    ip_version: IpVersion | str = IpVersion.IPV4,
 ) -> Generator[str, None, None]:
     """Context manager that starts an HTTP service and stops it on exit.
 

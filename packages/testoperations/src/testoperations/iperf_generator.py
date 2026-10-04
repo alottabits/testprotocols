@@ -8,7 +8,7 @@ are deleted — step definitions call the template method directly.
 from __future__ import annotations
 
 from testprotocols.iperf_generator import IperfGenerator
-from testprotocols.models.traffic import TrafficResult, TrafficSpec
+from testprotocols.models.traffic import TrafficResult, TrafficSpec, TransportProtocol
 
 
 def _assert_distinct_peers(peer_a: IperfGenerator, peer_b: IperfGenerator) -> None:
@@ -32,7 +32,7 @@ def _flow_spec(
     bandwidth_mbps: float,
     dscp: int,
     duration_s: int,
-    protocol: str,
+    protocol: TransportProtocol | str,
 ) -> TrafficSpec:
     """Build a TrafficSpec whose destination is *destination_peer*'s server_ip."""
     return TrafficSpec(
@@ -51,7 +51,7 @@ def saturate_link(
     b_to_a_mbps: float | None = None,
     dscp: int = 0,
     duration_s: int = 120,
-    protocol: str = "udp",
+    protocol: TransportProtocol | str = TransportProtocol.UDP,
 ) -> dict[str, str]:
     """Saturate the network path between two peer generators with bidirectional traffic.
 
@@ -77,7 +77,8 @@ def saturate_link(
         *a_to_b_mbps* for symmetric load.
     :param dscp: DSCP code point for both flows (default 0 = best-effort).
     :param duration_s: Flow duration in seconds (default 120).
-    :param protocol: ``"udp"`` (default) or ``"tcp"``.
+    :param protocol: a :class:`~testprotocols.models.traffic.TransportProtocol` (default
+        ``UDP``); a plain ``"udp"`` / ``"tcp"`` is deprecated and warns.
     :return: ``{"a_to_b": <flow_id_on_peer_a>, "b_to_a": <flow_id_on_peer_b>}``.
     :raises ValueError: if ``peer_a.server_ip == peer_b.server_ip``.
     """

@@ -112,6 +112,13 @@ class StormControlType(StrEnum):
     UNKNOWN_UNICAST = "unknown_unicast"
 
 
+class StormControlUnit(StrEnum):
+    """The unit of a storm-control threshold: percent of line rate, or packets per second."""
+
+    PERCENT = "percent"
+    PPS = "pps"
+
+
 class QosTrustMode(StrEnum):
     """Which QoS marking field the port trusts for inbound classification."""
 
@@ -208,12 +215,15 @@ class AccessPolicy:
 class StormControlConfig:
     """Per-port storm-control thresholds, keyed by traffic type.
 
-    Threshold units are driver-normalized (percent of line rate or pps); the
-    plugin maps the product's representation.
+    *unit* is the :class:`StormControlUnit` every threshold is in; ``None`` means "as the
+    driver reads it": the driver reports the product's own unit, and a writer that leaves
+    it ``None`` gets the driver's default. A driver that cannot honour the requested unit
+    raises ``ValueError``.
     """
 
     port: str
     thresholds: dict[StormControlType, float] = field(default_factory=dict[StormControlType, float])
+    unit: StormControlUnit | None = None
 
 
 @dataclass

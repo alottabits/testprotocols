@@ -37,7 +37,11 @@ class RadiusServer(Protocol):
         ...
 
     def get_status(self) -> str:
-        """Return the daemon status. Typical values: ``"running"``, ``"stopped"``, ``"error"``."""
+        """Return the daemon status. Typical values: ``"running"``, ``"stopped"``, ``"error"``.
+
+        Announced only: the return narrows to :class:`~testprotocols.models.ServiceStatus`
+        (members equal those strings) in a later release; it stays ``str`` today.
+        """
         ...
 
     # ------------------------------------------------------------------
@@ -55,8 +59,9 @@ class RadiusServer(Protocol):
 
         *eap_methods* lists the EAP methods this user may use (e.g.
         ``["PEAP-MSCHAPv2", "TTLS-PAP"]``); None means the server's default
-        method set. *attributes* is a dict of RADIUS attributes returned in
-        the Access-Accept reply (e.g. ``{"Tunnel-Private-Group-Id": "42"}``
+        method set; each is an :class:`~testprotocols.models.EapMethod` value (the set is
+        open: another word is passed on as given). *attributes* is a dict of RADIUS
+        attributes returned in the Access-Accept reply (e.g. ``{"Tunnel-Private-Group-Id": "42"}``
         for VLAN assignment, ``{"Session-Timeout": "3600"}``).
 
         Raises ValueError if *username* is already provisioned.
