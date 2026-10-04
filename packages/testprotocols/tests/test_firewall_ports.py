@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import dataclasses
+import warnings
 
 import pytest
 from testprotocols.models import (
@@ -216,3 +217,39 @@ def test_new_counter_members_exist_and_old_remain() -> None:
     assert callable(PacketFilter.get_rule_counters)
     assert callable(Nat.get_nat_rule_counter_values)
     assert callable(Nat.get_nat_rule_counters)
+
+
+def test_rule_counters_accept_zero_and_large() -> None:
+    assert RuleCounters(0, 0).packets == 0
+    big = 2**63
+    assert RuleCounters(big, big * 2).bytes == big * 2
+
+
+def test_nat_replace_with_both_pairs_inconsistent_raises() -> None:
+    n = _nat(dst_ports=(PortRange.single(80),), translated_ports=(PortRange.single(8080),))
+    # first pair conflicts (text and typed changed to different ports)
+    with pytest.raises(ValueError, match="dst_port"):
+        dataclasses.replace(n, dst_port="81", dst_ports=(PortRange.single(82),))
+    # first pair is a valid text change, second pair conflicts
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", DeprecationWarning)
+        with pytest.raises(ValueError, match="translated_port"):
+            dataclasses.replace(
+                n,
+                dst_port="81",
+                translated_port="9",
+                translated_ports=(PortRange.single(10),),
+            )
+
+
+def test_nat_typed_ports_wrong_type_raises() -> None:
+    n = _nat()
+    for bad in ("80", 80, (80,)):
+        with pytest.raises(TypeError):
+            n.dst_ports = bad  # type: ignore[assignment]  # pyright: ignore[reportAttributeAccessIssue]
+        with pytest.raises(TypeError):
+            _nat(translated_ports=bad)
+    with pytest.raises(ValueError):
+        n.dst_port = "80:90"
+    with pytest.raises(ValueError):
+        n.dst_port = "80,"

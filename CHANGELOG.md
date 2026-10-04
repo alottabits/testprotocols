@@ -160,7 +160,15 @@ their tags and PR history.
   malformed port text (for example `"http"`, or `""` on `FirewallRule`) raises
   `ValueError`, and a non-text `dst_port` or a non-`PortRange` `dst_ports`
   raises `TypeError`; no value the released documentation allowed raises.
-  A text is canonical (`"22, 80"` reads `"22,80"`). Design `docs/architecture/precise-types-design.md` (firewall and NAT ports and counters); PR pending.
+  A text is canonical (`"22, 80"` reads `"22,80"`).
+  Accepted port forms are `"any"` (and `""` on `NatRule`), numbers, `a-b` ranges and
+  comma lists; colon or slash forms (`"80:90"`, `"tcp/80"`) and a trailing comma
+  raise `ValueError`, so a driver that reads them back must convert them.
+  Static only, no runtime change: unpacking a loosely typed dict (for example
+  `FirewallRule(**dict[str, str])`) into `FirewallRule` or `NatRule` now fails
+  type-checking, because `dst_ports` and the private `_ports_seen` are keyword
+  parameters (`_ports_seen` shows in signatures and error text); type the dict or
+  pass the fields explicitly. Listed in the design doc's "Effective now". Design `docs/architecture/precise-types-design.md` (firewall and NAT ports and counters); PR pending.
 
 #### Deprecated
 

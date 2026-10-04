@@ -170,6 +170,33 @@ where one exists, also records its retype.
   are mandatory (breaking for driver authors), the old names deprecated (shape 5).
   `testoperations` does not call either old name.
 
+## Effective now
+
+Changes that take effect in this release for code written against the released
+contract, whether or not it uses the deprecated spelling. Each task appends here;
+the matching CHANGELOG entry sits under *Changed*.
+
+- **Conntrack and coercion** (vocabularies task). `Connection.protocol` refuses
+  `RuleProtocol.ANY` with `ValueError`, as the released docstring said. An unknown
+  string on `FirewallRule`, `NatRule`, `PortMapping` or `Connection` (protocol, mode,
+  action) raises `ValueError`; a `Connection.state` unknown word never raises: it
+  becomes `ConnState.OTHER` plus `state_raw`. A conntrack `protocol` filter of `any`
+  is refused. `NatRule.protocol` defaults to `RuleProtocol.ANY`.
+- **Firewall and NAT ports** (ports task). `FirewallRule.dst_port` now defaults to
+  `"any"`. `NatRule` port text reads `""` for no port (`"any"` is accepted and reads
+  back `""`). Port text accepts only `"any"` (or `""` on `NatRule`), numbers, `a-b`
+  ranges and comma lists with no trailing comma; colon or slash forms (`"80:90"`,
+  `"tcp/80"`) and a trailing comma raise `ValueError`, so a driver that reads them
+  back must convert them. A non-text port text or a non-`PortRange` item raises
+  `TypeError`.
+- **Static-only: unpacking a loose dict** (ports task; no runtime change). Unpacking
+  a loosely typed dict, for example `FirewallRule(**dict[str, str])`, into a retyped
+  released record fails type-checking, because the synced typed fields (`dst_ports`)
+  and the hidden provenance field are keyword parameters and a type checker matches
+  the dict's value type against each. The caller types the dict or passes the fields
+  explicitly. The private `_ports_seen` also appears in `__init__` signatures and in
+  static error text; it is not API.
+
 ## Pending narrow steps (announced, not yet taken)
 
 Each lands in a later release with its own breaking changelog entry:
