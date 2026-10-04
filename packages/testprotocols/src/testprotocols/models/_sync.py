@@ -123,9 +123,12 @@ class SyncedField[T]:
     normalize: Callable[[T], T]
     empty_text: str
     keep_text: bool = False
-    """Keep a text that parses to the agreed value exactly as given, instead of
-    rewriting it to ``format``'s form (for text whose released spelling has
-    several equal readings, such as an ISO-8601 offset ``Z`` or ``+00:00``)."""
+    """Keep a text exactly as given when it differs from ``format``'s form only in
+    spelling: it parses to the agreed value and ``format`` of what it parses to is
+    the agreed text (an ISO-8601 ``Z`` for ``+00:00``). A text that spells a
+    different value, such as another UTC offset for the same instant, is rewritten.
+    A text that parses to the same value as the agreed one but formats differently is
+    rewritten too."""
 
     @property
     def label(self) -> str:
@@ -149,11 +152,15 @@ class SyncedField[T]:
             typed = self.parse(value)
             _warn(self.old, self.new, owner)
             return self._put(obj, typed, value)
-        return self._put(obj, self.normalize(cast(T, value)))
+        return self._put(obj, self.normalize(cast(T, value)), getattr(obj, self.old))
+
+    def _same_value(self, given: str, typed: T, text: str) -> bool:
+        parsed = self.parse(given)
+        return parsed == typed and self.format(parsed) == text
 
     def _put(self, obj: object, typed: T, given: str | None = None) -> str:
         text = self.format(typed)
-        if self.keep_text and given and self.parse(given) == typed:
+        if self.keep_text and given and self._same_value(given, typed, text):
             text = given
         object.__setattr__(obj, self.old, text)
         object.__setattr__(obj, self.new, typed)

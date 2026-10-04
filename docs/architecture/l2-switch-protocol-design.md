@@ -324,11 +324,10 @@ limits scheduler control (◐), so the capability normalizes to rules + trust/ma
 explicit queue-scheduler / per-port-rate-limit tuning is **not** modeled now
 (deferred — surfaces unevenly and no test drives it).
 
-*Classifier typing:* `QosRule.classifier` (`TrafficMatch | None`, synced with the
-deprecated `match` text) can express destination ports only, so a rule that
-classifies by VLAN, protocol or source port cannot be built from the model today;
-the retype and its consequence are in `precise-types-design.md` ("Switch QoS
-classifier").
+*Classifier typing:* `QosRule.classifier` (`QosClassifier | None`: VLAN, protocol,
+source and destination ports; synced with the deprecated `match` text) types the
+classification; free text stays legal and has no classifier. See
+`precise-types-design.md` ("Switch QoS classifier").
 
 ### `ntp: NtpConfig` — NEW (5/6)
 NTP-server configuration — `set_ntp_servers` / `get_ntp_servers` over a small

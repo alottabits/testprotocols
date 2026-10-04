@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from enum import StrEnum
@@ -37,11 +38,12 @@ def _link_state(owner: str, name: str, value: object) -> UplinkState:
 class LinkStatus:
     """Holds the current operational state and IP address of a WAN link.
 
-    *state* is an :class:`~testprotocols.models.UplinkState` (``up``, ``down`` or
-    ``degraded`` here). A plain ``str`` naming one is deprecated: it warns and is
-    converted, also on assignment, so a reader always holds the enum; any other
-    string raises ``ValueError``. ``ip_address`` is ``""`` when the link has none;
-    it will become ``str | None``, ``""`` means none until then.
+    *state* is an :class:`~testprotocols.models.UplinkState`; every member is
+    accepted (``up``, ``down`` and ``degraded`` are the common ones). A plain
+    ``str`` naming one is deprecated: it warns and is converted, also on
+    assignment, so a reader always holds the enum; any other string raises ``ValueError``.
+    ``ip_address`` is ``""`` when the link has none; it will become
+    ``str | None``, and ``""`` means none until then.
     """
 
     name: str
@@ -75,8 +77,8 @@ class Telemetry:
     *uptime_seconds* is the time since the device started. *cpu_load_percent*
     and *mem_used_percent* are ``None`` when the device does not report them.
     Each is an ``int`` or ``float`` (a ``bool`` or other type raises
-    ``TypeError``) and not negative (``ValueError``). Returned by
-    ``Router.read_telemetry``; :meth:`as_dict` is the released
+    ``TypeError``) and finite and not negative (``ValueError``; ``nan`` and
+    ``inf`` are refused). Returned by ``Router.read_telemetry``; :meth:`as_dict` is the released
     ``Router.get_telemetry`` mapping, so a driver's old member can delegate.
     """
 
@@ -91,8 +93,8 @@ class Telemetry:
                 continue
             if isinstance(value, bool) or not isinstance(value, int | float):
                 raise TypeError(f"Telemetry.{name} must be a number, not {value!r}")
-            if value < 0:
-                raise ValueError(f"Telemetry.{name} must not be negative, got {value}")
+            if not math.isfinite(value) or value < 0:
+                raise ValueError(f"Telemetry.{name} must be finite and not negative, got {value}")
 
     def as_dict(self) -> dict[str, float]:
         """The released ``get_telemetry`` mapping: the values the device reported,
@@ -237,9 +239,10 @@ DEPRECATED_ORPHANS: dict[str, object] = {
 
 if not TYPE_CHECKING:
     # Remove the names at run time so that every access reaches ``__getattr__`` and
-    # warns; type checkers still see the definitions above.
+    # warns; type checkers still see the definitions above. ``__getattr__`` is defined
+    # here too, not at module level: a checker that saw it would type every unknown
+    # name as ``object``.
     del VPNPeerStatus, TrafficShapingRule
 
-
-def __getattr__(name: str) -> object:
-    return deprecated_attribute(__name__, name, ORPHAN_REASON, DEPRECATED_ORPHANS)
+    def __getattr__(name: str) -> object:
+        return deprecated_attribute(__name__, name, ORPHAN_REASON, DEPRECATED_ORPHANS)

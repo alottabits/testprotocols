@@ -178,12 +178,15 @@ where one exists, also records its retype.
   assumed. An ISO-8601 instant has several equal spellings (`Z` or `+00:00`, `T` or
   a space), and `isoformat()` writes one, so `isoformat()` does not round-trip a
   producer's text: the pair is a `SyncedField` with `keep_text=True`, which keeps a
-  text that parses to the agreed value exactly as given (a typed value alone writes
-  `isoformat()`). Two events with the same instant in two spellings therefore
-  compare unequal on `ts`. `ts` gained a default (`""`, no time) so an event can
+  text exactly as given when it differs from the canonical form only in spelling
+  (it parses to the agreed value and formats back to the agreed text). A text that
+  spells a different value, such as the same instant at another UTC offset, is
+  rewritten, so `replace`, assignment and re-assigning the same value agree. A
+  typed value alone writes `isoformat()`. Two events with the same instant in two
+  spellings compare unequal on `ts`. `ts` gained a default (`""`, no time) so an event can
   be built from `timestamp` alone; the fields after it keep their released
   positions and take a required-argument placeholder that `__post_init__` refuses,
-  so omitting one still raises `TypeError`. The `"any"` cidr placeholders of
+  so omitting one still raises `TypeError` (the placeholder reads `<required>`). The `"any"` cidr placeholders of
   `L3Rule`, the `""` placeholders of `UplinkStatus` and `NetworkAttachment.segment`
   are announced only (shape 6).
 - **WAN-edge models** (shapes 3, 3o and the orphan deprecation). `LinkStatus.state`
@@ -197,54 +200,31 @@ where one exists, also records its retype.
   `OTHER`, which `CategoryMatch` refuses, so no L7 or shaping rule can match on it.
   A record holds either `SyncedField` pairs or one `OpenEnumPair` under its single
   provenance field; `AppFlow` has only the latter. `VPNPeerStatus` and
-  `TrafficShapingRule` have no consumer and no successor: both are deprecated by a
+  `TrafficShapingRule` have no capability using them and no successor: both are deprecated by a
   module `__getattr__` (`deprecated_attribute`, the no-successor counterpart of
   `renamed_attribute`) in `wan_edge` and in `testprotocols.models`, removed from
   `models.__all__`, and still defined for type checkers under `TYPE_CHECKING`, so
   a consumer that imports them sees a `DeprecationWarning` and no static error.
-  `TrafficShapingRule.match` is `Mapping[str, object]`.
-- **Switch QoS classifier** (shape 4(ii)). `QosRule.classifier` is `TrafficMatch | None`
-  synced with the deprecated `match` text. The released `match` is "a vendor-neutral
-  traffic-classifier expression (e.g. by VLAN, protocol, or port)"; the released
-  producers write a comma list of `key=value` terms (`vlan`, `protocol`, `srcPort`,
-  `srcPortRange`, `dstPort`, `dstPortRange`) and a pinned test used the free text
-  `"vlan 10"`. `TrafficMatch` is one match of one kind (application, category, host,
-  destination ports, address range), so of those forms only destination ports map:
-  `dstPort=<port>` and `dstPortRange=<first>-<last>` (a comma list of them is a
-  multi-range `PortMatch`; the empty text is `None`, every frame). Everything else
-  cannot be expressed and raises `ValueError`: a `vlan` term, a `protocol` term
-  (`protocol=any` too), a `srcPort` or `srcPortRange` term, an unknown key, free
-  text, and any conjunction of terms with a non-port one. Any other `TrafficMatch`
-  kind given as the classifier raises `ValueError`. A released rule that
-  classifies by VLAN or protocol therefore cannot be built from this model;
-  expressing those needs a richer classifier (a VLAN and protocol alongside ports),
-  which `TrafficMatch` is not.
-- **Telemetry and policy** (shapes 5 and the no-successor deprecation). `Telemetry`
-  replaces the `dict[str, Any]` that `Router.get_telemetry` returned (shape 5):
-  `Router.read_telemetry() -> Telemetry` is a new mandatory member, and the old name
-  is documented "Deprecated name of" it; a driver delegates with
-  `read_telemetry().as_dict()` after `warn_renamed`. The fields come from evidence,
-  not from design. The released docstring said only "a dict of current device
-  telemetry data" and named no key. The only implementer in the consumer examples
-  (a Linux router) returns `uptime_seconds`, `cpu_load_percent` and
-  `mem_used_percent`, all floats, and omits a CPU key when it cannot read one; so
-  `Telemetry` has exactly those three fields, the last two optional, and no other
-  field (a temperature or load average would be a guess). `testoperations` does not
-  call `get_telemetry`, so there is no accessor in `_renamed.py`.
-  `SdwanPolicyManager.apply_policy` is deprecated with no successor (the typed
-  steering and SLA members cover it) and keeps its name and place; `Any` becomes
-  `object` (`dict[str, object]`). A `Mapping` parameter would be the wider type, but
-  a protocol parameter wider than an implementer's `dict` parameter makes the
-  implementer fail to conform statically, so the parameter stays a `dict`.
-- **Segmentation deny scope** (shape 1, `testoperations`). `build_deny_rule(scope,
-  proto)` takes `DenyScope | str` (`DenyScope`: `HOST`, `SUBNET`, defined in
-  `testoperations.segmentation`) and `RuleProtocol | str`; both are coerced once at
-  the top with `coerce_enum`, so a bad word raises before a rule is built. The
-  released text accepted `"host"`, `"subnet"` and a `RuleProtocol` value, all of which
-  still work and now warn. The released ``ValueError`` for an unknown scope read
-  `unknown rule scope 'vlan' (expected 'host' or 'subnet')`; it now reads
-  `scope: 'vlan' is not one of ['host', 'subnet']` (same exception type, still names
-  `scope`).
+  `TrafficShapingRule.match` is `Mapping[str, object]`. `ShapingRule` is not a
+  drop-in successor: its `match` is one `TrafficMatch`, so it cannot express the
+  dict match (destination prefix, source prefix, protocol, port) a reference
+  consumer builds into `TrafficShapingRule`.
+- **Switch QoS classifier** (shape 4(ii)). `QosRule.classifier` is
+  `QosClassifier | None`, synced with the deprecated `match` text. `QosClassifier`
+  is a frozen record of neutral fields: `vlan`, `protocol` (`RuleProtocol`),
+  `src_ports` and `dst_ports` (`PortRange` tuples); a field left out places no
+  restriction. The released contract described `match` as a vendor-neutral
+  expression "by VLAN, protocol, or port" and gave it no grammar, so free text is
+  legal and a pinned test used `"vlan 10"`. The reference producers write a comma
+  list of `key=value` terms over a VLAN, a protocol, and source and destination
+  ports (a port, or an `a-b` range). The parser accepts that list (protocol in any
+  letter case, `any` is `RuleProtocol.ANY`); text that is not such a list has no
+  classifier, so `classifier` is `None` and `match` keeps the text exactly as given:
+  no error, nothing lost. A term given twice raises `ValueError`. Parsed text keeps
+  its spelling (`keep_text`); assigning a classifier writes canonical text. A
+  `TrafficMatch` was the wrong carrier: it is one match of one kind and has no VLAN
+  or protocol. A rule holds one source and one destination range at most, because
+  the text spells one range per direction.
 
 ## Effective now
 
@@ -281,7 +261,10 @@ the matching CHANGELOG entry sits under *Changed*.
   non-text value. Static only: unpacking a loosely typed dict into `L3Rule` or
   `SecurityEvent` fails type-checking, as for `FirewallRule` (the keyword
   parameters `src_ports`, `dst_ports`, `timestamp` and the private `_ports_seen`
-  and `_ts_seen`).
+  and `_ts_seen`). Also static only: `ts` has a default, so `src_ip`, `dst_ip`,
+  `protocol`, `action` and `category` carry a `<required>` placeholder default and
+  a type checker no longer flags an event built without them (a runtime
+  `TypeError` still does).
 - **WAN-edge models** (WAN-edge task). A `LinkStatus.state` or
   `LinkHealthReport.state` word that is not an `UplinkState` value raises
   `ValueError` (released: any string). `AppFlow.category` never raises; an unknown
@@ -291,15 +274,15 @@ the matching CHANGELOG entry sits under *Changed*.
   keyword parameters `category_raw` and the private `_category_seen`);
   `TrafficShapingRule.match` reads as `Mapping[str, object]` (was `dict[str, Any]`).
 - **Switch QoS classifier** (switch QoS task). `QosRule.match` raises `ValueError`
-  for every released expression except the empty text and destination-port terms
-  (`dstPort`, `dstPortRange`): a `vlan`, `protocol` (`any` too), `srcPort` or
-  `srcPortRange` term, another key, and free text such as `"vlan 10"` no longer
-  construct. `match` is now optional (`""`, every frame). Static only: unpacking a
+  for a term given twice; free text stays legal (no classifier, text unchanged).
+  `match` is now optional (`""`, every frame). A non-text `match` raises
+  `TypeError`. Static only: unpacking a
   loosely typed dict into `QosRule` fails type-checking (`classifier` and the private
   `_match_seen`).
 - **Telemetry and policy** (router task). Static only, no runtime change:
   `Router.get_telemetry` returns `Mapping[str, float]` (was `dict[str, Any]`), so a
-  reader gets `float` values and cannot assume a `dict`; `apply_policy` takes
+  reader gets `float` values and cannot assume a `dict`, and an implementer whose
+  declared return is not `float`-valued no longer conforms; `apply_policy` takes
   `dict[str, object]` (was `dict[str, Any]`), so a caller's `dict[str, str]` variable
   no longer type-checks. A driver must implement `Router.read_telemetry` (breaking for
   driver authors).

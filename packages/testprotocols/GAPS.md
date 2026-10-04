@@ -251,6 +251,14 @@ keys; plugins map to vendor app-ids), grown on evidence; `L7Rule.value` for
 
 ## 2026-06-11 — migrate legacy bare-`str` value fields to typed vocabularies [priority: low]
 
+> **Status (precise-types work):** partly done. `LinkStatus.state` and
+> `LinkHealthReport.state` are now `UplinkState` (the shared vocabulary, not a
+> separate `LinkState`), the firewall, NAT and conntrack vocabularies are enums, and
+> `VPNPeerStatus` / `TrafficShapingRule` are deprecated with no successor; see
+> `docs/architecture/precise-types-design.md`. The notes below are the original
+> 2026-06-11 assessment and are left as written; where they name `LinkState` or
+> `TrafficShapingRule.priority` they are superseded.
+
 **Signal:** The SD-WAN appliance models (`models/sdwan_appliance.py`) express their
 normalized value vocabularies as `StrEnum`s (static + runtime checking). The
 pre-existing models — e.g. `models/wan_edge.py`'s `LinkStatus.state`,

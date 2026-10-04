@@ -224,3 +224,55 @@ def test_event_required_fields_still_required() -> None:
         SecurityEvent(ts="", src_ip="a")
     with pytest.raises(TypeError, match="missing"):
         SecurityEvent()
+
+
+# --- fix round 1 ---
+
+
+@pytest.mark.parametrize("bad", [80, None, 80.0, b"80", ("80",)])
+def test_non_text_port_at_construction_is_a_type_error(bad: object) -> None:
+    from testprotocols.models import FirewallRule, FirewallRuleAction, NatMode, NatRule
+
+    with pytest.raises(TypeError, match="port text"):
+        _l3(dst_port=bad)
+    with pytest.raises(TypeError, match="port text"):
+        _l3(src_port=bad)
+    with pytest.raises(TypeError, match="port text"):
+        FirewallRule("r", FirewallRuleAction.ALLOW, RuleProtocol.TCP, "any", "any", bad)  # type: ignore[arg-type]
+    with pytest.raises(TypeError, match="port text"):
+        NatRule(name="n", mode=NatMode.DNAT, interface="wan", dst_port=bad)  # type: ignore[arg-type]
+    with pytest.raises(TypeError, match="port text"):
+        NatRule(name="n", mode=NatMode.DNAT, interface="wan", translated_port=bad)  # type: ignore[arg-type]
+
+
+def test_event_equal_instant_at_another_offset_rewrites_the_text() -> None:
+    z = datetime(2026, 10, 4, 12, tzinfo=UTC)
+    plus2 = datetime(2026, 10, 4, 14, tzinfo=timezone(timedelta(hours=2)))
+    assert z == plus2
+    with pytest.warns(DeprecationWarning):
+        e = _event(ts="2026-10-04T12:00:00Z")
+    via_replace = dataclasses.replace(e, timestamp=plus2)
+    assert via_replace.ts == "2026-10-04T14:00:00+02:00"
+    e.timestamp = plus2
+    assert e.ts == "2026-10-04T14:00:00+02:00"
+    assert e == via_replace
+
+
+def test_event_reassigning_the_same_value_changes_nothing() -> None:
+    with pytest.warns(DeprecationWarning):
+        e = _event(ts="2026-10-04T12:00:00Z")
+    same = dataclasses.replace(e, timestamp=e.timestamp)
+    before = e.ts
+    e.timestamp = e.timestamp
+    assert e.ts == before == "2026-10-04T12:00:00Z"
+    assert same == e
+
+
+def test_event_non_text_ts_names_the_field() -> None:
+    with pytest.raises(TypeError, match=r"SecurityEvent\.ts"):
+        _event(ts=5)
+
+
+def test_event_required_placeholder_has_a_readable_repr() -> None:
+    defaults = {f.name: f.default for f in dataclasses.fields(SecurityEvent)}
+    assert repr(defaults["src_ip"]) == "<required>"

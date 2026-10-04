@@ -124,6 +124,7 @@ from testprotocols.models.switch import (
     PortAdminState,
     PortMode,
     PortStatusEntry,
+    QosClassifier,
     QosRule,
     QosTrustMode,
     StormControlConfig,
@@ -271,6 +272,7 @@ __all__ = [
     "PortRange",
     "PortStatusEntry",
     "QoEResult",
+    "QosClassifier",
     "QosRule",
     "QosTrustMode",
     # packets
@@ -308,10 +310,10 @@ __all__ = [
     "SwitchPort",
     "SyslogRole",
     "SyslogServer",
-    # traffic
     "Telemetry",
     "ThreatCategory",
     "TrafficMatch",
+    # traffic
     "TrafficResult",
     "TrafficSpec",
     "UplinkSelectionRule",
@@ -349,13 +351,15 @@ __all__ = [
 ]
 
 if TYPE_CHECKING:
-    # Deprecated, with no successor: not in ``__all__``, and reached at run time through
-    # ``__getattr__`` below, which warns. Type checkers still see the names.
+    # Deprecated, with no successor: not in ``__all__``. Type checkers see the names here
+    # and nothing else; at run time ``__getattr__`` (below) resolves them and warns.
     from testprotocols.models.wan_edge import TrafficShapingRule as TrafficShapingRule
     from testprotocols.models.wan_edge import VPNPeerStatus as VPNPeerStatus
+else:
+    # Defined only at run time: a module ``__getattr__`` visible to a type checker would
+    # make every unknown name import as ``object``.
 
-
-def __getattr__(name: str) -> object:
-    return deprecated_attribute(
-        __name__, name, _wan_edge.ORPHAN_REASON, _wan_edge.DEPRECATED_ORPHANS
-    )
+    def __getattr__(name: str) -> object:
+        return deprecated_attribute(
+            __name__, name, _wan_edge.ORPHAN_REASON, _wan_edge.DEPRECATED_ORPHANS
+        )

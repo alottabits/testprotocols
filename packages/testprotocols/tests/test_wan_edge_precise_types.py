@@ -5,6 +5,7 @@ from __future__ import annotations
 import dataclasses
 import importlib
 import warnings
+from pathlib import Path
 
 import pytest
 from testprotocols.models import (
@@ -178,9 +179,39 @@ def test_orphans_are_not_star_exported_and_unknown_names_still_fail() -> None:
 
     assert "VPNPeerStatus" not in models.__all__
     assert "TrafficShapingRule" not in models.__all__
+    name = "NoSuchModel"
     with pytest.raises(AttributeError):
-        models.NoSuchModel
+        getattr(models, name)
     with warnings.catch_warnings():
         warnings.simplefilter("error")
         namespace: dict[str, object] = {}
         exec("from testprotocols.models import *", namespace)
+
+
+# --- the deprecation __getattr__ must not make unknown names type-check ---
+
+
+def test_an_unknown_name_is_a_static_error_but_the_deprecated_ones_are_not(
+    tmp_path: Path,
+) -> None:
+    import subprocess
+    import sys
+
+    probe = tmp_path / "probe.py"
+    probe.write_text(
+        "from testprotocols.models import NoSuchModel\n"
+        "from testprotocols.models.wan_edge import NoSuchEdgeModel\n"
+        "from testprotocols.models import TrafficShapingRule, VPNPeerStatus\n"
+        "from testprotocols.models.wan_edge import TrafficShapingRule as T2, VPNPeerStatus as V2\n"
+    )
+    done = subprocess.run(
+        [sys.executable, "-m", "mypy", "--no-incremental", str(probe)],
+        capture_output=True,
+        text=True,
+        cwd=str(tmp_path),
+        check=False,
+    )
+    lines = done.stdout.splitlines()
+    assert any("probe.py:1" in line and "NoSuchModel" in line for line in lines), done.stdout
+    assert any("probe.py:2" in line and "NoSuchEdgeModel" in line for line in lines), done.stdout
+    assert not any("probe.py:3" in line or "probe.py:4" in line for line in lines), done.stdout

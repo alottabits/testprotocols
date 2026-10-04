@@ -521,6 +521,8 @@ class MalwareConfig:
 
 
 def _parse_timestamp(text: str) -> datetime | None:
+    if not isinstance(text, str):  # pyright: ignore[reportUnnecessaryIsInstance]
+        raise TypeError(f"SecurityEvent.ts takes text, not {text!r}")
     if text == "":
         return None
     try:
@@ -547,10 +549,19 @@ _EVENT_PAIRS = (
     ),
 )
 
+
 # ``ts`` gained a default so an event can be built from ``timestamp`` alone; the fields
 # after it keep their released positions, so they take this placeholder and
 # ``__post_init__`` refuses an event that still holds it.
-_REQUIRED = object()
+class _Required:
+    """The placeholder default of a required field that follows a defaulted one."""
+
+    @override
+    def __repr__(self) -> str:
+        return "<required>"
+
+
+_REQUIRED = _Required()
 
 
 @dataclass

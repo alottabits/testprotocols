@@ -11,12 +11,13 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import StrEnum
-from typing import override
+from typing import cast, override
 
+from testprotocols.deprecation import MODEL_FRAMES, coerce_enum
 from testprotocols.models._sync import SyncedField, assign, settle
 from testprotocols.models.l2_common import StpGuard
-from testprotocols.models.ports import PortRange
-from testprotocols.models.sdwan_appliance import PortMatch, RuleAction, RuleProtocol, TrafficMatch
+from testprotocols.models.ports import PortRange, port_tuple
+from testprotocols.models.sdwan_appliance import RuleAction, RuleProtocol
 
 
 class PortMode(StrEnum):
@@ -261,74 +262,152 @@ class PortStatusEntry:
     tx_discards: int = 0
 
 
-def _port_range(text: str) -> PortRange:
-    if not (text.isascii() and text.isdigit()):
-        raise ValueError(f"{text!r} is not a port number")
-    return PortRange.single(int(text))
+_MAX_VLAN = 4094
 
 
-def _port_span(text: str) -> PortRange:
-    first, dash, last = text.partition("-")
-    if not dash:
-        raise ValueError(f"{text!r} is not a first-last port range")
-    low, high = _port_range(first), _port_range(last)
-    return PortRange(low.first, high.first)
+@dataclass(frozen=True)
+class QosClassifier:
+    """What a QoS rule selects: a VLAN, a protocol and source and destination ports.
+
+    Every field that is left out places no restriction: ``vlan`` and ``protocol``
+    are ``None``, the port tuples are empty (any port). A rule selects the traffic
+    that satisfies all of the fields it sets. ``vlan`` is ``1`` to ``4094`` (a bool
+    or non-int raises ``TypeError``, another number ``ValueError``); ``protocol``
+    is a :class:`~testprotocols.models.RuleProtocol` (a plain string naming one
+    warns and converts); the ports are tuples of
+    :class:`~testprotocols.models.PortRange`.
+    """
+
+    vlan: int | None = None
+    protocol: RuleProtocol | None = None
+    src_ports: tuple[PortRange, ...] = ()
+    dst_ports: tuple[PortRange, ...] = ()
+
+    def __post_init__(self) -> None:
+        vlan: object = self.vlan
+        if vlan is not None:
+            if type(vlan) is not int:
+                raise TypeError(f"QosClassifier.vlan must be an int, not {vlan!r}")
+            if not 1 <= vlan <= _MAX_VLAN:
+                raise ValueError(f"QosClassifier.vlan {vlan} is outside 1-{_MAX_VLAN}")
+        if self.protocol is not None:
+            object.__setattr__(
+                self,
+                "protocol",
+                coerce_enum(
+                    RuleProtocol,
+                    cast("RuleProtocol | str", self.protocol),
+                    what="QosClassifier.protocol",
+                    skip_file_prefixes=MODEL_FRAMES,
+                ),
+            )
+        object.__setattr__(self, "src_ports", port_tuple(self.src_ports))
+        object.__setattr__(self, "dst_ports", port_tuple(self.dst_ports))
 
 
-def _parse_classifier(text: str) -> TrafficMatch | None:
-    """The classifier of the released ``match`` text, ``None`` for the empty text.
+# The text the released drivers read and write: a comma list of key=value terms. These are
+# the released spellings, accepted as given; the record above carries the neutral names.
+_KEYS = ("vlan", "protocol", "srcPort", "srcPortRange", "dstPort", "dstPortRange")
 
-    The released text is a comma list of ``key=value`` terms. The only terms a
-    :data:`TrafficMatch` can express are destination ports: ``dstPort=<port>`` and
-    ``dstPortRange=<first>-<last>``. Every other term (``vlan``, ``protocol``,
-    ``srcPort``, ``srcPortRange``, any other key, the free form ``"vlan 10"``)
-    raises ``ValueError``.
+
+def _port_term(value: str) -> PortRange:
+    first, dash, last = value.partition("-")
+    for part in (first, last) if dash else (first,):
+        if not (part.isascii() and part.isdigit()):
+            raise ValueError(f"{value!r} is not a port or port range")
+    return PortRange(int(first), int(last) if dash else int(first))
+
+
+def _vlan_term(value: str) -> int:
+    if not (value.isascii() and value.isdigit()):
+        raise ValueError(f"{value!r} is not a VLAN id")
+    return int(value)
+
+
+def _parse_classifier(text: str) -> QosClassifier | None:
+    """The classifier the released ``match`` text spells, or ``None``.
+
+    The released contract gave the text no grammar. Text that is a comma list of
+    ``key=value`` terms over the keys the released producers write (a VLAN, a
+    protocol, source and destination ports, a port or an ``a-b`` range) gives a
+    classifier. Anything else (free text such as ``"vlan 10"``, another key, a value
+    that is not a VLAN, protocol or port) has no classifier: ``None``, with the text
+    kept as given. The empty text is ``None`` as well (every frame). A repeated
+    key, or both the port and the range key of one direction, raises ``ValueError``.
     """
     if not isinstance(text, str):  # pyright: ignore[reportUnnecessaryIsInstance]
         raise TypeError(f"QosRule.match takes text, not {text!r}")
     body = text.strip()
     if body == "":
         return None
-    ranges: list[PortRange] = []
+    seen: dict[str, str] = {}
+    terms: list[tuple[str, str]] = []
     for term in body.split(","):
         key, equals, value = term.strip().partition("=")
-        try:
-            if not equals or key not in ("dstPort", "dstPortRange"):
-                raise ValueError(f"the term {term.strip()!r} is not a destination port")
-            ranges.append(_port_range(value) if key == "dstPort" else _port_span(value))
-        except ValueError as bad:
-            raise ValueError(
-                f"QosRule.match {text!r} cannot be expressed as a traffic classifier: {bad}; "
-                "only destination ports (dstPort=<port>, dstPortRange=<first>-<last>) can be"
-            ) from None
-    return PortMatch(tuple(ranges))
+        if not equals or key not in _KEYS:
+            return None
+        terms.append((key, value.strip()))
+    for key, value in terms:
+        group = key.removesuffix("Range")
+        if group in seen:
+            raise ValueError(f"QosRule.match {text!r}: the term {group!r} is given twice")
+        seen[group] = value
+    try:
+        vlan = _vlan_term(seen["vlan"]) if "vlan" in seen else None
+        protocol = RuleProtocol(seen["protocol"].lower()) if "protocol" in seen else None
+        src = (_port_term(seen["srcPort"]),) if "srcPort" in seen else ()
+        dst = (_port_term(seen["dstPort"]),) if "dstPort" in seen else ()
+        return QosClassifier(vlan=vlan, protocol=protocol, src_ports=src, dst_ports=dst)
+    except ValueError:
+        return None
 
 
-def _format_classifier(value: TrafficMatch | None) -> str:
+def _port_text(key: str, ranges: tuple[PortRange, ...]) -> list[str]:
+    if not ranges:
+        return []
+    (only,) = ranges
+    if only.first == only.last:
+        return [f"{key}={only.first}"]
+    return [f"{key}Range={only.first}-{only.last}"]
+
+
+def _format_classifier(value: QosClassifier | None) -> str:
     if value is None:
         return ""
-    if not isinstance(value, PortMatch):  # _check_classifier admits nothing else
-        raise TypeError(f"QosRule.classifier takes a PortMatch or None, not {value!r}")
-    return ",".join(
-        f"dstPort={r.first}" if r.first == r.last else f"dstPortRange={r.first}-{r.last}"
-        for r in value.ports
-    )
+    terms: list[str] = []
+    if value.vlan is not None:
+        terms.append(f"vlan={value.vlan}")
+    if value.protocol is not None:
+        terms.append(f"protocol={value.protocol.value}")
+    terms += _port_text("srcPort", value.src_ports)
+    terms += _port_text("dstPort", value.dst_ports)
+    return ",".join(terms)
 
 
-def _check_classifier(value: TrafficMatch | None) -> TrafficMatch | None:
-    if value is None or isinstance(value, PortMatch):
-        return value
-    if isinstance(value, TrafficMatch):  # pyright: ignore[reportUnnecessaryIsInstance]
+def _check_classifier(value: QosClassifier | None) -> QosClassifier | None:
+    if value is None:
+        return None
+    if not isinstance(value, QosClassifier):  # pyright: ignore[reportUnnecessaryIsInstance]
+        raise TypeError(f"QosRule.classifier takes a QosClassifier or None, not {value!r}")
+    if len(value.src_ports) > 1 or len(value.dst_ports) > 1:
         raise ValueError(
-            "a switch QoS classifier matches destination ports only (a PortMatch), "
-            f"not {type(value).__name__}"
+            "a QoS rule's text holds one port range per direction, so a classifier of "
+            "a QosRule takes at most one source and one destination range"
         )
-    raise TypeError(f"QosRule.classifier takes a PortMatch or None, not {value!r}")
+    if value == QosClassifier():
+        return None  # no restriction: the same as no classifier
+    return value
 
 
 _QOS_PAIRS = (
-    SyncedField[TrafficMatch | None](
-        "match", "classifier", _parse_classifier, _format_classifier, _check_classifier, ""
+    SyncedField[QosClassifier | None](
+        "match",
+        "classifier",
+        _parse_classifier,
+        _format_classifier,
+        _check_classifier,
+        "",
+        keep_text=True,
     ),
 )
 
@@ -337,31 +416,32 @@ _QOS_PAIRS = (
 class QosRule:
     """A QoS classification rule (classifier -> DSCP/CoS marking).
 
-    ``classifier`` selects the traffic: a :class:`~testprotocols.models.PortMatch`
-    (traffic to the given destination ports) or ``None`` for every frame; any other
-    :data:`~testprotocols.models.TrafficMatch` raises ``ValueError``. The driver maps
-    it to its product's QoS classifier; ``dscp`` and ``cos`` are the resulting
-    mark values.
+    ``classifier`` selects the traffic, a :class:`QosClassifier` (VLAN, protocol,
+    source and destination port), or ``None`` for every frame or for an expression
+    that is not one of those. The driver maps it to its product's QoS classifier;
+    ``dscp`` and ``cos`` are the resulting mark values. A rule of this model holds
+    at most one source and one destination port range (``ValueError`` otherwise).
 
     ``match`` is the released spelling, a vendor-neutral classifier expression held
-    as text (``""`` for every frame), deprecated. Of the released grammar, a
-    comma list of ``key=value`` terms, only destination ports map to a classifier
-    (``dstPort=<port>``, ``dstPortRange=<first>-<last>``); any other expression (a
-    ``vlan``, ``protocol``, ``srcPort`` or ``srcPortRange`` term, another key, or
-    free text such as ``"vlan 10"``) raises ``ValueError``. The two fields always
-    agree. At construction the classifier fills the text; the text alone warns
+    as text (``""`` for every frame), deprecated. The released contract gave it no
+    grammar, so free text is legal and has no classifier: ``classifier`` is
+    ``None`` and ``match`` stays exactly as given, nothing lost. A comma list of
+    ``key=value`` terms for a VLAN, a protocol (any letter case, ``any`` included),
+    source ports and destination ports (a port or an ``a-b`` range) has a classifier;
+    a repeated term raises ``ValueError``. The two fields always agree. At
+    construction the classifier fills the text; the text alone warns
     (``DeprecationWarning``) and fills the classifier; both given and disagreeing
     raise ``ValueError``. Afterwards, through ``dataclasses.replace`` and through
-    assignment, the side that changed wins. A text is kept in its canonical form
-    (``"dstPort=22, dstPort=80"`` reads ``"dstPort=22,dstPort=80"``), and a non-text
-    ``match`` or a non-``TrafficMatch`` ``classifier`` raises ``TypeError``.
+    assignment, the side that changed wins: setting ``classifier`` writes canonical
+    text, while text that parses keeps the spelling it was given. A non-text
+    ``match`` or a non-``QosClassifier`` ``classifier`` raises ``TypeError``.
     """
 
     name: str
     match: str = ""
     dscp: int | None = None
     cos: int | None = None
-    classifier: TrafficMatch | None = field(default=None, kw_only=True)
+    classifier: QosClassifier | None = field(default=None, kw_only=True)
     _match_seen: tuple[str, ...] | None = field(
         default=None, kw_only=True, repr=False, compare=False
     )

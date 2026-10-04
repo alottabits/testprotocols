@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import dataclasses
 import typing
-import warnings
 from collections.abc import Mapping
 
 import pytest
@@ -56,6 +55,13 @@ def test_telemetry_refuses_negative_values() -> None:
         Telemetry(1.0, cpu_load_percent=-0.1)
     with pytest.raises(ValueError, match="mem_used_percent"):
         Telemetry(1.0, mem_used_percent=-5)
+
+
+@pytest.mark.parametrize("bad", [float("nan"), float("inf"), float("-inf")])
+def test_telemetry_refuses_nan_and_infinity(bad: float) -> None:
+    for name in ("uptime_seconds", "cpu_load_percent", "mem_used_percent"):
+        with pytest.raises(ValueError, match=name):
+            Telemetry(**{"uptime_seconds": 1.0, name: bad})
 
 
 def test_as_dict_holds_the_reported_values_only() -> None:
@@ -115,20 +121,6 @@ def test_a_driver_without_the_new_member_is_not_a_router() -> None:
             return {}
 
     assert not isinstance(Old(), Router)
-
-
-def test_apply_policy_takes_a_dict_of_objects() -> None:
-    class Impl:
-        applied: dict[str, object] | None = None
-
-        def apply_policy(self, policy: dict[str, object]) -> None:
-            self.applied = policy
-
-    with warnings.catch_warnings():
-        warnings.simplefilter("error")
-        impl = Impl()
-        impl.apply_policy({"name": "p", "match": {"dst_prefix": "198.51.100.0/24"}})
-    assert impl.applied is not None
 
 
 def test_apply_policy_keeps_its_name_and_takes_dict_of_objects_not_any() -> None:

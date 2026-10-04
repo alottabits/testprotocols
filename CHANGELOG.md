@@ -127,10 +127,12 @@ their tags and PR history.
   text that parses is kept as given (`"…Z"` reads back `"…Z"`), a typed value
   writes `datetime.isoformat()`. Migration: pass `timestamp`. Design `docs/architecture/precise-types-design.md` (SD-WAN models); PR pending.
 - **internal option** `testprotocols.models._sync:SyncedField.keep_text` — a text
-  that parses to the agreed value stays exactly as given instead of being
-  rewritten to the canonical form (for a text with several equal spellings, such
-  as an ISO-8601 `Z` or `+00:00`); used by `SecurityEvent.ts`. Not public API.
-  Migration: none. Design `docs/architecture/precise-types-design.md` (SD-WAN models); PR pending.
+  that differs from the canonical form only in spelling (it parses to the agreed
+  value and formats back to the agreed text, as an ISO-8601 `Z` for `+00:00`) stays
+  exactly as given; a text that spells a different value (another UTC offset for
+  the same instant) is rewritten, so `replace` and assignment agree. Used by
+  `SecurityEvent.ts` and `QosRule.match`. Not public API. Migration: none. Design
+  `docs/architecture/precise-types-design.md` (SD-WAN models); PR pending.
 - **function** `testprotocols.deprecation:deprecated_attribute` — for a module
   `__getattr__` that resolves a deprecated name with no successor, with a
   `DeprecationWarning` that gives the reason; the counterpart of
@@ -143,12 +145,16 @@ their tags and PR history.
   category word, held only while `category` is `ApplicationCategory.OTHER`; the
   pair agrees after construction, `replace` and assignment (the rule of
   `Connection.state`). Migration: none. Design `docs/architecture/precise-types-design.md` (WAN-edge models); PR pending.
-- **field** `testprotocols.models:QosRule.classifier` — `TrafficMatch | None`
-  (`None`: every frame; only a `PortMatch` of destination ports can be
-  expressed, any other kind raises `ValueError`), kept in agreement with the
-  deprecated text `match` (typed fills text; text alone warns and fills typed;
-  disagreeing raises `ValueError`; the side that changed wins under `replace`
-  and assignment). Migration: pass `classifier`. Design `docs/architecture/precise-types-design.md` (switch QoS classifier); PR pending.
+- **model** `testprotocols.models:QosClassifier` (`vlan`, `protocol`, `src_ports`,
+  `dst_ports`; frozen; every field left out places no restriction; `vlan` is 1 to
+  4094) — what a QoS rule selects. **field** `testprotocols.models:QosRule.classifier`
+  — `QosClassifier | None`, kept in agreement with the deprecated text `match`
+  (typed fills text; text alone warns and fills typed; disagreeing raises
+  `ValueError`; the side that changed wins under `replace` and assignment). Text
+  that is not a key=value list of VLAN, protocol and port terms has no classifier:
+  `None`, and the text stays as given. A rule holds at most one source and one
+  destination port range (`ValueError` otherwise). Migration: pass `classifier`.
+  Design `docs/architecture/precise-types-design.md` (switch QoS classifier); PR pending.
 - **model** `testprotocols.models:Telemetry` (`uptime_seconds`, `cpu_load_percent`,
   `mem_used_percent`; frozen; the last two are `None` when the device does not
   report them; a bool or non-number raises `TypeError`, a negative number
@@ -216,12 +222,13 @@ their tags and PR history.
   `L3Rule.src_port` / `dst_port` now raise `ValueError` for malformed text
   (`""`, `"http"`, `"80:90"`, a trailing comma; the released contract allowed
   `"any"`, a number, `a-b` or a comma list) and `TypeError` for a non-text
-  value; text normalises to its canonical form (`"22, 80"` reads `"22,80"`).
+  value, at construction too (`FirewallRule` and `NatRule` follow); text normalises to its canonical form (`"22, 80"` reads `"22,80"`).
   `SecurityEvent.ts` now raises `ValueError` for text that
   `datetime.fromisoformat` does not parse (released: any string) and `TypeError`
-  for a non-text value; it defaults to `""` (no time), so the fields after it
+  naming the field for a non-text value; it defaults to `""` (no time), so the fields after it
   take a required-argument placeholder and omitting one still raises
-  `TypeError`. Static only, no runtime change: unpacking a loosely typed dict
+  `TypeError`; a type checker no longer flags a missing `src_ip`, `dst_ip`,
+  `protocol`, `action` or `category`. The placeholder reads `<required>`. Static only, no runtime change: unpacking a loosely typed dict
   (for example `L3Rule(**dict[str, str])`) into `L3Rule` or `SecurityEvent` now
   fails type-checking, because `src_ports`, `dst_ports`, `timestamp` and the
   private provenance fields (`_ports_seen`, `_ts_seen`; not API) are keyword
@@ -245,26 +252,22 @@ their tags and PR history.
   `VPNPeerStatus` — no longer in `__all__`, so `from testprotocols.models import *`
   does not bind them; reaching them by name still works and warns (see
   *Deprecated*). Design `docs/architecture/precise-types-design.md` (WAN-edge models); PR pending.
-- **model** `testprotocols.models:QosRule.match` — the released free expression
-  now raises `ValueError` unless it is empty or a comma list of destination-port
-  terms (`dstPort=<port>`, `dstPortRange=<first>-<last>`), because
-  `TrafficMatch` expresses nothing else. Released forms that no longer
-  construct: every `vlan=` term, `protocol=` term (`any` included), `srcPort=`
-  and `srcPortRange=` term, any other key, and the free text `"vlan 10"`;
-  `match` is also optional now (`""`, every frame). A driver that builds
-  `QosRule` from a device's classifier fields (VLAN, protocol, source port)
-  cannot express them through `classifier`; see the design doc. A text is
-  canonical (`"dstPort=22, dstPort=80"` reads `"dstPort=22,dstPort=80"`); a non-text
-  `match` raises `TypeError`. Static only: unpacking a loosely typed dict into
-  `QosRule` fails type-checking (`classifier` and the private `_match_seen`). Listed
-  in the design doc's "Effective now". Design `docs/architecture/precise-types-design.md` (switch QoS classifier); PR pending.
+- **model** `testprotocols.models:QosRule.match` — now optional (`""`, every
+  frame), and text with a repeated term (a VLAN, protocol or port term twice, or
+  both the port and the range key of one direction) raises `ValueError`; a non-text
+  value raises `TypeError`. Free text stays legal and keeps its spelling; it has no
+  classifier. Static only: unpacking a loosely typed dict into `QosRule` fails
+  type-checking (`classifier` and the private `_match_seen`). Listed in the design
+  doc's "Effective now". Design `docs/architecture/precise-types-design.md` (switch QoS classifier); PR pending.
 - **protocol members** `testprotocols.router:Router.get_telemetry` and
   `testprotocols.sdwan_policy_manager:SdwanPolicyManager.apply_policy` — static
   only, no runtime change: `get_telemetry` returns `Mapping[str, float]` (was
   `dict[str, Any]`), so a reader gets `float` values and no longer a `dict`; and
   `apply_policy` takes `dict[str, object]` (was `dict[str, Any]`), so a caller's
   `dict[str, str]` variable no longer type-checks (an implementer's `dict`
-  parameter still conforms). Listed in the design doc's "Effective now". Design `docs/architecture/precise-types-design.md` (telemetry and policy); PR pending.
+  parameter still conforms). An implementer whose declared `get_telemetry` return
+  is not `float`-valued (for example `dict[str, object]`) no longer conforms and
+  must narrow it. Listed in the design doc's "Effective now". Design `docs/architecture/precise-types-design.md` (telemetry and policy); PR pending.
 
 #### Deprecated
 
@@ -311,7 +314,7 @@ their tags and PR history.
 - **placeholder** `LinkStatus.ip_address` — announced only: `""` means no
   address today and becomes `str | None` in a later release. Design `docs/architecture/precise-types-design.md` (WAN-edge models); PR pending.
 - **field** `QosRule.match` — the classifier text; assigning or constructing from
-  it warns. Use `classifier`. Design `docs/architecture/precise-types-design.md` (switch QoS classifier); PR pending.
+  it warns (free text has no classifier and stays as given). Use `classifier`. Design `docs/architecture/precise-types-design.md` (switch QoS classifier); PR pending.
 - **protocol members** `Router.get_telemetry` — deprecated name of
   `Router.read_telemetry` (a driver warns with `warn_renamed` and delegates).
   `SdwanPolicyManager.apply_policy` — deprecated with no successor: the typed

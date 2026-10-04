@@ -56,8 +56,10 @@ def parse_port_ranges(text: str) -> tuple[PortRange, ...]:
 
     ``"any"`` gives ``()``; otherwise a comma list of ``"80"`` or ``"80-90"``
     items (blanks around items are ignored). Anything else, including the
-    empty text, raises ``ValueError``.
+    empty text, raises ``ValueError``; a value that is not text raises ``TypeError``.
     """
+    if not isinstance(text, str):  # pyright: ignore[reportUnnecessaryIsInstance]
+        raise TypeError(f"port text must be a str, not {text!r}")
     if text == "any":
         return ()
     ranges: list[PortRange] = []
