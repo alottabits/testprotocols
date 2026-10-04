@@ -180,6 +180,21 @@ their tags and PR history.
 - **behaviour** `testprotocols.deprecation:coerce_enum` — for an `IntEnum`, a plain
   `int` naming a member returns it with no warning (a `bool`, a `float` or a number
   that is no member raises `ValueError`). Migration: none. Design `docs/architecture/precise-types-design.md` (Wi-Fi vocabularies); PR pending.
+- **enums** `testprotocols.models:PhoneState` (`IDLE`, `DIALING`, `INCALL_DIALING`,
+  `RINGING`, `CONNECTED`, `INCALL_CONNECTED`, `HOLD`, `DIALTONE`, `INCALL_DIALTONE`,
+  `CALL_ENDED`, `CODE_ENDED`, `CALL_WAITING`, `CONFERENCE`, `BUSY`, `NOT_ANSWERED`;
+  one per `is_*` call-state predicate of `SipPhone`; `HOLD == "hold"`),
+  `PresenceStatus` (`ONLINE`, `BUSY`, `AWAY`, `OFFLINE`, `OTHER`; open) and `SipMethod`
+  (`INVITE`, `ACK`, `BYE`, `CANCEL`, `OPTIONS`, `REGISTER`, `MESSAGE`, `NOTIFY`,
+  `PUBLISH`, `OTHER`; open) — the voice vocabularies; every value is the string the
+  released contract or its implementer used. Migration: none. Design `docs/architecture/precise-types-design.md` (Voice vocabularies); PR pending.
+- **records** `testprotocols.models:RtpStats` (`engaged`, `sessions`), `MwiStatus`
+  (`waiting`, `new`, `old`) and `OfflineMessage` (`sender`, `body`, `stored_at`) —
+  frozen records for what the SIP server's media relay, message-waiting and offline-message
+  readers returned as dicts; each has `as_dict()`, the released dict (for
+  `OfflineMessage`: keys `from`, `body`, `timestamp`, the latter ISO-8601 text). A
+  wrong type raises `TypeError`, a negative count `ValueError`. Migration: read the new
+  records. Design `docs/architecture/precise-types-design.md` (Voice vocabularies); PR pending.
 
 #### Breaking for driver authors
 
@@ -199,6 +214,12 @@ their tags and PR history.
   `iwlist_supported_channels` warn with `warn_renamed("iwlist_supported_channels",
   "supported_channels")` and return `[str(c) for c in self.supported_channels(band)]`.
   Design `docs/architecture/precise-types-design.md` (Wi-Fi vocabularies); PR pending.
+- **protocol members** `testprotocols.sip_server:SipServer.read_rtpengine_stats() -> RtpStats`,
+  `read_mwi_status(user) -> MwiStatus` and `read_offline_messages(user) -> list[OfflineMessage]` —
+  new mandatory members, replacing `get_rtpengine_stats`, `get_mwi_status` and
+  `get_offline_messages` (which return dicts). Migration: implement them, and make each
+  old name warn with `warn_renamed(old, new)` and return the record's `as_dict()` (a list
+  comprehension of `as_dict()` for the offline messages). Design `docs/architecture/precise-types-design.md` (Voice vocabularies); PR pending.
 
 #### Changed
 
@@ -312,6 +333,18 @@ their tags and PR history.
   parameter annotations widen to `E | str`, so every released call still type-checks;
   a driver coerces once at the boundary. An `int` for a `ChannelWidth` parameter
   needs no coercion warning. Design `docs/architecture/precise-types-design.md` (Wi-Fi vocabularies); PR pending.
+- **protocol member** `testprotocols.sip_server:SipServer.verify_sip_message(message_type, since)` —
+  `since` is `datetime | None` (released: `Any`, documented as a timestamp or marker). A
+  caller that passed a `datetime` or `None` is unaffected; a caller that passed a text
+  marker was outside the typed contract and no longer type-checks (an implementer may
+  keep `since: Any`, which still conforms). `message_type` widens to
+  `SipMethod | str`: every released call, and every released implementer, still type-checks. Design `docs/architecture/precise-types-design.md` (Voice vocabularies); PR pending.
+- **protocol members** `SipPhone.wait_for_state(state)`, `SipPhone.set_presence(status)` and
+  `SipServer.notify_presence(user, status)` — annotations widen to `PhoneState | str` and
+  `PresenceStatus | str`, so every released call still type-checks. A presence word that
+  names no member is the provider's own word and passes to the device unchanged, with no
+  error and no warning; a `wait_for_state` word that names no state raises `ValueError`
+  (released implementer: the same). Design `docs/architecture/precise-types-design.md` (Voice vocabularies); PR pending.
 
 #### Deprecated
 
@@ -387,6 +420,20 @@ their tags and PR history.
   `list[WifiBand]`, `WifiPhyMode` and `ChannelWidth` in a later release (members equal
   their strings and numbers, so comparisons keep working; `get_mode` stays `str`
   until the compound-mode question is settled). Design `docs/architecture/precise-types-design.md` (Wi-Fi vocabularies); PR pending.
+- **protocol members** `SipServer.get_rtpengine_stats`, `get_mwi_status` and
+  `get_offline_messages` — deprecated names of `read_rtpengine_stats`, `read_mwi_status`
+  and `read_offline_messages` (see *Breaking for driver authors*); they keep their dict
+  returns until a later release removes them. Design `docs/architecture/precise-types-design.md` (Voice vocabularies); PR pending.
+- **parameters** `SipPhone.wait_for_state(state)`, `SipPhone.set_presence(status)`,
+  `SipServer.notify_presence(user, status)` and `SipServer.verify_sip_message(message_type)`
+  — a plain `str` naming a member (`"idle"`, `"away"`, `"INVITE"`) is deprecated: the
+  driver converts it with `coerce_enum` or `coerce_open_enum` and warns. A presence or
+  method word that names no member is not deprecated (the sets are open). The annotations
+  narrow to `PhoneState`, and to `PresenceStatus` / `SipMethod` (and `int`, for a response code) with the raw word
+  carried separately, in a later release. Design `docs/architecture/precise-types-design.md` (Voice vocabularies); PR pending.
+- **return type** `SipServer.get_user_presence` — announced only: it returns `str`
+  today and narrows to `PresenceStatus` (with the device's own word beside it) in a later
+  release; members equal their strings. Design `docs/architecture/precise-types-design.md` (Voice vocabularies); PR pending.
 
 ### testoperations
 

@@ -146,6 +146,14 @@ from testprotocols.models.switch_routing import (
 )
 from testprotocols.models.tr069 import CpeConnectionStatus
 from testprotocols.models.traffic import TrafficResult, TrafficSpec
+from testprotocols.models.voice import (
+    MwiStatus,
+    OfflineMessage,
+    PhoneState,
+    PresenceStatus,
+    RtpStats,
+    SipMethod,
+)
 from testprotocols.models.wan_edge import (
     AppFlow,
     LinkHealthReport,
@@ -261,16 +269,20 @@ __all__ = [
     "MfpMode",
     "MulticastGroupRecord",
     "MulticastGroupRecordType",
+    # voice
+    "MwiStatus",
     "NatInboundAllow",
     "NatMode",
     "NatRule",
     "NtpServer",
+    "OfflineMessage",
     "OneToManyNatRule",
     "OneToOneNatRule",
     "OspfConfig",
     "OspfInterfaceSettings",
     "OspfVersion",
     "PathMetrics",
+    "PhoneState",
     "PoePortStatus",
     "PoePriority",
     "PoeStatus",
@@ -282,6 +294,7 @@ __all__ = [
     "PortMode",
     "PortRange",
     "PortStatusEntry",
+    "PresenceStatus",
     "QoEResult",
     "QosClassifier",
     "QosRule",
@@ -300,6 +313,7 @@ __all__ = [
     "RouteEntry",
     "RouteOrigin",
     "RoutedInterface",
+    "RtpStats",
     "RuleAction",
     "RuleCounters",
     "RuleProtocol",
@@ -308,6 +322,7 @@ __all__ = [
     "SecurityEvent",
     "ShapingPriority",
     "ShapingRule",
+    "SipMethod",
     "SiteToSiteVpnConfig",
     "StaticRoute",
     "SteeringScope",

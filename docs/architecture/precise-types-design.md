@@ -299,6 +299,41 @@ where one exists, also records its retype.
   None`: no local source lists the EasyMesh message names (the repository mentions
   two examples in a docstring and no vocabulary), and an enum from memory would
   guess; it is revisited when a reference driver and the specification supply them.
+- **Voice vocabularies** (shapes 1, 3o parameters, 5 and 6). `PhoneState`, `PresenceStatus`
+  and `SipMethod` in `testprotocols.models`, every member equal to a released or used
+  string: `PhoneState` has one member per `is_*` predicate of `SipPhone` and the
+  `wait_for_state` words the example implementer accepts (note `HOLD == "hold"`, not
+  `on_hold`); `SipMethod` is the RFC 3261 methods plus `MESSAGE`, `NOTIFY` and `PUBLISH`,
+  which the docstrings name. `PresenceStatus` and `SipMethod` are open. Design of the open
+  *parameters*: a parameter is `PresenceStatus | str` (`SipMethod | str`) and the
+  driver resolves it once with `coerce_open_enum`, which returns `(member, raw)`: a
+  member is silent; a plain string naming a member warns and converts; any other string
+  gives `(OTHER, word)` with no error and no warning, and the driver sends the **raw word**
+  to the device (so `notify_presence(user, "available")` publishes `available`). The
+  parameter stays `str`-typed rather than becoming an `OpenEnumPair` because there is no
+  record to carry a companion field. `get_user_presence -> str` is shape 6, announced
+  only: the example implementer already returns `"unknown"`, which names no member.
+  `wait_for_state` is closed: an unknown word raises `ValueError`, as the released
+  implementer did. `verify_sip_message(message_type)` is `SipMethod | str`. The plan also had an `int`
+  for a response code; it is deferred: the example implementer declares
+  `message_type: str`, so adding `int` to the protocol parameter makes it fail
+  static conformance (a parameter widening breaks an implementer declared narrower),
+  which is neither a missing member nor a retyped record. A response code stays its
+  released text (`"486"`), a raw word. The example's callers also pass a log marker (`"[VOICEMAIL]"`) and a numeric string
+  (`"408"`), which are raw words and still work. `since: Any` is `datetime | None`
+  (O40): the example's step definitions pass a `datetime`; its unit test passes a text marker
+  straight to the implementer, which may keep `Any`. The three dict readers are shape 5:
+  new mandatory `read_rtpengine_stats`, `read_mwi_status` and `read_offline_messages`
+  return frozen `RtpStats`, `MwiStatus` and `OfflineMessage`; the old names are deprecated
+  and a driver delegates, returning `as_dict()`. Fields come from evidence only. `RtpStats`
+  (`engaged`, `sessions`): the released docstring says only "a dictionary"; the one
+  implementer returns exactly those two keys and the step definitions read `engaged`.
+  `MwiStatus` (`waiting`, `new`, `old`) and `OfflineMessage` (`sender`, `body`,
+  `stored_at`): the released docstrings list the keys `waiting`/`new`/`old` and
+  `from`/`body`/`timestamp`; `timestamp` was ISO-8601 text and becomes a `datetime`
+  (the implementer returns the database's text unparsed, so it must parse it). No
+  `OTHER` or synced field was needed, so the records are plain frozen dataclasses with
+  `__post_init__` type checks. `testoperations` calls none of the three readers.
 
 ## Effective now
 
@@ -372,6 +407,13 @@ the matching CHANGELOG entry sits under *Changed*.
   `capability_flags_unknown` and the private `_caps_seen` are keyword parameters), and
   an implementer must provide `WifiClient.supported_channels` (breaking for driver
   authors).
+- **Voice vocabularies** (Voice task). `SipServer.verify_sip_message(since)` is
+  `datetime | None` (released `Any`): a caller passing a `datetime` or `None` is
+  unaffected; one passing a text marker no longer type-checks (an implementer may keep
+  `Any`). An implementer must provide `SipServer.read_rtpengine_stats`, `read_mwi_status`
+  and `read_offline_messages` (breaking for driver authors). Every other voice
+  annotation only widens (`PhoneState | str`, `PresenceStatus | str`,
+  `SipMethod | str`).
 
 ## Pending narrow steps (announced, not yet taken)
 
@@ -400,3 +442,7 @@ Each lands in a later release with its own breaking changelog entry:
   and (once compound modes are settled) `get_mode` narrow to `list[WifiBand]`,
   `ChannelWidth` and `WifiPhyMode`; `set_wlan_scan_channel` narrows to `int`;
   `WifiStation.capability_flags` and `WifiClient.iwlist_supported_channels` are removed.
+- Voice: `wait_for_state` narrows to `PhoneState`; `set_presence` and `notify_presence`
+  take `PresenceStatus` with the raw word carried beside it; `verify_sip_message`
+  narrows to `SipMethod` (and gains `int` for a response code) likewise; `get_user_presence` returns `PresenceStatus`;
+  `get_rtpengine_stats`, `get_mwi_status` and `get_offline_messages` are removed.

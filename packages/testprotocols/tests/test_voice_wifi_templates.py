@@ -85,12 +85,14 @@ PROTOCOLS = [
             # Call state
             "get_active_calls",
             "get_rtpengine_stats",
+            "read_rtpengine_stats",
             "verify_sip_message",
             # Voicemail
             "get_voicemail_count",
             "clear_voicemail",
             # MWI
             "get_mwi_status",
+            "read_mwi_status",
             "set_mwi_status",
             # Presence
             "get_user_presence",
@@ -99,6 +101,7 @@ PROTOCOLS = [
             # Offline MESSAGE
             "send_offline_message",
             "get_offline_messages",
+            "read_offline_messages",
             "clear_offline_messages",
         },
     ),

@@ -6,7 +6,16 @@ management, call tracking and SIP message verification.
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Any, Protocol, runtime_checkable
+
+from testprotocols.models.voice import (
+    MwiStatus,
+    OfflineMessage,
+    PresenceStatus,
+    RtpStats,
+    SipMethod,
+)
 
 
 @runtime_checkable
@@ -96,13 +105,22 @@ class SipServer(Protocol):
         ...
 
     def get_rtpengine_stats(self) -> dict[str, Any]:
-        """Return RTPEngine statistics as a dictionary."""
+        """Deprecated name of :meth:`read_rtpengine_stats`.
+
+        Returns ``read_rtpengine_stats().as_dict()``; the driver warns with
+        ``warn_renamed("get_rtpengine_stats", "read_rtpengine_stats")``.
+        """
+        ...
+
+    def read_rtpengine_stats(self) -> RtpStats:
+        """Return the media relay's statistics: whether it is engaged on any call and
+        how many sessions it holds."""
         ...
 
     def verify_sip_message(
         self,
-        message_type: str,
-        since: Any = None,
+        message_type: SipMethod | str,
+        since: datetime | None = None,
         timeout: int = 5,
     ) -> bool:
         """Verify that a SIP message of *message_type* was received.
@@ -117,11 +135,17 @@ class SipServer(Protocol):
         Parameters
         ----------
         message_type:
-            The SIP method (``INVITE``, ``MESSAGE``, ``NOTIFY``, ...) or
-            response code (``200``, ``486``, ...) to match.
+            A :class:`~testprotocols.models.voice.SipMethod`, or a string. A
+            plain string naming a method is deprecated and warns (the driver uses
+            ``coerce_open_enum``); any other string (an extension method, a
+            response code as text such as ``"486"``, a log marker) is matched as
+            the raw word, with no error and no warning. An ``int`` response code
+            is announced, not yet accepted: it joins the annotation in a later
+            release, once implementers have widened their own parameter.
         since:
-            Optional timestamp or marker; only messages after this point
-            are considered.
+            Optional timestamp; only messages after this point are considered.
+            Released as ``Any``, documented as a timestamp or marker: it is now a
+            ``datetime`` (or ``None`` for the whole log).
         timeout:
             Seconds to wait for the expected message.
         """
@@ -148,13 +172,17 @@ class SipServer(Protocol):
     # ------------------------------------------------------------------
 
     def get_mwi_status(self, user: str) -> dict[str, Any]:
-        """Return the current MWI status for *user*.
+        """Deprecated name of :meth:`read_mwi_status`.
 
-        Returns a dict with keys:
-            - ``waiting`` (bool): True if the waiting flag is set.
-            - ``new`` (int): count of new (unheard) messages.
-            - ``old`` (int): count of old (heard but retained) messages.
+        Returns ``read_mwi_status(user).as_dict()`` (keys ``waiting``, ``new``,
+        ``old``); the driver warns with
+        ``warn_renamed("get_mwi_status", "read_mwi_status")``.
         """
+        ...
+
+    def read_mwi_status(self, user: str) -> MwiStatus:
+        """Return the current MWI status for *user*: the waiting flag and the counts
+        of new (unheard) and old (heard but retained) messages."""
         ...
 
     def set_mwi_status(self, user: str, waiting: bool) -> None:
@@ -174,6 +202,11 @@ class SipServer(Protocol):
 
         Typical values: ``"online"``, ``"busy"``, ``"away"``, ``"offline"``.
         Implementations may return provider-specific extensions.
+
+        Announced only: this returns ``str`` today and narrows to
+        :class:`~testprotocols.models.voice.PresenceStatus` (with the device's own
+        word beside it) in a later release. The members equal the strings, so
+        comparisons keep working.
         """
         ...
 
@@ -181,8 +214,14 @@ class SipServer(Protocol):
         """Create a presence subscription from *watcher* to *watched*."""
         ...
 
-    def notify_presence(self, user: str, status: str) -> None:
-        """Publish presence *status* for *user* to all current subscribers."""
+    def notify_presence(self, user: str, status: PresenceStatus | str) -> None:
+        """Publish presence *status* for *user* to all current subscribers.
+
+        The set is open: the driver resolves *status* with ``coerce_open_enum``. A
+        member passes; a plain string naming a member is deprecated and warns; any
+        other string is the provider's own word, published unchanged with no error
+        and no warning (``PresenceStatus.OTHER`` with that raw word).
+        """
         ...
 
     # ------------------------------------------------------------------
@@ -199,13 +238,17 @@ class SipServer(Protocol):
         ...
 
     def get_offline_messages(self, user: str) -> list[dict[str, Any]]:
-        """Return the list of pending offline messages addressed to *user*.
+        """Deprecated name of :meth:`read_offline_messages`.
 
-        Each entry is a dict with keys:
-            - ``from`` (str): sender URI.
-            - ``body`` (str): message body.
-            - ``timestamp`` (str): ISO-8601 timestamp of when stored.
+        Returns ``[m.as_dict() for m in read_offline_messages(user)]`` (keys
+        ``from``, ``body``, ``timestamp``); the driver warns with
+        ``warn_renamed("get_offline_messages", "read_offline_messages")``.
         """
+        ...
+
+    def read_offline_messages(self, user: str) -> list[OfflineMessage]:
+        """Return the pending offline messages addressed to *user*: each has the
+        sender URI, the body and when it was stored."""
         ...
 
     def clear_offline_messages(self, user: str) -> None:

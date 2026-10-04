@@ -8,6 +8,8 @@ from __future__ import annotations
 
 from typing import Protocol, runtime_checkable
 
+from testprotocols.models.voice import PhoneState, PresenceStatus
+
 
 @runtime_checkable
 class SipPhone(Protocol):
@@ -179,10 +181,14 @@ class SipPhone(Protocol):
         """Send a hook-flash signal."""
         ...
 
-    def wait_for_state(self, state: str, timeout: int = 10) -> bool:
+    def wait_for_state(self, state: PhoneState | str, timeout: int = 10) -> bool:
         """Wait up to *timeout* seconds for the phone to reach *state*.
 
-        Returns True if the state was reached within the timeout.
+        Returns True if the state was reached within the timeout. *state* is a
+        :class:`~testprotocols.models.voice.PhoneState`, one member per ``is_*``
+        predicate. A plain string naming a member is deprecated: the driver converts
+        it with ``coerce_enum`` and warns. A word that names no member raises
+        ``ValueError``. The annotation narrows to ``PhoneState`` in a later release.
         """
         ...
 
@@ -214,11 +220,16 @@ class SipPhone(Protocol):
         """Return True if the phone is currently in an away/unavailable presence state."""
         ...
 
-    def set_presence(self, status: str) -> None:
+    def set_presence(self, status: PresenceStatus | str) -> None:
         """Publish the local presence *status* for this phone.
 
-        Typical values: ``"online"``, ``"busy"``, ``"away"``, ``"offline"``.
-        Implementers emit a SIP PUBLISH with a ``presence`` event package.
+        Typical values: ``PresenceStatus.ONLINE``, ``BUSY``, ``AWAY``, ``OFFLINE``.
+        The set is open (a provider may use other words), so the driver resolves
+        *status* with ``coerce_open_enum``: a member passes; a plain string naming a
+        member is deprecated and warns; any other string is the provider's own word,
+        passed on to the device unchanged with no error and no warning (it is
+        ``PresenceStatus.OTHER`` with that raw word). Implementers emit a SIP PUBLISH
+        with a ``presence`` event package.
         """
         ...
 

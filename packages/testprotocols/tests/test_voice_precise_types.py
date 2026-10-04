@@ -1,0 +1,167 @@
+"""Voice vocabularies and records (O37-O43)."""
+
+from __future__ import annotations
+
+import dataclasses
+import inspect
+import warnings
+from datetime import datetime
+
+import pytest
+from testprotocols.deprecation import coerce_enum, coerce_open_enum
+from testprotocols.models import (
+    MwiStatus,
+    OfflineMessage,
+    PhoneState,
+    PresenceStatus,
+    RtpStats,
+    SipMethod,
+)
+from testprotocols.sip_phone import SipPhone
+from testprotocols.sip_server import SipServer
+
+# Released words: the wait_for_state map of the example implementer, and the is_* predicates.
+RELEASED_STATES = {
+    "idle": "IDLE",
+    "dialing": "DIALING",
+    "ringing": "RINGING",
+    "connected": "CONNECTED",
+    "dialtone": "DIALTONE",
+    "call_ended": "CALL_ENDED",
+    "busy": "BUSY",
+    "not_answered": "NOT_ANSWERED",
+    "hold": "HOLD",
+}
+
+
+@pytest.mark.parametrize(("word", "name"), RELEASED_STATES.items())
+def test_phone_state_members_equal_released_words(word: str, name: str) -> None:
+    assert PhoneState[name] == word
+    assert PhoneState(word) is PhoneState[name]
+
+
+def test_phone_state_has_a_member_per_state_predicate() -> None:
+    predicates = {
+        n
+        for n in dir(SipPhone)
+        if n.startswith("is_") and n not in {"is_away"}  # presence, not call state
+    }
+    assert len(PhoneState) == len(predicates)
+
+
+def test_phone_state_unknown_word_raises() -> None:
+    with pytest.raises(ValueError, match="spinning"):
+        coerce_enum(PhoneState, "spinning", what="wait_for_state(state)")
+
+
+def test_presence_members() -> None:
+    assert [m.value for m in PresenceStatus] == ["online", "busy", "away", "offline", "other"]
+
+
+def test_presence_unknown_word_is_other_and_keeps_raw() -> None:
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        member, raw = coerce_open_enum(
+            PresenceStatus, "available", what="set_presence(status)", other=PresenceStatus.OTHER
+        )
+    assert member is PresenceStatus.OTHER
+    assert raw == "available"  # the driver still receives the provider's word
+
+
+def test_presence_named_word_warns_and_member_is_silent() -> None:
+    with pytest.warns(DeprecationWarning, match="PresenceStatus.AWAY"):
+        member, raw = coerce_open_enum(
+            PresenceStatus, "away", what="set_presence(status)", other=PresenceStatus.OTHER
+        )
+    assert (member, raw) == (PresenceStatus.AWAY, None)
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        assert coerce_open_enum(
+            PresenceStatus,
+            PresenceStatus.ONLINE,
+            what="set_presence(status)",
+            other=PresenceStatus.OTHER,
+        ) == (PresenceStatus.ONLINE, None)
+
+
+def test_presence_parameters_keep_str() -> None:
+    for fn in (SipPhone.set_presence, SipServer.notify_presence):
+        ann = inspect.signature(fn).parameters["status"].annotation
+        assert ann == "PresenceStatus | str"
+    assert inspect.signature(SipServer.get_user_presence).return_annotation == "str"
+
+
+@pytest.mark.parametrize("word", ["INVITE", "MESSAGE", "NOTIFY", "PUBLISH", "REGISTER", "BYE"])
+def test_sip_method_members_equal_words(word: str) -> None:
+    assert SipMethod(word) == word
+
+
+def test_sip_method_extension_and_marker_are_other() -> None:
+    for word in ("[VOICEMAIL]", "SUBSCRIBE", "408"):
+        member, raw = coerce_open_enum(
+            SipMethod, word, what="verify_sip_message", other=SipMethod.OTHER
+        )
+        assert (member, raw) == (SipMethod.OTHER, word)
+
+
+def test_verify_sip_message_signature() -> None:
+    params = inspect.signature(SipServer.verify_sip_message).parameters
+    assert params["message_type"].annotation == "SipMethod | str"
+    assert params["since"].annotation == "datetime | None"
+    assert params["since"].default is None
+
+
+def test_new_members_exist() -> None:
+    for name in ("read_rtpengine_stats", "read_mwi_status", "read_offline_messages"):
+        assert callable(getattr(SipServer, name))
+    # the deprecated names stay
+    for name in ("get_rtpengine_stats", "get_mwi_status", "get_offline_messages"):
+        assert callable(getattr(SipServer, name))
+
+
+def test_rtp_stats_as_dict_is_the_released_dict() -> None:
+    # the example implementer returned {"engaged": bool, "sessions": int}
+    assert RtpStats(engaged=True, sessions=2).as_dict() == {"engaged": True, "sessions": 2}
+
+
+def test_mwi_status_as_dict_is_the_released_dict() -> None:
+    assert MwiStatus(waiting=True, new=2, old=1).as_dict() == {
+        "waiting": True,
+        "new": 2,
+        "old": 1,
+    }
+
+
+def test_offline_message_as_dict_is_the_released_entry() -> None:
+    when = datetime(2026, 10, 4, 12, 30, 5)
+    msg = OfflineMessage(sender="sip:a@x", body="hi", stored_at=when)
+    assert msg.as_dict() == {"from": "sip:a@x", "body": "hi", "timestamp": "2026-10-04T12:30:05"}
+
+
+@pytest.mark.parametrize(
+    "build",
+    [
+        lambda: RtpStats(engaged=1, sessions=0),  # type: ignore[arg-type]
+        lambda: RtpStats(engaged=True, sessions=True),
+        lambda: MwiStatus(waiting="yes", new=0, old=0),  # type: ignore[arg-type]
+        lambda: MwiStatus(waiting=True, new="1", old=0),  # type: ignore[arg-type]
+        lambda: OfflineMessage(sender="a", body="b", stored_at="2026-10-04"),  # type: ignore[arg-type]
+        lambda: OfflineMessage(sender=1, body="b", stored_at=datetime(2026, 1, 1)),  # type: ignore[arg-type]
+    ],
+)
+def test_records_refuse_wrong_types(build) -> None:  # type: ignore[no-untyped-def]
+    with pytest.raises(TypeError):
+        build()
+
+
+def test_records_refuse_negative_counts() -> None:
+    with pytest.raises(ValueError, match="negative"):
+        MwiStatus(waiting=False, new=-1, old=0)
+    with pytest.raises(ValueError, match="negative"):
+        RtpStats(engaged=False, sessions=-1)
+
+
+def test_records_are_frozen() -> None:
+    stats = RtpStats(engaged=True, sessions=1)
+    with pytest.raises(dataclasses.FrozenInstanceError):
+        stats.sessions = 2  # type: ignore[misc]
