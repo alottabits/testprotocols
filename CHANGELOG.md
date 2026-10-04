@@ -17,7 +17,63 @@ their tags and PR history.
 
 ### testprotocols
 
-- no entries yet
+#### Added
+
+- **module** `testprotocols.deprecation` — `renamed_attribute` (for a module
+  `__getattr__` that resolves a renamed symbol's old name, with a
+  `DeprecationWarning`) and `warn_renamed` (for a renamed protocol member's
+  old-name method that delegates to the new one); typed `object`, not `Any`.
+  `tests/test_typing_ratchet.py` caps the explicit `Any` per package
+  (testprotocols 40, testoperations 7); a change may lower a ceiling, never
+  raise it. Migration: none. Design `docs/architecture/precise-types-design.md`; no
+  proposal (contract infrastructure); PR pending.
+- **function and constant** `testprotocols.deprecation:coerce_enum` and
+  `MODEL_FRAMES` — `coerce_enum` normalises an `Enum | str` argument or field
+  to the enum member, warning (`DeprecationWarning`) on a plain string naming
+  a member and raising `ValueError` listing the legal values on any other; the
+  helper behind the `E | str` deprecation shapes. Its keyword
+  `skip_file_prefixes` is passed to `warnings.warn`, so a model's
+  `__post_init__` or `__setattr__` can point the warning at the caller's
+  construction site; `MODEL_FRAMES` is that value for the models of this
+  package. Migration: none. Design `docs/architecture/precise-types-design.md`
+  (shapes 1 and 3); PR pending.
+- **model and functions** `testprotocols.models:PortRange` (`first`, `last`,
+  inclusive, `1 <= first <= last <= 65535` else `ValueError`, a non-int
+  `TypeError`; `PortRange.single(port)`), `parse_port_ranges`,
+  `format_port_ranges` and `port_tuple` — the typed L4 port range, the pure
+  converters for the released port text (`"any"` is `()`; `"80"`, `"80-90"`,
+  comma lists; `ValueError` otherwise), and the check a typed port field
+  applies (an iterable of `PortRange` becomes a tuple; a string, bytes, a
+  non-iterable or an item that is not a `PortRange` raises `TypeError`).
+  Migration: none. Design `docs/architecture/precise-types-design.md`
+  (shape 4(ii)); PR pending.
+- **enum** `testprotocols.models:DefaultAction` (`ACCEPT`, `DROP`, `REJECT`) —
+  what a chain, zone or zone pair does with traffic no rule decides; a driver
+  coerces a released plain string with `coerce_enum(DefaultAction, …)`.
+  Migration: none. Design `docs/architecture/precise-types-design.md`;
+  PR pending.
+- **models and functions** `testprotocols.models:TrafficMatch`
+  (`ApplicationMatch(name)`, `CategoryMatch(category: ApplicationCategory)`
+  (a plain string is converted, an unknown one raises `ValueError`),
+  `HostMatch(host)`, `PortMatch(ports: tuple[PortRange, ...])` (checked as a
+  typed port field), `IpRangeMatch(cidr)` (a prefix or a `first-last` range);
+  frozen; an empty name, host or range, or no port, raises `ValueError`),
+  `traffic_match(match_type, value)` and `match_fields(match)` — what an L7 or
+  shaping rule selects, as a tagged union, and the pure converters to and from
+  the released `(L7MatchType, value)` pair (`"any"` for a port is every port,
+  `1-65535`; `traffic_match` raises `ValueError` for a value that names no
+  match: empty, an unknown category, a port text naming no port number).
+  Migration: none. Design `docs/architecture/precise-types-design.md`
+  (shape 4(ii)); PR pending.
+- **internal module** `testprotocols.models._sync` (`SyncedField`,
+  `SyncedFields`, `settle`, `assign`) — keeps a deprecated text field, or
+  several fields spelling one value, in agreement with its typed successor:
+  at construction the typed side fills the text and the text alone warns;
+  through `dataclasses.replace` and assignment the side that changed wins;
+  malformed text raises before it warns; a hidden provenance field, which must
+  be the model's last field, tells a changed side from an unchanged one. Not
+  public API; listed because later retypes build on it. Migration: none.
+  Design `docs/architecture/precise-types-design.md`; PR pending.
 
 ### testoperations
 

@@ -7,6 +7,7 @@ from testprotocols.models.emission import EmitResult, ReplayResult
 from testprotocols.models.firewall import (
     Connection,
     ConntrackStats,
+    DefaultAction,
     FirewallRule,
     NatRule,
     PortMapping,
@@ -28,6 +29,7 @@ from testprotocols.models.multicast import (
 )
 from testprotocols.models.networking import HTTPResult, ICMPPacketData, IPAddresses
 from testprotocols.models.packets import RIPv2PacketData
+from testprotocols.models.ports import PortRange, format_port_ranges, parse_port_ranges, port_tuple
 from testprotocols.models.qoe import MeasurementSpec, QoEResult
 from testprotocols.models.radius import (
     RadiusAccountingRecord,
@@ -37,10 +39,12 @@ from testprotocols.models.radius import (
 )
 from testprotocols.models.sdwan_appliance import (
     ApplicationCategory,
+    ApplicationMatch,
     BgpConfig,
     BgpNeighbor,
     BgpPeerStatus,
     BgpSessionState,
+    CategoryMatch,
     ContentCategory,
     DhcpLease,
     DhcpMode,
@@ -48,9 +52,11 @@ from testprotocols.models.sdwan_appliance import (
     DhcpOptionType,
     DhcpReservation,
     FlowMatch,
+    HostMatch,
     IntrusionConfig,
     IntrusionMode,
     IntrusionSensitivity,
+    IpRangeMatch,
     L3Rule,
     L7MatchType,
     L7Rule,
@@ -60,6 +66,7 @@ from testprotocols.models.sdwan_appliance import (
     OneToManyNatRule,
     OneToOneNatRule,
     PortForwardRule,
+    PortMatch,
     ReservedRange,
     RuleAction,
     RuleProtocol,
@@ -73,6 +80,7 @@ from testprotocols.models.sdwan_appliance import (
     SyslogRole,
     SyslogServer,
     ThreatCategory,
+    TrafficMatch,
     UplinkSelectionRule,
     UplinkState,
     UplinkStatus,
@@ -82,6 +90,8 @@ from testprotocols.models.sdwan_appliance import (
     VpnPeerStatus,
     VpnRole,
     VpnSubnet,
+    match_fields,
+    traffic_match,
 )
 from testprotocols.models.switch import (
     AccessPolicy,
@@ -162,11 +172,13 @@ __all__ = [
     "AppFlow",
     # sdwan_appliance
     "ApplicationCategory",
+    "ApplicationMatch",
     "BgpConfig",
     "BgpNeighbor",
     "BgpPeerStatus",
     "BgpSessionState",
     "BindingSource",
+    "CategoryMatch",
     # firewall
     "Connection",
     "ConntrackStats",
@@ -176,6 +188,7 @@ __all__ = [
     # dhcp
     "DHCPTraceData",
     "DHCPV6TraceData",
+    "DefaultAction",
     "DhcpLease",
     "DhcpLeaseObservation",
     "DhcpMode",
@@ -193,6 +206,7 @@ __all__ = [
     "FlowMatch",
     # networking
     "HTTPResult",
+    "HostMatch",
     "ICMPPacketData",
     "IPAddresses",
     # impairment
@@ -203,6 +217,7 @@ __all__ = [
     "IntrusionConfig",
     "IntrusionMode",
     "IntrusionSensitivity",
+    "IpRangeMatch",
     "L3Rule",
     "L7MatchType",
     "L7Rule",
@@ -237,7 +252,9 @@ __all__ = [
     "PortAdminState",
     "PortForwardRule",
     "PortMapping",
+    "PortMatch",
     "PortMode",
+    "PortRange",
     "PortStatusEntry",
     "QoEResult",
     "QosRule",
@@ -277,6 +294,7 @@ __all__ = [
     "SyslogRole",
     "SyslogServer",
     "ThreatCategory",
+    "TrafficMatch",
     # traffic
     "TrafficResult",
     "TrafficShapingRule",
@@ -308,4 +326,10 @@ __all__ = [
     "WifiTransitionConfig",
     "Zone",
     "ZonePolicy",
+    # ports
+    "format_port_ranges",
+    "match_fields",
+    "parse_port_ranges",
+    "port_tuple",
+    "traffic_match",
 ]

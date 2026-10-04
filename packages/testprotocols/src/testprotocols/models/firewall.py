@@ -9,6 +9,15 @@ nftables / pf / TR-069 / vendor CLI as appropriate.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from enum import StrEnum
+
+
+class DefaultAction(StrEnum):
+    """What a zone or zone pair does with traffic no rule decides."""
+
+    ACCEPT = "accept"
+    DROP = "drop"
+    REJECT = "reject"
 
 
 @dataclass

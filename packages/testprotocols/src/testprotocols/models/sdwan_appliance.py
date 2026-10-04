@@ -17,6 +17,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import StrEnum
+from typing import assert_never
+
+from testprotocols.models.ports import PortRange, format_port_ranges, parse_port_ranges, port_tuple
 
 
 class RuleAction(StrEnum):
@@ -163,6 +166,119 @@ class ApplicationCategory(StrEnum):
     VOIP_AND_VIDEO_CONFERENCING = "voip_and_video_conferencing"
     VPN_AND_PROXY = "vpn_and_proxy"
     WEB_FILE_TRANSFER = "web_file_transfer"
+
+
+# --- Traffic match (what an L7 or shaping rule selects) ---
+
+
+@dataclass(frozen=True)
+class ApplicationMatch:
+    """Traffic of one application, by its vendor-mapped name (an open name: a
+    normalized application registry is not seeded; grow on evidence)."""
+
+    name: str
+
+    def __post_init__(self) -> None:
+        if not self.name:
+            raise ValueError("an application match names an application")
+
+
+@dataclass(frozen=True)
+class CategoryMatch:
+    """Traffic of one application category. A plain string is converted to the
+    ``ApplicationCategory`` member; an unknown one raises ``ValueError``."""
+
+    category: ApplicationCategory
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "category", ApplicationCategory(self.category))
+
+
+@dataclass(frozen=True)
+class HostMatch:
+    """Traffic to one host, by name."""
+
+    host: str
+
+    def __post_init__(self) -> None:
+        if not self.host:
+            raise ValueError("a host match names a host")
+
+
+@dataclass(frozen=True)
+class PortMatch:
+    """Traffic to the given ports (at least one :class:`PortRange`)."""
+
+    ports: tuple[PortRange, ...]
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "ports", port_tuple(self.ports))
+        if not self.ports:
+            raise ValueError("a port match names at least one port")
+
+
+@dataclass(frozen=True)
+class IpRangeMatch:
+    """Traffic to or from an address range: an address prefix
+    (``198.51.100.0/24``) or a first-last range (``198.51.100.10-198.51.100.20``).
+    A product that matches prefixes only refuses a first-last range per value."""
+
+    cidr: str
+
+    def __post_init__(self) -> None:
+        if not self.cidr:
+            raise ValueError("an address-range match names a range")
+
+
+TrafficMatch = ApplicationMatch | CategoryMatch | HostMatch | PortMatch | IpRangeMatch
+"""What an L7 or shaping rule selects: one of the five match kinds."""
+
+
+# the released port text "any" as a port match: every port
+_EVERY_PORT = PortRange(1, 65535)
+
+
+def traffic_match(match_type: L7MatchType, value: str) -> TrafficMatch:
+    """The :data:`TrafficMatch` the released ``(match_type, value)`` pair spells.
+
+    ``value`` is an application name, an ``ApplicationCategory`` value, a host, a
+    port text (``"80"``, ``"8000-8100"``, ``"22,80-90"``; ``"any"`` is every port,
+    ``1-65535``) or an address range, by ``match_type``. Raises ``ValueError`` for a
+    value that names no match: an empty one, an unknown category, or a port text
+    that names no port number (a service name such as ``"http"``).
+    """
+    kind = L7MatchType(match_type)
+    match kind:
+        case L7MatchType.APPLICATION:
+            return ApplicationMatch(value)
+        case L7MatchType.APPLICATION_CATEGORY:
+            return CategoryMatch(ApplicationCategory(value))
+        case L7MatchType.HOST:
+            return HostMatch(value)
+        case L7MatchType.PORT:
+            return PortMatch(parse_port_ranges(value) or (_EVERY_PORT,))
+        case L7MatchType.IP_RANGE:
+            return IpRangeMatch(value)
+        case _:
+            assert_never(kind)
+
+
+def match_fields(match: TrafficMatch) -> tuple[L7MatchType, str]:
+    """The released ``(match_type, value)`` pair of *match*; the inverse of
+    :func:`traffic_match` (port text in canonical form)."""
+    match match:
+        case ApplicationMatch(name=name):
+            return L7MatchType.APPLICATION, name
+        case CategoryMatch(category=category):
+            return L7MatchType.APPLICATION_CATEGORY, str(category)
+        case HostMatch(host=host):
+            return L7MatchType.HOST, host
+        case PortMatch(ports=ports):
+            return L7MatchType.PORT, format_port_ranges(ports)
+        case IpRangeMatch(cidr=cidr):
+            return L7MatchType.IP_RANGE, cidr
+        case _:
+            assert_never(match)
 
 
 # --- Traffic shaping ---
