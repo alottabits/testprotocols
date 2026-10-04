@@ -14,12 +14,12 @@ PROTOCOLS = [
     (
         "IperfClient",
         "testprotocols.iperf_client",
-        {"start_traffic_sender", "stop_traffic", "get_iperf_logs"},
+        {"start_traffic_sender", "start_sender_session", "stop_traffic", "get_iperf_logs"},
     ),
     (
         "IperfServer",
         "testprotocols.iperf_server",
-        {"start_traffic_receiver", "stop_traffic", "get_iperf_logs"},
+        {"start_traffic_receiver", "start_receiver_session", "stop_traffic", "get_iperf_logs"},
     ),
     (
         "IperfGenerator",
@@ -43,6 +43,7 @@ PROTOCOLS = [
             "get_interface_profiles",
             "clear",
             "inject_transient",
+            "inject_event",
         },
     ),
     (

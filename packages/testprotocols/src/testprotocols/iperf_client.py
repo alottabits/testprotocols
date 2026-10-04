@@ -9,6 +9,7 @@ from __future__ import annotations
 from typing import Protocol, runtime_checkable
 
 from testprotocols.models.networking import IpFamily
+from testprotocols.models.traffic import IperfProcess
 
 
 @runtime_checkable
@@ -34,7 +35,14 @@ class IperfClient(Protocol):
         datagram_bytes: int | None = None,
         report_interval_s: int | None = None,
     ) -> tuple[int, str]:
-        """Start an iperf traffic sender towards *host* on *traffic_port*.
+        """Deprecated name of :meth:`start_sender_session`.
+
+        Returns ``start_sender_session(...).as_tuple()``; the driver warns with
+        ``warn_renamed("start_traffic_sender", "start_sender_session")`` and passes *window*
+        on as ``window_bytes=parse_window_size(window)`` (``None`` stays ``None``). The
+        parameters below keep their released meaning.
+
+        Start an iperf traffic sender towards *host* on *traffic_port*.
 
         *ip_version* is an :class:`~testprotocols.models.IpFamily` (``V4 = 4``, ``V6 = 6``) or
         ``None`` to leave the version to the tool. An ``IpFamily`` is an ``int``, so a driver
@@ -71,6 +79,39 @@ class IperfClient(Protocol):
           accordingly.
 
         Returns a tuple of (pid, log_file_path).
+        """
+        ...
+
+    def start_sender_session(
+        self,
+        host: str,
+        traffic_port: int,
+        *,
+        bandwidth: int | None = None,
+        bind_to_ip: str | None = None,
+        ip_version: IpFamily | None = None,
+        udp_protocol: bool = False,
+        time: int = 10,
+        client_port: int | None = None,
+        udp_only: bool | None = None,
+        reverse: bool = False,
+        omit_s: int | None = None,
+        json_output: bool = False,
+        window_bytes: int | None = None,
+        parallel: int | None = None,
+        datagram_bytes: int | None = None,
+        report_interval_s: int | None = None,
+    ) -> IperfProcess:
+        """Start an iperf traffic sender towards *host* on *traffic_port* and return the
+        started process (its pid and log file).
+
+        The options mean what they mean for :meth:`start_traffic_sender`, except:
+
+        - ``ip_version`` is an :class:`~testprotocols.models.IpFamily` or ``None`` (the
+          tool's choice);
+        - ``window_bytes`` pins the socket buffer, in bytes (``-w <n>``), on both ends;
+          ``None`` leaves the tool's autotuning on. It replaces the size text ``window``
+          (``"8M"``; :func:`~testprotocols.models.parse_window_size` converts one).
         """
         ...
 

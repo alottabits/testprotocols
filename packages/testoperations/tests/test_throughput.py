@@ -63,6 +63,12 @@ def approx(expected: float) -> Any:
     return pytest.approx(expected)  # pyright: ignore[reportUnknownMemberType]
 
 
+# Drivers with only the released iperf member names (no ``start_*_session``): the operations
+# make the released ``start_traffic_*`` calls. New-name drivers: test_renamed_host_members.py.
+_OLD_SENDER = ["start_traffic_sender", "stop_traffic", "get_iperf_logs"]
+_OLD_RECEIVER = ["start_traffic_receiver", "stop_traffic", "get_iperf_logs"]
+
+
 def _returns(text: str) -> Callable[[str], str]:
     """A ``get_iperf_logs`` side_effect that always yields *text*."""
 
@@ -224,10 +230,10 @@ def _flow(
     stale = "\n".join(_session_doc(rx_bps=1e6) for _ in range(stale_docs))
     fresh = stale + "\n" + _session_doc(rx_bps=mbps * 1e6, retransmits=receiver_retransmits)
 
-    sender = MagicMock()
+    sender = MagicMock(spec=_OLD_SENDER)
     sender.start_traffic_sender.return_value = (4000 + port, f"/tmp/cl_{port}.log")
 
-    receiver = MagicMock()
+    receiver = MagicMock(spec=_OLD_RECEIVER)
     receiver.start_traffic_receiver.return_value = (5000 + port, f"/tmp/rx_{port}.log")
     receiver.get_iperf_logs.side_effect = _once_started(sender, fresh, before=stale)
     # The sender's own --json log (forward-flow RTT source): a completed
@@ -991,7 +997,7 @@ def _ext_sender(
         doc = _session_doc(rx_bps=mbps * 1e6, rtt_us=rtt_us, retransmits=retransmits)
     else:
         doc = '{"start": {"test_start"'  # forever-incomplete document
-    sender = MagicMock()
+    sender = MagicMock(spec=_OLD_SENDER)
     sender.start_traffic_sender.return_value = (777, "/tmp/ext_client.log")
     sender.get_iperf_logs.side_effect = _once_started(sender, doc)
     return sender

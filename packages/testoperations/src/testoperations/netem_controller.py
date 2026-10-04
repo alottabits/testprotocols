@@ -8,8 +8,16 @@ method directly.
 
 from __future__ import annotations
 
-from testprotocols.models.impairment import ImpairmentProfile
+from testprotocols.models.impairment import (
+    Blackout,
+    Brownout,
+    ImpairmentProfile,
+    LatencySpike,
+    PacketStorm,
+)
 from testprotocols.netem_controller import NetemController
+
+from testoperations._renamed import inject
 
 # ---------------------------------------------------------------------------
 # Built-in impairment presets
@@ -47,8 +55,12 @@ def apply_preset(netem_controller: NetemController, preset_name: str) -> None:
 
 
 def inject_blackout(netem_controller: NetemController, duration_ms: int) -> None:
-    """Inject a complete connectivity blackout of *duration_ms* milliseconds."""
-    netem_controller.inject_transient("blackout", duration_ms)
+    """Inject a complete connectivity blackout of *duration_ms* milliseconds.
+
+    Calls ``inject_event(Blackout(), duration_ms)``; a driver without ``inject_event`` gets
+    the released ``inject_transient("blackout", duration_ms)``.
+    """
+    inject(netem_controller, Blackout(), duration_ms, {})
 
 
 def inject_brownout(
@@ -58,9 +70,16 @@ def inject_brownout(
 ) -> None:
     """Inject a partial connectivity brownout of *duration_ms* ms.
 
-    *loss_percent* controls how much traffic is dropped during the event.
+    *loss_percent* controls how much traffic is dropped during the event. Calls
+    ``inject_event(Brownout(loss_percent=...), duration_ms)``; a driver without
+    ``inject_event`` gets the released ``inject_transient`` call.
     """
-    netem_controller.inject_transient("brownout", duration_ms, loss_percent=loss_percent)
+    inject(
+        netem_controller,
+        Brownout(loss_percent=loss_percent),
+        duration_ms,
+        {"loss_percent": loss_percent},
+    )
 
 
 def inject_latency_spike(
@@ -68,16 +87,43 @@ def inject_latency_spike(
     duration_ms: int,
     latency_ms: int = 500,
 ) -> None:
-    """Inject a latency spike of *latency_ms* ms lasting *duration_ms* ms."""
-    netem_controller.inject_transient("latency_spike", duration_ms, latency_ms=latency_ms)
+    """Inject a latency spike of *latency_ms* ms lasting *duration_ms* ms.
+
+    Calls ``inject_event(LatencySpike(latency_ms=...), duration_ms)``. A driver without
+    ``inject_event`` gets the released ``inject_transient("latency_spike", duration_ms,
+    latency_ms=...)`` call, unchanged: the released drivers read ``spike_latency_ms`` and so
+    ignore *latency_ms* there (they apply their default, 500 ms).
+    """
+    inject(
+        netem_controller,
+        LatencySpike(latency_ms=latency_ms),
+        duration_ms,
+        {"latency_ms": latency_ms},
+    )
 
 
 def inject_packet_storm(
     netem_controller: NetemController,
     duration_ms: int,
     duplicate_percent: float = 100.0,
+    *,
+    loss_percent: float | None = None,
 ) -> None:
-    """Inject a packet storm (heavy duplication) of *duration_ms* ms."""
-    netem_controller.inject_transient(
-        "packet_storm", duration_ms, duplicate_percent=duplicate_percent
+    """Inject a packet storm (heavy duplication) of *duration_ms* ms.
+
+    *duplicate_percent* is the share of packets duplicated and *loss_percent*, when given,
+    the share lost. Calls ``inject_event(PacketStorm(...), duration_ms)``. A driver without
+    ``inject_event`` gets the released ``inject_transient("packet_storm", duration_ms,
+    duplicate_percent=...)`` call (plus ``loss_percent`` when given), unchanged: the released
+    drivers read only ``loss_percent`` (and latency / jitter) for a packet storm, so they
+    ignore *duplicate_percent* there.
+    """
+    released: dict[str, float | int] = {"duplicate_percent": duplicate_percent}
+    if loss_percent is not None:
+        released["loss_percent"] = loss_percent
+    inject(
+        netem_controller,
+        PacketStorm(loss_percent=loss_percent, duplicate_percent=duplicate_percent),
+        duration_ms,
+        released,
     )

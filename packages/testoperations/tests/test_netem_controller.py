@@ -14,6 +14,10 @@ from testoperations.netem_controller import (
 )
 from testprotocols.models.impairment import ImpairmentProfile
 
+# A driver with only the released member names (no ``inject_event``): the operations make the
+# released ``inject_transient`` calls. New-name drivers: test_renamed_host_members.py.
+_OLD_NAMES = ["inject_transient", "set_impairment_profile", "set_interface_profile", "clear"]
+
 # ---------------------------------------------------------------------------
 # apply_preset
 # ---------------------------------------------------------------------------
@@ -40,12 +44,12 @@ class TestApplyPreset:
 
 class TestInjectBlackout:
     def test_delegates_to_netem_inject_transient(self) -> None:
-        netem = MagicMock()
+        netem = MagicMock(spec=_OLD_NAMES)
         inject_blackout(netem, duration_ms=2000)
         netem.inject_transient.assert_called_once_with("blackout", 2000)
 
     def test_passes_duration(self) -> None:
-        netem = MagicMock()
+        netem = MagicMock(spec=_OLD_NAMES)
         inject_blackout(netem, duration_ms=500)
         netem.inject_transient.assert_called_once_with("blackout", 500)
 
@@ -57,7 +61,7 @@ class TestInjectBlackout:
 
 class TestInjectBrownout:
     def test_delegates_to_netem_inject_transient(self) -> None:
-        netem = MagicMock()
+        netem = MagicMock(spec=_OLD_NAMES)
         inject_brownout(netem, duration_ms=3000, loss_percent=50.0)
         netem.inject_transient.assert_called_once_with("brownout", 3000, loss_percent=50.0)
 
@@ -69,7 +73,7 @@ class TestInjectBrownout:
 
 class TestInjectLatencySpike:
     def test_delegates_to_netem_inject_transient(self) -> None:
-        netem = MagicMock()
+        netem = MagicMock(spec=_OLD_NAMES)
         inject_latency_spike(netem, duration_ms=1000, latency_ms=500)
         netem.inject_transient.assert_called_once_with("latency_spike", 1000, latency_ms=500)
 
@@ -81,6 +85,6 @@ class TestInjectLatencySpike:
 
 class TestInjectPacketStorm:
     def test_delegates_to_netem_inject_transient(self) -> None:
-        netem = MagicMock()
+        netem = MagicMock(spec=_OLD_NAMES)
         inject_packet_storm(netem, duration_ms=500, duplicate_percent=100.0)
         netem.inject_transient.assert_called_once_with("packet_storm", 500, duplicate_percent=100.0)

@@ -30,7 +30,16 @@ from testprotocols.models.firewall import (
     Zone,
     ZonePolicy,
 )
-from testprotocols.models.impairment import ImpairmentProfile
+from testprotocols.models.impairment import (
+    Blackout,
+    Brownout,
+    ImpairmentProfile,
+    LatencySpike,
+    PacketStorm,
+    TransientEvent,
+    coerce_impairment_profile,
+    transient_event,
+)
 from testprotocols.models.l2_common import (
     MacTableEntry,
     StpGuard,
@@ -183,7 +192,13 @@ from testprotocols.models.switch_routing import (
     RoutedInterface,
 )
 from testprotocols.models.tr069 import CpeConnectionStatus
-from testprotocols.models.traffic import TrafficResult, TrafficSpec, TransportProtocol
+from testprotocols.models.traffic import (
+    IperfProcess,
+    TrafficResult,
+    TrafficSpec,
+    TransportProtocol,
+    parse_window_size,
+)
 from testprotocols.models.voice import (
     MwiStatus,
     OfflineMessage,
@@ -245,6 +260,8 @@ __all__ = [
     "BgpPeerStatus",
     "BgpSessionState",
     "BindingSource",
+    "Blackout",
+    "Brownout",
     "CategoryMatch",
     "Chain",
     "ChannelWidth",
@@ -298,9 +315,11 @@ __all__ = [
     "IpFamily",
     "IpRangeMatch",
     "IpVersion",
+    "IperfProcess",
     "L3Rule",
     "L7MatchType",
     "L7Rule",
+    "LatencySpike",
     "LinkAdminState",
     "LinkAggregationGroup",
     "LinkHealthReport",
@@ -336,6 +355,7 @@ __all__ = [
     "OspfConfig",
     "OspfInterfaceSettings",
     "OspfVersion",
+    "PacketStorm",
     "PageCompletion",
     "PathMetrics",
     "PhoneState",
@@ -406,6 +426,7 @@ __all__ = [
     # traffic
     "TrafficResult",
     "TrafficSpec",
+    "TransientEvent",
     "TransportProtocol",
     "UplinkSelectionRule",
     "UplinkState",
@@ -440,13 +461,16 @@ __all__ = [
     "Zone",
     "ZonePolicy",
     # ports
+    "coerce_impairment_profile",
     "format_port_ranges",
     "group_records",
     "match_fields",
     "parse_http_response",
     "parse_port_ranges",
+    "parse_window_size",
     "port_tuple",
     "traffic_match",
+    "transient_event",
 ]
 
 if TYPE_CHECKING:

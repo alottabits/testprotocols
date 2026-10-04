@@ -1,5 +1,5 @@
-"""Host-tier record returns and the remaining ``Any`` (O8-O13, O24, O31, O32, O60-O62, M19,
-M34).
+"""Host-tier record returns and the remaining ``Any`` (O8-O13, O20, O21, O24, O27, O28, O31,
+O32, O60-O62, M19, M34).
 
 Fixture data is real tool output captured on a Linux host and parsed with the parsers the
 released implementers use (``jc`` for ps, syslog, ping and dig; the implementers' own regex for
@@ -28,27 +28,40 @@ from testprotocols.dhcp_server import DhcpServer
 from testprotocols.dns_client import DnsClient
 from testprotocols.held_prefixes import HeldPrefixes
 from testprotocols.ip_routing import IpRouting
+from testprotocols.iperf_client import IperfClient
+from testprotocols.iperf_server import IperfServer
 from testprotocols.models import (
     ArpEntry,
+    Blackout,
+    Brownout,
     DHCPTraceData,
     DHCPV6TraceData,
     DnsRecord,
     DnsRecordType,
     EventLogEntry,
     GroupRecord,
+    ImpairmentProfile,
+    IperfProcess,
+    LatencySpike,
     MemoryUtilization,
     MulticastGroupRecordType,
     NmapPort,
     NmapPortState,
     NmapResult,
+    PacketStorm,
     PingResult,
     ProcessInfo,
     SyslogSeverity,
+    TransientEvent,
     TransportProtocol,
     UrlRules,
+    coerce_impairment_profile,
     group_records,
+    parse_window_size,
+    transient_event,
 )
 from testprotocols.multicast_client import MulticastClient
+from testprotocols.netem_controller import NetemController
 from testprotocols.nmap_scanner import NmapScanner
 from testprotocols.ntp_client import NtpClient
 
@@ -152,10 +165,13 @@ NEW_MEMBERS = [
     (DeviceManagement, "read_running_processes", "get_running_processes"),
     (DeviceManagement, "read_event_log", "read_event_logs"),
     (DnsClient, "resolve", "dns_lookup"),
+    (IperfClient, "start_sender_session", "start_traffic_sender"),
+    (IperfServer, "start_receiver_session", "start_traffic_receiver"),
     (IpRouting, "ping_stats", "ping"),
     (NmapScanner, "scan", "nmap"),
     (ArpClient, "read_arp_table", "get_arp_table"),
     (NtpClient, "read_date", "get_date"),
+    (NetemController, "inject_event", "inject_transient"),
 ]
 
 
@@ -174,10 +190,13 @@ def test_new_member_and_old_name_are_protocol_members(protocol: type, new: str, 
         (DeviceManagement, "read_running_processes", "list[ProcessInfo]"),
         (DeviceManagement, "read_event_log", "list[EventLogEntry]"),
         (DnsClient, "resolve", "list[DnsRecord]"),
+        (IperfClient, "start_sender_session", "IperfProcess"),
+        (IperfServer, "start_receiver_session", "IperfProcess"),
         (IpRouting, "ping_stats", "PingResult"),
         (NmapScanner, "scan", "NmapResult"),
         (ArpClient, "read_arp_table", "list[ArpEntry]"),
         (NtpClient, "read_date", "datetime | None"),
+        (NetemController, "inject_event", "None"),
     ],
 )
 def test_new_member_returns_the_record(protocol: type, member: str, returns: str) -> None:
@@ -434,6 +453,81 @@ def test_resolve_takes_the_enum() -> None:
 
 
 # --------------------------------------------------------------------------------------
+# O20 / O21 IperfProcess and the window size
+# --------------------------------------------------------------------------------------
+
+
+def test_old_reader_matches_new_record_iperf() -> None:
+    # every released implementer returns (int(pid), log path)
+    released = (4242, "/tmp/iperf_client_5201.log")
+    assert IperfProcess(*released).as_tuple() == released
+
+
+@pytest.mark.parametrize(
+    ("kwargs", "error"),
+    [
+        ({"pid": 0}, ValueError),
+        ({"pid": "42"}, TypeError),
+        ({"pid": True}, TypeError),
+        ({"log_file": ""}, ValueError),
+        ({"log_file": None}, TypeError),
+    ],
+)
+def test_iperf_process_refuses_bad_values(
+    kwargs: dict[str, object], error: type[Exception]
+) -> None:
+    base: dict[str, object] = {"pid": 1, "log_file": "/tmp/x.log"}
+    with pytest.raises(error):
+        IperfProcess(**(base | kwargs))  # type: ignore[arg-type]
+
+
+@pytest.mark.parametrize(
+    ("text", "size"),
+    [
+        ("8M", 8 * 1024 * 1024),
+        ("8m", 8 * 1024 * 1024),
+        ("512K", 512 * 1024),
+        ("1G", 1024**3),
+        ("1.5M", 1572864),
+        ("65536", 65536),
+        (" 2M ", 2 * 1024 * 1024),
+    ],
+)
+def test_parse_window_size_uses_iperf_binary_units(text: str, size: int) -> None:
+    assert parse_window_size(text) == size
+
+
+@pytest.mark.parametrize("text", ["", "8MB", "M", "-1M", "0", "eight"])
+def test_parse_window_size_refuses_malformed_text(text: str) -> None:
+    with pytest.raises(ValueError):
+        parse_window_size(text)
+
+
+def test_parse_window_size_refuses_a_non_text() -> None:
+    with pytest.raises(TypeError):
+        parse_window_size(8)  # type: ignore[arg-type]
+
+
+def test_sender_session_signature() -> None:
+    params = inspect.signature(IperfClient.start_sender_session).parameters
+    assert params["window_bytes"].annotation == "int | None"
+    assert params["window_bytes"].kind is inspect.Parameter.KEYWORD_ONLY
+    assert params["ip_version"].annotation == "IpFamily | None"
+    assert "window" not in params
+    released = inspect.signature(IperfClient.start_traffic_sender).parameters
+    assert released["window"].annotation == "str | None"  # the released member is unchanged
+    assert "window_bytes" not in released
+    assert set(released) - {"window"} == set(params) - {"window_bytes"}
+
+
+def test_receiver_session_signature() -> None:
+    params = inspect.signature(IperfServer.start_receiver_session).parameters
+    released = inspect.signature(IperfServer.start_traffic_receiver).parameters
+    assert set(params) == set(released)
+    assert params["ip_version"].annotation == "IpFamily | None"
+
+
+# --------------------------------------------------------------------------------------
 # O24 PingResult
 # --------------------------------------------------------------------------------------
 
@@ -608,6 +702,146 @@ def test_arp_entry_refuses_wrong_types(kwargs: dict[str, object]) -> None:
     }
     with pytest.raises(TypeError):
         ArpEntry(**(base | kwargs))  # type: ignore[arg-type]
+
+
+# --------------------------------------------------------------------------------------
+# O28 TransientEvent
+# --------------------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("event", "name", "kwargs"),
+    [
+        (Blackout(), "blackout", {}),
+        (Brownout(loss_percent=50.0), "brownout", {"loss_percent": 50.0}),
+        (
+            Brownout(latency_ms=200, jitter_ms=10, loss_percent=5.0),
+            "brownout",
+            {"latency_ms": 200, "jitter_ms": 10, "loss_percent": 5.0},
+        ),
+        (LatencySpike(latency_ms=500), "latency_spike", {"spike_latency_ms": 500}),
+        (
+            LatencySpike(latency_ms=300, jitter_ms=100),
+            "latency_spike",
+            {"spike_latency_ms": 300, "jitter_ms": 100},
+        ),
+        (PacketStorm(loss_percent=10.0), "packet_storm", {"loss_percent": 10.0}),
+        (PacketStorm(), "packet_storm", {}),
+    ],
+)
+def test_transient_event_as_kwargs_is_what_released_implementers_read(
+    event: TransientEvent, name: str, kwargs: dict[str, float | int]
+) -> None:
+    assert event.event_name == name
+    assert event.as_kwargs() == kwargs
+    # and the released form converts back to the same event (the driver warns, not this)
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        assert transient_event(name, **kwargs) == event
+
+
+def test_transient_event_through_a_released_implementer_profile_builder() -> None:
+    """The kwargs reach the profile the released example implementer builds."""
+
+    def released_build(
+        event: str, previous: ImpairmentProfile, **kw: float | int
+    ) -> ImpairmentProfile:
+        # vitro-bdd example LinuxNetemImpl._build_transient_profile, latency_spike branch
+        assert event == "latency_spike"
+        return ImpairmentProfile(
+            latency_ms=int(kw.get("spike_latency_ms", 500)),
+            jitter_ms=int(kw.get("jitter_ms", 100)),
+            loss_percent=previous.loss_percent,
+        )
+
+    spike = LatencySpike(latency_ms=750)
+    built = released_build(spike.event_name, ImpairmentProfile(10, 2, 0.0), **spike.as_kwargs())
+    assert built.latency_ms == 750
+
+
+def test_transient_event_accepts_the_released_caller_spelling_for_a_spike() -> None:
+    assert transient_event("latency_spike", latency_ms=400) == LatencySpike(latency_ms=400)
+    assert transient_event("latency_spike", spike_latency_ms=400.0) == LatencySpike(latency_ms=400)
+    with pytest.raises(ValueError, match="whole"):
+        transient_event("brownout", latency_ms=1.5)
+
+
+@pytest.mark.parametrize(
+    ("name", "kwargs", "error"),
+    [
+        ("meltdown", {}, ValueError),
+        ("blackout", {"loss_percent": 10.0}, ValueError),
+        ("brownout", {"duplicate_percent": 1.0}, ValueError),
+        ("latency_spike", {"latency_ms": 1, "spike_latency_ms": 2}, ValueError),
+    ],
+)
+def test_transient_event_refuses_unknown_events_and_keys(
+    name: str, kwargs: dict[str, float], error: type[Exception]
+) -> None:
+    with pytest.raises(error):
+        transient_event(name, **kwargs)
+
+
+@pytest.mark.parametrize(
+    ("build", "error"),
+    [
+        (lambda: Brownout(loss_percent=101.0), ValueError),
+        (lambda: Brownout(loss_percent="5"), TypeError),  # type: ignore[arg-type]
+        (lambda: LatencySpike(latency_ms=-1), ValueError),
+        (lambda: LatencySpike(latency_ms=1.5), TypeError),  # type: ignore[arg-type]
+        (lambda: PacketStorm(duplicate_percent=True), TypeError),
+    ],
+)
+def test_transient_events_refuse_bad_values(build, error: type[Exception]) -> None:  # type: ignore[no-untyped-def]
+    with pytest.raises(error):
+        build()
+
+
+def test_inject_event_signature() -> None:
+    params = inspect.signature(NetemController.inject_event).parameters
+    assert params["event"].annotation == "TransientEvent"
+    assert params["duration_ms"].annotation == "int"
+
+
+# --------------------------------------------------------------------------------------
+# O27 impairment profile parameter
+# --------------------------------------------------------------------------------------
+
+
+def test_netem_profile_parameter_has_no_any() -> None:
+    for member in (NetemController.set_impairment_profile, NetemController.set_interface_profile):
+        ann = inspect.signature(member).parameters["profile"].annotation
+        assert ann == "ImpairmentProfile | dict[str, object]"
+
+
+def test_coerce_impairment_profile_passes_a_profile_silently() -> None:
+    profile = ImpairmentProfile(10, 2, 0.1)
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        assert coerce_impairment_profile(profile, what="profile") is profile
+
+
+def test_coerce_impairment_profile_converts_a_dict_with_a_warning() -> None:
+    with pytest.warns(DeprecationWarning, match="ImpairmentProfile"):
+        profile = coerce_impairment_profile(
+            {"latency_ms": 20, "jitter_ms": 5, "loss_percent": 0.1, "bandwidth_limit_mbps": 20},
+            what="profile",
+        )
+    assert profile == ImpairmentProfile(20, 5, 0.1, bandwidth_limit_mbps=20)
+
+
+@pytest.mark.parametrize(
+    ("value", "error"),
+    [
+        ({"latency_ms": 1, "jitter_ms": 0}, ValueError),  # missing loss_percent
+        ({"latency_ms": 1, "jitter_ms": 0, "loss_percent": 0.0, "colour": 1}, ValueError),
+        ("dsl", TypeError),
+    ],
+)
+def test_coerce_impairment_profile_refuses(value: object, error: type[Exception]) -> None:
+    with pytest.raises(error), warnings.catch_warnings():
+        warnings.simplefilter("ignore", DeprecationWarning)
+        coerce_impairment_profile(value, what="profile")  # type: ignore[arg-type]
 
 
 # --------------------------------------------------------------------------------------

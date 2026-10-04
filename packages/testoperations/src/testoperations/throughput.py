@@ -25,6 +25,8 @@ from typing import Any, Literal, cast
 from testprotocols.iperf_client import IperfClient
 from testprotocols.iperf_server import IperfServer
 
+from testoperations._renamed import start_receiver_session, start_sender_session
+
 # A finished iperf3 session is flushed to the --logfile when the sender
 # disconnects; allow a grace window after the nominal duration for that flush
 # (and for clock skew between controller and endpoints).
@@ -331,12 +333,14 @@ def measure_concurrent_throughput(
     senders: list[tuple[IperfClient, int, str]] = []  # (sender, pid, log) per flow
     try:
         for flow in flows:
-            receiver_pid, receiver_log = flow.receiver.start_traffic_receiver(flow.port)
+            rx_process = start_receiver_session(flow.receiver, flow.port)
+            receiver_pid, receiver_log = rx_process.pid, rx_process.log_file
             prior_sessions = count_sessions(flow.receiver.get_iperf_logs(receiver_log))
             started.append((flow, receiver_pid, receiver_log, prior_sessions))
 
         for flow, _, _, _ in started:
-            sender_pid, sender_log = flow.sender.start_traffic_sender(
+            tx_process = start_sender_session(
+                flow.sender,
                 flow.dest_host,
                 flow.port,
                 bandwidth=flow.bandwidth_mbps,
@@ -350,7 +354,7 @@ def measure_concurrent_throughput(
                 json_output=True,
                 window=flow.window,
             )
-            senders.append((flow.sender, sender_pid, sender_log))
+            senders.append((flow.sender, tx_process.pid, tx_process.log_file))
 
         # Omitted slow-start seconds extend the wall clock beyond duration_s.
         sleep(float(duration_s + max((f.omit_s for f in flows), default=0)))
@@ -852,7 +856,8 @@ def measure_external_flow(
     ``poll_interval_s`` is the cadence between log reads while waiting — the
     caller's pacing decision, not a library constant.
     """
-    sender_pid, sender_log = flow.sender.start_traffic_sender(
+    tx_process = start_sender_session(
+        flow.sender,
         flow.dest_host,
         flow.port,
         bandwidth=flow.bandwidth_mbps,
@@ -863,6 +868,7 @@ def measure_external_flow(
         window=flow.window,
         parallel=flow.parallel,
     )
+    sender_pid, sender_log = tx_process.pid, tx_process.log_file
     try:
         sleep(float(duration_s + flow.omit_s))
         text, mbps = _await_client_session(
