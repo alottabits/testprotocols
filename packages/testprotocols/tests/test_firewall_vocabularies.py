@@ -55,8 +55,9 @@ def test_conn_state_values_cover_the_released_docstring() -> None:
         "UNREPLIED ASSURED"
     ).split()
     for word in released:
-        assert ConnState(word.lower()).name == word
-    assert ConnState.OTHER.value == "other"
+        assert ConnState(word).name == word
+        assert word == ConnState[word]  # equals the released upper-case string
+    assert ConnState.OTHER.value == "OTHER"
     assert [m.name for m in ConnState] == [*released, "OTHER"]
 
 
@@ -259,7 +260,7 @@ def test_conntrack_filters() -> None:
     with pytest.warns(DeprecationWarning, match=r"RuleProtocol\.UDP"):
         assert fake.count_connections(protocol="udp") == 1
     with pytest.warns(DeprecationWarning, match=r"ConnState\.ESTABLISHED"):
-        assert fake.count_connections(state="established") == 1
+        assert fake.count_connections(state="ESTABLISHED") == 1
     with pytest.raises(ValueError, match="sctp"):
         fake.count_connections(protocol="sctp")
 
@@ -374,76 +375,137 @@ def test_connection_protocol_coerces_on_construction_replace_and_assignment() ->
 # --- shape 3o: Connection.state ------------------------------------------------
 
 
+def _pair(conn: Connection) -> tuple[ConnState | str, str | None]:
+    return conn.state, conn.state_raw
+
+
+def test_conn_state_equals_the_released_strings() -> None:
+    assert _conn(state=ConnState.ESTABLISHED).state == "ESTABLISHED"
+    assert _conn(state=ConnState.UNREPLIED).state == "UNREPLIED"
+
+
 def test_conn_state_unknown_word_is_other_and_keeps_raw() -> None:
     with warnings.catch_warnings():
         warnings.simplefilter("error")  # the set is open: no warning
         conn = _conn(state="NEW-FANCY")
-    assert conn.state is ConnState.OTHER
-    assert conn.state_raw == "NEW-FANCY"
+    assert _pair(conn) == (ConnState.OTHER, "NEW-FANCY")
 
 
-def test_conn_state_plain_member_name_converts_and_warns_in_either_case() -> None:
+def test_conn_state_plain_member_name_converts_and_warns() -> None:
     with pytest.warns(DeprecationWarning, match=r"Connection\.state.*ConnState\.SYN_SENT") as w:
-        conn = _conn(state="syn_sent")
-    assert conn.state is ConnState.SYN_SENT and conn.state_raw is None
+        conn = _conn(state="SYN_SENT")
+    assert _pair(conn) == (ConnState.SYN_SENT, None)
     assert w[0].filename == __file__
-    with pytest.warns(DeprecationWarning, match=r"ConnState\.TIME_WAIT"):
-        assert _conn(state="TIME_WAIT").state is ConnState.TIME_WAIT
+
+
+def test_conn_state_edge_words_are_pinned() -> None:
+    # "OTHER" names the catch-all member: it converts (with the warning), no raw word
+    with pytest.warns(DeprecationWarning, match=r"ConnState\.OTHER"):
+        assert _pair(_conn(state="OTHER")) == (ConnState.OTHER, None)
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        # the match is exact: another letter case, or the empty word, is an unknown word
+        assert _pair(_conn(state="other")) == (ConnState.OTHER, "other")
+        assert _pair(_conn(state="established")) == (ConnState.OTHER, "established")
+        assert _pair(_conn(state="")) == (ConnState.OTHER, "")
 
 
 def test_conn_state_other_member_with_explicit_raw() -> None:
     with warnings.catch_warnings():
         warnings.simplefilter("error")
         conn = _conn(state=ConnState.OTHER, state_raw="vendor-state")
-    assert (conn.state, conn.state_raw) == (ConnState.OTHER, "vendor-state")
+    assert _pair(conn) == (ConnState.OTHER, "vendor-state")
     assert _conn(state=ConnState.OTHER).state_raw is None
+
+
+def test_conn_state_construction_refuses_a_raw_word_that_does_not_belong() -> None:
+    with pytest.raises(ValueError, match="state_raw"):
+        _conn(state=ConnState.ESTABLISHED, state_raw="x")
+    with pytest.raises(ValueError, match="disagree"):
+        _conn(state="weird", state_raw="y")
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        assert _pair(_conn(state="weird", state_raw="weird")) == (ConnState.OTHER, "weird")
 
 
 def test_conn_state_assignment_keeps_the_pair_consistent() -> None:
     conn = _conn(state="weird")
     conn.state = ConnState.CLOSE
-    assert (conn.state, conn.state_raw) == (ConnState.CLOSE, None)
+    assert _pair(conn) == (ConnState.CLOSE, None)
     conn.state = "another"
-    assert (conn.state, conn.state_raw) == (ConnState.OTHER, "another")
+    assert _pair(conn) == (ConnState.OTHER, "another")
     conn.state = ConnState.OTHER  # a member clears the raw word
-    assert (conn.state, conn.state_raw) == (ConnState.OTHER, None)
+    assert _pair(conn) == (ConnState.OTHER, None)
     conn.state_raw = "set-later"
-    assert conn.state_raw == "set-later"
+    assert _pair(conn) == (ConnState.OTHER, "set-later")
     conn.state_raw = None
-    assert conn.state_raw is None
+    assert _pair(conn) == (ConnState.OTHER, None)
     with pytest.warns(DeprecationWarning):
-        conn.state = "listen"
-    assert (conn.state, conn.state_raw) == (ConnState.LISTEN, None)
+        conn.state = "LISTEN"
+    assert _pair(conn) == (ConnState.LISTEN, None)
 
 
-def test_conn_state_raw_needs_the_catch_all() -> None:
+def test_conn_state_assignment_refusals_change_nothing() -> None:
     conn = _conn()
     with pytest.raises(ValueError, match="state_raw"):
         conn.state_raw = "x"
-    assert conn.state_raw is None
     with pytest.raises(TypeError):
-        _conn(state=ConnState.OTHER).state_raw = 5  # type: ignore[assignment]
+        conn.state = 5  # type: ignore[assignment]
+    assert _pair(conn) == (ConnState.ESTABLISHED, None)
+    other = _conn(state=ConnState.OTHER)
+    with pytest.raises(TypeError):
+        other.state_raw = 5  # type: ignore[assignment]
+    assert _pair(other) == (ConnState.OTHER, None)
 
 
-def test_conn_state_replace_keeps_the_pair_consistent() -> None:
+def test_conn_state_replace_the_side_that_changed_wins() -> None:
     conn = _conn(state="weird")
     same = dataclasses.replace(conn, bytes_orig=9)
-    assert (same.state, same.state_raw) == (ConnState.OTHER, "weird")
+    assert _pair(same) == (ConnState.OTHER, "weird")
     named = dataclasses.replace(conn, state=ConnState.ESTABLISHED)
-    assert (named.state, named.state_raw) == (ConnState.ESTABLISHED, None)
+    assert _pair(named) == (ConnState.ESTABLISHED, None)
     reworded = dataclasses.replace(conn, state="stranger")
-    assert (reworded.state, reworded.state_raw) == (ConnState.OTHER, "stranger")
+    assert _pair(reworded) == (ConnState.OTHER, "stranger")
     with pytest.warns(DeprecationWarning):
-        converted = dataclasses.replace(conn, state="close")
-    assert (converted.state, converted.state_raw) == (ConnState.CLOSE, None)
-    assert conn.state_raw == "weird"
+        converted = dataclasses.replace(conn, state="CLOSE")
+    assert _pair(converted) == (ConnState.CLOSE, None)
+    assert dataclasses.replace(conn, state_raw="renamed").state_raw == "renamed"
+    assert dataclasses.replace(conn, state_raw=None).state_raw is None
+    assert _pair(conn) == (ConnState.OTHER, "weird")
 
 
-def test_conn_state_equality_and_repr_see_the_raw_word() -> None:
+def test_conn_state_replace_with_both_sides_changed() -> None:
+    conn = _conn()
+    with pytest.raises(ValueError, match="state_raw"):  # a named state takes no raw word
+        dataclasses.replace(conn, state=ConnState.ASSURED, state_raw="q")
+    with pytest.raises(ValueError, match="state_raw"):
+        dataclasses.replace(conn, state_raw="zzz")  # changing only the raw word of a named state
+    both = dataclasses.replace(conn, state=ConnState.OTHER, state_raw="q")
+    assert _pair(both) == (ConnState.OTHER, "q")
+    with pytest.raises(ValueError, match="disagree"):
+        dataclasses.replace(both, state="w", state_raw="v")
+    assert _pair(dataclasses.replace(both, state="w", state_raw="w")) == (ConnState.OTHER, "w")
+
+
+def test_conn_state_equality_and_repr_see_the_raw_word_not_the_provenance() -> None:
     assert _conn(state="a") == _conn(state="a")
     assert _conn(state="a") != _conn(state="b")
-    assert "_state_derived" not in repr(_conn(state="a"))
-    assert "_state_derived" not in vars(_conn(state="a"))
+    assert "_state_seen" not in repr(_conn(state="a"))
+    assert "state_raw='a'" in repr(_conn(state="a"))
+
+
+def test_connection_refuses_the_any_protocol() -> None:
+    with pytest.raises(ValueError, match="one transport"):
+        _conn(protocol=RuleProtocol.ANY)
+    with pytest.raises(ValueError, match="one transport"):
+        with pytest.warns(DeprecationWarning):
+            _conn(protocol="any")
+    conn = _conn()
+    with pytest.raises(ValueError, match="one transport"):
+        conn.protocol = RuleProtocol.ANY
+    with pytest.raises(ValueError, match="one transport"):
+        dataclasses.replace(conn, protocol=RuleProtocol.ANY)
+    assert conn.protocol is RuleProtocol.TCP
 
 
 # --- coerce_open_enum ----------------------------------------------------------
@@ -462,8 +524,8 @@ def test_coerce_open_enum_named_str_converts_and_warns() -> None:
     def boundary(state: str) -> tuple[ConnState, str | None]:
         return coerce_open_enum(ConnState, state, what="x", other=ConnState.OTHER)
 
-    with pytest.warns(DeprecationWarning, match=r"x: plain string 'close'.*ConnState\.CLOSE") as w:
-        result = boundary("close")
+    with pytest.warns(DeprecationWarning, match=r"x: plain string 'CLOSE'.*ConnState\.CLOSE") as w:
+        result = boundary("CLOSE")
     assert result == (ConnState.CLOSE, None)
     assert w[0].filename == __file__  # the caller of the function that coerces
 
@@ -477,18 +539,14 @@ def test_coerce_open_enum_unknown_str_is_other_without_warning() -> None:
         )
 
 
-def test_coerce_open_enum_casefold_is_opt_in() -> None:
-    assert coerce_open_enum(ConnState, "CLOSE", what="x", other=ConnState.OTHER) == (
+def test_coerce_open_enum_match_is_exact() -> None:
+    assert coerce_open_enum(ConnState, "close", what="x", other=ConnState.OTHER) == (
         ConnState.OTHER,
-        "CLOSE",
+        "close",
     )
-    with pytest.warns(DeprecationWarning):
-        assert coerce_open_enum(
-            ConnState, "CLOSE", what="x", other=ConnState.OTHER, casefold=True
-        ) == (ConnState.CLOSE, None)
 
 
 def test_coerce_open_enum_rejects_other_types() -> None:
-    for bad in (None, 3, b"close", 1.5):
+    for bad in (None, 3, b"CLOSE", 1.5):
         with pytest.raises(TypeError, match="x"):
             coerce_open_enum(ConnState, bad, what="x", other=ConnState.OTHER)  # type: ignore[arg-type]

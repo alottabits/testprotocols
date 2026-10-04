@@ -43,19 +43,6 @@ their tags and PR history.
   that is not a decimal integer and `TypeError` for a `bool`, `float` or other type.
   Migration: none. Design `docs/architecture/precise-types-design.md` (shape 1i);
   PR pending.
-- **enums** `testprotocols.models:Chain` (`INPUT`, `OUTPUT`, `FORWARD`),
-  `FirewallRuleAction` (`ALLOW`, `DENY`, `REJECT`, `LOG`), `NatMode` (`SNAT`,
-  `DNAT`, `ONE_TO_ONE`), `PortMappingProtocol` (`TCP`, `UDP`, `TCP_UDP`) and the
-  open `ConnState` (the nine TCP states, `UNREPLIED`, `ASSURED`, `OTHER`).
-  Migration: none. Design `docs/architecture/precise-types-design.md` (firewall, NAT and conntrack vocabularies); PR pending.
-- **field** `testprotocols.models:Connection.state_raw` — the device's own state
-  word, set only when `state` is `ConnState.OTHER`. Migration: none. Same design
-  section; PR pending.
-- **function** `testprotocols.deprecation:coerce_open_enum` — for an open enum:
-  a member is returned as is, a string naming a member converts with a
-  `DeprecationWarning`, and any other string gives `(other, word)` without a
-  warning; `casefold=True` matches a member in any letter case. Migration: none.
-  Design `docs/architecture/precise-types-design.md` (shape 3o); PR pending.
 - **model and functions** `testprotocols.models:PortRange` (`first`, `last`,
   inclusive, `1 <= first <= last <= 65535` else `ValueError`, a non-int
   `TypeError`; `PortRange.single(port)`), `parse_port_ranges`,
@@ -95,6 +82,29 @@ their tags and PR history.
   raises `TypeError` naming the class (it would silently drop its own fields). Not
   public API; listed because later retypes build on it. Migration: none.
   Design `docs/architecture/precise-types-design.md`; PR pending.
+- **enums** `testprotocols.models:Chain` (`INPUT`, `OUTPUT`, `FORWARD`),
+  `FirewallRuleAction` (`ALLOW`, `DENY`, `REJECT`, `LOG`), `NatMode` (`SNAT`,
+  `DNAT`, `ONE_TO_ONE`), `PortMappingProtocol` (`TCP`, `UDP`, `TCP_UDP`) and the
+  open `ConnState` (the nine TCP states, `UNREPLIED`, `ASSURED` and `OTHER`; its
+  values are the released upper-case words, so `conn.state == "ESTABLISHED"` is
+  true).
+  Migration: none. Design `docs/architecture/precise-types-design.md` (firewall, NAT and conntrack vocabularies); PR pending.
+- **field** `testprotocols.models:Connection.state_raw` — the device's own state
+  word, held only while `state` is `ConnState.OTHER`; the pair agrees after
+  construction, `replace` and assignment, and the side that changed wins (a raw
+  word with a named state raises `ValueError`). Migration: none. Same design
+  section; PR pending.
+- **function** `testprotocols.deprecation:coerce_open_enum` — for an open enum:
+  a member is returned as is, a string naming a member converts with a
+  `DeprecationWarning`, and any other string gives `(other, word)` without a
+  warning (an exact match: `"close"` is not `"CLOSE"`). Migration: none.
+  Design `docs/architecture/precise-types-design.md` (shape 3o); PR pending.
+- **internal module** `testprotocols.models._open_enum:OpenEnumPair` — an
+  open-enum field and its raw-word companion as a `_sync` pair, driven by
+  `settle` (so it also serves a frozen record, through `__post_init__`) and
+  `assign`, with the same hidden provenance field. Not public API; listed because
+  later retypes build on it. Migration: none. Design
+  `docs/architecture/precise-types-design.md` (shape 3o); PR pending.
 
 #### Changed
 
@@ -118,9 +128,11 @@ their tags and PR history.
   `ConnState`. `NatRule.protocol` defaults to `RuleProtocol.ANY`. An unknown
   string raises `ValueError`, except `Connection.state`: the set is open, so an
   unknown word becomes `ConnState.OTHER` plus `state_raw`, without a warning. A
-  plain string naming a `ConnState` converts in either letter case, so a
-  released `"ESTABLISHED"` keeps working (the member values are lower case).
-  Migration: pass the members. Design `docs/architecture/precise-types-design.md` (firewall, NAT and conntrack vocabularies); PR pending.
+  plain string naming a `ConnState` warns and converts. The `ConnState` values
+  are the released upper-case words (`"ESTABLISHED"`, `"SYN_SENT"`, …,
+  `"OTHER"`), so no reading idiom changes: `conn.state == "ESTABLISHED"` holds.
+  `Connection.protocol` refuses `RuleProtocol.ANY` with `ValueError`, as its
+  docstring says (a flow has one transport). Migration: pass the members. Design `docs/architecture/precise-types-design.md` (firewall, NAT and conntrack vocabularies); PR pending.
 
 #### Deprecated
 
@@ -128,7 +140,7 @@ their tags and PR history.
   `Nat.list_nat_rules(mode)`, `Conntrack` (`protocol`, `state`), `FirewallRule.action` /
   `protocol`, `NatRule.mode` / `protocol`, `PortMapping.protocol` and
   `Connection.protocol` / `state` — a plain `str` naming a member (`"FORWARD"`,
-  `"drop"`, `"snat"`, `"tcp"`, `"allow"`, `"tcp-udp"`, `"established"`) is
+  `"drop"`, `"snat"`, `"tcp"`, `"allow"`, `"tcp-udp"`, `"ESTABLISHED"`) is
   deprecated: it warns and is converted. The annotations narrow to the enums in
   a later release. Use `Chain`, `DefaultAction`, `NatMode`, `RuleProtocol`,
   `FirewallRuleAction`, `PortMappingProtocol` and `ConnState`. Design `docs/architecture/precise-types-design.md` (firewall, NAT and conntrack vocabularies); PR pending.

@@ -95,7 +95,6 @@ def coerce_open_enum[E: Enum](
     *,
     what: str,
     other: E,
-    casefold: bool = False,
     skip_file_prefixes: tuple[str, ...] = (),
 ) -> tuple[E, str | None]:
     """Return *value* as ``(member, raw)`` for an open enum (shape 3o).
@@ -106,9 +105,7 @@ def coerce_open_enum[E: Enum](
 
     - A member is returned as is, with raw ``None``.
     - A plain string naming a member's value converts, warns as :func:`coerce_enum`
-      does, and gives raw ``None``. With *casefold*, a string naming a member in
-      another letter case counts (for a vocabulary the released contract spelled
-      in upper case).
+      does, and gives raw ``None``. The match is exact, including letter case.
     - Any other string gives ``(other, value)`` and does not warn: the raw word
       is kept so nothing is lost or guessed.
     - Any other type raises ``TypeError``.
@@ -122,7 +119,7 @@ def coerce_open_enum[E: Enum](
         raise TypeError(f"{what}: takes a {enum_type.__name__} or str, not {given!r}")
     text: str = given
     for member in enum_type:
-        if member.value == text or (casefold and str(member.value).casefold() == text.casefold()):
+        if member.value == text:
             warnings.warn(
                 f"{what}: plain string {text!r} is deprecated; "
                 f"pass {enum_type.__name__}.{member.name}",

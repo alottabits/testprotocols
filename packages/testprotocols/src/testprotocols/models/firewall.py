@@ -13,7 +13,8 @@ from enum import StrEnum
 from typing import cast, override
 
 from testprotocols.deprecation import MODEL_FRAMES, coerce_enum
-from testprotocols.models._open_enum import OpenEnumField
+from testprotocols.models._open_enum import OpenEnumPair
+from testprotocols.models._sync import assign, settle
 from testprotocols.models.sdwan_appliance import RuleProtocol
 
 
@@ -63,26 +64,26 @@ class ConnState(StrEnum):
     state this enum does not name, and the device's own word is kept in
     ``Connection.state_raw``.
 
-    The TCP states and the two datagram states (``UNREPLIED``, ``ASSURED``) are the
-    ones the released contract named. The values are lower case; a released upper
-    case spelling (``"ESTABLISHED"``) still names its member.
+    The values are the words the released contract listed, in upper case: the nine
+    TCP states and the two datagram states (``UNREPLIED``, ``ASSURED``), so a reader
+    comparing ``conn.state == "ESTABLISHED"`` is unchanged.
     """
 
-    SYN_SENT = "syn_sent"
-    SYN_RECV = "syn_recv"
-    ESTABLISHED = "established"
-    FIN_WAIT = "fin_wait"
-    CLOSE_WAIT = "close_wait"
-    LAST_ACK = "last_ack"
-    TIME_WAIT = "time_wait"
-    CLOSE = "close"
-    LISTEN = "listen"
-    UNREPLIED = "unreplied"
-    ASSURED = "assured"
-    OTHER = "other"
+    SYN_SENT = "SYN_SENT"
+    SYN_RECV = "SYN_RECV"
+    ESTABLISHED = "ESTABLISHED"
+    FIN_WAIT = "FIN_WAIT"
+    CLOSE_WAIT = "CLOSE_WAIT"
+    LAST_ACK = "LAST_ACK"
+    TIME_WAIT = "TIME_WAIT"
+    CLOSE = "CLOSE"
+    LISTEN = "LISTEN"
+    UNREPLIED = "UNREPLIED"
+    ASSURED = "ASSURED"
+    OTHER = "OTHER"
 
 
-_STATE = OpenEnumField(ConnState, ConnState.OTHER, "state", "state_raw", casefold=True)
+_STATE_PAIRS = (OpenEnumPair(ConnState, ConnState.OTHER, "state", "state_raw"),)
 
 _RULE_ENUMS: dict[str, type[StrEnum]] = {"action": FirewallRuleAction, "protocol": RuleProtocol}
 _NAT_ENUMS: dict[str, type[StrEnum]] = {"mode": NatMode, "protocol": RuleProtocol}
@@ -90,19 +91,24 @@ _MAPPING_ENUMS: dict[str, type[StrEnum]] = {"protocol": PortMappingProtocol}
 _CONN_ENUMS: dict[str, type[StrEnum]] = {"protocol": RuleProtocol}
 
 
+def _coerce_field(owner: str, name: str, value: object, enums: dict[str, type[StrEnum]]) -> object:
+    """*value* converted when *name* is one of *enums*' fields; otherwise unchanged."""
+    enum_type = enums.get(name)
+    if enum_type is None:
+        return value
+    return coerce_enum(
+        enum_type,
+        cast("StrEnum | str", value),
+        what=f"{owner}.{name}",
+        skip_file_prefixes=MODEL_FRAMES,
+    )
+
+
 def _set(
     obj: object, owner: str, name: str, value: object, enums: dict[str, type[StrEnum]]
 ) -> None:
     """Assign *name* on *obj*, converting it first when it is one of *enums*' fields."""
-    enum_type = enums.get(name)
-    if enum_type is not None:
-        value = coerce_enum(
-            enum_type,
-            cast("StrEnum | str", value),
-            what=f"{owner}.{name}",
-            skip_file_prefixes=MODEL_FRAMES,
-        )
-    object.__setattr__(obj, name, value)
+    object.__setattr__(obj, name, _coerce_field(owner, name, value, enums))
 
 
 @dataclass
@@ -231,13 +237,18 @@ class Connection:
       state, which is ``OTHER`` with the device's own word in *state_raw*.
 
     The set is open, so an unknown string is not an error: it becomes ``OTHER``
-    plus *state_raw*, without a warning. A plain ``str`` naming a member (in
-    either letter case, so a released ``"ESTABLISHED"`` still works) is
-    deprecated: it warns and is converted. *state_raw* is ``None`` unless *state*
-    is ``OTHER``; assigning a member clears it, and assigning an unknown string
-    sets it. Assigning *state_raw* while *state* is a named member raises
-    ``ValueError``. *protocol* follows the same deprecation rule as the other
-    firewall records.
+    plus *state_raw*, kept verbatim (the empty string and ``"other"`` included)
+    and without a warning. A plain ``str`` naming a member (``"ESTABLISHED"``;
+    the match is exact, so ``"established"`` is an unknown word) is deprecated: it
+    warns and is converted; ``"OTHER"`` converts to ``OTHER`` with no raw word.
+    *state_raw* is ``None`` unless *state* is ``OTHER``. The pair agrees after
+    construction, ``replace`` and assignment, and the side that changed wins:
+    assigning a member clears the raw word, assigning an unknown string sets it,
+    assigning only *state_raw* keeps *state*. A raw word given with a named state,
+    or one that disagrees with the unknown word *state* was given, raises
+    ``ValueError`` and changes nothing. *protocol* may not be
+    ``RuleProtocol.ANY`` (``ValueError``) and follows the same deprecation rule
+    as the other firewall records.
 
     *translated_src* / *translated_dst* are populated (non-None) when NAT
     is altering this flow. *src_port* / *dst_port* are ``None`` for ICMP.
@@ -259,11 +270,22 @@ class Connection:
     mark: int | None = None
     zone: str | None = None
     state_raw: str | None = None
+    _state_seen: tuple[tuple[ConnState, str | None], ...] | None = field(
+        default=None, kw_only=True, repr=False, compare=False
+    )
+
+    def __post_init__(self) -> None:
+        settle(self, _STATE_PAIRS, "_state_seen")
 
     @override
     def __setattr__(self, name: str, value: object) -> None:
-        if not _STATE.assign(self, name, value, "Connection"):
-            _set(self, "Connection", name, value, _CONN_ENUMS)
+        if name in ("state", "state_raw", "_state_seen"):
+            assign(self, name, value, _STATE_PAIRS, "_state_seen")
+            return
+        value = _coerce_field("Connection", name, value, _CONN_ENUMS)
+        if value is RuleProtocol.ANY:
+            raise ValueError("Connection.protocol: a flow has one transport, not 'any'")
+        object.__setattr__(self, name, value)
 
 
 @dataclass

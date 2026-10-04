@@ -13,6 +13,7 @@ import dataclasses
 import typing
 import warnings
 from dataclasses import dataclass, field, fields, replace
+from enum import StrEnum
 from typing import override
 
 import pytest
@@ -30,6 +31,7 @@ from testprotocols.models import (
     port_tuple,
     traffic_match,
 )
+from testprotocols.models._open_enum import OpenEnumPair
 from testprotocols.models._sync import SyncedField, SyncedFields, assign, settle
 
 # --- a toy record with two SyncedField pairs ---
@@ -429,3 +431,63 @@ def test_fields_a_plain_string_for_an_enum_field_converts_and_warns() -> None:
     ]
     assert all(w.filename == __file__ for w in caught)
     assert record.match == HostMatch("www.example.com")
+
+
+def test_fields_a_converted_string_that_fails_to_parse_changes_nothing() -> None:
+    from testprotocols.models import ApplicationCategory
+
+    record = _Selector(match=CategoryMatch(ApplicationCategory.SPORTS))
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        with pytest.raises(ValueError):
+            record.match_type = "port"  # type: ignore[assignment]  # "sports" is no port
+    # coerce_enum warned about the plain string; the parse then raised
+    assert [str(w.message) for w in caught] == [
+        "_Selector.match_type: plain string 'port' is deprecated; pass L7MatchType.PORT"
+    ]
+    assert record.match == CategoryMatch(ApplicationCategory.SPORTS)
+    assert (record.match_type, record.value) == (L7MatchType.APPLICATION_CATEGORY, "sports")
+
+
+# --- a frozen toy record with an open-enum pair (shape 3o, through __post_init__ only) ---
+
+
+class _Kind(StrEnum):
+    A = "A"
+    B = "B"
+    OTHER = "OTHER"
+
+
+_KIND_PAIRS = (OpenEnumPair(_Kind, _Kind.OTHER, "kind", "kind_raw"),)
+
+
+@dataclass(frozen=True)
+class _Frozen:
+    kind: _Kind | str
+    kind_raw: str | None = None
+    _seen: tuple[tuple[_Kind, str | None], ...] | None = field(
+        default=None, kw_only=True, repr=False, compare=False
+    )
+
+    def __post_init__(self) -> None:
+        settle(self, _KIND_PAIRS, "_seen")
+
+
+def test_frozen_open_enum_pair_settles_and_replace_lets_the_changed_side_win() -> None:
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        unknown = _Frozen("zzz")
+    assert (unknown.kind, unknown.kind_raw) == (_Kind.OTHER, "zzz")
+    with pytest.warns(DeprecationWarning) as caught:
+        named = _Frozen("A")
+    assert named.kind is _Kind.A and caught[0].filename == __file__
+    assert replace(unknown, kind=_Kind.B).kind_raw is None
+    assert replace(unknown, kind="yyy").kind_raw == "yyy"
+    assert replace(unknown, kind_raw="xxx").kind_raw == "xxx"
+    assert replace(unknown, kind_raw="xxx").kind is _Kind.OTHER
+    with pytest.raises(ValueError, match="kind_raw"):
+        replace(named, kind_raw="q")
+    with pytest.raises(ValueError, match="kind_raw"):
+        _Frozen(_Kind.A, "q")
+    with pytest.raises(dataclasses.FrozenInstanceError):
+        unknown.kind = _Kind.A  # type: ignore[misc]

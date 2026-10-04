@@ -1,32 +1,45 @@
 """Keep an open-enum field and its raw-word companion in agreement (shape 3o).
 
 A field typed ``E`` (an enum with a catch-all member, ``OTHER``) has a companion
-``<field>_raw: str | None``. The raw word is the device's own spelling, kept only
-when the field is the catch-all. The two always agree, however the record is built
-or changed:
+``<field>_raw: str | None``: the device's own spelling, held only while the field
+is the catch-all. The pair is one :class:`OpenEnumPair`, a ``Settler`` of
+:mod:`testprotocols.models._sync`, so it is driven by the same ``settle`` and
+``assign`` and keeps the same hidden provenance field as every synced pair. The
+agreed value of the pair is ``(member, raw)``.
 
-- a member sets the field and clears the raw word;
-- a plain string naming a member converts and warns (see
-  :func:`~testprotocols.deprecation.coerce_open_enum`), clearing the raw word;
-- any other string sets the field to the catch-all and the raw word to that string,
-  without a warning;
-- assigning the raw word to a field that is not the catch-all raises ``ValueError``,
-  but at construction (where ``dataclasses.replace`` hands the old raw word back
-  with a changed field) the raw word is dropped, because it belongs to the old value.
+The rule, for construction, ``dataclasses.replace`` and assignment alike:
 
-A model declares the pair, with the raw field LAST among the pair (the generated
-``__init__`` assigns in field order), and routes ``__setattr__`` through it::
+- a member sets the field and clears the raw word; a plain string naming a member
+  converts and warns (``coerce_open_enum``) and clears it too;
+- any other string, the empty one included, sets the field to the catch-all and the
+  raw word to that string, kept verbatim, without a warning: the set is open;
+- a raw word given with a named (non-catch-all) field raises ``ValueError``, and so
+  does a raw word that disagrees with the unknown word the field was given;
+- **the side that changed wins**: under ``replace`` and assignment, changing the
+  field drops the old raw word (it belonged to the old value) unless a new one is
+  given with it, and changing only the raw word keeps the field. Changing the raw
+  word while the field is a named member raises ``ValueError``.
 
-    _STATE = OpenEnumField(ConnState, ConnState.OTHER, "state", "state_raw")
+Everything is validated before anything is stored, so a refused assignment leaves
+the record unchanged. A model declares one pair, the hidden provenance field LAST,
+and calls ``settle`` from ``__post_init__`` and ``assign`` from ``__setattr__``::
 
-    state: ConnState | str
-    ...
+    _PAIRS = (OpenEnumPair(ConnState, ConnState.OTHER, "state", "state_raw"),)
+
     state_raw: str | None = None
+    _seen: tuple[tuple[ConnState, str | None], ...] | None = field(
+        default=None, kw_only=True, repr=False, compare=False
+    )
 
-    @override
-    def __setattr__(self, name: str, value: object) -> None:
-        if not _STATE.assign(self, name, value, "Connection"):
-            super().__setattr__(name, value)
+    def __post_init__(self) -> None:
+        settle(self, _PAIRS, "_seen")
+
+    def __setattr__(self, name: str, value: object) -> None:  # a mutable model only
+        assign(self, name, value, _PAIRS, "_seen")
+
+A frozen model omits ``__setattr__``: ``__post_init__`` alone settles it, writing
+through ``object.__setattr__`` (as ``settle`` does), and ``dataclasses.replace``
+runs the same ``__post_init__`` with the old provenance.
 """
 
 from __future__ import annotations
@@ -39,55 +52,76 @@ from testprotocols.deprecation import MODEL_FRAMES, coerce_open_enum
 
 
 @dataclass(frozen=True)
-class OpenEnumField[E: Enum]:
+class OpenEnumPair[E: Enum]:
     """One open-enum field *field*, its catch-all *other* and its raw companion *raw_field*."""
 
     enum_type: type[E]
     other: E
     field: str
     raw_field: str
-    casefold: bool = False
 
-    def assign(self, obj: object, name: str, value: object, owner: str) -> bool:
-        """Handle an assignment of *name* on *obj*; return ``False`` for any other name.
+    def owns(self, name: str) -> bool:
+        return name in (self.field, self.raw_field)
 
-        The caller falls through to ``super().__setattr__`` when this returns ``False``.
-        """
-        state = vars(obj)
-        stash = f"_{self.field}_derived"
-        initial = (
-            self.raw_field not in state
-        )  # the generated __init__ has not reached the raw field
-        if name == self.field:
-            member, raw = coerce_open_enum(
-                self.enum_type,
-                cast("E | str", value),
-                what=f"{owner}.{name}",
-                other=self.other,
-                casefold=self.casefold,
-                skip_file_prefixes=MODEL_FRAMES,
-            )
-            state[name] = member
-            if initial:
-                state[stash] = raw  # the raw field's own assignment settles it
+    def settle(
+        self, obj: object, seen: tuple[E, str | None] | None, owner: str
+    ) -> tuple[E, str | None]:
+        """Bring *obj*'s pair into agreement; return the agreed ``(member, raw)``."""
+        state = cast("E | str", getattr(obj, self.field))
+        raw = self._raw(getattr(obj, self.raw_field), owner)
+        if seen is None:  # construction: both sides are as the caller gave them
+            agreed = self._resolve(state, raw, owner)
+        else:  # a copy of an agreed record, perhaps with a side changed
+            seen_member, seen_raw = seen
+            state_changed = state is not seen_member
+            raw_changed = raw != seen_raw
+            if state_changed and raw_changed:
+                agreed = self._resolve(state, raw, owner)
+            elif state_changed:
+                agreed = self._resolve(state, None, owner)  # the old raw word is the old value's
+            elif raw_changed:
+                agreed = self._resolve(seen_member, raw, owner)
             else:
-                state[self.raw_field] = raw
-            return True
-        if name != self.raw_field:
-            return False
+                agreed = seen
+        return self._put(obj, agreed)
+
+    def assign(self, obj: object, name: str, value: object, owner: str) -> tuple[E, str | None]:
+        """Set *name* (one of the pair) to *value* and the other side to match; return the
+        agreed ``(member, raw)``. A refused value leaves *obj* untouched."""
+        if name == self.field:
+            agreed = self._resolve(cast("E | str", value), None, owner)
+        else:
+            member = cast(E, getattr(obj, self.field))
+            agreed = self._resolve(member, self._raw(value, owner), owner)
+        return self._put(obj, agreed)
+
+    def _raw(self, value: object, owner: str) -> str | None:
         if value is not None and not isinstance(value, str):
-            raise TypeError(f"{owner}.{name} takes text or None, not {value!r}")
-        member = cast(E, state[self.field])
-        if initial:
-            derived = cast("str | None", state.pop(stash, None))
-            if derived is not None:
-                value = derived  # the field was given an unknown word: that word is the raw word
-            elif member is not self.other:
-                value = None  # a copy's old raw word does not belong to the new value
-        elif value is not None and member is not self.other:
+            raise TypeError(f"{owner}.{self.raw_field} takes text or None, not {value!r}")
+        return value
+
+    def _resolve(self, state: E | str, raw: str | None, owner: str) -> tuple[E, str | None]:
+        member, word = coerce_open_enum(
+            self.enum_type,
+            state,
+            what=f"{owner}.{self.field}",
+            other=self.other,
+            skip_file_prefixes=MODEL_FRAMES,
+        )
+        if word is not None:  # the field was given a word that names no member
+            if raw is not None and raw != word:
+                raise ValueError(
+                    f"{owner}.{self.field} {word!r} and {owner}.{self.raw_field} {raw!r} disagree"
+                )
+            return member, word
+        if raw is not None and member is not self.other:
             raise ValueError(
-                f"{owner}.{name} {value!r} needs {owner}.{self.field} to be "
+                f"{owner}.{self.raw_field} {raw!r} needs {owner}.{self.field} to be "
                 f"{self.enum_type.__name__}.{self.other.name}, not {member!r}"
             )
-        state[name] = value
-        return True
+        return member, raw
+
+    def _put(self, obj: object, agreed: tuple[E, str | None]) -> tuple[E, str | None]:
+        object.__setattr__(obj, self.field, agreed[0])
+        object.__setattr__(obj, self.raw_field, agreed[1])
+        return agreed
