@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import dataclasses
+import warnings
 from datetime import UTC, datetime, timedelta, timezone
+from decimal import Decimal
 
 import pytest
 from testprotocols.models import (
@@ -46,6 +48,10 @@ _ONE_OF_EACH: list[tuple[CwmpType, object, str]] = [
     (CwmpType.DATE_TIME, datetime(2026, 10, 4, 12, 30, 5), "2026-10-04T12:30:05"),
     (CwmpType.BASE64, b"\x00\xffcwmp", "AP9jd21w"),
     (CwmpType.HEX_BINARY, b"\x00\xab\x10", "00AB10"),
+    (CwmpType.DECIMAL, Decimal("-12.50"), "-12.50"),
+    (CwmpType.DECIMAL, Decimal("100"), "100"),
+    (CwmpType.DECIMAL, Decimal("1E+2"), "100"),
+    (CwmpType.OTHER, "opaque 42", "opaque 42"),
 ]
 
 
@@ -60,6 +66,8 @@ def test_cwmp_type_values_are_the_xsd_type_names() -> None:
         "xsd:dateTime",
         "xsd:base64",
         "xsd:hexBinary",
+        "xsd:decimal",
+        "other",
     ]
 
 
@@ -67,9 +75,10 @@ def test_cwmp_type_values_are_the_xsd_type_names() -> None:
 def test_parameter_value_round_trips_each_cwmp_type(
     cwmp_type: CwmpType, value: object, text: str
 ) -> None:
-    pv = ParameterValue(_NAME, value, cwmp_type)  # type: ignore[arg-type]
+    raw = "xsd:duration" if cwmp_type is CwmpType.OTHER else None
+    pv = ParameterValue(_NAME, value, cwmp_type, raw)  # type: ignore[arg-type]
     assert pv.text == text
-    back = ParameterValue.from_text(_NAME, text, cwmp_type)
+    back = ParameterValue.from_text(_NAME, text, raw if raw is not None else cwmp_type)
     assert back == pv
     assert type(back.value) is type(pv.value)
     assert back.text == text
@@ -115,6 +124,10 @@ def test_from_text_reads_the_other_xsd_spellings(
         (CwmpType.BASE64, "AP9jd21w"),
         (CwmpType.HEX_BINARY, "00AB10"),
         (CwmpType.BASE64, bytearray(b"x")),
+        (CwmpType.DECIMAL, 1),
+        (CwmpType.DECIMAL, 1.5),
+        (CwmpType.DECIMAL, "1.5"),
+        (CwmpType.OTHER, 5),
     ],
 )
 def test_parameter_value_refuses_a_mismatched_value(cwmp_type: CwmpType, value: object) -> None:
@@ -152,6 +165,9 @@ def test_parameter_value_refuses_an_out_of_range_number(cwmp_type: CwmpType, val
         (CwmpType.BASE64, "not base64!"),
         (CwmpType.HEX_BINARY, "0AB"),
         (CwmpType.HEX_BINARY, "00 AB"),
+        (CwmpType.DECIMAL, "1e5"),
+        (CwmpType.DECIMAL, "NaN"),
+        (CwmpType.DECIMAL, "1,5"),
     ],
 )
 def test_from_text_refuses_malformed_text(cwmp_type: CwmpType, text: str) -> None:
@@ -164,13 +180,72 @@ def test_from_text_checks_the_range_too() -> None:
         ParameterValue.from_text(_NAME, "-1", CwmpType.UNSIGNED_INT)
 
 
-def test_parameter_value_refuses_a_plain_string_type_and_an_empty_name() -> None:
-    with pytest.raises(TypeError, match="CwmpType"):
-        ParameterValue(_NAME, "x", "xsd:string")  # type: ignore[arg-type]
+def test_parameter_value_refuses_an_empty_name() -> None:
     with pytest.raises(ValueError, match="name"):
         ParameterValue("", "x", CwmpType.STRING)
     with pytest.raises(TypeError, match="name"):
         ParameterValue(None, "x", CwmpType.STRING)  # type: ignore[arg-type]
+
+
+def test_decimal_values() -> None:
+    assert ParameterValue(_NAME, Decimal("0.1"), CwmpType.DECIMAL).text == "0.1"
+    assert ParameterValue.from_text(_NAME, ".5", CwmpType.DECIMAL).value == Decimal("0.5")
+    assert ParameterValue.from_text(_NAME, "+3.", CwmpType.DECIMAL).value == Decimal("3")
+    for bad in (Decimal("NaN"), Decimal("Infinity")):
+        with pytest.raises(ValueError, match="finite"):
+            ParameterValue(_NAME, bad, CwmpType.DECIMAL)
+
+
+def test_an_unknown_type_is_other_with_the_raw_word_and_a_text_value() -> None:
+    pv = ParameterValue(_NAME, "P1DT2H", "xsd:duration")  # type: ignore[arg-type]
+    assert (pv.type, pv.type_raw) == (CwmpType.OTHER, "xsd:duration")
+    assert pv == ParameterValue(_NAME, "P1DT2H", CwmpType.OTHER, "xsd:duration")
+    read = ParameterValue.from_text(_NAME, "P1DT2H", "xsd:duration")
+    assert (read.type, read.type_raw, read.value) == (CwmpType.OTHER, "xsd:duration", "P1DT2H")
+    with pytest.raises(TypeError, match="takes a str"):
+        ParameterValue(_NAME, 5, CwmpType.OTHER, "xsd:duration")
+
+
+def test_a_missing_type_is_other_with_no_raw_word() -> None:
+    pv = ParameterValue(_NAME, "42", CwmpType.OTHER)
+    assert (pv.type, pv.type_raw) == (CwmpType.OTHER, None)
+    read = ParameterValue.from_text(_NAME, "42", None)
+    assert (read.type, read.type_raw, read.value) == (CwmpType.OTHER, None, "42")
+
+
+def test_a_raw_word_with_a_named_type_is_refused() -> None:
+    with pytest.raises(ValueError, match="type_raw"):
+        ParameterValue(_NAME, "x", CwmpType.STRING, "xsd:string")
+
+
+def test_from_text_takes_the_device_word_without_a_warning() -> None:
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        pv = ParameterValue.from_text(_NAME, "7", "xsd:unsignedInt")
+    assert (pv.type, pv.type_raw, pv.value) == (CwmpType.UNSIGNED_INT, None, 7)
+
+
+@pytest.mark.parametrize("word", ["xsd:base64", "xsd:base64Binary", "soapenc:base64"])
+def test_the_base64_spellings_are_one_type(word: str) -> None:
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        read = ParameterValue.from_text(_NAME, "AP8=", word)
+        built = ParameterValue(_NAME, b"\x00\xff", CwmpType(word))
+    assert (read.type, read.type_raw, read.value) == (CwmpType.BASE64, None, b"\x00\xff")
+    assert built == read
+
+
+def test_a_plain_string_naming_a_member_converts_and_warns() -> None:
+    with pytest.warns(DeprecationWarning, match="CwmpType.STRING"):
+        pv = ParameterValue(_NAME, "x", "xsd:string")  # type: ignore[arg-type]
+    assert (pv.type, pv.type_raw) == (CwmpType.STRING, None)
+
+
+def test_a_wrong_kind_of_type_is_refused() -> None:
+    with pytest.raises(TypeError):
+        ParameterValue(_NAME, "x", 5)  # type: ignore[arg-type]
+    with pytest.raises(TypeError):
+        ParameterValue(_NAME, "x", None)  # type: ignore[arg-type]
 
 
 def test_parameter_value_is_frozen_and_validates_replace() -> None:
@@ -179,6 +254,25 @@ def test_parameter_value_is_frozen_and_validates_replace() -> None:
         pv.value = 6  # type: ignore[misc]
     with pytest.raises(TypeError):
         dataclasses.replace(pv, type=CwmpType.BOOLEAN)
+    other = ParameterValue(_NAME, "P1D", CwmpType.OTHER, "xsd:duration")
+    # the side that changed wins: a new type drops the old raw word
+    assert dataclasses.replace(other, type=CwmpType.STRING).type_raw is None
+    assert dataclasses.replace(other, type_raw="xsd:gYear").type is CwmpType.OTHER
+
+
+@pytest.mark.parametrize("seconds", [30, -30, 3601])
+def test_a_date_time_offset_must_be_whole_minutes(seconds: int) -> None:
+    zone = timezone(timedelta(seconds=seconds))
+    with pytest.raises(ValueError, match="whole minutes"):
+        ParameterValue(_NAME, datetime(2026, 10, 4, tzinfo=zone), CwmpType.DATE_TIME)
+
+
+def test_every_date_time_text_reads_back() -> None:
+    for zone in (None, UTC, timezone(timedelta(hours=-5, minutes=-30))):
+        for micro in (0, 1, 500000):
+            value = datetime(2026, 10, 4, 1, 2, 3, micro, tzinfo=zone)
+            pv = ParameterValue(_NAME, value, CwmpType.DATE_TIME)
+            assert ParameterValue.from_text(_NAME, pv.text, CwmpType.DATE_TIME) == pv
 
 
 def test_the_vitro_bdd_genieacs_output_maps_onto_parameter_value() -> None:

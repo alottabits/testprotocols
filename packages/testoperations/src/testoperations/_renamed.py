@@ -288,8 +288,10 @@ def get_parameter_value(driver: object, name: str, *, cpe_id: str | None = None)
 
     A driver with ``get_parameter_values`` gets ``[name]``; a driver with only ``GPV`` gets
     exactly the released call (``name`` as a ``str``). Errors propagate; the result is not
-    read.
+    read. *name* must be one ``str`` (``TypeError`` otherwise, before any call).
     """
+    if not isinstance(cast(object, name), str):  # callers are not all type-checked
+        raise TypeError(f"get_parameter_value takes one parameter name, not {name!r}")
     get_new = get_parameter_values_of(driver)
     if get_new is not None:
         get_new([name], cpe_id=cpe_id)

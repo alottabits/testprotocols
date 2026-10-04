@@ -300,12 +300,16 @@ their tags and PR history.
   matches patterns keeps the concrete console type. `sendline` is positional-only, so a
   `Console` cannot be passed to a helper protocol that takes `string` as a named parameter.
   Migration: none. Design `docs/architecture/precise-types-design.md` (HwConsole); PR pending.
-- **models** `testprotocols.models:CwmpType` (the TR-106 parameter data types as `xsi:type`
-  names: `xsd:string`, `xsd:int`, `xsd:unsignedInt`, `xsd:long`, `xsd:unsignedLong`,
-  `xsd:boolean`, `xsd:dateTime`, `xsd:base64`, `xsd:hexBinary`), `CwmpValue`,
-  `ParameterValue(name, value, type)` (frozen; the value must match the type: an `int` in the
-  type's range, a `bool`, a `datetime`, `bytes` or a `str`, else `TypeError` / `ValueError`;
-  `from_text` and `text` convert the XML Schema lexical form), `CwmpNotification` (`IntEnum`,
+- **models** `testprotocols.models:CwmpType` (the TR-106 Amendment 9 built-in data types as
+  `xsi:type` names: `xsd:string`, `xsd:int`, `xsd:unsignedInt`, `xsd:long`,
+  `xsd:unsignedLong`, `xsd:boolean`, `xsd:dateTime`, `xsd:base64` (also read as
+  `xsd:base64Binary` and `soapenc:base64`), `xsd:hexBinary`, `xsd:decimal`; plus `OTHER`: the
+  set is open), `CwmpValue`, `ParameterValue(name, value, type, type_raw=None)` (frozen; the
+  value must match the type: an `int` in the type's range, a `bool`, a `datetime`, `bytes`, a
+  finite `Decimal` or a `str`, else `TypeError` / `ValueError`; a type word naming no member
+  is `OTHER` with the word in `type_raw`, a missing type is `OTHER` with `type_raw=None`, and
+  an `OTHER` value is text; `from_text(name, text, type_word_or_member_or_None)` and `text`
+  convert the XML Schema lexical form), `CwmpNotification` (`IntEnum`,
   0 to 6), `ParameterAttribute(name, notification, access_list=())`,
   `ParameterInfo(name, writable)`, `CwmpStatus` (`APPLIED = 0`, `NOT_YET_APPLIED = 1`),
   `AddObjectResult(instance_number, status)`, `DownloadResult(status, start_time=None,

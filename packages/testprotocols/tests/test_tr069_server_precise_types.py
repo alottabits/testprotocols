@@ -311,18 +311,56 @@ def test_typed_member_signatures() -> None:
             assert hints[param] == annotation, (name, param)
 
 
-def test_typed_members_take_cpe_id_and_options_by_keyword_only() -> None:
-    for name in _RELEASED_RPCS.values():
-        params = inspect.signature(getattr(Tr069Server, name)).parameters
-        assert params["cpe_id"].kind is inspect.Parameter.KEYWORD_ONLY, name
-        assert params["cpe_id"].default is None, name
-    download = inspect.signature(Tr069Server.download).parameters
-    assert download["file_type"].default is CwmpFileType.FIRMWARE_UPGRADE_IMAGE
-    assert download["delay_seconds"].default == 10
-    # O46: "not given" is None on the typed members, never "".
-    for name in _RELEASED_RPCS.values():
-        for param in inspect.signature(getattr(Tr069Server, name)).parameters.values():
-            assert param.default != "", (name, param.name)
+# Every typed member's parameters, by kind: the leading (positional-or-keyword) ones, and the
+# keyword-only options with their defaults. ``None`` means "not given" (O46).
+_TYPED_PARAMETERS: dict[str, tuple[list[str], dict[str, object]]] = {
+    "get_parameter_values": (["names"], {"timeout": None, "cpe_id": None}),
+    "set_parameter_values": (
+        ["values"],
+        {"parameter_key": None, "timeout": None, "cpe_id": None},
+    ),
+    "get_parameter_attributes": (["names"], {"cpe_id": None}),
+    "set_parameter_attributes": (
+        ["attributes"],
+        {"change_notification": True, "change_access_list": False, "cpe_id": None},
+    ),
+    "factory_reset_cpe": ([], {"cpe_id": None}),
+    "reboot": (["command_key"], {"cpe_id": None}),
+    "add_object": (["object_name"], {"parameter_key": None, "cpe_id": None}),
+    "delete_object": (["object_name"], {"parameter_key": None, "cpe_id": None}),
+    "get_parameter_names": (["path", "next_level"], {"timeout": None, "cpe_id": None}),
+    "schedule_inform": (["delay_seconds"], {"command_key": None, "cpe_id": None}),
+    "get_rpc_methods": ([], {"cpe_id": None}),
+    "download": (
+        ["url", "file_type"],
+        {
+            "target_file_name": None,
+            "file_size": None,
+            "username": None,
+            "password": None,
+            "command_key": None,
+            "delay_seconds": 10,
+            "success_url": None,
+            "failure_url": None,
+            "cpe_id": None,
+        },
+    ),
+}
+
+
+def test_typed_members_take_every_option_by_keyword_only() -> None:
+    assert set(_TYPED_PARAMETERS) == set(_RELEASED_RPCS.values())
+    for name, (leading, options) in _TYPED_PARAMETERS.items():
+        params = list(inspect.signature(getattr(Tr069Server, name)).parameters.values())[1:]
+        positional = [p.name for p in params if p.kind is inspect.Parameter.POSITIONAL_OR_KEYWORD]
+        keyword = {p.name: p.default for p in params if p.kind is inspect.Parameter.KEYWORD_ONLY}
+        assert positional == leading, name
+        assert keyword == options, name
+        assert len(params) == len(leading) + len(options), name
+    defaults = inspect.signature(Tr069Server.download).parameters
+    assert defaults["file_type"].default is CwmpFileType.FIRMWARE_UPGRADE_IMAGE
+    assert inspect.signature(Tr069Server.reboot).parameters["command_key"].default is None
+    assert inspect.signature(Tr069Server.schedule_inform).parameters["delay_seconds"].default == 20
 
 
 def test_old_names_are_documented_as_deprecated_names_of_the_typed_members() -> None:
@@ -332,27 +370,32 @@ def test_old_names_are_documented_as_deprecated_names_of_the_typed_members() -> 
         assert f'warn_renamed("{old}", "{new}")' in doc, old
 
 
+# The 16 released members exactly as on the last release (``inspect.signature`` text).
+_RELEASED_SIGNATURES = {
+    "GPV": "(self, param: 'str | list[str]', timeout: 'int | None' = None, cpe_id: 'str | None' = None) -> 'list[dict[str, Any]]'",  # noqa: E501
+    "SPV": "(self, param_value: 'dict[str, Any] | list[dict[str, Any]]', timeout: 'int | None' = None, cpe_id: 'str | None' = None) -> 'int'",  # noqa: E501
+    "GPA": "(self, param: 'str', cpe_id: 'str | None' = None) -> 'list[dict[str, Any]]'",
+    "SPA": "(self, param: 'list[dict[str, Any]] | dict[str, Any]', notification_param: 'bool' = True, access_param: 'bool' = False, access_list: 'list[Any] | None' = None, cpe_id: 'str | None' = None) -> 'list[dict[str, Any]]'",  # noqa: E501
+    "FactoryReset": "(self, cpe_id: 'str | None' = None) -> 'list[dict[str, Any]]'",
+    "Reboot": "(self, CommandKey: 'str' = 'reboot', cpe_id: 'str | None' = None) -> 'list[dict[str, Any]]'",  # noqa: E501
+    "AddObject": "(self, param: 'str', param_key: 'str' = '', cpe_id: 'str | None' = None) -> 'list[dict[str, Any]]'",  # noqa: E501
+    "DelObject": "(self, param: 'str', param_key: 'str' = '', cpe_id: 'str | None' = None) -> 'list[dict[str, Any]]'",  # noqa: E501
+    "GPN": "(self, param: 'str', next_level: 'bool', timeout: 'int | None' = None, cpe_id: 'str | None' = None) -> 'list[dict[str, Any]]'",  # noqa: E501
+    "ScheduleInform": "(self, CommandKey: 'str' = 'Test', DelaySeconds: 'int' = 20, cpe_id: 'str | None' = None) -> 'list[dict[str, Any]]'",  # noqa: E501
+    "GetRPCMethods": "(self, cpe_id: 'str | None' = None) -> 'list[dict[str, Any]]'",
+    "Download": "(self, url: 'str', filetype: 'str' = '1 Firmware Upgrade Image', targetfilename: 'str' = '', filesize: 'int' = 200, username: 'str' = '', password: 'str' = '', commandkey: 'str' = '', delayseconds: 'int' = 10, successurl: 'str' = '', failureurl: 'str' = '', cpe_id: 'str | None' = None) -> 'list[dict[str, Any]]'",  # noqa: E501
+    "provision_cpe_via_tr069": "(self, tr069provision_api_list: 'list[dict[str, list[dict[str, str]]]]', cpe_id: 'str') -> 'None'",  # noqa: E501
+    "list_cpes": "(self, criteria: 'dict[str, str] | None' = None) -> 'list[str]'",
+    "delete_cpe_record": "(self, cpe_id: 'str') -> 'bool'",
+    "get_cpe_connection_status": "(self, cpe_id: 'str') -> 'CpeConnectionStatus'",
+}
+
+
 def test_released_signatures_are_kept() -> None:
     # A released implementer (boardfarm's ACS template) declares dict[str, str | int | bool];
-    # dict is invariant, so the released annotations stay as they were.
-    hints = _hints("SPV")
-    assert hints["param_value"] == dict[str, Any] | list[dict[str, Any]]
-    assert _hints("GPV")["return"] == list[dict[str, Any]]
-    download = inspect.signature(Tr069Server.Download).parameters
-    assert [p.name for p in download.values()][1:] == [
-        "url",
-        "filetype",
-        "targetfilename",
-        "filesize",
-        "username",
-        "password",
-        "commandkey",
-        "delayseconds",
-        "successurl",
-        "failureurl",
-        "cpe_id",
-    ]
-    assert download["filetype"].default == "1 Firmware Upgrade Image"
+    # dict is invariant, so the released annotations stay exactly as they were.
+    for name, released in _RELEASED_SIGNATURES.items():
+        assert str(inspect.signature(getattr(Tr069Server, name))) == released, name
 
 
 def test_every_any_line_is_marked_released_signature_kept() -> None:

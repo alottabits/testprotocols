@@ -604,17 +604,37 @@ where one exists, also records its retype.
     Download's StartTime and CompleteTime, ParameterKey and CommandKey (string(32)), the
     Download FileType (`1 Firmware Upgrade Image` to `5 Ringer File`, plus vendor forms
     `X <OUI> <name>`), and Notification values 0 to 6 (cwmp-1-4 adds the lightweight
-    notifications 3 to 6). The parameter data types are TR-106 section 3.2: string, int,
-    unsignedInt, long, unsignedLong, boolean, dateTime, base64, hexBinary.
-  - Decisions. `CwmpType` has all nine data types, not only the six of the first sketch: the
-    TR-181 statistics counters are `unsignedLong`, so a six-member set could not hold values a
-    GPV returns. `CwmpNotification` is an `IntEnum` 0 to 6 (the sketch had `int` 0 to 2).
-    `CwmpFileType` has the five schema types and `6 Stored Firmware Image` (boardfarm's
-    documented list); vendor file types (`X <OUI> <name>`) had no caller or implementer and are
+    notifications 3 to 6). The built-in parameter data types are those of TR-106 Amendment 9
+    (data model schema `cwmp-datamodel-1-8.xsd`, `AllBuiltinDataTypes`): base64, boolean,
+    dateTime, decimal, hexBinary, int, long, string, unsignedInt, unsignedLong (`decimal`
+    arrived with `cwmp-datamodel-1-7.xsd`). `6 Stored Firmware Image` is a Download FileType
+    of TR-069 Amendment 6 (and in boardfarm's documented list). The base64 type is spelled
+    `soapenc:base64` in `cwmp-1-2.xsd` (line 1296), `base64Binary` in XML Schema, and
+    `xsd:base64` by ACSs.
+  - Decisions. `CwmpType` has the ten built-in types, not only the six of the first sketch:
+    the TR-181 statistics counters are `unsignedLong`, so a six-member set could not hold
+    values a GPV returns. The set is open (shape 3o): an `OTHER` member with the companion
+    `ParameterValue.type_raw` (an `OpenEnumPair`, settled in `__post_init__` of the frozen
+    record), because implementers meet values with a type word outside the set or with no
+    type at all (the vitro-bdd example reads `leaf.get("_type", "")`). A type word naming no
+    member is `OTHER` with the word kept verbatim; a missing type is `OTHER` with
+    `type_raw = None`; an `OTHER` value is carried as text, so nothing is lost or guessed.
+    `BASE64` is spelled `xsd:base64`; `xsd:base64Binary` and `soapenc:base64` are accepted
+    as its aliases (`CwmpType(word)`, `from_text`, the constructor), and the alias is not
+    kept. `from_text` takes the device's type word (or `None`) and never warns; the
+    constructor follows shape 3o (a plain `str` naming a member warns and converts).
+    `decimal` values are `Decimal` (finite; written without an exponent). A dateTime offset
+    must be whole minutes, at most 14:00, so `text` never writes a form `from_text` refuses.
+    `CwmpNotification` is an `IntEnum` 0 to 6 (the sketch had `int` 0 to 2). `CwmpFileType`
+    has the five `cwmp-1-2` types and `6 Stored Firmware Image` (TR-069 Amendment 6); vendor
+    file types (`X <OUI> <name>`) had no caller or implementer and are
     not modelled (a gap: `download` cannot ask for one; the deprecated `Download` can until it
     is removed). `ParameterValue` refuses a value of the wrong Python type with `TypeError`
-    and a number outside its type's range with `ValueError`; `from_text` reads the XML
-    Schema lexical forms and `text` writes the canonical one. Status results are
+    and a value outside its type's range with `ValueError`; `from_text` reads the XML
+    Schema lexical forms and `text` writes a lexical form that `from_text` reads back.
+    `get_parameter_values` and `get_parameter_attributes` take a sequence of names: a
+    driver raises `TypeError` for a bare `str`, and `testoperations` passes a list. Status
+    results are
     `CwmpStatus`; the RPCs whose CWMP response is empty return `None`.
   - Names: the RPC names in snake case, except FactoryReset, which is `factory_reset_cpe`
     because `DeviceLifecycle.factory_reset(method) -> bool` exists (a device that composes

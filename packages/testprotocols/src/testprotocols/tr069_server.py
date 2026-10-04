@@ -59,8 +59,10 @@ class Tr069Server(Protocol):
         """GetParameterValues: the values of the parameters *names*.
 
         A name ending in ``.`` (a partial path) asks for every parameter below it.
-        *names* is a sequence of names (a single ``str`` is not one). *timeout* bounds
-        the RPC in seconds (``None``: the driver's default).
+        *names* is a sequence of names: a bare ``str`` is not one, and the driver raises
+        ``TypeError`` for it. *timeout* bounds the RPC in seconds (``None``: the driver's
+        default). A value whose type the CPE reports as no built-in type, or not at all, is
+        ``CwmpType.OTHER`` with its text (``ParameterValue.from_text`` builds it).
         """
         ...
 
@@ -85,7 +87,8 @@ class Tr069Server(Protocol):
         *,
         cpe_id: str | None = None,
     ) -> list[ParameterAttribute]:
-        """GetParameterAttributes: the notification and access list of *names*."""
+        """GetParameterAttributes: the notification and access list of *names* (a bare
+        ``str`` is not a sequence of names: the driver raises ``TypeError``)."""
         ...
 
     def set_parameter_attributes(

@@ -5,6 +5,7 @@ from __future__ import annotations
 import warnings
 from unittest.mock import MagicMock
 
+import pytest
 from testoperations.tr069_server import is_cpe_online
 from testprotocols.models import CwmpType, ParameterValue
 
@@ -46,3 +47,12 @@ class TestIsCpeOnline:
         acs = MagicMock(spec=_OLD_NAMES)
         acs.GPV.side_effect = Exception("unreachable")
         assert is_cpe_online(acs, "cpe-001") is False
+
+
+def test_the_accessor_refuses_a_name_that_is_not_one_str() -> None:
+    from testoperations._renamed import get_parameter_value
+
+    acs = MagicMock(spec=_NEW_NAMES)
+    with pytest.raises(TypeError, match="one parameter name"):
+        get_parameter_value(acs, [_UPTIME])  # type: ignore[arg-type]
+    acs.get_parameter_values.assert_not_called()
