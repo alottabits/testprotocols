@@ -219,6 +219,23 @@ where one exists, also records its retype.
   classifies by VLAN or protocol therefore cannot be built from this model;
   expressing those needs a richer classifier (a VLAN and protocol alongside ports),
   which `TrafficMatch` is not.
+- **Telemetry and policy** (shapes 5 and the no-successor deprecation). `Telemetry`
+  replaces the `dict[str, Any]` that `Router.get_telemetry` returned (shape 5):
+  `Router.read_telemetry() -> Telemetry` is a new mandatory member, and the old name
+  is documented "Deprecated name of" it; a driver delegates with
+  `read_telemetry().as_dict()` after `warn_renamed`. The fields come from evidence,
+  not from design. The released docstring said only "a dict of current device
+  telemetry data" and named no key. The only implementer in the consumer examples
+  (a Linux router) returns `uptime_seconds`, `cpu_load_percent` and
+  `mem_used_percent`, all floats, and omits a CPU key when it cannot read one; so
+  `Telemetry` has exactly those three fields, the last two optional, and no other
+  field (a temperature or load average would be a guess). `testoperations` does not
+  call `get_telemetry`, so there is no accessor in `_renamed.py`.
+  `SdwanPolicyManager.apply_policy` is deprecated with no successor (the typed
+  steering and SLA members cover it) and keeps its name and place; `Any` becomes
+  `object` (`dict[str, object]`). A `Mapping` parameter would be the wider type, but
+  a protocol parameter wider than an implementer's `dict` parameter makes the
+  implementer fail to conform statically, so the parameter stays a `dict`.
 
 ## Effective now
 
@@ -271,6 +288,12 @@ the matching CHANGELOG entry sits under *Changed*.
   construct. `match` is now optional (`""`, every frame). Static only: unpacking a
   loosely typed dict into `QosRule` fails type-checking (`classifier` and the private
   `_match_seen`).
+- **Telemetry and policy** (router task). Static only, no runtime change:
+  `Router.get_telemetry` returns `Mapping[str, float]` (was `dict[str, Any]`), so a
+  reader gets `float` values and cannot assume a `dict`; `apply_policy` takes
+  `dict[str, object]` (was `dict[str, Any]`), so a caller's `dict[str, str]` variable
+  no longer type-checks. A driver must implement `Router.read_telemetry` (breaking for
+  driver authors).
 
 ## Pending narrow steps (announced, not yet taken)
 
@@ -290,3 +313,4 @@ Each lands in a later release with its own breaking changelog entry:
   `ApplicationCategory`; `LinkStatus.ip_address` `""` becomes `str | None`;
   `VPNPeerStatus` and `TrafficShapingRule` are removed.
 - `QosRule.match` is removed.
+- `Router.get_telemetry` and `SdwanPolicyManager.apply_policy` are removed.

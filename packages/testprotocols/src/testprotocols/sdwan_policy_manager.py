@@ -17,13 +17,13 @@ traffic" knob, distinct from per-flow steering. The SLA read-back
 (``get_uplink_selection_settings``) and the concurrent-overlay-tunnels
 write (``set_active_active_vpn``) landed 2026-08-10 — the read-back and
 converge surface for the settings the rule list rides on. ``apply_policy``
-remains the generic escape hatch for vendor-shaped policies beyond that
-surface. Application-match steering grows on evidence.
+remains, deprecated with no successor, as the generic escape hatch for
+vendor-shaped policies beyond that surface. Application-match steering grows on evidence.
 """
 
 from __future__ import annotations
 
-from typing import Any, Protocol, runtime_checkable
+from typing import Protocol, runtime_checkable
 
 from testprotocols.models.sdwan_appliance import (
     UplinkSelectionRule,
@@ -36,8 +36,14 @@ from testprotocols.models.wan_edge import AppFlow, SLAPolicy
 class SdwanPolicyManager(Protocol):
     """Abstract contract for SD-WAN policy management operations."""
 
-    def apply_policy(self, policy: dict[str, Any]) -> None:
-        """Apply a generic SD-WAN policy specified as a dict."""
+    def apply_policy(self, policy: dict[str, object]) -> None:
+        """Apply a generic SD-WAN policy specified as a dict.
+
+        Deprecated, with no successor: the typed members of this capability
+        (``configure_sla_policy``, ``set_uplink_selection``, ``set_default_uplink``,
+        ``set_active_active_vpn``) cover what a policy expresses. A driver keeps
+        the member for the deprecation period.
+        """
         ...
 
     def remove_policy(self, name: str) -> None:

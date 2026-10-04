@@ -68,6 +68,43 @@ class RouteOrigin(StrEnum):
     LOCAL = "local"
 
 
+@dataclass(frozen=True)
+class Telemetry:
+    """A device's resource telemetry: uptime, CPU load and memory use.
+
+    *uptime_seconds* is the time since the device started. *cpu_load_percent*
+    and *mem_used_percent* are ``None`` when the device does not report them.
+    Each is an ``int`` or ``float`` (a ``bool`` or other type raises
+    ``TypeError``) and not negative (``ValueError``). Returned by
+    ``Router.read_telemetry``; :meth:`as_dict` is the released
+    ``Router.get_telemetry`` mapping, so a driver's old member can delegate.
+    """
+
+    uptime_seconds: float
+    cpu_load_percent: float | None = None
+    mem_used_percent: float | None = None
+
+    def __post_init__(self) -> None:
+        for name in ("uptime_seconds", "cpu_load_percent", "mem_used_percent"):
+            value: object = getattr(self, name)
+            if value is None and name != "uptime_seconds":
+                continue
+            if isinstance(value, bool) or not isinstance(value, int | float):
+                raise TypeError(f"Telemetry.{name} must be a number, not {value!r}")
+            if value < 0:
+                raise ValueError(f"Telemetry.{name} must not be negative, got {value}")
+
+    def as_dict(self) -> dict[str, float]:
+        """The released ``get_telemetry`` mapping: the values the device reported,
+        keyed by field name (a ``None`` field is absent)."""
+        values = {
+            "uptime_seconds": self.uptime_seconds,
+            "cpu_load_percent": self.cpu_load_percent,
+            "mem_used_percent": self.mem_used_percent,
+        }
+        return {name: value for name, value in values.items() if value is not None}
+
+
 @dataclass
 class RouteEntry:
     """A single routing-table entry: destination, gateway, interface, metric, origin.

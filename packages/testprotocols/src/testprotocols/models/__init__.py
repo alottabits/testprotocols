@@ -153,6 +153,7 @@ from testprotocols.models.wan_edge import (
     RouteEntry,
     RouteOrigin,
     SLAPolicy,
+    Telemetry,
 )
 from testprotocols.models.wifi import (
     WifiAcl,
@@ -307,9 +308,10 @@ __all__ = [
     "SwitchPort",
     "SyslogRole",
     "SyslogServer",
+    # traffic
+    "Telemetry",
     "ThreatCategory",
     "TrafficMatch",
-    # traffic
     "TrafficResult",
     "TrafficSpec",
     "UplinkSelectionRule",

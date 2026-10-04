@@ -149,6 +149,11 @@ their tags and PR history.
   deprecated text `match` (typed fills text; text alone warns and fills typed;
   disagreeing raises `ValueError`; the side that changed wins under `replace`
   and assignment). Migration: pass `classifier`. Design `docs/architecture/precise-types-design.md` (switch QoS classifier); PR pending.
+- **model** `testprotocols.models:Telemetry` (`uptime_seconds`, `cpu_load_percent`,
+  `mem_used_percent`; frozen; the last two are `None` when the device does not
+  report them; a bool or non-number raises `TypeError`, a negative number
+  `ValueError`; `as_dict()` is the released `get_telemetry` mapping) — a device's
+  resource telemetry. Migration: none. Design `docs/architecture/precise-types-design.md` (telemetry and policy); PR pending.
 
 #### Breaking for driver authors
 
@@ -158,6 +163,10 @@ their tags and PR history.
   taking the parameters of the old counter members. Migration: implement them
   and make `get_rule_counters` / `get_nat_rule_counters` warn with
   `warn_renamed` and delegate. Design `docs/architecture/precise-types-design.md` (firewall and NAT ports and counters); PR pending.
+- **protocol member** `testprotocols.router:Router.read_telemetry() -> Telemetry` —
+  new mandatory member. Migration: implement it, and make `get_telemetry` warn
+  with `warn_renamed("get_telemetry", "read_telemetry")` and return
+  `self.read_telemetry().as_dict()`. Design `docs/architecture/precise-types-design.md` (telemetry and policy); PR pending.
 
 #### Changed
 
@@ -249,6 +258,13 @@ their tags and PR history.
   `match` raises `TypeError`. Static only: unpacking a loosely typed dict into
   `QosRule` fails type-checking (`classifier` and the private `_match_seen`). Listed
   in the design doc's "Effective now". Design `docs/architecture/precise-types-design.md` (switch QoS classifier); PR pending.
+- **protocol members** `testprotocols.router:Router.get_telemetry` and
+  `testprotocols.sdwan_policy_manager:SdwanPolicyManager.apply_policy` — static
+  only, no runtime change: `get_telemetry` returns `Mapping[str, float]` (was
+  `dict[str, Any]`), so a reader gets `float` values and no longer a `dict`; and
+  `apply_policy` takes `dict[str, object]` (was `dict[str, Any]`), so a caller's
+  `dict[str, str]` variable no longer type-checks (an implementer's `dict`
+  parameter still conforms). Listed in the design doc's "Effective now". Design `docs/architecture/precise-types-design.md` (telemetry and policy); PR pending.
 
 #### Deprecated
 
@@ -296,6 +312,12 @@ their tags and PR history.
   address today and becomes `str | None` in a later release. Design `docs/architecture/precise-types-design.md` (WAN-edge models); PR pending.
 - **field** `QosRule.match` — the classifier text; assigning or constructing from
   it warns. Use `classifier`. Design `docs/architecture/precise-types-design.md` (switch QoS classifier); PR pending.
+- **protocol members** `Router.get_telemetry` — deprecated name of
+  `Router.read_telemetry` (a driver warns with `warn_renamed` and delegates).
+  `SdwanPolicyManager.apply_policy` — deprecated with no successor: the typed
+  members (`configure_sla_policy`, `set_uplink_selection`, `set_default_uplink`,
+  `set_active_active_vpn`) cover what a policy expresses; the member stays,
+  unchanged, until a later release removes it. Design `docs/architecture/precise-types-design.md` (telemetry and policy); PR pending.
 
 ### testoperations
 

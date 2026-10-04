@@ -10,13 +10,15 @@ no link administration. Forced link-down lives on ``wan_link_admin``
 
 from __future__ import annotations
 
-from typing import Any, Protocol, runtime_checkable
+from collections.abc import Mapping
+from typing import Protocol, runtime_checkable
 
 from testprotocols.models.wan_edge import (
     LinkHealthReport,
     LinkStatus,
     PathMetrics,
     RouteEntry,
+    Telemetry,
 )
 
 
@@ -44,8 +46,20 @@ class Router(Protocol):
         """Return a comprehensive health report for the named WAN link."""
         ...
 
-    def get_telemetry(self) -> dict[str, Any]:
-        """Return a dict of current device telemetry data."""
+    def read_telemetry(self) -> Telemetry:
+        """Return the device's current resource telemetry: uptime, CPU load and
+        memory use (:class:`~testprotocols.models.Telemetry`)."""
+        ...
+
+    def get_telemetry(self) -> Mapping[str, float]:
+        """Deprecated name of :meth:`read_telemetry`.
+
+        Returns a mapping of current device telemetry data: the keys
+        ``uptime_seconds``, ``cpu_load_percent`` and ``mem_used_percent`` (a key
+        is absent when the device does not report it), each a number. A driver
+        implements ``read_telemetry`` and lets this member warn with
+        ``warn_renamed`` and return ``read_telemetry().as_dict()``.
+        """
         ...
 
     def get_routing_table(self) -> list[RouteEntry]:
