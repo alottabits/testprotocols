@@ -24,17 +24,11 @@ class IpRouting(Protocol):
         options: str = "",
         timeout: int = 50,
         json_output: bool = False,
-        *,
-        reply_timeout_s: float | None = None,
-        interval_s: float | None = None,
     ) -> bool | dict[str, Any]:
         """Send ICMP echo requests to *ping_ip* and return success or parsed output.
 
-        *reply_timeout_s* is how long to wait for each reply and *interval_s* the pause
-        between probes, both in seconds (``None``: the tool's default). They replace the
-        released *options* string, which is deprecated: a driver warns when it is non-empty
-        and raises ``ValueError`` when it is given together with a typed parameter. Callers
-        were seen to pass ``-W`` and ``-i``; *timeout* is how long the call waits overall.
+        *options* is deprecated with no typed replacement: no caller was seen to pass one
+        through this member. A driver warns when it is non-empty.
 
         Returns ``True`` when every request was answered. With ``json_output=True`` it
         returns the tool's parsed output instead; that form is deprecated: use
@@ -61,14 +55,11 @@ class IpRouting(Protocol):
         version: str = "",
         options: str = "",
         timeout: int = 60,
-        *,
-        numeric: bool = False,
     ) -> str | None:
         """Run a traceroute to *host_ip* and return the output.
 
-        *numeric* prints hop addresses without resolving names. It replaces the released
-        *options* string, which is deprecated (a driver warns when it is non-empty and raises
-        ``ValueError`` when it is given together with *numeric*).
+        *options* is deprecated with no typed replacement: no caller was seen to pass one. A
+        driver warns when it is non-empty.
 
         *version* is the suffix of the command name: ``""`` (the default) runs
         ``traceroute`` and ``"6"`` runs ``traceroute6``. It stays ``str`` because the released

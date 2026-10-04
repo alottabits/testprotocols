@@ -5,10 +5,8 @@ from __future__ import annotations
 import inspect
 import shlex
 import warnings
-from datetime import datetime
 
 import pytest
-from testprotocols.deprecation import warn_renamed
 from testprotocols.device_management import DeviceManagement
 from testprotocols.dns_client import DnsClient
 from testprotocols.http_client import HttpClient
@@ -20,9 +18,7 @@ from testprotocols.tool_options import (
     http_get_options,
     nmap_options,
     option_text,
-    ping_options,
     settle_option_string,
-    traceroute_options,
 )
 
 
@@ -41,37 +37,22 @@ class FakeHost:
         options: str = "",
         timeout: int = 50,
         json_output: bool = False,
-        *,
-        reply_timeout_s: float | None = None,
-        interval_s: float | None = None,
     ) -> bool:
-        legacy = settle_option_string(
-            options,
-            what="ping(options)",
-            typed={"reply_timeout_s": reply_timeout_s, "interval_s": interval_s},
-        )
-        extra = (
-            shlex.split(options)
-            if legacy
-            else ping_options(reply_timeout_s=reply_timeout_s, interval_s=interval_s)
-        )
-        self.argv = ["ping", "-c", str(ping_count), ping_ip, *extra]
+        legacy = settle_option_string(options, what="ping(options)", typed={})
+        self.argv = [
+            "ping",
+            "-c",
+            str(ping_count),
+            ping_ip,
+            *(shlex.split(options) if legacy else []),
+        ]
         return True
 
     def traceroute(
-        self,
-        host_ip: str,
-        version: str = "",
-        options: str = "",
-        timeout: int = 60,
-        *,
-        numeric: bool = False,
+        self, host_ip: str, version: str = "", options: str = "", timeout: int = 60
     ) -> str:
-        legacy = settle_option_string(
-            options, what="traceroute(options)", typed={"numeric": numeric}
-        )
-        extra = shlex.split(options) if legacy else traceroute_options(numeric=numeric)
-        self.argv = [f"traceroute{version}", *extra, host_ip]
+        legacy = settle_option_string(options, what="traceroute(options)", typed={})
+        self.argv = [f"traceroute{version}", *(shlex.split(options) if legacy else []), host_ip]
         return ""
 
     def http_get(
@@ -177,20 +158,6 @@ def test_warning_points_at_the_callers_line() -> None:
 
 def test_typed_params_give_the_same_effect() -> None:
     typed, legacy = FakeHost(), FakeHost()
-    with warnings.catch_warnings():
-        warnings.simplefilter("error")
-        typed.ping("10.0.0.1", reply_timeout_s=2, interval_s=0.2)
-    with pytest.warns(DeprecationWarning):
-        legacy.ping("10.0.0.1", 4, None, "-W 2 -i 0.2")
-    assert typed.argv == legacy.argv
-
-    typed, legacy = FakeHost(), FakeHost()
-    typed.traceroute("10.0.0.1", numeric=True)
-    with pytest.warns(DeprecationWarning):
-        legacy.traceroute("10.0.0.1", "", "-n")
-    assert typed.argv == legacy.argv
-
-    typed, legacy = FakeHost(), FakeHost()
     typed.http_get("http://h/", no_proxy=True, insecure=True, follow_redirects=True)
     with pytest.warns(DeprecationWarning):
         legacy.http_get("http://h/", 20, "--noproxy '*' -k -L")
@@ -207,21 +174,8 @@ def test_renderers_give_the_option_string_a_pre_typed_driver_receives() -> None:
     assert option_text(http_get_options(no_proxy=True, insecure=True, follow_redirects=True)) == (
         "--noproxy '*' -k -L"  # what the released use case built, modulo the trailing blank
     )
-    assert option_text(ping_options(reply_timeout_s=2.0, interval_s=0.25)) == "-W 2 -i 0.25"
-    assert ping_options() == traceroute_options() == http_get_options() == nmap_options() == []
-
-
-@pytest.mark.parametrize("bad", [0, -1, 0.0])
-def test_non_positive_seconds_raise_value_error(bad: float) -> None:
-    with pytest.raises(ValueError, match="reply_timeout_s"):
-        ping_options(reply_timeout_s=bad)
-
-
-def test_non_number_seconds_raise_type_error() -> None:
-    with pytest.raises(TypeError, match="interval_s"):
-        ping_options(interval_s=True)
-    with pytest.raises(TypeError, match="reply_timeout_s"):
-        ping_options(reply_timeout_s="2")  # type: ignore[arg-type]
+    assert http_get_options() == nmap_options() == []
+    assert option_text(nmap_options(fast=True)) == "-F"
 
 
 # --- test_both_forms_raise --------------------------------------------------------
@@ -231,10 +185,6 @@ def test_both_forms_raise() -> None:
     host = FakeHost()
     with warnings.catch_warnings():
         warnings.simplefilter("error")  # raises ValueError before any warning
-        with pytest.raises(ValueError, match="reply_timeout_s"):
-            host.ping("10.0.0.1", 4, None, "-W 2", reply_timeout_s=2)
-        with pytest.raises(ValueError, match="numeric"):
-            host.traceroute("10.0.0.1", "", "-n", numeric=True)
         with pytest.raises(ValueError, match="no_proxy"):
             host.http_get("http://h/", 20, "-k", no_proxy=True)
         with pytest.raises(ValueError, match="fast"):
@@ -246,6 +196,9 @@ def test_a_false_flag_is_not_given() -> None:
     with pytest.warns(DeprecationWarning):
         assert settle_option_string("-k", what="x", typed={"insecure": False}) is True
     assert settle_option_string("", what="x", typed={"insecure": True}) is False
+    assert settle_option_string("", what="x", typed={"fast": 0}) is False
+    with pytest.warns(DeprecationWarning):
+        assert settle_option_string("-F", what="x", typed={"fast": 0}) is True  # 0: not given
     assert settle_option_string(None, what="x", typed={"fast": True}) is False
 
 
@@ -270,8 +223,8 @@ def _kwonly(cls: type, name: str) -> dict[str, object]:
 
 
 def test_declared_typed_parameters() -> None:
-    assert _kwonly(IpRouting, "ping") == {"reply_timeout_s": None, "interval_s": None}
-    assert _kwonly(IpRouting, "traceroute") == {"numeric": False}
+    assert _kwonly(IpRouting, "ping") == {}
+    assert _kwonly(IpRouting, "traceroute") == {}
     assert _kwonly(HttpClient, "http_get") == {
         "no_proxy": False,
         "insecure": False,
@@ -328,7 +281,11 @@ class FakeSnmp:
         self.commands: list[str] = []
 
     def execute_snmp_command(self, snmp_command: str, timeout: int = 30) -> str:
-        warn_renamed("execute_snmp_command", "snmp_get or snmp_walk")
+        warnings.warn(
+            "execute_snmp_command is deprecated; use the typed snmp_* members",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         self.commands.append(snmp_command)
         return "out"
 
@@ -362,9 +319,47 @@ class FakeSnmp:
         )
         return "out"
 
+    def snmp_set(
+        self,
+        host: str,
+        oid: str,
+        community: str,
+        value: str,
+        value_type: str,
+        *,
+        timeout_s: int = 10,
+        retries: int = 3,
+        command_timeout: int = 30,
+    ) -> str:
+        self.commands.append(
+            f"snmpset -v 2c -On -c {community} -t {timeout_s} -r {retries} {host} {oid}"
+            f" {value_type} '{value}'"
+        )
+        return "out"
+
+    def snmp_bulk_get(
+        self,
+        host: str,
+        oid: str,
+        community: str,
+        *,
+        non_repeaters: int = 0,
+        max_repetitions: int = 10,
+        timeout_s: int = 100,
+        retries: int = 3,
+        command_timeout: int = 30,
+    ) -> str:
+        self.commands.append(
+            f"snmpbulkget -v2c -Cn{non_repeaters} -Cr{max_repetitions} -c {community}"
+            f" -t {timeout_s} -r {retries} {host} {oid}"
+        )
+        return "out"
+
 
 def test_snmp_members_are_declared_and_the_fake_conforms() -> None:
-    assert {"snmp_get", "snmp_walk", "execute_snmp_command"} <= set(dir(SnmpClient))
+    assert {"snmp_get", "snmp_walk", "snmp_set", "snmp_bulk_get", "execute_snmp_command"} <= set(
+        dir(SnmpClient)
+    )
     client: SnmpClient = FakeSnmp()
     assert client.snmp_get("192.0.2.1", ".1.3.6.1.2.1.1.1.0", "private") == "out"
     with pytest.warns(DeprecationWarning, match="execute_snmp_command"):
@@ -372,6 +367,20 @@ def test_snmp_members_are_declared_and_the_fake_conforms() -> None:
     sig = _sig(SnmpClient, "snmp_get")
     assert [p.name for p in sig.parameters.values()][:4] == ["self", "host", "oid", "community"]
     assert _kwonly(SnmpClient, "snmp_get") == {"timeout_s": 10, "retries": 3, "command_timeout": 30}
+    assert _kwonly(SnmpClient, "snmp_set") == {"timeout_s": 10, "retries": 3, "command_timeout": 30}
+    assert _kwonly(SnmpClient, "snmp_bulk_get") == {
+        "non_repeaters": 0,
+        "max_repetitions": 10,
+        "timeout_s": 100,
+        "retries": 3,
+        "command_timeout": 30,
+    }
+    assert [p for p in _sig(SnmpClient, "snmp_set").parameters][:6] == [
+        "self", "host", "oid", "community", "value", "value_type",
+    ]  # fmt: skip
+    assert client.snmp_set("192.0.2.1", ".1.3", "private", "5", "i") == "out"
+    assert client.snmp_bulk_get("192.0.2.1", "", "private") == "out"
+    assert client.snmp_walk("192.0.2.1", "", "private") == "out"
     assert _kwonly(SnmpClient, "snmp_walk") == {
         "timeout_s": 100,
         "retries": 3,
@@ -385,4 +394,52 @@ def test_set_date_time_is_declared_and_set_date_is_deprecated() -> None:
     assert _sig(NtpClient, "set_date_time").parameters["value"].annotation == "datetime"
     assert [p for p in _sig(NtpClient, "set_date").parameters] == ["self", "opt", "date_string"]
     assert "Deprecated" in (NtpClient.set_date.__doc__ or "")
-    assert isinstance(datetime.now(), datetime)
+
+
+class ReleasedHost:
+    """A driver with the released signatures only: no keyword-only parameters."""
+
+    def __init__(self) -> None:
+        self.argv: list[str] = []
+
+    def http_get(self, url: str, timeout: int = 20, options: str = "") -> None:
+        self.argv = ["curl", "-v", *shlex.split(options), "--connect-timeout", str(timeout), url]
+
+    def curl(self, url: str, protocol: str, port: int | None = None, options: str = "") -> bool:
+        self.argv = ["curl", "-v", *shlex.split(options), f"{protocol}://{url}"]
+        return True
+
+    def ping(
+        self,
+        ping_ip: str,
+        ping_count: int = 4,
+        ping_interface: str | None = None,
+        options: str = "",
+        timeout: int = 50,
+        json_output: bool = False,
+    ) -> bool:
+        self.argv = ["ping", "-c", str(ping_count), ping_ip, *shlex.split(options)]
+        return True
+
+
+def test_a_released_signature_driver_behaves_as_before_for_released_calls() -> None:
+    host = ReleasedHost()
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")  # a driver that predates the change never warns
+        host.http_get("http://h/", 20, "--noproxy '*' -k -L")
+        assert host.argv == [
+            "curl", "-v", "--noproxy", "*", "-k", "-L", "--connect-timeout", "20", "http://h/",
+        ]  # fmt: skip
+        assert host.curl("h", "http", 80, "-k") is True
+        assert host.argv == ["curl", "-v", "-k", "http://h"]
+        host.ping("10.0.0.1", 2, None, "-W 2")
+    assert host.argv == ["ping", "-c", "2", "10.0.0.1", "-W", "2"]
+    # the typed keywords are the new part: a driver without them refuses a caller that passes one,
+    # which is how a future caller detects a driver that predates them (inspect.signature or
+    # catching this TypeError) and falls back to option_text(http_get_options(...)).
+    with pytest.raises(TypeError, match="no_proxy"):
+        host.http_get("http://h/", no_proxy=True)  # type: ignore[call-arg]
+    assert "no_proxy" not in inspect.signature(host.http_get).parameters
+    assert option_text(http_get_options(no_proxy=True, insecure=True, follow_redirects=True)) == (
+        "--noproxy '*' -k -L"
+    )

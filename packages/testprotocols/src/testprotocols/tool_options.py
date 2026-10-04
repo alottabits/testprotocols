@@ -1,9 +1,11 @@
 """Typed options for the command-line tools behind host capabilities (shape 4p).
 
-A host capability's tool member (``ping``, ``traceroute``, ``curl``, ``http_get``,
-``nmap``) released a free option string that the driver pasted into the tool's
-command line. Each now also takes the typed keyword-only parameters that callers
-were seen to pass; the string stays through the deprecation period.
+A host capability's tool member (``curl``, ``http_get``, ``nmap``) released a free option
+string that the driver pasted into the tool's command line. Each now also takes the typed
+keyword-only parameters that callers were seen to pass; the string stays through the
+deprecation period. A member no caller was seen to pass options to (``ping``, ``traceroute``,
+``dns_lookup``, ``ps_options``) gets no typed parameter: its string is deprecated with no
+successor, and :func:`settle_option_string` still gives the warning.
 
 The protocol only declares the parameters. A driver builds the tool's argument vector
 from them with the renderers below, and settles the two spellings with
@@ -52,7 +54,7 @@ def settle_option_string(
         return False
     if not isinstance(cast(object, option_string), str):  # callers are not all type-checked
         raise TypeError(f"{what}: takes a str, not {option_string!r}")
-    given = [name for name, value in typed.items() if value is not None and value is not False]
+    given = [name for name, value in typed.items() if value is not None and bool(value)]
     if given:
         raise ValueError(
             f"{what}: pass either the option string {option_string!r} or the typed "
@@ -71,32 +73,6 @@ def settle_option_string(
 def option_text(argv: list[str]) -> str:
     """*argv* as the option string a pre-typed driver would receive (shell-quoted)."""
     return shlex.join(argv)
-
-
-def _seconds(name: str, value: float) -> str:
-    given = cast(object, value)  # callers are not all type-checked
-    if isinstance(given, bool) or not isinstance(given, (int, float)):
-        raise TypeError(f"{name}: takes a number of seconds, not {value!r}")
-    if value <= 0:
-        raise ValueError(f"{name}: must be positive, not {value!r}")
-    return format(value, "g")
-
-
-def ping_options(
-    *, reply_timeout_s: float | None = None, interval_s: float | None = None
-) -> list[str]:
-    """``ping``'s ``-W`` (seconds to wait for each reply) and ``-i`` (seconds between probes)."""
-    argv: list[str] = []
-    if reply_timeout_s is not None:
-        argv += ["-W", _seconds("reply_timeout_s", reply_timeout_s)]
-    if interval_s is not None:
-        argv += ["-i", _seconds("interval_s", interval_s)]
-    return argv
-
-
-def traceroute_options(*, numeric: bool = False) -> list[str]:
-    """``traceroute``'s ``-n`` (print addresses, do not resolve names)."""
-    return ["-n"] if numeric else []
 
 
 def http_get_options(

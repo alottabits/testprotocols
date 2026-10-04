@@ -485,44 +485,51 @@ where one exists, also records its retype.
     driver gets exactly the released call. `inject_packet_storm` gains `loss_percent`, and its
     `duplicate_percent` reaches a new-name driver only when the caller passes it.
 
-- **Tool option strings** (tool-options task; shape 4p, O26 and O10 `ps_options`). Each tool
-  member's free option string gets the typed keyword-only parameters that callers were seen
-  to pass; a member no caller passes anything to gets only what its docstring or the task
-  names. The string keeps its position and its released type (`options: str`, `opts: str |
-  None`), is documented deprecated, and a driver warns when it is non-empty; with a typed
-  parameter also set it raises `ValueError` first. Where the typed form is turned into the
-  tool's command line is the driver's job: the protocol only declares the parameters, and
+- **Tool option strings** (shape 4p, O26 and O10 `ps_options`). A tool member whose callers
+  were seen to pass options gets the typed keyword-only parameters for exactly those options.
+  A member no caller passes anything to through that member gets none: nothing is invented.
+  The string keeps its position and its released type (`options: str`, `opts: str | None`), is
+  documented deprecated, and a driver warns when it is non-empty; with a typed parameter also
+  set it raises `ValueError` first. Where the typed form is turned into the tool's command line
+  is the driver's job: the protocol only declares the parameters, and
   `testprotocols.tool_options` holds the shared pieces (`settle_option_string` for the
-  warn-or-raise rule, one renderer per tool, `option_text` for the string a pre-typed
-  driver would be given). Evidence (every option string seen, from `testoperations` on this
-  branch and on `origin/main`, the in-repo implementers, the palco and boardfarm
-  implementers and use cases, and the vitro-bdd examples):
+  warn-or-raise rule, a renderer per tool with typed options, `option_text` for the string a
+  pre-typed driver would be given). Evidence (every option string seen, from `testoperations`
+  on this branch and on `origin/main`, the boardfarm implementers, templates and use cases,
+  downstream implementers, and the vitro-bdd examples):
   - `testoperations` passes no option string to any of these members, so no operation adopts
-    the typed parameters and no `_renamed.py` accessor is needed. A future operation that
-    does must fall back to `option_text(<renderer>(...))` for a driver that predates the
-    typed parameters; none exists to test it against.
-  - `IpRouting.ping`: no caller passes `options`. `reply_timeout_s` (`-W`) and `interval_s`
-    (`-i`) are the options seen on `ping` command lines in the consumer examples (they run
-    `ping` themselves, not through this member); `-c` and `-I` are already `ping_count` and
-    `ping_interface`. `traceroute`: no caller anywhere; `numeric` (`-n`) is the option the
-    task names. `ping_stats` takes none.
+    the typed parameters and no `_renamed.py` accessor exists. A future operation that does
+    must detect a driver from before the typed parameters (`inspect.signature` shows no such
+    parameter, or catch the `TypeError` a call raises) and fall back to
+    `option_text(<renderer>(...))`.
   - `HttpClient.http_get`: the boardfarm use case builds `--noproxy '*'`, `-k` and `-L`, which
     become `no_proxy`, `insecure`, `follow_redirects`. `curl` takes the same three: no caller
-    passes `options` to it, and every implementer builds the same `curl` command line, so the
-    flags `http_get` was seen to need are the ones `curl` can use.
+    passes `options` to it, but every implementer builds the same `curl` command line, so the
+    flags seen on `http_get` are the ones `curl` can use (same-tool evidence, not a caller of
+    `curl`).
   - `NmapScanner.nmap`: `-F` (the boardfarm `nmap_scan` use case) becomes `fast`, also on the
     unreleased `scan_ports`, so the successor loses nothing. `protocol` keeps its text form.
+  - `IpRouting.ping` and `traceroute` `options`: no caller passes one through these members
+    (the use case only forwards a caller string; ping options seen on hand-built command lines
+    in the consumer examples do not count). Deprecated with no typed successor, like the next
+    item.
   - `DnsClient.dns_lookup(opts)` and `DeviceManagement.get_running_processes(ps_options)`:
-    no caller passes anything but the released default, so there is no typed parameter and
-    nothing is invented. `opts` and a `ps_options` other than the default `"-A"` are
-    deprecated with no typed replacement (`resolve` and `read_running_processes` take no
-    option); the default `"-A"` is not a deprecated spelling and does not warn.
-  - `SnmpClient.execute_snmp_command` takes a whole command line. The command lines seen are
-    `snmpget`, `snmpwalk`, `snmpset` and `snmpbulkget`, with `-v 2c -On -c <community> -t
-    <seconds> -r <retries> <host> <oid>`. `snmp_get` and `snmp_walk` (new mandatory members;
-    `host`, `oid`, `community`, then keyword-only `timeout_s`, `retries`, `command_timeout`)
-    cover the first two. `snmpset` and `snmpbulkget` have no member: `execute_snmp_command`
-    is deprecated with no successor for them, as the owner decision says.
+    no caller was seen to pass anything through the members but the released default, so there
+    is no typed parameter. `opts` and a `ps_options` other than the default `"-A"` are
+    deprecated with no typed successor (`resolve` and `read_running_processes` take no option);
+    the default `"-A"` is not a deprecated spelling and does not warn. This is a gap before
+    removal: boardfarm's `dns_resolve` use case forwards a caller's `opts` to `dns_lookup`, and
+    options such as `+short` and `@server` are used with `dig` by hand, so a typed form (or an
+    owner decision to drop them) is needed before the strings go.
+  - `SnmpClient.execute_snmp_command` takes a whole command line. The command lines seen
+    (boardfarm's SNMP library) are `snmpget`, `snmpwalk`, `snmpset` and `snmpbulkget`, with `-v
+    2c -On -c <community> -t <seconds> -r <retries> <host> <oid>`. The new mandatory members
+    `snmp_get`, `snmp_walk`, `snmp_set(value, value_type)` and `snmp_bulk_get(non_repeaters,
+    max_repetitions)` take `host`, `oid`, `community` and keyword-only `timeout_s`, `retries`
+    and `command_timeout`, with the library's defaults. An empty `oid` of `snmp_walk` or
+    `snmp_bulk_get` starts at the root. The library's free `extra_args` string has no typed
+    form (no caller's value was seen). `execute_snmp_command` is deprecated: any other command
+    has no successor.
   - `NtpClient.set_date(opt, date_string)`: the one `opt` seen is `-s`. `set_date_time(value:
     datetime) -> bool` is a new mandatory member and `set_date` is deprecated.
 
@@ -647,13 +654,12 @@ the matching CHANGELOG entry sits under *Changed*.
   figures (MiB), while the released docstring says bytes; `MemoryUtilization` and its
   `as_dict()` are in bytes, so that implementer diverges (a pre-existing implementer bug).
 
-- **Tool option strings** (tool-options task). Nothing changes at run time for a driver or a
-  caller that passes only the released arguments. Static only: an implementer's declaration of
-  `ping`, `traceroute`, `curl`, `http_get` or `nmap` without the new keyword-only parameters
-  no longer matches the protocol under pyright (mypy does not check a missing keyword-only
-  parameter), and an implementer must provide `snmp_get`, `snmp_walk` and `set_date_time`
-  (breaking for driver authors); so a driver value no longer passes `isinstance` against
-  `SnmpClient` or `NtpClient` until it has them.
+- **Tool option strings.** Nothing changes at run time for a driver or a caller that passes
+  only the released arguments. Static only: an implementer's declaration of `curl`, `http_get`
+  or `nmap` without the new keyword-only parameters is reported by the static type checkers
+  (mypy and pyright), and an implementer must provide `snmp_get`, `snmp_walk`, `snmp_set`,
+  `snmp_bulk_get` and `set_date_time` (breaking for driver authors); a driver value no longer
+  passes `isinstance` against `SnmpClient` or `NtpClient` until it has them.
 
 ## Pending narrow steps (announced, not yet taken)
 

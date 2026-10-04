@@ -279,10 +279,13 @@ their tags and PR history.
   `_make` and `_replace`. Migration: none.
   Design `docs/architecture/precise-types-design.md` (Host-tier records); PR pending.
 
+- **parameter** `testprotocols.nmap_scanner:NmapScanner.scan_ports(..., fast=False)` — scan
+  fewer ports than the default set (an explicit `ports` wins). Migration: none. Design
+  `docs/architecture/precise-types-design.md` (Tool option strings); PR pending.
 - **module** `testprotocols.tool_options` — `settle_option_string` (a driver's one rule for a
   deprecated tool option string: a warning when it is non-empty, `ValueError` when a typed
   parameter is also set, the released default such as `ps_options="-A"` not counted),
-  `ping_options`, `traceroute_options`, `http_get_options`, `nmap_options` and `option_text`
+  `http_get_options`, `nmap_options` and `option_text`
   (the renderers a driver uses to build the tool's arguments from the typed parameters, and
   the option string a driver that predates them would receive). Migration: none. Design
   `docs/architecture/precise-types-design.md` (Tool option strings); PR pending.
@@ -290,71 +293,24 @@ their tags and PR history.
 #### Breaking for driver authors
 
 - **protocol members** `testprotocols.snmp_client:SnmpClient.snmp_get(host, oid, community, *,
-  timeout_s=10, retries=3, command_timeout=30) -> str` and `snmp_walk(...)` (same parameters,
-  `timeout_s=100`), and `testprotocols.ntp_client:NtpClient.set_date_time(value: datetime) ->
-  bool` — new mandatory members. Migration: implement them (`snmp_get` runs
-  `snmpget -v 2c -On -c <community> -t <timeout_s> -r <retries> <host> <oid>`, `snmp_walk` the
-  same with `snmpwalk`; `set_date_time` formats `value` for the device's `date`); make
-  `set_date` warn with `warn_renamed("set_date", "set_date_time")` and `execute_snmp_command`
-  warn. Design `docs/architecture/precise-types-design.md` (Tool option strings); PR pending.
-- **protocol members** `testprotocols.ip_routing:IpRouting.ping` (`reply_timeout_s`,
-  `interval_s`) and `traceroute` (`numeric`), `testprotocols.http_client:HttpClient.curl` and
-  `http_get` (`no_proxy`, `insecure`, `follow_redirects`), `testprotocols.nmap_scanner:NmapScanner.nmap`
-  and `scan_ports` (`fast`) — gain keyword-only parameters with defaults. Callers need
-  no change; an implementer's declaration without them no longer matches under pyright
-  (mypy does not check a missing keyword-only parameter), and a caller that passes one of them to
-  such a driver fails. Migration: add the keyword-only parameters, build the tool's arguments
-  from them with the `testprotocols.tool_options` renderers, and call `settle_option_string`
-  on the old string first (so that passing both raises `ValueError`). Design `docs/architecture/precise-types-design.md` (Tool option strings); PR pending.
-- **protocol members** `testprotocols.packet_filter:PacketFilter.get_rule_counter_values(chain, name) -> RuleCounters`
-  and `testprotocols.nat:Nat.get_nat_rule_counter_values(name) -> RuleCounters`
-  (so also `Firewall`, which inherits `PacketFilter`) — new mandatory members,
-  taking the parameters of the old counter members. Migration: implement them
-  and make `get_rule_counters` / `get_nat_rule_counters` warn with
-  `warn_renamed` and delegate. Design `docs/architecture/precise-types-design.md` (firewall and NAT ports and counters); PR pending.
-- **protocol member** `testprotocols.router:Router.read_telemetry() -> Telemetry` —
-  new mandatory member. Migration: implement it, and make `get_telemetry` warn
-  with `warn_renamed("get_telemetry", "read_telemetry")` and return
-  `self.read_telemetry().as_dict()`. Design `docs/architecture/precise-types-design.md` (telemetry and policy); PR pending.
-- **protocol member** `testprotocols.wifi_client:WifiClient.supported_channels(band: WifiBand) -> list[int]` —
-  new mandatory member, replacing `iwlist_supported_channels` (which returned the
-  channel numbers as text). Migration: implement it and make
-  `iwlist_supported_channels` warn with `warn_renamed("iwlist_supported_channels",
-  "supported_channels")` and return `[str(c) for c in self.supported_channels(band)]`.
-  Design `docs/architecture/precise-types-design.md` (Wi-Fi vocabularies); PR pending.
-- **protocol members** `testprotocols.sip_server:SipServer.read_rtpengine_stats() -> RtpStats`,
-  `read_mwi_status(user) -> MwiStatus` and `read_offline_messages(user) -> list[OfflineMessage]` —
-  new mandatory members, replacing `get_rtpengine_stats`, `get_mwi_status` and
-  `get_offline_messages` (which return dicts). Migration: implement them, and make each
-  old name warn with `warn_renamed(old, new)` and return the record's `as_dict()` (a list
-  comprehension of `as_dict()` for the offline messages). Design `docs/architecture/precise-types-design.md` (Voice vocabularies); PR pending.
-- **protocol member** `testprotocols.ip_interface:IpInterface.is_link_admin_up(interface) -> bool`
-  — new mandatory member: True when the interface is administratively up (the state
-  `set_link_state` sets), whether or not a carrier is present. Migration: implement it
-  (a Linux host reads the `UP` flag of `ip link show`). Design `docs/architecture/precise-types-design.md` (Host-tool and service vocabularies); PR pending.
-
-- **protocol members** `ContentFiltering.read_url_rules() -> UrlRules`,
-  `DeviceManagement.read_memory_utilization() -> MemoryUtilization`,
-  `read_running_processes() -> list[ProcessInfo]` and
-  `read_log_entries() -> list[EventLogEntry]`,
-  `DnsClient.resolve(domain_name, record_type: DnsRecordType) -> list[DnsRecord]`,
-  `IperfClient.start_sender_session(host, traffic_port, *, ..., window_bytes) -> IperfProcess`,
-  `IperfServer.start_receiver_session(traffic_port, *, ...) -> IperfProcess`,
-  `IpRouting.ping_stats(ping_ip, ping_count, ping_interface, timeout) -> PingResult`,
-  `NmapScanner.scan_ports(target, ip_version: IpFamily, *, ports, protocol, max_retries,
-  min_rate, timeout) -> NmapResult` (not `scan`, which `WifiRf` has with another signature), `ArpClient.read_arp_table() -> list[ArpEntry]`,
-  `NtpClient.read_date() -> datetime | None` and `NetemController.inject_event(event:
-  TransientEvent, duration_ms)` — new mandatory members. The iperf pair has two names because
-  one class implements both protocols; the window is `window_bytes` (bytes) on the new member
-  only. The new members take no free tool-option string. Migration: implement them; make
-  `get_url_rules`, `get_memory_utilization`, `start_traffic_sender` /
-  `start_traffic_receiver` warn with `warn_renamed(old, new)` and return the record's
-  `as_tuple()` / `as_dict()` (a list of `as_dict()` for `get_running_processes` with the
-  default `"-A"` on a procps host); make `inject_transient` warn and call
-  `inject_event(transient_event(event, **kwargs), duration_ms)`. `read_event_logs` (whose
-  output includes unparsable lines), `dns_lookup`, `ping(json_output=True)`, `nmap`,
-  `get_arp_table` and `get_date` keep their released output (which the records cannot
-  rebuild) and warn. `resolve` and `dns_lookup` refuse `DnsRecordType.OTHER`. Design `docs/architecture/precise-types-design.md` (Host-tier records); PR pending.
+  timeout_s=10, retries=3, command_timeout=30) -> str`, `snmp_walk(...)` (same parameters,
+  `timeout_s=100`; an empty `oid` walks from the root), `snmp_set(host, oid, community, value,
+  value_type, *, timeout_s=10, retries=3, command_timeout=30) -> str`, `snmp_bulk_get(host, oid,
+  community, *, non_repeaters=0, max_repetitions=10, timeout_s=100, retries=3,
+  command_timeout=30) -> str`, and `testprotocols.ntp_client:NtpClient.set_date_time(value:
+  datetime) -> bool` — new mandatory members. Migration: implement them (`snmp_get` runs
+  `snmpget -v 2c -On -c <community> -t <timeout_s> -r <retries> <host> <oid>`, the others the
+  matching `snmpwalk`, `snmpset` and `snmpbulkget` command; `set_date_time` formats `value` for
+  the device's `date`); make `set_date` warn and `execute_snmp_command` warn. Design
+  `docs/architecture/precise-types-design.md` (Tool option strings); PR pending.
+- **protocol members** `testprotocols.http_client:HttpClient.curl` and `http_get`
+  (`no_proxy`, `insecure`, `follow_redirects`) and `testprotocols.nmap_scanner:NmapScanner.nmap`
+  (`fast`) — gain keyword-only parameters with defaults. Callers need no change; an
+  implementer's declaration without them is reported by the static type checkers (mypy and
+  pyright), and a caller that passes one of them to such a driver fails with `TypeError`.
+  Migration: add the keyword-only parameters, build the tool's arguments from them with the
+  `testprotocols.tool_options` renderers, and call `settle_option_string` on the old string
+  first (so that passing both raises `ValueError`). Design `docs/architecture/precise-types-design.md` (Tool option strings); PR pending.
 
 #### Changed
 
@@ -526,16 +482,17 @@ their tags and PR history.
 
 #### Deprecated
 
-- **parameters** `IpRouting.ping` and `traceroute` `options`, `HttpClient.curl` and `http_get`
-  `options`, `NmapScanner.nmap` `opts` — the free option string is deprecated in favour of
-  the typed keyword-only parameters (see *Breaking for driver authors*); a driver warns when it
-  is non-empty and raises `ValueError` when both forms are given. `DnsClient.dns_lookup` `opts`
-  and a `DeviceManagement.get_running_processes` `ps_options` other than `"-A"` are
-  deprecated with no typed replacement (no caller was seen to pass one). They keep their
-  released types and positions until a later release removes them. Design `docs/architecture/precise-types-design.md` (Tool option strings); PR pending.
+- **parameters** `HttpClient.curl` and `http_get` `options` and `NmapScanner.nmap` `opts` —
+  the free option string is deprecated in favour of the typed keyword-only parameters (see
+  *Breaking for driver authors*); a driver warns when it is non-empty and raises `ValueError`
+  when both forms are given. `IpRouting.ping` and `traceroute` `options`, `DnsClient.dns_lookup`
+  `opts` and a `DeviceManagement.get_running_processes` `ps_options` other than `"-A"` are
+  deprecated with no typed replacement (no caller was seen to pass one through these members);
+  a driver warns when they are non-empty. All keep their released types and positions until a
+  later release removes them. Design `docs/architecture/precise-types-design.md` (Tool option strings); PR pending.
 - **protocol members** `NtpClient.set_date` (use `set_date_time`) and
-  `SnmpClient.execute_snmp_command` (use `snmp_get` or `snmp_walk`; no successor for
-  `snmpset` or `snmpbulkget`) — deprecated; a driver keeps them and warns until a later
+  `SnmpClient.execute_snmp_command` (use `snmp_get`, `snmp_walk`, `snmp_set` or
+  `snmp_bulk_get`; no successor for any other command) — deprecated; a driver keeps them and warns until a later
   release removes them. Design `docs/architecture/precise-types-design.md` (Tool option strings); PR pending.
 - **parameters and fields** `PacketFilter` (`chain`, `set_default_policy(policy)`),
   `Nat.list_nat_rules(mode)`, `Conntrack` (`protocol`, `state`), `FirewallRule.action` /

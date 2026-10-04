@@ -929,7 +929,7 @@ def test_coerce_impairment_profile_refuses(value: object, error: type[Exception]
 def _released_mld_args(
     records: Iterable[tuple[list[str], str, MulticastGroupRecordType]],
 ) -> str:
-    """The released implementers' rendering (palco and boardfarm ``_send_multicast_report``)."""
+    """The released implementers' rendering (``_send_multicast_report``, as boardfarm has it)."""
     args = ""
     for sources, group, rtype in records:
         src = ",".join(sources)
