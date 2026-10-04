@@ -31,7 +31,8 @@ class DnsClient(Protocol):
         *record_type* is a :class:`~testprotocols.models.DnsRecordType`. A plain ``str``
         naming a member (``"A"``) is deprecated: the driver converts it and warns. The
         annotation stays ``DnsRecordType | str`` until the removal step, as a record type the
-        enum does not name yet (``"CAA"``) is still passed as text.
+        enum does not name yet (``"CAA"``) is still passed as text. ``DnsRecordType.OTHER``
+        names no record type and is refused (``ValueError``).
         """
         ...
 

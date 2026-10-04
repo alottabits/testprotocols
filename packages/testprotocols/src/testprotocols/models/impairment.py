@@ -23,9 +23,6 @@ class ImpairmentProfile:
     duplicate_percent: float = 0.0
 
 
-_PROFILE_REQUIRED = ("latency_ms", "jitter_ms", "loss_percent")
-
-
 def coerce_impairment_profile(
     profile: ImpairmentProfile | Mapping[str, object], *, what: str
 ) -> ImpairmentProfile:
@@ -33,9 +30,10 @@ def coerce_impairment_profile(
 
     A profile is returned as is. A mapping of the profile's field names (the released dict
     form) is deprecated: it warns (``DeprecationWarning``, pointing at the driver's caller)
-    and converts, the values passed through unchanged. A missing ``latency_ms``,
-    ``jitter_ms`` or ``loss_percent``, or a key that names no field, raises ``ValueError``
-    (before any warning); any other type raises ``TypeError``.
+    and converts. A missing field takes ``0`` (``None`` for ``bandwidth_limit_mbps``), as the
+    released example implementer's conversion does. A key that names no field raises
+    ``ValueError``; a value of the wrong type (``"20"``, a ``bool``) raises ``TypeError``;
+    both before any warning. Any other argument type raises ``TypeError``.
     """
     given = cast(object, profile)
     if isinstance(given, ImpairmentProfile):
@@ -47,18 +45,23 @@ def coerce_impairment_profile(
     unknown = sorted(set(data) - known)
     if unknown:
         raise ValueError(f"{what}: the dict names no profile field {unknown}")
-    missing = [name for name in _PROFILE_REQUIRED if name not in data]
-    if missing:
-        raise ValueError(f"{what}: the dict lacks {missing}")
+    for name in ("latency_ms", "jitter_ms", "bandwidth_limit_mbps"):
+        value = data.get(name)
+        if value is not None and (isinstance(value, bool) or not isinstance(value, int)):
+            raise TypeError(f"{what}: {name} takes an int, not {value!r}")
+    for name in ("loss_percent", "reorder_percent", "corrupt_percent", "duplicate_percent"):
+        value = data.get(name, 0.0)
+        if isinstance(value, bool) or not isinstance(value, int | float):
+            raise TypeError(f"{what}: {name} takes a number, not {value!r}")
     warnings.warn(
         f"{what}: a dict is deprecated; pass an ImpairmentProfile",
         DeprecationWarning,
         stacklevel=3,
     )
     return ImpairmentProfile(
-        latency_ms=cast(int, data["latency_ms"]),
-        jitter_ms=cast(int, data["jitter_ms"]),
-        loss_percent=cast(float, data["loss_percent"]),
+        latency_ms=cast(int, data.get("latency_ms", 0)),
+        jitter_ms=cast(int, data.get("jitter_ms", 0)),
+        loss_percent=cast(float, data.get("loss_percent", 0.0)),
         bandwidth_limit_mbps=cast("int | None", data.get("bandwidth_limit_mbps")),
         reorder_percent=cast(float, data.get("reorder_percent", 0.0)),
         corrupt_percent=cast(float, data.get("corrupt_percent", 0.0)),
@@ -136,9 +139,14 @@ class LatencySpike:
 
 @dataclass(frozen=True)
 class PacketStorm:
-    """A burst of disturbed packets: *loss_percent* and *duplicate_percent* (0 to 100) with
-    the given *latency_ms* and *jitter_ms*. A field left ``None`` takes the driver's own
-    default; a driver that cannot apply a given field raises rather than ignoring it."""
+    """A burst of packet loss: *loss_percent* (0 to 100) with the given *latency_ms* and
+    *jitter_ms*, as the released implementers apply a packet storm. A field left ``None``
+    takes the driver's own default.
+
+    *duplicate_percent* (0 to 100) is optional and ``None`` (not requested) by default: the
+    share of packets duplicated as well. No released implementer applies duplication; a
+    driver that cannot apply a requested field raises ``ValueError`` rather than ignoring
+    it."""
 
     event_name: ClassVar[str] = "packet_storm"
 

@@ -62,7 +62,7 @@ def _spike(n: MagicMock) -> None:
 
 
 def _storm(n: MagicMock) -> None:
-    netem_ops.inject_packet_storm(n, duration_ms=500, duplicate_percent=100.0)
+    netem_ops.inject_packet_storm(n, duration_ms=500)
 
 
 @pytest.mark.parametrize(
@@ -86,7 +86,7 @@ def _storm(n: MagicMock) -> None:
         (
             _storm,
             (("packet_storm", 500), {"duplicate_percent": 100.0}),
-            (PacketStorm(duplicate_percent=100.0), 500),
+            (PacketStorm(), 500),
         ),
     ],
 )
@@ -105,6 +105,27 @@ def test_netem_operation_works_with_old_and_new_name_drivers(
     new.inject_transient.assert_not_called()
 
 
+def test_packet_storm_default_keeps_the_released_meaning() -> None:
+    # a loss burst at the driver's default: no duplication is requested of a new-name driver,
+    # and an old-name driver still gets the released keywords
+    new = _new_netem()
+    netem_ops.inject_packet_storm(new, duration_ms=500)
+    new.inject_event.assert_called_once_with(PacketStorm(), 500)
+    assert new.inject_event.call_args.args[0].duplicate_percent is None
+    old = _old_netem()
+    netem_ops.inject_packet_storm(old, duration_ms=500)
+    old.inject_transient.assert_called_once_with("packet_storm", 500, duplicate_percent=100.0)
+
+
+def test_packet_storm_explicit_duplicate_is_requested_of_a_new_name_driver() -> None:
+    new = _new_netem()
+    netem_ops.inject_packet_storm(new, duration_ms=500, duplicate_percent=30.0)
+    new.inject_event.assert_called_once_with(PacketStorm(duplicate_percent=30.0), 500)
+    old = _old_netem()
+    netem_ops.inject_packet_storm(old, duration_ms=500, duplicate_percent=30.0)
+    old.inject_transient.assert_called_once_with("packet_storm", 500, duplicate_percent=30.0)
+
+
 def test_packet_storm_loss_percent_reaches_both_driver_kinds() -> None:
     old = _old_netem()
     netem_ops.inject_packet_storm(old, duration_ms=500, loss_percent=20.0)
@@ -113,9 +134,7 @@ def test_packet_storm_loss_percent_reaches_both_driver_kinds() -> None:
     )
     new = _new_netem()
     netem_ops.inject_packet_storm(new, duration_ms=500, loss_percent=20.0)
-    new.inject_event.assert_called_once_with(
-        PacketStorm(loss_percent=20.0, duplicate_percent=100.0), 500
-    )
+    new.inject_event.assert_called_once_with(PacketStorm(loss_percent=20.0), 500)
 
 
 def test_failover_convergence_works_with_old_and_new_name_drivers() -> None:

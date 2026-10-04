@@ -5,7 +5,7 @@ from __future__ import annotations
 import warnings
 from collections.abc import Iterable, Sequence
 from enum import Enum
-from typing import NamedTuple, Self, cast
+from typing import TYPE_CHECKING, NamedTuple, Self, cast
 
 
 class MulticastGroupRecordType(Enum):
@@ -65,6 +65,17 @@ class GroupRecord(_GroupRecordFields):
                 f"GroupRecord.record_type takes a MulticastGroupRecordType, not {record_type!r}"
             )
         return super().__new__(cls, held, group, record_type)
+
+    if not TYPE_CHECKING:  # the typing stub's generic ``_make`` stays as declared
+
+        @classmethod
+        def _make(cls, iterable: Iterable[object]) -> Self:
+            """Build from a ``(sources, group, record_type)`` iterable, checked as the
+            constructor checks (``_replace`` builds through this too)."""
+            values = tuple(iterable)
+            if len(values) != 3:
+                raise TypeError(f"GroupRecord takes 3 values, not {len(values)}")
+            return cls(*values)
 
 
 def group_records(

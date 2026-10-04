@@ -211,7 +211,11 @@ class PingResult:
     """The summary of an ICMP echo run: the *destination* as given, the echo requests
     *transmitted*, the distinct replies *received*, the *duplicates* among the replies, the
     *packet_loss_percent* (0 to 100) and the round-trip times in milliseconds (minimum,
-    average, maximum and standard deviation; ``None`` when no reply came back)."""
+    average, maximum and standard deviation; ``None`` when no reply came back).
+
+    *received* is at most *transmitted*, and the loss agrees with them: within one percentage
+    point of ``(transmitted - received) / transmitted * 100`` (the tool rounds it), and 0
+    when nothing was transmitted. Anything else raises ``ValueError``."""
 
     destination: str
     transmitted: int
@@ -230,6 +234,20 @@ class PingResult:
         _checks.number("PingResult", "packet_loss_percent", self.packet_loss_percent, high=100)
         for name in ("rtt_min_ms", "rtt_avg_ms", "rtt_max_ms", "rtt_stddev_ms"):
             _checks.optional_number("PingResult", name, getattr(self, name))
+        if self.received > self.transmitted:
+            raise ValueError(
+                f"PingResult.received ({self.received}) exceeds transmitted ({self.transmitted})"
+            )
+        expected = (
+            0.0
+            if self.transmitted == 0
+            else (self.transmitted - self.received) / self.transmitted * 100
+        )
+        if abs(self.packet_loss_percent - expected) > 1:
+            raise ValueError(
+                f"PingResult.packet_loss_percent {self.packet_loss_percent} disagrees with "
+                f"{self.received} of {self.transmitted} received"
+            )
 
 
 class NmapPortState(StrEnum):

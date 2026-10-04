@@ -234,19 +234,23 @@ their tags and PR history.
   `QoEResult.protocol`. Not public API. Migration: none. Design `docs/architecture/precise-types-design.md` (Host-tool and service vocabularies); PR pending.
 
 - **models** `testprotocols.models:UrlRules` (`allowed`, `blocked`; `as_tuple()`),
-  `MemoryUtilization` (`total_bytes`, `used_bytes`, `free_bytes`, optional `shared_bytes`,
-  `cache_bytes`, `available_bytes`; `as_dict()`), `ProcessInfo` (`pid`, `tty`, `cpu_time:
+  `MemoryUtilization` (`total_bytes`, `used_bytes`, `free_bytes`, and `shared_bytes`,
+  `cache_bytes`, `available_bytes` all given or all `None`; used and free at most total;
+  `as_dict()`), `ProcessInfo` (`pid`, `tty`, `cpu_time:
   timedelta`, `command`; `as_dict()`), `EventLogEntry` (`timestamp` text, `hostname`, `tag`,
   `message`, `priority`; `severity`; `as_dict()`), `DnsRecord` (`name`, `record_type`, `ttl`,
   `data`, `record_type_raw`), `IperfProcess` (`pid`, `log_file`; `as_tuple()`), `PingResult`
-  (`destination`, `transmitted`, `received`, `packet_loss_percent`, `duplicates`, `rtt_*_ms`),
+  (`destination`, `transmitted`, `received`, `packet_loss_percent`, `duplicates`, `rtt_*_ms`;
+  received at most transmitted, the loss within one point of what they give),
   `NmapResult` (`up`, `addresses`, `ports`) and `NmapPort` (`port`, `protocol:
   TransportProtocol`, `state`, `service`), `ArpEntry` (`address: IPv4Address`, `hw_type`,
   `hw_address`, `flags`, `interface`) — frozen records for the host-tier readers; a wrong type
-  raises `TypeError`, an out-of-range value `ValueError`. `as_dict()` / `as_tuple()` give
-  exactly what the deprecated reader returned (keys, value types, text formats: memory in
-  bytes, the procps `[DD-]hh:mm:ss` time, the syslog keys `priority`, `date`, `hostname`,
-  `tag`, `content`). Migration: none. Design `docs/architecture/precise-types-design.md` (Host-tier records); PR pending.
+  raises `TypeError`, an out-of-range or inconsistent value `ValueError`. `as_dict()` /
+  `as_tuple()` give exactly what the deprecated reader returned for `UrlRules`,
+  `MemoryUtilization` (in bytes), `ProcessInfo` (a procps `ps -A` entry, time
+  `[DD-]hh:mm:ss`) and `IperfProcess`. `EventLogEntry.as_dict()` is the released entry of a
+  parsed line (`priority`, `date`, `hostname`, `tag`, `content`) only: the released output
+  also holds `{"unparsable": line}` entries, which no record holds. Migration: none. Design `docs/architecture/precise-types-design.md` (Host-tier records); PR pending.
 - **enums** `testprotocols.models:SyslogSeverity` (`IntEnum`, RFC 5424 severities 0 to 7),
   `NmapPortState` (nmap's six port states: `open`, `closed`, `filtered`, `unfiltered`,
   `open|filtered`, `closed|filtered`) and the member `DnsRecordType.OTHER` (a read-back value
@@ -254,14 +258,16 @@ their tags and PR history.
   `DnsRecord.record_type_raw`). Migration: none. Design `docs/architecture/precise-types-design.md` (Host-tier records); PR pending.
 - **models and functions** `testprotocols.models:Blackout`, `Brownout(latency_ms, jitter_ms,
   loss_percent)`, `LatencySpike(latency_ms, jitter_ms)`, `PacketStorm(loss_percent, latency_ms,
-  jitter_ms, duplicate_percent)`, the union `TransientEvent`, and `transient_event(event,
-  **kwargs)` — the typed transient impairment events (every field optional: `None` is the
-  driver's default; `event_name` and `as_kwargs()` give the released `inject_transient` word
+  jitter_ms, duplicate_percent)` (a burst of loss, as the released implementers apply it;
+  `duplicate_percent` is `None`, not requested, unless given), the union `TransientEvent`, and
+  `transient_event(event, **kwargs)` — the typed transient impairment events (every field
+  optional: `None` is the driver's default; `event_name` and `as_kwargs()` give the released `inject_transient` word
   and keywords, a spike's latency being `spike_latency_ms` there) and the converter from a
   released call (an unknown event or keyword raises `ValueError`). Migration: none. Design `docs/architecture/precise-types-design.md` (Host-tier records); PR pending.
 - **functions** `testprotocols.models:coerce_impairment_profile(profile, *, what)`,
   `group_records(records, *, what)` and `parse_window_size(text)` — a driver's converters:
-  a netem `dict` profile to `ImpairmentProfile` (warns), plain group-record tuples to
+  a netem `dict` profile to `ImpairmentProfile` (warns; a missing figure is `0`, as the
+  released example implementer converts; a wrong value type raises `TypeError`), plain group-record tuples to
   `GroupRecord` (warns), and an iperf size (`"8M"`, binary units) to bytes (`ValueError` for
   text that is not a size). Migration: none. Design `docs/architecture/precise-types-design.md` (Host-tier records); PR pending.
 - **internal module** `testprotocols.models._checks` — the field checks the frozen records
@@ -269,7 +275,8 @@ their tags and PR history.
   the voice records use it too. Not public API. Migration: none. Design `docs/architecture/precise-types-design.md` (Host-tier records); PR pending.
 - **model** `testprotocols.models:GroupRecord(sources, group, record_type)` — a `NamedTuple`,
   so it is the released `(sources, group, record_type)` tuple and fits the released
-  `MulticastGroupRecord` parameter type; a wrong type raises `TypeError`. Migration: none.
+  `MulticastGroupRecord` parameter type; a wrong type raises `TypeError`, also through
+  `_make` and `_replace`. Migration: none.
   Design `docs/architecture/precise-types-design.md` (Host-tier records); PR pending.
 
 #### Breaking for driver authors
@@ -303,24 +310,26 @@ their tags and PR history.
 
 - **protocol members** `ContentFiltering.read_url_rules() -> UrlRules`,
   `DeviceManagement.read_memory_utilization() -> MemoryUtilization`,
-  `read_running_processes() -> list[ProcessInfo]` and `read_event_log() -> list[EventLogEntry]`,
+  `read_running_processes() -> list[ProcessInfo]` and
+  `read_log_entries() -> list[EventLogEntry]`,
   `DnsClient.resolve(domain_name, record_type: DnsRecordType) -> list[DnsRecord]`,
   `IperfClient.start_sender_session(host, traffic_port, *, ..., window_bytes) -> IperfProcess`,
   `IperfServer.start_receiver_session(traffic_port, *, ...) -> IperfProcess`,
   `IpRouting.ping_stats(ping_ip, ping_count, ping_interface, timeout) -> PingResult`,
-  `NmapScanner.scan(target, ip_version: IpVersion, *, ports, protocol, max_retries, min_rate,
-  timeout) -> NmapResult`, `ArpClient.read_arp_table() -> list[ArpEntry]`,
+  `NmapScanner.scan_ports(target, ip_version: IpFamily, *, ports, protocol, max_retries,
+  min_rate, timeout) -> NmapResult` (not `scan`, which `WifiRf` has with another signature), `ArpClient.read_arp_table() -> list[ArpEntry]`,
   `NtpClient.read_date() -> datetime | None` and `NetemController.inject_event(event:
   TransientEvent, duration_ms)` — new mandatory members. The iperf pair has two names because
   one class implements both protocols; the window is `window_bytes` (bytes) on the new member
   only. The new members take no free tool-option string. Migration: implement them; make
-  `get_url_rules`, `get_memory_utilization`, `read_event_logs`, `start_traffic_sender` /
+  `get_url_rules`, `get_memory_utilization`, `start_traffic_sender` /
   `start_traffic_receiver` warn with `warn_renamed(old, new)` and return the record's
-  `as_tuple()` / `as_dict()` (a list of `as_dict()` for the event log, and for
-  `get_running_processes` with the default `"-A"`); make `inject_transient` warn and call
-  `inject_event(transient_event(event, **kwargs), duration_ms)`. `dns_lookup`,
-  `ping(json_output=True)`, `nmap`, `get_arp_table` and `get_date` keep their released output
-  (a tool's full parse or device text, which the records cannot rebuild) and warn. Design `docs/architecture/precise-types-design.md` (Host-tier records); PR pending.
+  `as_tuple()` / `as_dict()` (a list of `as_dict()` for `get_running_processes` with the
+  default `"-A"` on a procps host); make `inject_transient` warn and call
+  `inject_event(transient_event(event, **kwargs), duration_ms)`. `read_event_logs` (whose
+  output includes unparsable lines), `dns_lookup`, `ping(json_output=True)`, `nmap`,
+  `get_arp_table` and `get_date` keep their released output (which the records cannot
+  rebuild) and warn. `resolve` and `dns_lookup` refuse `DnsRecordType.OTHER`. Design `docs/architecture/precise-types-design.md` (Host-tier records); PR pending.
 
 #### Changed
 
@@ -618,7 +627,10 @@ their tags and PR history.
   a deny rule built by `build_deny_rule` matches. Migration: pass the member. Design `docs/architecture/precise-types-design.md` (testoperations: segmentation); PR pending.
 - **parameter** `testoperations.netem_controller:inject_packet_storm(loss_percent=None)` —
   keyword-only: the share of packets lost during the storm, which the released drivers apply
-  for a packet storm. Migration: none. Design `docs/architecture/precise-types-design.md` (Host-tier records); PR pending.
+  for a packet storm. `duplicate_percent` now defaults to `None` (not requested): a
+  new-name driver is asked for duplication only when the caller passes it; an old-name driver
+  still receives the released `duplicate_percent=100.0`. A packet storm keeps its released
+  meaning, a loss burst. Migration: none. Design `docs/architecture/precise-types-design.md` (Host-tier records); PR pending.
 
 #### Changed
 
@@ -655,11 +667,10 @@ their tags and PR history.
   command takes `-4` / `-6`. The default is now `"4"` and `ip_version` is documented as `"4"`
   or `"6"`. A caller that passed `"ipv4"` / `"ipv6"` explicitly reaches the same bug and
   should pass `"4"` / `"6"`. Design `docs/architecture/precise-types-design.md` (Host-tool and service vocabularies); PR pending.
-- **operations** `testoperations.netem_controller:inject_latency_spike(latency_ms)` and
-  `inject_packet_storm(duplicate_percent)` — the released drivers read a spike's latency as
-  `spike_latency_ms` and a storm's `loss_percent`, so both values were ignored. With a driver
-  that implements `inject_event` they now take effect; an old-name driver still receives the
-  released call (and still ignores them). Design `docs/architecture/precise-types-design.md` (Host-tier records); PR pending.
+- **operation** `testoperations.netem_controller:inject_latency_spike(latency_ms)` — the
+  released drivers read a spike's latency as `spike_latency_ms`, so the value was ignored (they
+  applied their 500 ms default). With a driver that implements `inject_event` it takes effect;
+  an old-name driver still receives the released call (and still ignores it). Design `docs/architecture/precise-types-design.md` (Host-tier records); PR pending.
 
 ## [0.12.1] — 2026-09-09
 

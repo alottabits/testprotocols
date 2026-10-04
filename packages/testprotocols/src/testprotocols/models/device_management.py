@@ -2,7 +2,9 @@
 
 The typed forms of what ``DeviceManagement.get_memory_utilization``, ``get_running_processes``
 and ``read_event_logs`` returned as dicts. Each record's ``as_dict()`` is the released entry
-shape, with the same keys, value types and text formats, so a deprecated reader can return it.
+shape, with the same keys, value types and text formats: the whole released return for memory,
+and for processes on a procps host (``ps -A``); for the event log, the entry of each parsed line
+(the released output also holds the lines the parser could not read, which no record holds).
 Every field comes from the released docstrings and what the released implementers return
 (``free``, ``ps -A`` and a BSD-syslog parse of the device log).
 """
@@ -23,7 +25,9 @@ class MemoryUtilization:
 
     *total_bytes*, *used_bytes* and *free_bytes* are always reported; *shared_bytes*,
     *cache_bytes* (buffers and page cache) and *available_bytes* (an estimate of what can be
-    allocated without swapping) are ``None`` when the device does not report them.
+    allocated without swapping) are reported together or not at all (``None``), as ``free``
+    reports them. *used_bytes* and *free_bytes* are at most *total_bytes*; anything else
+    raises ``ValueError``.
     """
 
     total_bytes: int
@@ -36,8 +40,17 @@ class MemoryUtilization:
     def __post_init__(self) -> None:
         for name in ("total_bytes", "used_bytes", "free_bytes"):
             _checks.count("MemoryUtilization", name, getattr(self, name))
-        for name in ("shared_bytes", "cache_bytes", "available_bytes"):
+        extra = ("shared_bytes", "cache_bytes", "available_bytes")
+        for name in extra:
             _checks.optional_count("MemoryUtilization", name, getattr(self, name))
+        given = [name for name in extra if getattr(self, name) is not None]
+        if given and len(given) != len(extra):
+            raise ValueError(
+                f"MemoryUtilization: {sorted(set(extra) - set(given))} must be given with {given}"
+            )
+        for name in ("used_bytes", "free_bytes"):
+            if getattr(self, name) > self.total_bytes:
+                raise ValueError(f"MemoryUtilization.{name} exceeds total_bytes")
 
     def as_dict(self) -> dict[str, int]:
         """The released ``get_memory_utilization`` dict: ``total``, ``used``, ``free`` and,
@@ -66,7 +79,10 @@ def _format_cpu_time(value: timedelta) -> str:
 @dataclass(frozen=True)
 class ProcessInfo:
     """One running process: its *pid*, controlling terminal (*tty*, ``None`` when it has
-    none), the CPU time it has used (*cpu_time*, whole seconds) and its *command*."""
+    none), the CPU time it has used (*cpu_time*, whole seconds) and its *command*.
+
+    ``as_dict()`` round-trips a procps ``ps -A`` entry exactly (its ``TIME`` column is
+    ``[DD-]hh:mm:ss``); another ``ps`` prints other columns and formats."""
 
     pid: int
     tty: str | None
@@ -147,8 +163,8 @@ class EventLogEntry:
         return None if self.priority is None else SyslogSeverity(self.priority % 8)
 
     def as_dict(self) -> dict[str, object]:
-        """The released ``read_event_logs`` entry: ``priority``, ``date``, ``hostname``,
-        ``tag`` and ``content``."""
+        """The released ``read_event_logs`` entry of a parsed line: ``priority``, ``date``,
+        ``hostname``, ``tag`` and ``content``."""
         return {
             "priority": self.priority,
             "date": self.timestamp,

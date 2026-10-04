@@ -49,7 +49,7 @@ PROTOCOLS = [
             "get_memory_utilization",
             "read_memory_utilization",
             "read_running_processes",
-            "read_event_log",
+            "read_log_entries",
             "get_running_processes",
             "get_board_logs",
             "read_event_logs",

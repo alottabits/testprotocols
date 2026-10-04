@@ -424,9 +424,9 @@ where one exists, also records its retype.
 - **Host-tier records** (shapes 5, 1-like converters and 6). New frozen records and the
   mandatory members that return them, each beside its deprecated name: `UrlRules`
   (`read_url_rules`), `MemoryUtilization` (`read_memory_utilization`), `ProcessInfo`
-  (`read_running_processes`), `EventLogEntry` (`read_event_log`), `DnsRecord` (`resolve`),
+  (`read_running_processes`), `EventLogEntry` (`read_log_entries`), `DnsRecord` (`resolve`),
   `IperfProcess` (`IperfClient.start_sender_session`, `IperfServer.start_receiver_session`),
-  `PingResult` (`ping_stats`), `NmapResult` / `NmapPort` (`scan`), `ArpEntry`
+  `PingResult` (`ping_stats`), `NmapResult` / `NmapPort` (`scan_ports`), `ArpEntry`
   (`read_arp_table`), `datetime | None` (`read_date`) and the transient events
   (`inject_event`). Fields come from the released docstrings and what the released
   implementers return (the tool output they parse: `free`, `ps -A`, BSD syslog, `dig`,
@@ -434,12 +434,14 @@ where one exists, also records its retype.
   - Exact released shapes: `UrlRules.as_tuple()`, `MemoryUtilization.as_dict()` (`total`,
     `used`, `free`, then `shared`, `cache`, `available` when reported, in bytes as the
     released docstring says), `ProcessInfo.as_dict()` (`pid`, `tty`, `time` as procps
-    `[DD-]hh:mm:ss`, `cmd`: the `ps -A` entry), `EventLogEntry.as_dict()` (`priority`,
-    `date`, `hostname`, `tag`, `content`) and `IperfProcess.as_tuple()` are what the
-    deprecated readers returned, tested against captured tool output parsed with the
-    implementers' own parsers. `dns_lookup`, `ping(json_output=True)`, `nmap`,
-    `get_arp_table` and `get_date` return a tool's full parse or device text, which the
-    record cannot rebuild; those drivers keep their released output.
+    `[DD-]hh:mm:ss`, `cmd`: the `ps -A` entry of a procps host) and `IperfProcess.as_tuple()`
+    are what the deprecated readers returned, tested against captured tool output parsed with
+    the implementers' own parsers. `EventLogEntry.as_dict()` is the released entry of a parsed
+    line only: the released output also holds `{"unparsable": line}` entries, so
+    `read_event_logs` keeps its released output, as do `dns_lookup`, `ping(json_output=True)`,
+    `nmap`, `get_arp_table` and `get_date` (a tool's full parse or device text, which the
+    record cannot rebuild). The new readers' names avoid near-collisions: `read_log_entries`
+    (one letter from `read_event_logs`) and `scan_ports` (`WifiRf.scan` exists).
   - `EventLogEntry.timestamp` stays the device's text: the BSD syslog date has no year, and a
     `datetime` would invent one. `severity` is derived from `priority` (`SyslogSeverity`, RFC
     5424, closed). `DnsRecord.record_type` is open (shape 3o, `record_type_raw`): an answer can
@@ -452,9 +454,8 @@ where one exists, also records its retype.
     member only: `start_sender_session(window_bytes: int | None)`, keyword-only;
     `start_traffic_sender(window: str)` is unchanged, and a driver passes it on through
     `parse_window_size` (iperf's grammar, binary units: `"8M"` is 8388608).
-  - `NmapScanner.scan` shares its name with `WifiRf.scan` (another signature); no known class
-    implements both, as `stop_traffic` already differs between `IperfClient` and
-    `IperfGenerator`. The new members take no free tool-option string (`options`, `opts`,
+  - `NmapScanner.scan_ports` takes `IpFamily` for the version (the released `nmap` takes the
+    words of `IpVersion`). The new members take no free tool-option string (`options`, `opts`,
     `ps_options`); typed options come with the tool-option retype.
   - Transient events: `Blackout()`, `Brownout(latency_ms, jitter_ms, loss_percent)`,
     `LatencySpike(latency_ms, jitter_ms)` and `PacketStorm(loss_percent, latency_ms,
@@ -462,12 +463,14 @@ where one exists, also records its retype.
     released implementers' defaults differ). The fields are the keywords the released
     implementers read; `as_kwargs()` renders them (a spike's latency is `spike_latency_ms`
     there) and `transient_event(event, **kwargs)` converts the released call, refusing an
-    unknown event or keyword. `duplicate_percent` comes from the in-repo caller (no released
-    implementer reads it), which is why a driver that cannot apply a given field raises.
+    unknown event or keyword. A packet storm keeps its released meaning, a loss burst:
+    `duplicate_percent` (from the in-repo caller; no released implementer reads it) is `None`,
+    not requested, unless given, and a driver that cannot apply a requested field raises.
   - Parameters, checked against every known implementer's declaration (contravariance): the
     netem `profile` is `ImpairmentProfile | dict[str, object]` (a `Mapping` would break
     implementers declaring `dict`; the dict is deprecated through
-    `coerce_impairment_profile`, which warns); `provision_cpe` options are
+    `coerce_impairment_profile`, which warns, takes a missing figure as `0` as the released
+    example's conversion does, and refuses a wrong value type); `provision_cpe` options are
     `dict[str, dict[str, object]]`, the released shape (service pool to option-name map), not
     option codes, which the one implementer indexes by pool; `GroupRecord` is a `NamedTuple`,
     a subtype of the released tuple, so `send_mldv2_report`'s parameter type is unchanged and
@@ -479,7 +482,8 @@ where one exists, also records its retype.
     registry casts to a one-member Protocol (`__protocol_attrs__`), not `Any`.
   - `testoperations` (`throughput`, `netem_controller`, `sdwan`) call the new names through
     `_renamed.py` (`start_sender_session`, `start_receiver_session`, `inject`); an old-name
-    driver gets exactly the released call. `inject_packet_storm` gains `loss_percent`.
+    driver gets exactly the released call. `inject_packet_storm` gains `loss_percent`, and its
+    `duplicate_percent` reaches a new-name driver only when the caller passes it.
 
 ## Effective now
 
@@ -582,20 +586,25 @@ the matching CHANGELOG entry sits under *Changed*.
   `IpInterface.is_link_admin_up` (breaking for driver authors).
 
 - **Host-tier records** (host-records task). An implementer must provide `read_url_rules`,
-  `read_memory_utilization`, `read_running_processes`, `read_event_log`, `resolve`,
-  `start_sender_session`, `start_receiver_session`, `ping_stats`, `scan`, `read_arp_table`,
+  `read_memory_utilization`, `read_running_processes`, `read_log_entries`, `resolve`,
+  `start_sender_session`, `start_receiver_session`, `ping_stats`, `scan_ports`, `read_arp_table`,
   `read_date` and `inject_event` (breaking for driver authors). Static only, no runtime
   change: `set_impairment_profile` / `set_interface_profile` take
   `ImpairmentProfile | dict[str, object]` (was `dict[str, Any]`) and `provision_cpe` takes
   `dict[str, dict[str, object]]`, so a caller's loosely typed dict variable (`dict[str, int]`,
   a `TypedDict`) no longer type-checks; `DHCPTraceData.dhcp_packet` and
   `DHCPV6TraceData.dhcpv6_packet` read as `Mapping[str, object]`, so a reader narrows nested
-  values. `DnsRecordType` has an `OTHER` member. Through `testoperations`, with a driver that
-  implements `inject_event`: `inject_latency_spike(latency_ms)` and
-  `inject_packet_storm(duplicate_percent)` take effect (the released drivers read other
-  keyword names and ignored them); an old-name driver receives the released call unchanged.
+  values. `DnsRecordType` has an `OTHER` member, refused as a query type. Through
+  `testoperations`, with a driver that implements `inject_event`:
+  `inject_latency_spike(latency_ms)` takes effect (the released drivers read
+  `spike_latency_ms` and ignored it); `inject_packet_storm` asks for duplication only when the
+  caller passes `duplicate_percent` (released: `100.0` was always sent and ignored), so a
+  packet storm stays a loss burst. An old-name driver receives the released calls unchanged.
   With a driver that implements `start_sender_session`, a flow's `window` text that is not an
   iperf size raises `ValueError` before anything starts (released: passed to the tool).
+  Not followed: the boardfarm CPE implementer's `get_memory_utilization` returns `free -m`
+  figures (MiB), while the released docstring says bytes; `MemoryUtilization` and its
+  `as_dict()` are in bytes, so that implementer diverges (a pre-existing implementer bug).
 
 ## Pending narrow steps (announced, not yet taken)
 

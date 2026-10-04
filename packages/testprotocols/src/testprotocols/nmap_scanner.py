@@ -8,7 +8,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import Any, Protocol, runtime_checkable
 
-from testprotocols.models.networking import IpVersion, NmapResult
+from testprotocols.models.networking import IpFamily, IpVersion, NmapResult
 from testprotocols.models.ports import PortRange
 from testprotocols.models.traffic import TransportProtocol
 
@@ -28,11 +28,11 @@ class NmapScanner(Protocol):
         opts: str | None = None,
         timeout: int = 30,
     ) -> dict[str, Any]:
-        """Deprecated: use :meth:`scan`, which returns a typed result.
+        """Deprecated: use :meth:`scan_ports`, which returns a typed result.
 
         Runs an nmap scan against *ipaddr* and returns the parsed results. A driver keeps its
         released output here until the removal step (it warns with
-        ``warn_renamed("nmap", "scan")``): drivers return differently shaped trees, which a
+        ``warn_renamed("nmap", "scan_ports")``): drivers return differently shaped trees, which a
         typed result cannot reproduce.
 
         *ip_type* is an :class:`~testprotocols.models.IpVersion` (``"ipv4"`` or
@@ -43,10 +43,10 @@ class NmapScanner(Protocol):
         """
         ...
 
-    def scan(
+    def scan_ports(
         self,
         target: str,
-        ip_version: IpVersion,
+        ip_version: IpFamily,
         *,
         ports: Sequence[PortRange] = (),
         protocol: TransportProtocol | None = None,
@@ -54,8 +54,8 @@ class NmapScanner(Protocol):
         min_rate: int | None = None,
         timeout: int = 30,
     ) -> NmapResult:
-        """Port-scan *target* (an address or host name) over *ip_version* and return what
-        was found.
+        """Port-scan *target* (an address or host name) over *ip_version*
+        (:class:`~testprotocols.models.IpFamily`) and return what was found.
 
         *ports* are the ranges to scan (``()``: the tool's default set); *protocol* the
         transport to scan (``None``: the tool's default, TCP); *max_retries* caps probe

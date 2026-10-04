@@ -49,8 +49,9 @@ class DeviceManagement(Protocol):
         """Deprecated name of :meth:`read_running_processes`.
 
         Returns the list of running processes using the given ps options. For the default
-        ``"-A"`` that is ``[p.as_dict() for p in read_running_processes()]``; the driver warns
-        with ``warn_renamed("get_running_processes", "read_running_processes")``. Other
+        ``"-A"`` on a procps host that is
+        ``[p.as_dict() for p in read_running_processes()]``; the driver warns with
+        ``warn_renamed("get_running_processes", "read_running_processes")``. Other
         options keep the driver's released output until the removal step.
         """
         ...
@@ -64,15 +65,18 @@ class DeviceManagement(Protocol):
         ...
 
     def read_event_logs(self) -> list[dict[str, Any]]:
-        """Deprecated name of :meth:`read_event_log`.
+        """Deprecated: use :meth:`read_log_entries`, which returns typed entries.
 
-        Returns ``[e.as_dict() for e in read_event_log()]``, the structured event log
-        entries (``priority``, ``date``, ``hostname``, ``tag``, ``content``); the driver warns
-        with ``warn_renamed("read_event_logs", "read_event_log")``.
+        Returns the structured event log entries (``priority``, ``date``, ``hostname``,
+        ``tag``, ``content``). A driver keeps its released output here until the removal
+        step (it warns with ``warn_renamed("read_event_logs", "read_log_entries")``): that
+        output also carries the lines its parser could not read (``{"unparsable": line}``),
+        which :meth:`read_log_entries` leaves out. For a parsed line,
+        ``EventLogEntry.as_dict()`` is the released entry.
         """
         ...
 
-    def read_event_log(self) -> list[EventLogEntry]:
+    def read_log_entries(self) -> list[EventLogEntry]:
         """Return the entries of the device's event log, oldest first. A line the driver
         cannot parse as a syslog entry is left out."""
         ...

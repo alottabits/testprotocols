@@ -105,20 +105,22 @@ def inject_latency_spike(
 def inject_packet_storm(
     netem_controller: NetemController,
     duration_ms: int,
-    duplicate_percent: float = 100.0,
+    duplicate_percent: float | None = None,
     *,
     loss_percent: float | None = None,
 ) -> None:
-    """Inject a packet storm (heavy duplication) of *duration_ms* ms.
+    """Inject a packet storm of *duration_ms* ms: a burst of packet loss, as the released
+    drivers apply it (*loss_percent*, when given; otherwise the driver's default).
 
-    *duplicate_percent* is the share of packets duplicated and *loss_percent*, when given,
-    the share lost. Calls ``inject_event(PacketStorm(...), duration_ms)``. A driver without
-    ``inject_event`` gets the released ``inject_transient("packet_storm", duration_ms,
-    duplicate_percent=...)`` call (plus ``loss_percent`` when given), unchanged: the released
-    drivers read only ``loss_percent`` (and latency / jitter) for a packet storm, so they
-    ignore *duplicate_percent* there.
+    *duplicate_percent*, when given, also asks for that share of packets to be duplicated;
+    no released driver applies duplication, and a driver that cannot raises. Calls
+    ``inject_event(PacketStorm(...), duration_ms)``. A driver without ``inject_event`` gets
+    the released ``inject_transient("packet_storm", duration_ms, duplicate_percent=...)``
+    call (``100.0``, the released default, when not given; plus ``loss_percent`` when given).
     """
-    released: dict[str, float | int] = {"duplicate_percent": duplicate_percent}
+    released: dict[str, float | int] = {
+        "duplicate_percent": 100.0 if duplicate_percent is None else duplicate_percent
+    }
     if loss_percent is not None:
         released["loss_percent"] = loss_percent
     inject(

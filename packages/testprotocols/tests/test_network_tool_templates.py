@@ -30,7 +30,7 @@ PROTOCOLS = [
     (
         "NmapScanner",
         "testprotocols.nmap_scanner",
-        {"nmap", "scan"},
+        {"nmap", "scan_ports"},
     ),
     (
         "PacketInjector",

@@ -163,12 +163,12 @@ NEW_MEMBERS = [
     (ContentFiltering, "read_url_rules", "get_url_rules"),
     (DeviceManagement, "read_memory_utilization", "get_memory_utilization"),
     (DeviceManagement, "read_running_processes", "get_running_processes"),
-    (DeviceManagement, "read_event_log", "read_event_logs"),
+    (DeviceManagement, "read_log_entries", "read_event_logs"),
     (DnsClient, "resolve", "dns_lookup"),
     (IperfClient, "start_sender_session", "start_traffic_sender"),
     (IperfServer, "start_receiver_session", "start_traffic_receiver"),
     (IpRouting, "ping_stats", "ping"),
-    (NmapScanner, "scan", "nmap"),
+    (NmapScanner, "scan_ports", "nmap"),
     (ArpClient, "read_arp_table", "get_arp_table"),
     (NtpClient, "read_date", "get_date"),
     (NetemController, "inject_event", "inject_transient"),
@@ -188,12 +188,12 @@ def test_new_member_and_old_name_are_protocol_members(protocol: type, new: str, 
         (ContentFiltering, "read_url_rules", "UrlRules"),
         (DeviceManagement, "read_memory_utilization", "MemoryUtilization"),
         (DeviceManagement, "read_running_processes", "list[ProcessInfo]"),
-        (DeviceManagement, "read_event_log", "list[EventLogEntry]"),
+        (DeviceManagement, "read_log_entries", "list[EventLogEntry]"),
         (DnsClient, "resolve", "list[DnsRecord]"),
         (IperfClient, "start_sender_session", "IperfProcess"),
         (IperfServer, "start_receiver_session", "IperfProcess"),
         (IpRouting, "ping_stats", "PingResult"),
-        (NmapScanner, "scan", "NmapResult"),
+        (NmapScanner, "scan_ports", "NmapResult"),
         (ArpClient, "read_arp_table", "list[ArpEntry]"),
         (NtpClient, "read_date", "datetime | None"),
         (NetemController, "inject_event", "None"),
@@ -214,7 +214,7 @@ def test_new_members_take_no_tool_option_string() -> None:
         (DeviceManagement, "read_running_processes"),
         (DnsClient, "resolve"),
         (IpRouting, "ping_stats"),
-        (NmapScanner, "scan"),
+        (NmapScanner, "scan_ports"),
     ]:
         params = inspect.signature(getattr(protocol, member)).parameters
         assert not {"options", "opts", "ps_options"} & set(params), member
@@ -231,10 +231,20 @@ def test_url_rules_as_tuple_is_the_released_return() -> None:
     assert UrlRules().as_tuple() == ([], [])
 
 
+def _released_url_rules(settings: dict[str, list[str]]) -> tuple[list[str], list[str]]:
+    """A released reader's shape: the appliance's two pattern lists, copied into lists."""
+    return list(settings.get("allowed", [])), list(settings.get("blocked", []))
+
+
 def test_old_reader_matches_new_record_url_rules() -> None:
-    # the released implementer returns (list(allowed patterns), list(blocked patterns))
-    released = (["*.example.com"], ["bad.example.net"])
-    assert UrlRules(tuple(released[0]), tuple(released[1])).as_tuple() == released
+    settings = {"allowed": ["*.example.com"], "blocked": ["bad.example.net", "*.test"]}
+    released = _released_url_rules(settings)
+    # a driver builds the record from the same device settings, not from the released tuple
+    record = UrlRules(allowed=tuple(settings["allowed"]), blocked=tuple(settings["blocked"]))
+    got = record.as_tuple()
+    assert got == released
+    assert all(type(part) is list for part in got)  # lists, as released, not tuples
+    assert _released_url_rules({}) == UrlRules().as_tuple()
 
 
 def test_url_rules_takes_a_list_and_holds_a_tuple() -> None:
@@ -268,6 +278,20 @@ def test_old_reader_matches_new_record_memory() -> None:
     )
     assert record.as_dict() == released
     assert list(record.as_dict()) == list(released)  # same key order
+
+
+@pytest.mark.parametrize(
+    "kwargs",
+    [
+        {"total_bytes": 10, "used_bytes": 11, "free_bytes": 0},
+        {"total_bytes": 10, "used_bytes": 1, "free_bytes": 11},
+        {"total_bytes": 10, "used_bytes": 1, "free_bytes": 1, "cache_bytes": 2},
+        {"total_bytes": 10, "used_bytes": 1, "free_bytes": 1, "shared_bytes": 0, "cache_bytes": 0},
+    ],
+)
+def test_memory_refuses_inconsistent_figures(kwargs: dict[str, int]) -> None:
+    with pytest.raises(ValueError):
+        MemoryUtilization(**kwargs)
 
 
 def test_memory_optional_figures_are_left_out_of_the_dict() -> None:
@@ -345,6 +369,14 @@ def test_old_reader_matches_new_record_event_log(entry: dict[str, object]) -> No
         priority=entry["priority"],  # type: ignore[arg-type]
     )
     assert record.as_dict() == entry
+
+
+def test_event_log_reader_keeps_unparsable_lines_in_the_released_output() -> None:
+    # jc syslog-bsd emits {"unparsable": line} for a line it cannot read; no record holds it,
+    # so the deprecated reader is documented as keeping its released output
+    doc = inspect.getdoc(DeviceManagement.read_event_logs) or ""
+    assert "unparsable" in doc and "keeps its released output" in doc
+    assert "left out" in (inspect.getdoc(DeviceManagement.read_log_entries) or "")
 
 
 def test_event_log_severity_is_the_priority_low_bits() -> None:
@@ -447,6 +479,12 @@ def test_dns_record_type_other_is_open_set_helper_compatible() -> None:
     )
 
 
+def test_other_is_refused_as_a_query_type() -> None:
+    for member in (DnsClient.dns_lookup, DnsClient.resolve):
+        doc = inspect.getdoc(member) or ""
+        assert "DnsRecordType.OTHER" in doc and "refused" in doc
+
+
 def test_resolve_takes_the_enum() -> None:
     params = inspect.signature(DnsClient.resolve).parameters
     assert params["record_type"].annotation == "DnsRecordType"
@@ -457,10 +495,25 @@ def test_resolve_takes_the_enum() -> None:
 # --------------------------------------------------------------------------------------
 
 
+# A ``ps auxwwww`` line for a started iperf3 receiver (procps), as the released host
+# implementer reads the pid from it, and that implementer's log path.
+PS_IPERF_LINE = (
+    "root        4242  0.0  0.0  10364  3712 ?        S    21:50   0:00 iperf3 -s -p 5201"
+)
+IPERF_LOG = "/tmp/iperf_server_logs.txt"
+
+
+def _released_receiver_return(ps_line: str, log_file: str) -> tuple[int, str]:
+    """The released implementer's return: ``int(line.split()[1]), log_file_path``."""
+    return int(ps_line.split()[1]), log_file
+
+
 def test_old_reader_matches_new_record_iperf() -> None:
-    # every released implementer returns (int(pid), log path)
-    released = (4242, "/tmp/iperf_client_5201.log")
-    assert IperfProcess(*released).as_tuple() == released
+    released = _released_receiver_return(PS_IPERF_LINE, IPERF_LOG)
+    pid_text = PS_IPERF_LINE.split()[1]
+    got = IperfProcess(pid=int(pid_text), log_file=IPERF_LOG).as_tuple()
+    assert got == released
+    assert (type(got[0]), type(got[1])) == (int, str)
 
 
 @pytest.mark.parametrize(
@@ -576,6 +629,22 @@ def test_ping_result_refuses_bad_values(kwargs: dict[str, object], error: type[E
         PingResult(**(base | kwargs))  # type: ignore[arg-type]
 
 
+@pytest.mark.parametrize(
+    ("transmitted", "received", "loss"),
+    [(2, 3, 0.0), (4, 2, 0.0), (4, 4, 25.0), (0, 0, 100.0)],
+)
+def test_ping_result_refuses_inconsistent_counts(
+    transmitted: int, received: int, loss: float
+) -> None:
+    with pytest.raises(ValueError):
+        PingResult("192.0.2.1", transmitted, received, loss)
+
+
+def test_ping_result_accepts_the_tools_rounded_loss() -> None:
+    assert PingResult("192.0.2.1", 3, 1, 66.6667).received == 1  # iputils prints 66.6667%
+    assert PingResult("192.0.2.1", 0, 0, 0.0).transmitted == 0
+
+
 def test_ping_json_output_is_documented_deprecated() -> None:
     doc = inspect.getdoc(IpRouting.ping) or ""
     assert "json_output" in doc and "ping_stats" in doc and "eprecated" in doc
@@ -586,24 +655,22 @@ def test_ping_json_output_is_documented_deprecated() -> None:
 # --------------------------------------------------------------------------------------
 
 
-def test_nmap_result_from_the_released_normalised_shape() -> None:
-    # the private implementer's normalised dict for its unit-test XML: port numbers 22 and
-    # 80, states "open" and "closed", service "ssh" and none
-    released_ports: list[tuple[int, str, str, str | None]] = [
+def test_nmap_result_from_a_scan_report() -> None:
+    # what ``nmap -oX`` reports for a host with one open and one closed TCP port, as a
+    # released implementer's normalised result lists it
+    reported: list[tuple[int, str, str, str | None]] = [
         (22, "tcp", "open", "ssh"),
         (80, "tcp", "closed", None),
     ]
     result = NmapResult(
         up=True,
-        addresses=("192.168.114.9",),
+        addresses=("192.0.2.9",),
         ports=(
             NmapPort(22, TransportProtocol.TCP, NmapPortState.OPEN, "ssh"),
             NmapPort(80, TransportProtocol.TCP, NmapPortState.CLOSED, None),
         ),
     )
-    assert [
-        (p.port, str(p.protocol), str(p.state), p.service) for p in result.ports
-    ] == released_ports
+    assert [(p.port, str(p.protocol), str(p.state), p.service) for p in result.ports] == reported
 
 
 def test_nmap_port_states_are_nmaps_six() -> None:
@@ -652,9 +719,9 @@ def test_nmap_port_takes_released_words_with_a_warning() -> None:
         NmapPort(22, TransportProtocol.TCP, "half-open", None)  # type: ignore[arg-type]
 
 
-def test_scan_signature() -> None:
-    params = inspect.signature(NmapScanner.scan).parameters
-    assert params["ip_version"].annotation == "IpVersion"
+def test_scan_ports_signature() -> None:
+    params = inspect.signature(NmapScanner.scan_ports).parameters
+    assert params["ip_version"].annotation == "IpFamily"
     assert params["ports"].annotation == "Sequence[PortRange]"
     assert params["protocol"].annotation == "TransportProtocol | None"
 
@@ -830,11 +897,21 @@ def test_coerce_impairment_profile_converts_a_dict_with_a_warning() -> None:
     assert profile == ImpairmentProfile(20, 5, 0.1, bandwidth_limit_mbps=20)
 
 
+def test_coerce_impairment_profile_defaults_missing_figures_to_zero() -> None:
+    # as the released example implementer's own dict conversion does
+    with pytest.warns(DeprecationWarning):
+        profile = coerce_impairment_profile({"latency_ms": 40}, what="profile")
+    assert profile == ImpairmentProfile(latency_ms=40, jitter_ms=0, loss_percent=0.0)
+
+
 @pytest.mark.parametrize(
     ("value", "error"),
     [
-        ({"latency_ms": 1, "jitter_ms": 0}, ValueError),  # missing loss_percent
         ({"latency_ms": 1, "jitter_ms": 0, "loss_percent": 0.0, "colour": 1}, ValueError),
+        ({"latency_ms": "20"}, TypeError),
+        ({"jitter_ms": True}, TypeError),
+        ({"loss_percent": "5"}, TypeError),
+        ({"bandwidth_limit_mbps": 2.5}, TypeError),
         ("dsl", TypeError),
     ],
 )
@@ -898,6 +975,25 @@ def test_group_records_converts_a_plain_tuple_with_a_warning() -> None:
 def test_group_record_refuses_wrong_types(build) -> None:  # type: ignore[no-untyped-def]
     with pytest.raises(TypeError):
         build()
+
+
+def test_group_record_make_and_replace_check_as_the_constructor_does() -> None:
+    rtype = MulticastGroupRecordType.MODE_IS_INCLUDE
+    record = GroupRecord._make(  # pyright: ignore[reportPrivateUsage]
+        (["2001:db8::1"], "ff3e::1", rtype)
+    )
+    assert isinstance(record, GroupRecord) and record.sources == ["2001:db8::1"]
+    assert record._replace(group="ff3e::2").group == "ff3e::2"
+    with pytest.raises(TypeError):
+        GroupRecord._make(  # pyright: ignore[reportPrivateUsage]
+            (["2001:db8::1"], 5, rtype)
+        )
+    with pytest.raises(TypeError):
+        record._replace(record_type=1)  # type: ignore[arg-type]
+    with pytest.raises(TypeError):
+        GroupRecord._make(  # pyright: ignore[reportPrivateUsage]
+            ([], "ff3e::1")
+        )
 
 
 def test_group_records_refuses_a_wrong_shape() -> None:
