@@ -7,7 +7,7 @@ power cycling, and bootloader-level flashing of a device under test.
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
-from typing import Protocol, runtime_checkable
+from typing import Any, Protocol, runtime_checkable
 
 ExpectPattern = str | type[Exception]
 """One thing ``expect`` waits for: a regular expression, or a sentinel class such as a
@@ -88,15 +88,21 @@ class HwConsole(Protocol):
     def flash_via_bootloader(
         self,
         image: str,
-        tftp_devices: Mapping[str, object],
-        termination_sys: object = None,
+        # framework objects passed opaquely; implementers declare framework types
+        # (released signature kept)
+        tftp_devices: dict[str, Any],
+        # framework objects passed opaquely; implementers declare framework types
+        # (released signature kept)
+        termination_sys: Any = None,
         method: str | None = None,
     ) -> None:
         """Flash the given image to the device via the bootloader.
 
         ``tftp_devices`` (LAN-side TFTP servers by name) and ``termination_sys`` (the
         line-termination system, for example a CMTS) are framework device objects the
-        driver is handed; no implementer was seen to call a member on either, so they are
-        typed ``object`` and a driver that needs one narrows it itself.
+        driver is handed; no implementer was seen to call a member on either, and implementers
+        declare the framework's own types (for example ``dict[str, <TFTP type>]``, which an
+        invariant ``dict`` parameter cannot accept any other way), so the released ``Any``
+        annotations are kept.
         """
         ...

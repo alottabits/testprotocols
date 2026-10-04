@@ -490,17 +490,12 @@ their tags and PR history.
   shape; static only, a reader narrows each value it uses. Design `docs/architecture/precise-types-design.md` (Host-tier records); PR pending.
 
 - **protocol members** `testprotocols.hw_console:HwConsole.get_console(console_name) ->
-  Console` (was `Any`), `get_interactive_consoles() -> Mapping[str, Console]` (was `dict[str,
-  Any]`) and `flash_via_bootloader(image, tftp_devices: Mapping[str, object], termination_sys:
-  object = None, method=None)` (was `dict[str, Any]` and `Any`) — no `Any`. Static only. A
-  reader of a returned console sees only the `Console` members; an implementer whose console
-  lacks one of them (`execute_command`, `sendline`, `expect`, `expect_exact`,
-  `start_interactive_session`) no longer conforms, and one that returns a `dict` still does. The
-  two flash parameters are typed `object` because no implementer was seen to call a member on a
-  TFTP server or the termination system, so `object` is the most the contract can say; an
-  implementer that declares a narrower parameter (for example `dict[str, TFTP]`) no longer
-  type-checks against the protocol and must declare `Mapping[str, object]` and `object` and
-  narrow inside. Design `docs/architecture/precise-types-design.md` (HwConsole); PR pending.
+  Console` (was `Any`) and `get_interactive_consoles() -> Mapping[str, Console]` (was `dict[str,
+  Any]`) — no `Any`. Static only. A reader of a returned console sees only the `Console`
+  members; an implementer whose console lacks one of them (`execute_command`, `sendline`,
+  `expect`, `expect_exact`, `start_interactive_session`) no longer conforms, and one that
+  returns a `dict` still does. `flash_via_bootloader` keeps its released `dict[str, Any]` and
+  `Any` parameters. Design `docs/architecture/precise-types-design.md` (HwConsole); PR pending.
 
 #### Deprecated
 

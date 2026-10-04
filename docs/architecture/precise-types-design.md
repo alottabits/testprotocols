@@ -558,11 +558,14 @@ where one exists, also records its retype.
     it does not matter, while `timeout=` stays keyword-callable because callers use it.
   - `flash_via_bootloader`: every implementer seen raises "not supported" and never reads
     `tftp_devices` or `termination_sys`; the arguments are framework device objects passed
-    through opaquely. They are typed `Mapping[str, object]` and `object` (not the existing
-    `TftpServer` protocol: no member of it is called, so naming one would invent a
-    requirement). Static caveat, recorded under *Changed*: an implementer that annotates
-    `dict[str, TFTP]` does not accept the protocol's wider argument, so it must widen its
-    declaration.
+    through opaquely. Decision: the released `dict[str, Any]` and `Any` annotations are KEPT
+    (a commented exception to the no-`Any` rule). Implementers declare the framework's own
+    types (boardfarm: `dict[str, TFTP]`, `TerminationSystem`); a parameter is contravariant
+    and `dict` invariant, so no contract type narrower than `Any` accepts them without
+    breaking those declarations (`Mapping[str, object]` and `object` were tried and do).
+    The existing `TftpServer` protocol is not used: no member of it is called. Task 13
+    exempts these two lines from `disallow_any_explicit`. Cost if wrong: two `Any`
+    parameters remain in the contract.
   - Check: `VitroPexpect` satisfies `Console` under mypy against this branch.
 
 ## Effective now
@@ -698,10 +701,7 @@ the matching CHANGELOG entry sits under *Changed*.
   `dict[str, Any]`), so a reader sees only `execute_command`, `sendline`, `expect`,
   `expect_exact` and `start_interactive_session` and cannot call `before` or other
   pexpect members without narrowing, and cannot mutate the mapping; an implementer whose
-  console lacks one of the five no longer conforms. `flash_via_bootloader` takes
-  `Mapping[str, object]` and `object` (were `dict[str, Any]` and `Any`): a caller's
-  arguments all still type-check, but an implementer declaring a narrower parameter such as
-  `dict[str, TFTP]` no longer matches and must widen it.
+  console lacks one of the five no longer conforms. `flash_via_bootloader` is unchanged.
 
 ## Pending narrow steps (announced, not yet taken)
 
