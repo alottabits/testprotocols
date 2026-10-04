@@ -7,6 +7,7 @@ are deleted — step definitions call the template method directly.
 
 from __future__ import annotations
 
+from testprotocols.deprecation import coerce_enum
 from testprotocols.iperf_generator import IperfGenerator
 from testprotocols.models.traffic import TrafficResult, TrafficSpec, TransportProtocol
 
@@ -83,6 +84,7 @@ def saturate_link(
     :raises ValueError: if ``peer_a.server_ip == peer_b.server_ip``.
     """
     _assert_distinct_peers(peer_a, peer_b)
+    protocol = coerce_enum(TransportProtocol, protocol, what="saturate_link(protocol)")
     if b_to_a_mbps is None:
         b_to_a_mbps = a_to_b_mbps
     a_to_b = peer_a.start_traffic(_flow_spec(peer_b, a_to_b_mbps, dscp, duration_s, protocol))

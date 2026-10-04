@@ -13,12 +13,17 @@ from testprotocols.models._sync import assign, settle
 
 class QoeTool(StrEnum):
     """The tool a :class:`MeasurementSpec` measures with: the four the released
-    implementers dispatch on."""
+    implementers dispatch on. ``repr()`` of a member is the quoted text (``'browser'``)."""
 
     BROWSER = "browser"
     HTTP_CLIENT = "http_client"
     WEBRTC = "webrtc"
     TCP_PROBE = "tcp_probe"
+
+    @override
+    def __repr__(self) -> str:
+        """The text, quoted: released implementers build generated text with ``repr(spec.tool)``."""
+        return repr(self.value)
 
 
 class PageCompletion(StrEnum):
@@ -32,14 +37,27 @@ class PageCompletion(StrEnum):
 
 class QoeCompletion(StrEnum):
     """When a :class:`MeasurementSpec` measurement is complete: a
-    :class:`PageCompletion` event, or ``DURATION`` (run for ``duration_s``, as the
-    streaming and conferencing measurements do)."""
+    :class:`PageCompletion` event; ``DURATION`` (run for ``duration_s``, as the streaming and
+    conferencing measurements do); ``RESPONSE`` (the HTTP response arrived, for the
+    ``http_client`` tool) or ``CONNECT`` (the connection opened, for ``tcp_probe``).
+
+    ``repr()`` of a member is the quoted text (``'load'``), not the enum default, like
+    :class:`QoeTool`: a released implementer embeds ``repr(spec.completion)`` in generated
+    text and must keep getting a quoted literal."""
 
     LOAD = "load"
     DOMCONTENTLOADED = "domcontentloaded"
     NETWORKIDLE = "networkidle"
     COMMIT = "commit"
     DURATION = "duration"
+    RESPONSE = "response"
+    CONNECT = "connect"
+
+    @override
+    def __repr__(self) -> str:
+        """The text, quoted: released implementers build generated text with
+        ``repr(spec.completion)``, as for :class:`QoeTool`."""
+        return repr(self.value)
 
 
 class QoeScenario(StrEnum):
@@ -60,7 +78,9 @@ class HttpVersion(StrEnum):
     OTHER = "other"
 
 
-_PROTOCOL_PAIRS = (OpenEnumPair(HttpVersion, HttpVersion.OTHER, "protocol", "protocol_raw", True),)
+_PROTOCOL_PAIRS = (
+    OpenEnumPair(HttpVersion, HttpVersion.OTHER, "protocol", "protocol_raw", optional=True),
+)
 
 
 @dataclass
@@ -70,9 +90,12 @@ class QoEResult:
     *protocol* is the negotiated :class:`HttpVersion`, or ``None`` when not reported.
     The set is open: a word that names no member (``"http/1.0"``) becomes ``OTHER`` and
     the device's word is kept in *protocol_raw*, verbatim and without a warning. A plain
-    ``str`` naming a member (``"h3"``) is deprecated: it warns and converts, so a reader
-    holds the enum (``result.protocol == "h3"`` still holds, a ``StrEnum`` equals its
-    text). *protocol_raw* is ``None`` unless *protocol* is ``OTHER``; the pair agrees
+    ``str`` naming a member (``"h3"``, ``"http/1.1"``: the words a browser reports) is
+    deprecated: it warns and converts; a driver that holds such a word builds the member
+    with ``coerce_open_enum`` (``other=HttpVersion.OTHER``) and passes the member and raw
+    word, so it does not warn. A reader holds the enum (``result.protocol == "h3"`` still
+    holds, a ``StrEnum`` equals its text). *protocol_raw* is ``None`` unless *protocol* is
+    ``OTHER``; the pair agrees
     after construction, ``replace`` and assignment and the side that changed wins, as for
     the other open-enum fields.
     """

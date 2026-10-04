@@ -6,9 +6,9 @@ from dataclasses import dataclass, field
 from enum import Enum, StrEnum
 from typing import cast, override
 
-from testprotocols.deprecation import MODEL_FRAMES, coerce_enum
+from testprotocols.models._open_enum import OpenEnumPair
 from testprotocols.models._open_set import OpenSetPair
-from testprotocols.models._sync import assign, settle
+from testprotocols.models._sync import Settler, assign, settle
 
 
 class ServiceStatus(StrEnum):
@@ -36,26 +36,43 @@ class EapMethod(StrEnum):
 
 
 class AcctStatusType(StrEnum):
-    """The RFC 2866 ``Acct-Status-Type`` of an accounting record, spelled as the
-    attribute dictionary spells it. ``Start``, ``Interim-Update`` and ``Stop`` are the
-    three the released contract named; ``Accounting-On`` and ``Accounting-Off`` are the
-    other values of the RFC 2866 registry a NAS sends when it starts or stops."""
+    """The ``Acct-Status-Type`` of an accounting record, spelled as the RADIUS attribute
+    dictionary spells it: ``Start``, ``Interim-Update`` and ``Stop`` (RFC 2866, the three
+    the released contract named), ``Accounting-On`` and ``Accounting-Off`` (RFC 2866), and
+    the tunnel values of RFC 2867 (``Tunnel-Start`` ... ``Tunnel-Link-Reject``, and
+    ``Failed``). The registry has an open assignment policy, so the set is open: ``OTHER``
+    stands for a value this enum does not name, which a record keeps in
+    ``RadiusAccountingRecord.record_type_raw``."""
 
     START = "Start"
-    INTERIM_UPDATE = "Interim-Update"
     STOP = "Stop"
+    INTERIM_UPDATE = "Interim-Update"
     ACCOUNTING_ON = "Accounting-On"
     ACCOUNTING_OFF = "Accounting-Off"
+    TUNNEL_START = "Tunnel-Start"
+    TUNNEL_STOP = "Tunnel-Stop"
+    TUNNEL_REJECT = "Tunnel-Reject"
+    TUNNEL_LINK_START = "Tunnel-Link-Start"
+    TUNNEL_LINK_STOP = "Tunnel-Link-Stop"
+    TUNNEL_LINK_REJECT = "Tunnel-Link-Reject"
+    FAILED = "Failed"
+    OTHER = "other"
 
 
 class AcctTerminateCause(Enum):
-    """The RFC 2866 ``Acct-Terminate-Cause`` registry (section 5.10): why a session ended.
+    """The ``Acct-Terminate-Cause`` of an accounting record: why a session ended.
 
-    A pure ``Enum``: the registry closes the set (values 1 to 18), so there is no
-    ``OTHER`` and a member does not equal a ``str``. A member's value is the cause's name
-    as the attribute dictionary spells it (``"User-Request"``), and :attr:`code` is the
-    RFC's number. A plain ``str`` is converted in either spelling, ``"User-Request"`` or
-    the RFC's prose ``"User Request"`` (case-sensitive).
+    The registered values are ``User-Request`` to ``Host-Request`` (RFC 2866, 1 to 18) and
+    ``Supplicant-Restart``, ``Reauthentication-Failure``, ``Port-Reinit`` and
+    ``Port-Disabled`` (RFC 3580, 19 to 22), spelled as the attribute dictionary spells them.
+    The registry has an open assignment policy, so the set is open: ``OTHER`` stands for a
+    cause this enum does not name, which a record keeps in
+    ``RadiusAccountingRecord.terminate_cause_raw``.
+
+    A pure ``Enum``: a member does not equal a ``str``, so compare with the member. A
+    member's value is its dictionary spelling and :attr:`code` is the registered number
+    (``None`` for ``OTHER``). A plain ``str`` naming a member converts in either spelling,
+    ``"User-Request"`` or the RFC's prose ``"User Request"`` (case-sensitive).
     """
 
     USER_REQUEST = "User-Request"
@@ -76,20 +93,58 @@ class AcctTerminateCause(Enum):
     CALLBACK = "Callback"
     USER_ERROR = "User-Error"
     HOST_REQUEST = "Host-Request"
+    SUPPLICANT_RESTART = "Supplicant-Restart"
+    REAUTHENTICATION_FAILURE = "Reauthentication-Failure"
+    PORT_REINIT = "Port-Reinit"
+    PORT_DISABLED = "Port-Disabled"
+    OTHER = "other"
 
     @property
-    def code(self) -> int:
-        """The RFC 2866 attribute value (1 for ``User-Request`` ... 18 for ``Host-Request``)."""
-        return list(type(self)).index(self) + 1
+    def code(self) -> int | None:
+        """The registered attribute value (1 for ``User-Request`` ... 22 for ``Port-Disabled``),
+        or ``None`` for ``OTHER``."""
+        return _TERMINATE_CODES.get(self)
 
     @classmethod
     @override
     def _missing_(cls, value: object) -> AcctTerminateCause | None:
-        if isinstance(value, str) and " " in value:
-            for member in cls:
-                if member.value == value.replace(" ", "-"):
-                    return member
-        return None
+        member = _prose_cause(value)
+        return member
+
+
+def _prose_cause(value: object) -> AcctTerminateCause | None:
+    """The member whose dictionary spelling is *value* written with spaces, or ``None``."""
+    if isinstance(value, str) and " " in value:
+        for member in AcctTerminateCause:
+            if member.value == value.replace(" ", "-"):
+                return member
+    return None
+
+
+_TERMINATE_CODES: dict[AcctTerminateCause, int] = {
+    AcctTerminateCause.USER_REQUEST: 1,
+    AcctTerminateCause.LOST_CARRIER: 2,
+    AcctTerminateCause.LOST_SERVICE: 3,
+    AcctTerminateCause.IDLE_TIMEOUT: 4,
+    AcctTerminateCause.SESSION_TIMEOUT: 5,
+    AcctTerminateCause.ADMIN_RESET: 6,
+    AcctTerminateCause.ADMIN_REBOOT: 7,
+    AcctTerminateCause.PORT_ERROR: 8,
+    AcctTerminateCause.NAS_ERROR: 9,
+    AcctTerminateCause.NAS_REQUEST: 10,
+    AcctTerminateCause.NAS_REBOOT: 11,
+    AcctTerminateCause.PORT_UNNEEDED: 12,
+    AcctTerminateCause.PORT_PREEMPTED: 13,
+    AcctTerminateCause.PORT_SUSPENDED: 14,
+    AcctTerminateCause.SERVICE_UNAVAILABLE: 15,
+    AcctTerminateCause.CALLBACK: 16,
+    AcctTerminateCause.USER_ERROR: 17,
+    AcctTerminateCause.HOST_REQUEST: 18,
+    AcctTerminateCause.SUPPLICANT_RESTART: 19,
+    AcctTerminateCause.REAUTHENTICATION_FAILURE: 20,
+    AcctTerminateCause.PORT_REINIT: 21,
+    AcctTerminateCause.PORT_DISABLED: 22,
+}
 
 
 @dataclass
@@ -163,16 +218,36 @@ class RadiusSession:
     framed_ip_address: str | None  # IP assigned to the client, if known to the server
 
 
+_ACCT_PAIRS = cast(
+    "tuple[Settler[tuple[Enum | None, str | None]], ...]",
+    (
+        OpenEnumPair(AcctStatusType, AcctStatusType.OTHER, "record_type", "record_type_raw"),
+        OpenEnumPair(
+            AcctTerminateCause,
+            AcctTerminateCause.OTHER,
+            "terminate_cause",
+            "terminate_cause_raw",
+            optional=True,
+        ),
+    ),
+)
+
+
 @dataclass
 class RadiusAccountingRecord:
     """A single accounting log entry.
 
     *record_type* is an :class:`AcctStatusType` and *terminate_cause* an
-    :class:`AcctTerminateCause` or ``None`` (present on Stop only). A plain ``str``
-    naming one is deprecated: it warns and converts, also on assignment, so a reader
-    holds the enum; any other string raises ``ValueError`` listing the legal values (both
-    are RFC 2866 registries). Unlike the other enums, *terminate_cause* members do not
-    equal their text: compare with the member.
+    :class:`AcctTerminateCause` or ``None`` (present on Stop only). Both registries are
+    open: a value that names no member becomes ``OTHER`` and the device's word is kept in
+    *record_type_raw* / *terminate_cause_raw*, verbatim and without a warning. A plain
+    ``str`` naming a member warns and converts, also on assignment, so a reader holds the
+    enum (the RFC's prose spelling of a cause, ``"User Request"``, converts too). The raw
+    word is ``None`` unless the field is ``OTHER``; each pair agrees after construction,
+    ``replace`` and assignment and the side that changed wins, as for the other open-enum
+    fields. A driver that holds such a word builds the member with ``coerce_open_enum``.
+    *terminate_cause* members do not equal their text (a pure ``Enum``): compare with the
+    member.
     """
 
     timestamp: float  # Unix timestamp the record was received
@@ -186,32 +261,22 @@ class RadiusAccountingRecord:
     input_packets: int | None
     output_packets: int | None
     terminate_cause: AcctTerminateCause | str | None  # present on Stop only
+    record_type_raw: str | None = None
+    terminate_cause_raw: str | None = None
+    _acct_seen: tuple[tuple[Enum | None, str | None], ...] | None = field(
+        default=None, kw_only=True, repr=False, compare=False
+    )
+
+    def __post_init__(self) -> None:
+        settle(self, _ACCT_PAIRS, "_acct_seen")
 
     @override
     def __setattr__(self, name: str, value: object) -> None:
-        if name == "record_type":
-            value = coerce_enum(
-                AcctStatusType,
-                cast("AcctStatusType | str", value),
-                what="RadiusAccountingRecord.record_type",
-                skip_file_prefixes=MODEL_FRAMES,
-            )
-        elif name == "terminate_cause" and value is not None:
-            value = _coerce_cause(value)
+        if name == "terminate_cause":
+            prose = _prose_cause(value)
+            if prose is not None:  # the RFC's prose spelling: a deprecated plain string
+                value = prose.value
+        if name == "_acct_seen" or any(pair.owns(name) for pair in _ACCT_PAIRS):
+            assign(self, name, value, _ACCT_PAIRS, "_acct_seen")
+            return
         object.__setattr__(self, name, value)
-
-
-def _coerce_cause(value: object) -> AcctTerminateCause:
-    if isinstance(value, AcctTerminateCause):
-        return value
-    if not isinstance(value, str):
-        raise TypeError(
-            f"RadiusAccountingRecord.terminate_cause takes an AcctTerminateCause or None, "
-            f"not {value!r}"
-        )
-    return coerce_enum(
-        AcctTerminateCause,
-        value,
-        what="RadiusAccountingRecord.terminate_cause",
-        skip_file_prefixes=MODEL_FRAMES,
-    )

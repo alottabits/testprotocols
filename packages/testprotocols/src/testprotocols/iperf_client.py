@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import Protocol, runtime_checkable
 
-from testprotocols.models.networking import IpVersion
+from testprotocols.models.networking import IpFamily
 
 
 @runtime_checkable
@@ -21,7 +21,7 @@ class IperfClient(Protocol):
         traffic_port: int,
         bandwidth: int | None = None,
         bind_to_ip: str | None = None,
-        ip_version: IpVersion | int | None = None,
+        ip_version: IpFamily | int | None = None,
         udp_protocol: bool = False,
         time: int = 10,
         client_port: int | None = None,
@@ -36,9 +36,11 @@ class IperfClient(Protocol):
     ) -> tuple[int, str]:
         """Start an iperf traffic sender towards *host* on *traffic_port*.
 
-        *ip_version* is an :class:`~testprotocols.models.IpVersion`; the released ``int``
-        (``4`` or ``6``) is deprecated: the driver converts it with
-        ``coerce_ip_version`` and warns. ``None`` leaves the version to the tool.
+        *ip_version* is an :class:`~testprotocols.models.IpFamily` (``V4 = 4``, ``V6 = 6``) or
+        ``None`` to leave the version to the tool. An ``IpFamily`` is an ``int``, so a driver
+        that formats it as ``-<ip_version>`` is unchanged; a plain ``int`` is the released
+        spelling and narrows to ``IpFamily`` in a later release. A driver may convert with
+        ``coerce_enum`` (a plain ``int`` is silent for an ``IntEnum``).
 
         Typed option parameters (each defaults to "absent": no flag emitted):
 

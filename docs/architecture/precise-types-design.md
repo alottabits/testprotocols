@@ -337,73 +337,82 @@ where one exists, also records its retype.
   (the implementer returns the database's text unparsed, so it must parse it). No
   `OTHER` or synced field was needed, so the records are plain frozen dataclasses with
   `__post_init__` type checks. `testoperations` calls none of the three readers.
-- **Host-tool and service vocabularies** (shapes 1, 1i, 3, 3o, 3o many words, 4p, 5 and 6).
+- **Host-tool and service vocabularies** (shapes 1, 3, 3o, 3o many words, 4p, 5 and 6).
   Evidence for every set, from the released docstrings, the `testoperations` callers, the
-  example implementers and the one released reference implementer of the host templates:
-  - `IpVersion` (`ipv4`, `ipv6`): `testoperations.start_http_server` defaults to `"ipv4"`,
-    and the reference `nmap` raises `ValueError` for any word but `ipv4` and `ipv6`, so
-    `nmap(ip_type)` (O30), `start_http_service(ip_version)` (O17) and `traceroute(version)`
-    (O25) are `IpVersion | str`. `traceroute` keeps `""` as the default (an implementer
-    declares `str`, so `None` would not conform); the reference implementer also takes `"6"`
-    (the `traceroute6` suffix) as a plain word, which stays legal.
+  example implementers and the released reference implementers of the host templates
+  (a Linux host device and the boardfarm LAN device):
+  - O17 `start_http_service(ip_version)` is `"4"` / `"6"`: both implementers run the server
+    as `-{ip_version}`. It stays `str` (implementers declare `str`) and its narrowing to
+    `IpFamily` is announced. The `testoperations` default `"ipv4"` was a pre-existing bug
+    (it rendered `-ipv4`); it is corrected to `"4"` and recorded under *Fixed*.
+  - O25 `traceroute(version)` is a command suffix, `""` or `"6"` (`traceroute{version}`). It
+    stays `str = ""`; narrowing to `IpFamily | None` is announced. `IpVersion` (`ipv4`,
+    `ipv6`) is therefore used only for `nmap(ip_type)` (O30), where the reference
+    implementer raises `ValueError` for any other word.
   - O15 `curl(protocol)` is the URL scheme, not an IP version: the docstring says "using
     *protocol*", the example implementer folds it into the target as `<protocol>://<url>`
     and its test calls `curl(host, protocol="http")`. `HttpScheme` (`http`, `https`).
-  - O16 numbers (`port`, `vlan_id`, `int_port`, `ext_port`) are `int | str` (shape 1i), and
-    O19 `ip_version` is `IpVersion | int | None` (with `coerce_ip_version`, which warns on
-    `4` / `6`). No example in `vitro-bdd` implements these members, so the consumer gate sees no
-    conformance error. The reference implementer outside the gate declares the narrower
-    released types (`port: str`, `int_port: str`, `ip_version: int | None`): after this
-    change it no longer conforms statically to these parameters, and for `ip_version` a
-    caller passing an `IpVersion` would reach a driver that formats it into `-<n>`. That is a
-    parameter-widening conformance error outside the accepted classes, recorded here for the
-    owner (see the task report); callers that keep passing `4` and `"8080"` are unaffected.
+  - O16 numbers stay `str` wherever a released implementer declares `str`: `HttpServer`
+    `port`, `UpnpClient` `int_port` / `ext_port`, `VlanClient` `vlan_id` (the Linux host
+    device and the boardfarm LAN device declare `str`; `curl` and `nmap` already take
+    `str | int`). Widening to `int | str` would fail static conformance for them, which is
+    outside the accepted classes. Their narrowing to `int` is announced.
+  - O19 `ip_version` of the iperf members is `IpFamily | int | None`, with `IpFamily` an
+    `IntEnum` (`V4 = 4`, `V6 = 6`): an implementer that declares `int | None` still
+    conforms, and a driver that formats it as `-{ip_version}` still emits `4` / `6`. A driver
+    may convert with `coerce_enum` (an `int` is silent for an `IntEnum`).
   - O22 `LinkAdminState` (`up`, `down`) is new and is not `PortAdminState` (`enabled` /
-    `disabled`): the released docstring and every implementer pass `up` or `down` to
-    `ip link set`. `set_link_state(state)` is `LinkAdminState | str`.
+    `disabled`): every implementer passes `up` or `down` to `ip link set`. `set_link_state(state)`
+    is `LinkAdminState | str`.
   - O23 (shape 4p): `is_link_admin_up(interface) -> bool` is a new mandatory member; the
     `pattern` parameter of `is_link_up` is documented deprecated and a driver warns when it
     differs from the default. A Linux host reads the `UP` flag of `ip link show`.
   - O47 reuses `PortMappingProtocol` (`tcp`, `udp`, `tcp-udp`); `tcp-udp` is not a UPnP
-    protocol and a driver refuses it. The released implementer interpolates the protocol into
-    `upnpc ... <protocol>`, which takes `TCP` / `UDP`: a driver renders the upper-case
-    form. The plain `str` stays legal.
+    protocol and a driver refuses it. The plain `str` stays legal.
   - O14 `DnsRecordType` and O33 `QoeScenario` (`page_load`, the only released word) and
     `PageCompletion` (the four Playwright load events) are `E | str` parameters. O34
     `ServiceStatus` is shape 6, announced only (`get_status -> str`).
   - M21 `MeasurementSpec.tool` / `completion` are shape 3 (closed): `QoeTool` is the four
     tools the example implementer dispatches on (`browser`, `http_client`, `webrtc`,
-    `tcp_probe`); `completion` is `QoeCompletion`, the four `PageCompletion` events plus
-    `DURATION`, because the released streaming and conferencing specs use
-    `completion="duration"`. A `PageCompletion` is accepted and converted silently.
+    `tcp_probe`); `completion` is `QoeCompletion`: the four `PageCompletion` events plus
+    `DURATION` (the example's streaming and conferencing specs), and `RESPONSE` and `CONNECT`
+    (the boardfarm QoE specification's tool by completion matrix: `http_client` completes on
+    `response` or `duration`, `tcp_probe` on `connect`). A `PageCompletion` converts
+    silently. `QoeTool` and `QoeCompletion` have `__repr__` returning `repr(self.value)`:
+    the example browser measurement embeds `repr(spec.completion)` in a generated script,
+    and the default enum repr would break it. Every other enum keeps the default repr.
   - M22 `QoEResult.protocol` is shape 3o with `None` allowed (`OpenEnumPair(optional=True)`):
     `HttpVersion.H1 = "http/1.1"`, `H2 = "h2"`, `H3 = "h3"` are the words a browser
     reports as the next-hop protocol, and the example's unit tests pass `"h2"`, `"h3"` and
-    `"http/1.1"`; any other word (`http/1.0`, `h2c`) is `OTHER` plus `protocol_raw`.
+    `"http/1.1"` (so they warn: the intended warnings; a driver uses `coerce_open_enum`); any
+    other word (`http/1.0`, `h2c`) is `OTHER` plus `protocol_raw`.
   - M23 `TransportProtocol` (`tcp`, `udp`): the released docstring of `saturate_link` lists
-    exactly those two. M24 `AcctStatusType` is closed and spelled as the RFC 2866 dictionary
-    spells it; `Start`, `Interim-Update` and `Stop` are the released words, and
-    `Accounting-On` / `Accounting-Off` are the other registry values a NAS sends.
-  - M25 `AcctTerminateCause` is a pure `Enum` of the 18 RFC 2866 values. The released
-    docstring spells none ("present on Stop only"), so the values use the attribute
-    dictionary's spelling (`User-Request`, the family `Start` / `Interim-Update` come from);
-    a plain string in the RFC's prose spelling (`User Request`) also converts; `.code` is the
-    RFC number. A pure `Enum` does not equal a `str`.
+    exactly those two; `saturate_link` coerces at its boundary.
+  - M24 `AcctStatusType` and M25 `AcctTerminateCause` are shape 3o (`OpenEnumPair` with a raw
+    companion on `RadiusAccountingRecord`, two pairs sharing one provenance field), because
+    the IANA registries have an open assignment policy. They carry every registered value
+    cited from RFC 2866 (status 1 to 3, 7, 8; causes 1 to 18), RFC 2867 (status 9 to 15: the
+    tunnel values and `Failed`) and RFC 3580 (causes 19 to 22), spelled as the attribute
+    dictionary spells them; `Start`, `Interim-Update` and `Stop` are the released words, and
+    the released docstring spells no cause. `AcctTerminateCause` is a pure `Enum` with an
+    explicit code table (`.code`, `None` for `OTHER`) and also converts the RFC's prose
+    spelling (`User Request`). A pure `Enum` does not equal a `str`.
   - M26 `RadiusUser.eap_methods: list[str]` is a multi-valued open set (shape 3o, many
     words, `OpenSetPair`): `eap_methods_known` and `eap_methods_unknown` sync with the
-    released list. `EapMethod` has the two words of the released docstring and the other
-    methods of the EAP registry (`PEAP-GTC`, `TTLS-MSCHAPv2`, `EAP-TLS`, `EAP-SIM`,
-    `EAP-AKA`); there is no single-valued EAP field, so no `OpenEnumPair` is used for it.
-    `add_user(eap_methods: list[str] | None)` keeps its type (an implementer declares `list[str]`;
-    `Sequence` would not conform).
+    released list. `EapMethod` has the two words of the released docstring and five more
+    (`PEAP-GTC`, `TTLS-MSCHAPv2`, `EAP-TLS`, `EAP-SIM`, `EAP-AKA`) named by analogy to
+    them; no local driver uses those five. There is no single-valued EAP field, so no
+    `OpenEnumPair` is used for it. `add_user(eap_methods: list[str] | None)` keeps its type
+    (an implementer declares `list[str]`; `Sequence` would not conform).
   - M33 `StormControlConfig.unit: StormControlUnit | None = None` is an addition.
   - M20 `HTTPResult` is a frozen dataclass `(status, body, raw)` whose constructor still
     takes the response text (`init=False`, parameter `response`), so the released
     `HTTPResult(response)` works; `parse_http_response` is the same parse. `status` is `0`
-    for a response with no numeric code. The released `code` is a property returning the
-    text (`""` when absent, the original word when not numeric) that warns; `beautified_text`
-    is `body`, warning. The example implementer builds `HTTPResult(response)` and its test
-    reads `result.code == "200"`, which still passes with a warning.
+    for a response with no numeric code or one outside 100 to 599. The released `code` is a
+    property returning the text (`""` when absent, the original word when not numeric)
+    that warns; `beautified_text` is `body`, warning. The example implementer builds
+    `HTTPResult(response)` and its test reads `result.code == "200"`, which still passes with
+    a warning.
 
 ## Effective now
 
@@ -484,23 +493,26 @@ the matching CHANGELOG entry sits under *Changed*.
   and `read_offline_messages` (breaking for driver authors). Every other voice
   annotation only widens (`PhoneState | str`, `PresenceStatus | str`,
   `SipMethod | str`).
-- **Host-tool and service vocabularies** (host-tool task). `HTTPResult` is frozen: assigning
-  an attribute raises `FrozenInstanceError`, and `code` / `beautified_text` warn when read.
-  `MeasurementSpec.tool` / `completion`, `TrafficSpec.protocol` and
-  `RadiusAccountingRecord.record_type` / `terminate_cause` raise `ValueError` for a word that
-  names no member (released: any text was stored; the example implementer treated an
+- **Host-tool and service vocabularies** (host-tool task). `HTTPResult` is frozen (assigning
+  an attribute raises `FrozenInstanceError`), compares by value (released: identity) and
+  `code` / `beautified_text` warn when read; `status` is `0` outside 100 to 599.
+  `MeasurementSpec.tool` / `completion` and `TrafficSpec.protocol` raise `ValueError` for a
+  word that names no member (released: any text was stored; the example implementer treated an
   unknown tool as the browser); a plain string naming a member warns and the field holds the
-  member. `QoEResult.protocol` holds a `HttpVersion` (or `None`): an unknown word becomes
-  `OTHER` plus `protocol_raw`, no error. A reader that builds text with `repr(value)` (the
-  example browser measurement does for `spec.completion`) gets `<QoeCompletion.LOAD: 'load'>`
-  instead of `'load'` and must use `str(value)`; `==`, `str()`, f-strings and JSON are
-  unchanged. `RadiusAccountingRecord.terminate_cause` members do not equal text.
-  `RadiusUser` built or assigned from `eap_methods` warns and also fills
-  `eap_methods_known` / `eap_methods_unknown`. Static only: an implementer must provide
-  `IpInterface.is_link_admin_up` (breaking for driver authors); a driver that declares the
-  released narrower parameter types (`port: str`, `ip_version: int | None`) fails static
-  conformance against the widened `int | str` / `IpVersion | int | None` parameters (no
-  `vitro-bdd` example does).
+  member. `QoEResult.protocol`, `RadiusAccountingRecord.record_type` and `terminate_cause` hold
+  an enum (or `None`): an unknown word becomes `OTHER` plus the raw companion, no error. The
+  browser's `"h2"` / `"h3"` / `"http/1.1"` assigned as plain strings are the intended warnings.
+  `repr()`: `QoeTool` and `QoeCompletion` repr as their quoted text, so text built with
+  `repr(spec.completion)` is unchanged; every other new enum (`IpVersion`, `PageCompletion`,
+  `HttpVersion`, `TransportProtocol`, ...) keeps the default `<Enum.MEMBER: 'x'>` repr, and
+  code that builds text with `repr(value)` or `{value!r}` must use `str(value)`.
+  `AcctTerminateCause` members do not equal text. `RadiusUser` built or assigned from
+  `eap_methods` warns and also fills `eap_methods_known` / `eap_methods_unknown`.
+  `StormControlConfig.unit` is ignored by released drivers (they read and write their own
+  unit): a writer that sets it gets no error from them. The `testoperations`
+  `start_http_server` default `ip_version` is now `"4"` (was `"ipv4"`, which rendered an
+  invalid server option). Static only: an implementer must provide
+  `IpInterface.is_link_admin_up` (breaking for driver authors).
 
 ## Pending narrow steps (announced, not yet taken)
 
@@ -534,9 +546,11 @@ Each lands in a later release with its own breaking changelog entry:
   narrows to `SipMethod` (and gains `int` for a response code) likewise; `get_user_presence` returns `PresenceStatus`;
   `get_rtpengine_stats`, `get_mwi_status` and `get_offline_messages` are removed.
 - Host tools: the `E | str` parameters narrow to the enums (`DnsRecordType`, `HttpScheme`,
-  `IpVersion`, `LinkAdminState`, `QoeScenario`, `PageCompletion`, `PortMappingProtocol`), the
-  numbers to `int`, `iperf` `ip_version` to `IpVersion | None`, `traceroute(version)` to
-  `IpVersion | None`; `is_link_up(pattern)` loses `pattern`; `get_status` returns
-  `ServiceStatus`; `MeasurementSpec`, `TrafficSpec` and `RadiusAccountingRecord` fields narrow
-  from `E | str` to `E`; `HTTPResult.code` / `beautified_text` and `RadiusUser.eap_methods` are
-  removed and `HTTPResult.status` `0` becomes `None`.
+  `IpVersion`, `LinkAdminState`, `QoeScenario`, `PageCompletion`, `PortMappingProtocol`);
+  the iperf `ip_version` narrows to `IpFamily | None`; the numeric-text parameters narrow
+  (`port`, `int_port`, `ext_port`, `vlan_id` to `int`; `start_http_service(ip_version)` to
+  `IpFamily`; `traceroute(version)` to `IpFamily | None`); `is_link_up(pattern)` loses
+  `pattern`; `get_status` returns `ServiceStatus`; `MeasurementSpec` and `TrafficSpec` fields
+  narrow from `E | str` to `E`, and `RadiusAccountingRecord` fields likewise; `HTTPResult.code`
+  / `beautified_text` and `RadiusUser.eap_methods` are removed and `HTTPResult.status` `0`
+  becomes `None`.

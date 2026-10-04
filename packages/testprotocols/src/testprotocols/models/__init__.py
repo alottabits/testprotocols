@@ -43,9 +43,9 @@ from testprotocols.models.networking import (
     HttpScheme,
     ICMPPacketData,
     IPAddresses,
+    IpFamily,
     IpVersion,
     LinkAdminState,
-    coerce_ip_version,
     parse_http_response,
 )
 from testprotocols.models.packets import RIPv2PacketData
@@ -276,6 +276,7 @@ __all__ = [
     "IntrusionConfig",
     "IntrusionMode",
     "IntrusionSensitivity",
+    "IpFamily",
     "IpRangeMatch",
     "IpVersion",
     "L3Rule",
@@ -411,7 +412,6 @@ __all__ = [
     "WifiTransitionConfig",
     "Zone",
     "ZonePolicy",
-    "coerce_ip_version",
     # ports
     "format_port_ranges",
     "match_fields",

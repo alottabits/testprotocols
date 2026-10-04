@@ -7,7 +7,7 @@ import inspect
 import warnings
 
 import pytest
-from testprotocols.deprecation import coerce_enum
+from testprotocols.deprecation import coerce_enum, coerce_open_enum
 from testprotocols.dns_client import DnsClient
 from testprotocols.http_client import HttpClient
 from testprotocols.http_server import HttpServer
@@ -23,6 +23,7 @@ from testprotocols.models import (
     HTTPResult,
     HttpScheme,
     HttpVersion,
+    IpFamily,
     IpVersion,
     LinkAdminState,
     MeasurementSpec,
@@ -40,7 +41,6 @@ from testprotocols.models import (
     StormControlUnit,
     TrafficSpec,
     TransportProtocol,
-    coerce_ip_version,
     parse_http_response,
 )
 from testprotocols.nmap_scanner import NmapScanner
@@ -59,6 +59,10 @@ def _equal(left: object, right: object) -> bool:
     return left == right
 
 
+def _stub(self: object, *args: object, **kwargs: object) -> None:
+    return None
+
+
 def _ann(fn: object, name: str) -> object:
     return inspect.signature(fn).parameters[name].annotation  # type: ignore[arg-type]
 
@@ -75,42 +79,43 @@ def test_enum_members() -> None:
     assert _values(LinkAdminState) == ["up", "down"]
     assert _values(QoeTool) == ["browser", "http_client", "webrtc", "tcp_probe"]
     assert _values(PageCompletion) == ["load", "domcontentloaded", "networkidle", "commit"]
-    assert _values(QoeCompletion) == [*_values(PageCompletion), "duration"]
+    assert _values(QoeCompletion) == [*_values(PageCompletion), "duration", "response", "connect"]
     assert _values(QoeScenario) == ["page_load"]
     assert _values(HttpVersion) == ["http/1.1", "h2", "h3", "other"]
     assert _values(TransportProtocol) == ["tcp", "udp"]
-    assert _values(AcctStatusType)[:3] == ["Start", "Interim-Update", "Stop"]
+    assert {"Start", "Interim-Update", "Stop"} <= set(_values(AcctStatusType))
     assert _values(ServiceStatus) == ["running", "stopped", "error"]
     assert _values(StormControlUnit) == ["percent", "pps"]
     assert EapMethod("PEAP-MSCHAPv2") is EapMethod.PEAP_MSCHAPV2  # the released docstring words
     assert EapMethod("TTLS-PAP") is EapMethod.TTLS_PAP
 
 
-def test_ip_version_number_and_coercion() -> None:
-    assert (IpVersion.IPV4.number, IpVersion.IPV6.number) == (4, 6)
+def test_ip_family_is_an_int_enum_for_the_iperf_options() -> None:
+    assert [m.value for m in IpFamily] == [4, 6]
+    assert f"-{IpFamily.V4}" == "-4" and f"-{IpFamily.V6}" == "-6"  # how a driver formats it
+    assert _equal(IpFamily.V6, 6)
     with warnings.catch_warnings():
-        warnings.simplefilter("error")
-        assert coerce_ip_version(None, what="x") is None
-        assert coerce_ip_version(IpVersion.IPV6, what="x") is IpVersion.IPV6
-    with pytest.warns(DeprecationWarning, match="IpVersion.IPV4"):
-        assert coerce_ip_version(4, what="start_traffic_sender(ip_version)") is IpVersion.IPV4
-    with pytest.warns(DeprecationWarning, match="IpVersion.IPV6"):
-        assert coerce_ip_version("ipv6", what="x") is IpVersion.IPV6
-    for bad in (5, "v4"):
-        with pytest.raises(ValueError, match="x"):
-            coerce_ip_version(bad, what="x")
-    for wrong in (True, 4.0, b"4"):
-        with pytest.raises(TypeError):
-            coerce_ip_version(wrong, what="x")  # type: ignore[arg-type]
+        warnings.simplefilter(
+            "error"
+        )  # an int naming a member is its value, not a deprecated spelling
+        assert coerce_enum(IpFamily, 4, what="ip_version") is IpFamily.V4
+        assert coerce_enum(IpFamily, IpFamily.V6, what="ip_version") is IpFamily.V6
+    for bad in (5, True, 4.0):
+        with pytest.raises(ValueError, match="ip_version"):
+            coerce_enum(IpFamily, bad, what="ip_version")  # type: ignore[arg-type]
 
 
-def test_ip_version_warning_points_at_the_caller() -> None:
-    def driver_method() -> None:  # a driver coerces at its boundary
-        coerce_ip_version(4, what="x")
-
-    with pytest.warns(DeprecationWarning) as record:
-        driver_method()
-    assert record[0].filename == __file__
+def test_qoe_enums_used_in_generated_text_repr_as_their_quoted_text() -> None:
+    spec = MeasurementSpec(tool=QoeTool.BROWSER, completion=QoeCompletion.LOAD)
+    # the example implementer builds its script with repr(spec.completion)
+    script = "wait_until={wait_until_repr}".replace("{wait_until_repr}", repr(spec.completion))
+    assert script == "wait_until='load'"
+    assert repr(spec.tool) == "'browser'"
+    assert repr(QoeCompletion.RESPONSE) == "'response'"
+    # the other enums keep the default repr
+    assert repr(IpVersion.IPV4) == "<IpVersion.IPV4: 'ipv4'>"
+    assert repr(PageCompletion.LOAD) == "<PageCompletion.LOAD: 'load'>"
+    assert str(QoeCompletion.LOAD) == "load"
 
 
 # --- protocol signatures ------------------------------------------------------------
@@ -121,21 +126,21 @@ def test_ip_version_warning_points_at_the_caller() -> None:
     [
         (DnsClient.dns_lookup, "record_type", "DnsRecordType | str"),
         (HttpClient.curl, "protocol", "HttpScheme | str"),
-        (HttpServer.start_http_service, "port", "int | str"),
-        (HttpServer.start_http_service, "ip_version", "IpVersion | str"),
-        (HttpServer.stop_http_service, "port", "int | str"),
-        (IperfClient.start_traffic_sender, "ip_version", "IpVersion | int | None"),
-        (IperfServer.start_traffic_receiver, "ip_version", "IpVersion | int | None"),
+        (HttpServer.start_http_service, "port", "str"),
+        (HttpServer.start_http_service, "ip_version", "str"),
+        (HttpServer.stop_http_service, "port", "str"),
+        (IperfClient.start_traffic_sender, "ip_version", "IpFamily | int | None"),
+        (IperfServer.start_traffic_receiver, "ip_version", "IpFamily | int | None"),
         (IpInterface.set_link_state, "state", "LinkAdminState | str"),
-        (IpRouting.traceroute, "version", "IpVersion | str"),
+        (IpRouting.traceroute, "version", "str"),
         (NmapScanner.nmap, "ip_type", "IpVersion | str"),
-        (UpnpClient.create_upnp_rule, "int_port", "int | str"),
-        (UpnpClient.create_upnp_rule, "ext_port", "int | str"),
+        (UpnpClient.create_upnp_rule, "int_port", "str"),
+        (UpnpClient.create_upnp_rule, "ext_port", "str"),
         (UpnpClient.create_upnp_rule, "protocol", "PortMappingProtocol | str"),
-        (UpnpClient.delete_upnp_rule, "ext_port", "int | str"),
+        (UpnpClient.delete_upnp_rule, "ext_port", "str"),
         (UpnpClient.delete_upnp_rule, "protocol", "PortMappingProtocol | str"),
-        (VlanClient.add_vlan_interface, "vlan_id", "int | str"),
-        (VlanClient.delete_vlan_interface, "vlan_id", "int | str"),
+        (VlanClient.add_vlan_interface, "vlan_id", "str"),
+        (VlanClient.delete_vlan_interface, "vlan_id", "str"),
         (QoeBrowser.measure_productivity, "scenario", "QoeScenario | str"),
         (QoeBrowser.measure_productivity, "wait_until", "PageCompletion | str"),
     ],
@@ -158,22 +163,32 @@ def test_nmap_protocol_and_port_stay_as_released() -> None:
     assert _ann(NmapScanner.nmap, "port") == "str | int | None"
 
 
-def test_upnp_protocol_uses_port_mapping_protocol() -> None:
-    assert _equal(PortMappingProtocol.TCP, "tcp")
+def test_upnp_protocol_is_the_firewall_port_mapping_protocol() -> None:
+    assert _ann(UpnpClient.create_upnp_rule, "protocol") == "PortMappingProtocol | str"
+    assert [m.value for m in PortMappingProtocol][:2] == ["tcp", "udp"]
+    assert "TCP_UDP" in (UpnpClient.create_upnp_rule.__doc__ or "")
 
 
-def test_is_link_admin_up_is_a_new_member() -> None:
+def test_ip_interface_stub_with_every_released_member_does_not_have_the_new_one() -> None:
+    released = [
+        name for name in dir(IpInterface) if not name.startswith("_") and name != "is_link_admin_up"
+    ]
+
+    class Released:  # a released implementer: every member but the new one
+        pass
+
+    for name in released:
+        setattr(Released, name, _stub)
+
     assert callable(IpInterface.is_link_admin_up)
     assert list(inspect.signature(IpInterface.is_link_admin_up).parameters) == ["self", "interface"]
     assert inspect.signature(IpInterface.is_link_up).parameters["pattern"].default == (
         "BROADCAST,MULTICAST,UP"
     )
-
-    class Released:  # a released implementer: has is_link_up but not the new member
-        def is_link_up(self, interface: str, pattern: str = "") -> bool:
-            return True
-
+    assert "set_link_state" in released and "is_link_up" in released
     assert not isinstance(Released(), IpInterface)
+    Released.is_link_admin_up = _stub  # type: ignore[attr-defined]
+    assert isinstance(Released(), IpInterface)
 
 
 def test_radius_get_status_stays_str_and_is_announced() -> None:
@@ -220,6 +235,20 @@ def test_http_result_without_a_numeric_status(text: str) -> None:
     assert result.raw == text
 
 
+@pytest.mark.parametrize("code", ["99", "600", "0", "1000"])
+def test_http_result_status_outside_100_to_599_is_no_status(code: str) -> None:
+    result = HTTPResult(f"HTTP/1.1 {code} Odd\n\nx")
+    assert result.status == 0
+    with pytest.warns(DeprecationWarning):
+        assert result.code == code  # the released text is unchanged
+
+
+def test_http_result_equality_is_by_value() -> None:
+    assert HTTPResult(_RESPONSE) == HTTPResult(_RESPONSE)
+    assert HTTPResult(_RESPONSE) != HTTPResult("HTTP/1.1 500 Err\n\nx")
+    assert len({HTTPResult(_RESPONSE), HTTPResult(_RESPONSE)}) == 1
+
+
 def test_http_result_non_numeric_code_text_is_kept_in_the_released_attribute() -> None:
     with pytest.warns(DeprecationWarning):
         assert HTTPResult("HTTP/1.1 abc Weird\n\nx").code == "abc"
@@ -250,6 +279,19 @@ def test_qoe_result_plain_string_naming_a_member_warns_and_converts() -> None:
     assert _equal(result.protocol, "h3")  # the released comparison still holds
     with pytest.warns(DeprecationWarning, match="HttpVersion.H1"):
         assert QoEResult(protocol="http/1.1").protocol is HttpVersion.H1
+
+
+def test_qoe_result_browser_words_warn_and_a_driver_avoids_it_with_coerce_open_enum() -> None:
+    for word in ("h2", "h3", "http/1.1"):  # the words a browser reports as the next hop
+        with pytest.warns(DeprecationWarning, match="HttpVersion"):
+            QoEResult(protocol=word)
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", DeprecationWarning)
+        member, raw = coerce_open_enum(
+            HttpVersion, "http/1.0", what="protocol", other=HttpVersion.OTHER
+        )
+        result = QoEResult(protocol=member, protocol_raw=raw)
+    assert (result.protocol, result.protocol_raw) == (HttpVersion.OTHER, "http/1.0")
 
 
 def test_qoe_result_unknown_protocol_word_is_other_and_keeps_raw() -> None:
@@ -368,24 +410,44 @@ def test_accounting_record_type_released_words() -> None:
             assert _record(record_type=word).record_type == word
     with pytest.warns(DeprecationWarning):
         assert _record(record_type="Interim-Update").record_type is AcctStatusType.INTERIM_UPDATE
-    with pytest.raises(ValueError, match="Stopp"):
-        _record(record_type="Stopp")
-    record = _record(record_type=AcctStatusType.START)
-    with pytest.raises(ValueError, match="start"):
-        record.record_type = "start"  # case-sensitive: the dictionary spelling
 
 
-def test_acct_terminate_cause_is_a_pure_enum_with_the_rfc_registry() -> None:
+def test_acct_status_type_registry_values() -> None:
+    assert [m.value for m in AcctStatusType][:5] == [
+        "Start", "Stop", "Interim-Update", "Accounting-On", "Accounting-Off",
+    ]  # fmt: skip
+    for word in ("Tunnel-Start", "Tunnel-Link-Reject", "Failed"):
+        assert AcctStatusType(word)
+
+
+def test_acct_status_type_is_open_and_keeps_the_raw_word() -> None:
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        record = _record(record_type="Vendor-Status")
+    assert record.record_type is AcctStatusType.OTHER
+    assert record.record_type_raw == "Vendor-Status"
+    record.record_type = "start"  # case-sensitive: an unknown word, not a member: no warning
+    assert (record.record_type, record.record_type_raw) == (AcctStatusType.OTHER, "start")
+    record.record_type = AcctStatusType.STOP
+    assert _equal(record.record_type_raw, None)
+    changed = dataclasses.replace(_record(record_type="X1"), record_type="X2")
+    assert (changed.record_type, changed.record_type_raw) == (AcctStatusType.OTHER, "X2")
+    with pytest.raises(ValueError, match="record_type_raw"):
+        _record(record_type=AcctStatusType.STOP, record_type_raw="x")
+
+
+def test_acct_terminate_cause_is_a_pure_enum_with_the_registry() -> None:
     assert not issubclass(AcctTerminateCause, str)
-    assert len(AcctTerminateCause) == 18
-    assert AcctTerminateCause.USER_REQUEST.code == 1
-    assert AcctTerminateCause.HOST_REQUEST.code == 18
-    assert AcctTerminateCause.NAS_ERROR.value == "NAS-Error"
-    assert AcctTerminateCause.IDLE_TIMEOUT.code == 4
-    assert AcctTerminateCause.SESSION_TIMEOUT.code == 5
-    assert AcctTerminateCause.SERVICE_UNAVAILABLE.code == 15
-    assert AcctTerminateCause.CALLBACK.code == 16
-    assert AcctTerminateCause.USER_ERROR.code == 17
+    registered = [m for m in AcctTerminateCause if m is not AcctTerminateCause.OTHER]
+    assert [m.code for m in registered] == list(range(1, 23))  # RFC 2866 1-18, RFC 3580 19-22
+    assert AcctTerminateCause.OTHER.code is None
+    expected = {
+        1: "User-Request", 4: "Idle-Timeout", 5: "Session-Timeout", 9: "NAS-Error",
+        15: "Service-Unavailable", 18: "Host-Request", 19: "Supplicant-Restart",
+        20: "Reauthentication-Failure", 21: "Port-Reinit", 22: "Port-Disabled",
+    }  # fmt: skip
+    for code, word in expected.items():
+        assert AcctTerminateCause(word).code == code
 
 
 def test_terminate_cause_conversion() -> None:
@@ -402,19 +464,28 @@ def test_terminate_cause_conversion() -> None:
         assert _record(terminate_cause="Lost Carrier").terminate_cause is (
             AcctTerminateCause.LOST_CARRIER
         )
-    with pytest.raises(ValueError, match="Vendor-Cause"):
-        _record(terminate_cause="Vendor-Cause")
     with pytest.raises(TypeError):
         _record(terminate_cause=1)
     record = _record()
     record.terminate_cause = AcctTerminateCause.PORT_ERROR
     record.terminate_cause = None
     assert record.terminate_cause is None
+    with pytest.warns(DeprecationWarning):
+        record.terminate_cause = "Port Disabled"
+    assert _equal(record.terminate_cause, AcctTerminateCause.PORT_DISABLED)
 
 
-def test_acct_terminate_cause_coerce_enum_error_lists_values() -> None:
-    with pytest.raises(ValueError, match="User-Request"):
-        coerce_enum(AcctTerminateCause, "nope", what="x")
+def test_terminate_cause_is_open_and_keeps_the_raw_word() -> None:
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        record = _record(terminate_cause="Vendor-Cause")
+    assert record.terminate_cause is AcctTerminateCause.OTHER
+    assert record.terminate_cause_raw == "Vendor-Cause"
+    assert _record().terminate_cause_raw is None
+    with pytest.raises(ValueError, match="terminate_cause_raw"):
+        _record(terminate_cause=None, terminate_cause_raw="x")
+    both = dataclasses.replace(record, record_type=AcctStatusType.START)
+    assert both.terminate_cause_raw == "Vendor-Cause"  # the other pair is unchanged
 
 
 def test_radius_user_eap_methods_open_set() -> None:

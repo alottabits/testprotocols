@@ -90,6 +90,20 @@ class TestSaturateLink:
         assert a_spec.duration_s == 30
         assert a_spec.protocol == "tcp"
 
+    def test_plain_protocol_text_warns_at_the_caller_and_converts(self) -> None:
+        peer_a = _peer("PEER_A_ADDR", "flow-a")
+        peer_b = _peer("PEER_B_ADDR", "flow-b")
+
+        with pytest.warns(DeprecationWarning, match="saturate_link.protocol") as record:
+            saturate_link(peer_a, peer_b, a_to_b_mbps=5.0, protocol="tcp")
+
+        assert record[0].filename == __file__
+        assert peer_a.start_traffic.call_args[0][0].protocol is TransportProtocol.TCP
+
+    def test_unknown_protocol_text_is_refused(self) -> None:
+        with pytest.raises(ValueError, match="icmp"):
+            saturate_link(_peer("A", "a"), _peer("B", "b"), a_to_b_mbps=5.0, protocol="icmp")
+
     def test_rejects_peers_resolving_to_same_ip(self) -> None:
         peer_a = _peer("PEER_A_ADDR", "flow-a")
         peer_b = _peer("PEER_A_ADDR", "flow-b")

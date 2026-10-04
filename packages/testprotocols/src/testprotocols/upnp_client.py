@@ -19,27 +19,26 @@ class UpnpClient(Protocol):
         self,
         interface: str,
         ipaddr: str,
-        int_port: int | str,
-        ext_port: int | str,
+        int_port: str,
+        ext_port: str,
         protocol: PortMappingProtocol | str,
         extra_args: str,
         url: str,
     ) -> str:
         """Create a UPnP port-mapping rule and return the result string.
 
-        *int_port* and *ext_port* are numbers; the released ``str`` form is deprecated
-        (the driver converts it with ``coerce_int`` and warns). *protocol* is a
-        :class:`~testprotocols.models.PortMappingProtocol`, ``TCP`` or ``UDP`` here
-        (``TCP_UDP`` is not a UPnP protocol and a driver raises ``ValueError`` for it); a
-        plain ``str`` naming a member is deprecated. A driver renders the protocol as the
-        tool requires it (``upnpc`` takes ``TCP`` / ``UDP`` in upper case).
+        *int_port* and *ext_port* are port numbers as text; they stay ``str`` because the
+        released implementers declare ``str``, and narrow to ``int`` in a later release.
+        *protocol* is a :class:`~testprotocols.models.PortMappingProtocol`, ``TCP`` or ``UDP``
+        here (``TCP_UDP`` is not a UPnP protocol and a driver raises ``ValueError`` for it); a
+        plain ``str`` naming a member is deprecated.
         """
         ...
 
     def delete_upnp_rule(
         self,
         interface: str,
-        ext_port: int | str,
+        ext_port: str,
         protocol: PortMappingProtocol | str,
         url: str,
     ) -> str:

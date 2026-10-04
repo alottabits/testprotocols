@@ -8,24 +8,22 @@ from __future__ import annotations
 
 from typing import Protocol, runtime_checkable
 
-from testprotocols.models.networking import IpVersion
-
 
 @runtime_checkable
 class HttpServer(Protocol):
     """Abstract contract for HTTP server operations."""
 
-    def start_http_service(self, port: int | str, ip_version: IpVersion | str) -> str:
+    def start_http_service(self, port: str, ip_version: str) -> str:
         """Start an HTTP service on *port* for *ip_version*.
 
-        *port* is a number; the released ``str`` form (``"8080"``) is deprecated and
-        the driver converts it with ``coerce_int`` and warns. *ip_version* is an
-        :class:`~testprotocols.models.IpVersion` (``"ipv4"`` or ``"ipv6"``, the words
-        ``testoperations`` passes); a plain ``str`` naming a member is deprecated and
-        the driver converts it with ``coerce_enum`` and warns.
+        *port* is the port number as text (``"8080"``). *ip_version* is ``"4"`` or
+        ``"6"``: the released implementers pass it to the server command as ``-<ip_version>``.
+        Both stay ``str``, because the released implementers declare ``str``; they narrow to
+        ``int`` and to :class:`~testprotocols.models.IpFamily` (``V4`` / ``V6``, whose
+        values are those numbers) in a later release.
         """
         ...
 
-    def stop_http_service(self, port: int | str) -> None:
+    def stop_http_service(self, port: str) -> None:
         """Stop the HTTP service listening on *port*."""
         ...

@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import Protocol, runtime_checkable
 
-from testprotocols.models.networking import IpVersion
+from testprotocols.models.networking import IpFamily
 
 
 @runtime_checkable
@@ -19,14 +19,14 @@ class IperfServer(Protocol):
         self,
         traffic_port: int,
         bind_to_ip: str | None = None,
-        ip_version: IpVersion | int | None = None,
+        ip_version: IpFamily | int | None = None,
         udp_only: bool | None = None,
     ) -> tuple[int, str]:
         """Start an iperf traffic receiver on *traffic_port*.
 
-        *ip_version* is an :class:`~testprotocols.models.IpVersion`; the released ``int``
-        (``4`` or ``6``) is deprecated: the driver converts it with ``coerce_ip_version``
-        and warns. ``None`` leaves the version to the tool.
+        *ip_version* is an :class:`~testprotocols.models.IpFamily` (``V4 = 4``, ``V6 = 6``) or
+        ``None`` to leave the version to the tool; a plain ``int`` is the released spelling
+        and narrows to ``IpFamily`` in a later release (see ``IperfClient``).
 
         Returns a tuple of (pid, log_file_path).
         """

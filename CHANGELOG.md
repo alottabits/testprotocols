@@ -198,32 +198,35 @@ their tags and PR history.
   `get_offline_messages` may keep returning that original text unchanged. A
   wrong type raises `TypeError`, a negative count `ValueError`. Migration: read the new
   records. Design `docs/architecture/precise-types-design.md` (Voice vocabularies); PR pending.
-- **enums** `testprotocols.models:IpVersion` (`IPV4 = "ipv4"`, `IPV6 = "ipv6"`; `.number` is 4 or 6),
-  `DnsRecordType` (`A`, `AAAA`, `CNAME`, `MX`, `NS`, `PTR`, `SOA`, `SRV`, `TXT`),
-  `HttpScheme` (`HTTP`, `HTTPS`), `LinkAdminState` (`UP`, `DOWN`; not `PortAdminState`,
-  whose words are `enabled` / `disabled`), `QoeTool` (`BROWSER`, `HTTP_CLIENT`, `WEBRTC`,
-  `TCP_PROBE`), `PageCompletion` (`LOAD`, `DOMCONTENTLOADED`, `NETWORKIDLE`, `COMMIT`),
-  `QoeCompletion` (those four and `DURATION`), `QoeScenario` (`PAGE_LOAD`), the open
-  `HttpVersion` (`H1 = "http/1.1"`, `H2 = "h2"`, `H3 = "h3"`, `OTHER`), `TransportProtocol`
-  (`TCP`, `UDP`), `ServiceStatus` (`RUNNING`, `STOPPED`, `ERROR`), `StormControlUnit`
-  (`PERCENT`, `PPS`), `AcctStatusType` (`START`, `INTERIM_UPDATE`, `STOP`, `ACCOUNTING_ON`,
-  `ACCOUNTING_OFF`), the pure `Enum` `AcctTerminateCause` (the RFC 2866 registry, 18
-  members, `.code` is the RFC number) and the `EapMethod` strings of the released contract
-  (`PEAP-MSCHAPv2`, `TTLS-PAP`) with `PEAP-GTC`, `TTLS-MSCHAPv2`, `EAP-TLS`, `EAP-SIM`
-  and `EAP-AKA`. Every value is the string the released contract or a released
-  implementer used. Migration: none. Design `docs/architecture/precise-types-design.md` (Host-tool and service vocabularies); PR pending.
-- **function** `testprotocols.models:coerce_ip_version(value, *, what, skip_file_prefixes=())`
-  — for a driver's `ip_version` parameter: a member as is, `None` as `None`, the number
-  `4` or `6` or a plain string naming a member converted with a `DeprecationWarning`,
-  anything else `ValueError` or `TypeError`. **function**
-  `testprotocols.models:parse_http_response(response) -> HTTPResult`. Migration: none. Design `docs/architecture/precise-types-design.md` (Host-tool and service vocabularies); PR pending.
-- **fields** `testprotocols.models:QoEResult.protocol_raw` (the device's own protocol word,
-  held only while `protocol` is `HttpVersion.OTHER`; agrees with `protocol` after
-  construction, `replace` and assignment), `RadiusUser.eap_methods_known`
+- **enums** `testprotocols.models:IpVersion` (`IPV4 = "ipv4"`, `IPV6 = "ipv6"`; the
+  `nmap(ip_type)` words), the `IntEnum` `IpFamily` (`V4 = 4`, `V6 = 6`; the iperf
+  `ip_version` numbers), `DnsRecordType` (`A`, `AAAA`, `CNAME`, `MX`, `NS`, `PTR`, `SOA`,
+  `SRV`, `TXT`), `HttpScheme` (`HTTP`, `HTTPS`), `LinkAdminState` (`UP`, `DOWN`; not
+  `PortAdminState`, whose words are `enabled` / `disabled`), `QoeTool` (`BROWSER`,
+  `HTTP_CLIENT`, `WEBRTC`, `TCP_PROBE`), `PageCompletion` (`LOAD`, `DOMCONTENTLOADED`,
+  `NETWORKIDLE`, `COMMIT`), `QoeCompletion` (those four and `DURATION`, `RESPONSE`,
+  `CONNECT`), `QoeScenario` (`PAGE_LOAD`), the open `HttpVersion` (`H1 = "http/1.1"`,
+  `H2 = "h2"`, `H3 = "h3"`, `OTHER`), `TransportProtocol` (`TCP`, `UDP`), `ServiceStatus`
+  (`RUNNING`, `STOPPED`, `ERROR`), `StormControlUnit` (`PERCENT`, `PPS`), the open
+  `AcctStatusType` (RFC 2866 `Start`, `Stop`, `Interim-Update`, `Accounting-On`,
+  `Accounting-Off`; RFC 2867 `Tunnel-Start` ... `Tunnel-Link-Reject` and `Failed`; `OTHER`),
+  the open pure `Enum` `AcctTerminateCause` (RFC 2866 causes 1 to 18, RFC 3580 causes 19 to 22,
+  `OTHER`; `.code` is the registered number) and `EapMethod` (`PEAP-MSCHAPv2` and `TTLS-PAP`,
+  the two words of the released docstring, plus `PEAP-GTC`, `TTLS-MSCHAPv2`, `EAP-TLS`,
+  `EAP-SIM`, `EAP-AKA`, named by analogy to them and not used by any local driver). Where the
+  released contract or an implementer used a word, the member equals it; the registry values
+  are spelled as the RADIUS attribute dictionary spells them. `QoeTool` and `QoeCompletion`
+  have `__repr__` returning the quoted text (`'load'`), because a released implementer embeds
+  `repr(spec.completion)` in generated text. Migration: none. Design `docs/architecture/precise-types-design.md` (Host-tool and service vocabularies); PR pending.
+- **function** `testprotocols.models:parse_http_response(response) -> HTTPResult`.
+  Migration: none. Design `docs/architecture/precise-types-design.md` (Host-tool and service vocabularies); PR pending.
+- **fields** `testprotocols.models:QoEResult.protocol_raw`, `RadiusAccountingRecord.record_type_raw`
+  and `terminate_cause_raw` (the device's own word, held only while the field is `OTHER`;
+  each pair agrees after construction, `replace` and assignment), `RadiusUser.eap_methods_known`
   (`tuple[EapMethod, ...]`) and `eap_methods_unknown` (`tuple[str, ...]`; the methods that
   name a member and the words that name none, synced with the released `eap_methods`;
   the side that changed wins) and `StormControlConfig.unit` (`StormControlUnit | None`,
-  default `None`, meaning "as the driver reads it"). Migration: none. Design `docs/architecture/precise-types-design.md` (Host-tool and service vocabularies); PR pending.
+  default `None`, meaning "as the driver reads it"; released drivers ignore it). Migration: none. Design `docs/architecture/precise-types-design.md` (Host-tool and service vocabularies); PR pending.
 - **option** `testprotocols.models._open_enum:OpenEnumPair(optional=True)` — the field may
   also be `None` (no value reported), which carries no raw word; used by
   `QoEResult.protocol`. Not public API. Migration: none. Design `docs/architecture/precise-types-design.md` (Host-tool and service vocabularies); PR pending.
@@ -383,37 +386,37 @@ their tags and PR history.
   (released implementer: the same). Design `docs/architecture/precise-types-design.md` (Voice vocabularies); PR pending.
 - **model** `testprotocols.models:HTTPResult` — now a frozen dataclass with `status: int`,
   `body: str` and `raw: str`. `HTTPResult(response)` takes the response text as before
-  (keyword `response` too). *status* is `0` when the response has no numeric status code
-  (it will become `None`); the released `code` (text) and `beautified_text` still read but
-  warn. The record is frozen: assigning an attribute raises `FrozenInstanceError`
-  (released: allowed), and `dataclasses.replace` does not apply (the constructor takes
-  the text). Migration: read `status` and `body`. Design `docs/architecture/precise-types-design.md` (Host-tool and service vocabularies); PR pending.
+  (keyword `response` too). *status* is `0` when the response has no numeric status code, or
+  one outside 100 to 599 (it will become `None`); the released `code` (text) and
+  `beautified_text` still read but warn. Equality is now by value (released: by identity). The
+  record is frozen: assigning an attribute raises `FrozenInstanceError` (released: allowed),
+  and `dataclasses.replace` does not apply (the constructor takes the text). Migration: read
+  `status` and `body`. Design `docs/architecture/precise-types-design.md` (Host-tool and service vocabularies); PR pending.
 - **models** `MeasurementSpec.tool` and `completion`, `TrafficSpec.protocol`,
-  `RadiusAccountingRecord.record_type` and `terminate_cause`, and the reads of
-  `QoEResult.protocol` — now enums. A plain `str` naming a member warns and converts, also
-  on assignment, so a reader holds the member (it compares equal to its text, except
-  `AcctTerminateCause`, a pure `Enum`). A word that names no member raises `ValueError` for
-  `MeasurementSpec.tool` / `completion`, `TrafficSpec.protocol`,
-  `RadiusAccountingRecord.record_type` and `terminate_cause` (released: free text; the
-  example implementer treated an unknown tool as the browser); for `QoEResult.protocol`
-  it becomes `OTHER` plus `protocol_raw`, with no error and no warning. `repr()` of a member
-  is `<QoeCompletion.LOAD: 'load'>`, not the text: code that builds text with `repr(value)`
-  or `{value!r}` must use `str(value)`. Design `docs/architecture/precise-types-design.md` (Host-tool and service vocabularies); PR pending.
+  `RadiusAccountingRecord.record_type` and `terminate_cause`, and `QoEResult.protocol` — now
+  enums. A plain `str` naming a member warns and converts, also on assignment, so a reader
+  holds the member (it compares equal to its text, except `AcctTerminateCause`, a pure
+  `Enum`). The intended warnings include the browser's own words in `QoEResult.protocol`
+  (`"h2"`, `"h3"`, `"http/1.1"`): a driver builds the member with `coerce_open_enum` instead.
+  A word that names no member raises `ValueError` for `MeasurementSpec.tool` / `completion`
+  and `TrafficSpec.protocol` (released: free text; the example implementer treated an unknown
+  tool as the browser); for `QoEResult.protocol`, `record_type` and `terminate_cause` it
+  becomes `OTHER` plus the raw companion, with no error and no warning. `repr()` of a
+  `QoeTool` or `QoeCompletion` is the quoted text, so generated text is unchanged; every
+  other new enum keeps the default `<Enum.MEMBER: 'x'>` repr (code that builds text with
+  `repr(value)` or `{value!r}` must use `str(value)`). Design `docs/architecture/precise-types-design.md` (Host-tool and service vocabularies); PR pending.
 - **protocol members** `DnsClient.dns_lookup(record_type)`, `HttpClient.curl(protocol)`,
-  `HttpServer.start_http_service(port, ip_version)` and `stop_http_service(port)`,
   `IperfClient.start_traffic_sender(ip_version)`, `IperfServer.start_traffic_receiver(ip_version)`,
-  `IpInterface.set_link_state(state)`, `IpRouting.traceroute(version)`,
-  `NmapScanner.nmap(ip_type)`, `UpnpClient.create_upnp_rule(int_port, ext_port, protocol)`,
-  `delete_upnp_rule(ext_port, protocol)`, `VlanClient.add_vlan_interface(vlan_id)` and
-  `delete_vlan_interface(vlan_id)`, `QoeBrowser.measure_productivity(scenario, wait_until)` —
-  annotations widen: `E | str` (a `StrEnum` is a `str`, so every released call and every
-  released implementer that declares `str` still type-checks) and, for the numbers,
-  `int | str` (and `IpVersion | int | None` for `ip_version`). An implementer that
-  declares the narrower released type (`port: str`, `ip_version: int | None`) no longer
-  conforms to the widened parameter, which is a conformance error outside the
-  accepted classes: see the design record. A plain `str` naming a member, and a numeric
-  `str`, are deprecated (driver warns). Design `docs/architecture/precise-types-design.md` (Host-tool and service vocabularies); PR pending.
-
+  `IpInterface.set_link_state(state)`, `NmapScanner.nmap(ip_type)`,
+  `UpnpClient.create_upnp_rule(protocol)` and `delete_upnp_rule(protocol)` and
+  `QoeBrowser.measure_productivity(scenario, wait_until)` — annotations widen to `E | str` (a
+  `StrEnum` is a `str`, so every released call and implementer still type-checks) and, for
+  `ip_version`, to `IpFamily | int | None` (an `IntEnum` is an `int`, so an implementer that
+  declares `int | None` still conforms and still formats `4` / `6`). A plain `str` naming a
+  member is deprecated (the driver converts and warns). The numeric-text parameters
+  (`HttpServer` `port`, `ip_version`, `UpnpClient` `int_port` / `ext_port`, `VlanClient`
+  `vlan_id`) and `IpRouting.traceroute(version)` stay `str`, because released implementers
+  declare `str`; they are documented and their narrowing is announced. Design `docs/architecture/precise-types-design.md` (Host-tool and service vocabularies); PR pending.
 #### Deprecated
 
 - **parameters and fields** `PacketFilter` (`chain`, `set_default_policy(policy)`),
@@ -505,13 +508,12 @@ their tags and PR history.
 - **properties** `HTTPResult.code` and `HTTPResult.beautified_text` — deprecated names of
   `status` (an `int`, not text) and `body`; they warn when read and are removed in a
   later release. Design `docs/architecture/precise-types-design.md` (Host-tool and service vocabularies); PR pending.
-- **parameters** the `E | str` parameters listed under *Changed* (`record_type`,
-  `protocol`, `ip_version`, `state`, `version`, `ip_type`, `scenario`, `wait_until`): a plain
-  `str` naming a member is deprecated (the driver converts and warns); the annotations
-  narrow to the enums, and the numbers (`port`, `vlan_id`, `int_port`, `ext_port`) to `int`,
-  in a later release. `IperfClient` / `IperfServer` `ip_version` as an `int` is deprecated
-  likewise. `traceroute(version="")` keeps `""` for "tool default" and becomes `None`
-  then. Design `docs/architecture/precise-types-design.md` (Host-tool and service vocabularies); PR pending.
+- **parameters** the `E | str` parameters listed under *Changed*: a plain `str` naming a
+  member is deprecated (the driver converts and warns); the annotations narrow to the enums
+  in a later release. `ip_version` of the iperf members narrows to `IpFamily | None`. The
+  `str` parameters that stay `str` narrow later too: `port`, `int_port`, `ext_port` and
+  `vlan_id` to `int`, `start_http_service(ip_version)` to `IpFamily` (`"4"` / `"6"`), and
+  `traceroute(version)` (the command suffix `""` or `"6"`) to `IpFamily | None`. Design `docs/architecture/precise-types-design.md` (Host-tool and service vocabularies); PR pending.
 - **parameter** `IpInterface.is_link_up(pattern)` — the free-text `ip link` flag list is
   deprecated: a driver warns when it differs from the default `"BROADCAST,MULTICAST,UP"`
   and keeps matching it; use `is_link_admin_up` for the administrative state. Design `docs/architecture/precise-types-design.md` (Host-tool and service vocabularies); PR pending.
@@ -521,7 +523,6 @@ their tags and PR history.
   `eap_methods_known` and `eap_methods_unknown`. Design `docs/architecture/precise-types-design.md` (Host-tool and service vocabularies); PR pending.
 - **fields** `MeasurementSpec`, `TrafficSpec`, `RadiusAccountingRecord` as above: a plain
   `str` for a typed field is deprecated; the annotations narrow to the enums later. Design `docs/architecture/precise-types-design.md` (Host-tool and service vocabularies); PR pending.
-
 ### testoperations
 
 #### Added
@@ -538,18 +539,24 @@ their tags and PR history.
   not one of ['host', 'subnet']`), still naming `scope`; an unknown `proto` is the
   same kind of `ValueError`, naming `proto`. Migration: pass `DenyScope` and
   `RuleProtocol` members. Design `docs/architecture/precise-types-design.md` (testoperations: segmentation); PR pending.
-- **operations** `testoperations.http_server:start_http_server(port, ip_version)` and
-  `testoperations.iperf_generator:saturate_link(protocol)` take the widened types
-  (`int | str`, `IpVersion | str`, `TransportProtocol | str`); `ip_version` defaults to
-  `IpVersion.IPV4` (equal to `"ipv4"`) and `protocol` to `TransportProtocol.UDP`. A plain
-  `"udp"` / `"tcp"` for `saturate_link` now warns, because `TrafficSpec.protocol` converts it.
-  Migration: pass `TransportProtocol`. Design `docs/architecture/precise-types-design.md` (Host-tool and service vocabularies); PR pending.
+- **operation** `testoperations.iperf_generator:saturate_link(protocol)` — takes
+  `TransportProtocol | str` (default `UDP`) and converts it at its boundary with `coerce_enum`:
+  a plain `"udp"` / `"tcp"` warns at the caller; any other word is a `ValueError`. Migration:
+  pass `TransportProtocol`. Design `docs/architecture/precise-types-design.md` (Host-tool and service vocabularies); PR pending.
 
 #### Deprecated
 
 - **parameters** `build_deny_rule(scope, proto)` — a plain `str` naming a member
   (`"host"`, `"icmp"`) is deprecated: it warns and is converted. The annotations
   narrow to `DenyScope` and `RuleProtocol` in a later release. Design `docs/architecture/precise-types-design.md` (testoperations: segmentation); PR pending.
+
+#### Fixed
+
+- **operation** `testoperations.http_server:start_http_server` — the default `ip_version`
+  was `"ipv4"`, which the released implementers rendered as `webfsd -ipv4`; the server
+  command takes `-4` / `-6`. The default is now `"4"` and `ip_version` is documented as `"4"`
+  or `"6"`. A caller that passed `"ipv4"` / `"ipv6"` explicitly reaches the same bug and
+  should pass `"4"` / `"6"`. Design `docs/architecture/precise-types-design.md` (Host-tool and service vocabularies); PR pending.
 
 ## [0.12.1] — 2026-09-09
 
