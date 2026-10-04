@@ -191,8 +191,11 @@ their tags and PR history.
 - **records** `testprotocols.models:RtpStats` (`engaged`, `sessions`), `MwiStatus`
   (`waiting`, `new`, `old`) and `OfflineMessage` (`sender`, `body`, `stored_at`) —
   frozen records for what the SIP server's media relay, message-waiting and offline-message
-  readers returned as dicts; each has `as_dict()`, the released dict (for
-  `OfflineMessage`: keys `from`, `body`, `timestamp`, the latter ISO-8601 text). A
+  readers returned as dicts; each has `as_dict()`, the released dict shape (for
+  `OfflineMessage`: keys `from`, `body`, `timestamp`, the latter `stored_at.isoformat(sep=" ")`,
+  i.e. `"2026-04-22 10:00:00"`, naive stays naive, aware keeps its offset). A driver parses its
+  stored text into a `datetime` for `read_offline_messages`; its deprecated
+  `get_offline_messages` may keep returning that original text unchanged. A
   wrong type raises `TypeError`, a negative count `ValueError`. Migration: read the new
   records. Design `docs/architecture/precise-types-design.md` (Voice vocabularies); PR pending.
 

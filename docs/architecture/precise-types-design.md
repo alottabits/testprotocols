@@ -330,7 +330,10 @@ where one exists, also records its retype.
   implementer returns exactly those two keys and the step definitions read `engaged`.
   `MwiStatus` (`waiting`, `new`, `old`) and `OfflineMessage` (`sender`, `body`,
   `stored_at`): the released docstrings list the keys `waiting`/`new`/`old` and
-  `from`/`body`/`timestamp`; `timestamp` was ISO-8601 text and becomes a `datetime`
+  `from`/`body`/`timestamp`; `timestamp` was ISO-8601 text and becomes a `datetime`;
+  `as_dict()` writes it as `isoformat(sep=" ")` (`"2026-04-22 10:00:00"`, the form the implementer's
+  database returns; naive stays naive, aware keeps its offset), and the deprecated reader may
+  instead keep returning the driver's original text unchanged
   (the implementer returns the database's text unparsed, so it must parse it). No
   `OTHER` or synced field was needed, so the records are plain frozen dataclasses with
   `__post_init__` type checks. `testoperations` calls none of the three readers.

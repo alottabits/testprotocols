@@ -12,7 +12,8 @@ unchanged with no error and no warning.
 
 ``RtpStats``, ``MwiStatus`` and ``OfflineMessage`` are the typed forms of what
 ``get_rtpengine_stats``, ``get_mwi_status`` and ``get_offline_messages`` returned as
-dicts. Each has ``as_dict()``, the released dict, for the deprecated readers to return.
+dicts. Each has ``as_dict()``, the released dict shape, for the deprecated readers to return
+(for ``OfflineMessage`` the timestamp text has one fixed format, see its ``as_dict``).
 """
 
 from __future__ import annotations
@@ -49,7 +50,11 @@ class PhoneState(StrEnum):
 
 
 class PresenceStatus(StrEnum):
-    """A presence status. Open: a provider may report other words (``OTHER``)."""
+    """A presence status. Open: a provider may report other words (``OTHER``).
+
+    Edge case of the shared helper: a raw device word equal to a member value
+    (``"other"``) names that member and is not kept as a raw word.
+    """
 
     ONLINE = "online"
     BUSY = "busy"
@@ -62,7 +67,9 @@ class SipMethod(StrEnum):
     """A SIP request method. Open: an extension method or a log marker is ``OTHER``.
 
     The RFC 3261 methods plus the extension methods the contract's docstrings name
-    (``MESSAGE``, ``NOTIFY``, ``PUBLISH``).
+    (``MESSAGE``, ``NOTIFY``, ``PUBLISH``). A raw device word equal to a member value
+    (``"OTHER"``) names that member and is not kept as a raw word (an edge case of the
+    shared helper).
     """
 
     INVITE = "INVITE"
@@ -150,6 +157,14 @@ class OfflineMessage:
         _when("OfflineMessage", "stored_at", self.stored_at)
 
     def as_dict(self) -> dict[str, object]:
-        """The released ``get_offline_messages`` entry: ``from``, ``body`` and
-        ``timestamp`` (ISO-8601 text)."""
-        return {"from": self.sender, "body": self.body, "timestamp": self.stored_at.isoformat()}
+        """The released ``get_offline_messages`` entry shape: ``from``, ``body`` and
+        ``timestamp``: ``stored_at.isoformat(sep=" ")``, ISO-8601 with a space between
+        date and time (``"2026-04-22 10:00:00"``). A naive datetime stays naive and an
+        aware one keeps its offset. This is the text the one released implementer
+        returns; a driver whose own text differs may keep returning that text from its
+        deprecated reader instead of calling this."""
+        return {
+            "from": self.sender,
+            "body": self.body,
+            "timestamp": self.stored_at.isoformat(sep=" "),
+        }

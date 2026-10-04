@@ -133,9 +133,28 @@ def test_mwi_status_as_dict_is_the_released_dict() -> None:
 
 
 def test_offline_message_as_dict_is_the_released_entry() -> None:
-    when = datetime(2026, 10, 4, 12, 30, 5)
+    # the implementer's own text: the database's "date time" form
+    when = datetime.fromisoformat("2026-04-22 10:00:00")
     msg = OfflineMessage(sender="sip:a@x", body="hi", stored_at=when)
-    assert msg.as_dict() == {"from": "sip:a@x", "body": "hi", "timestamp": "2026-10-04T12:30:05"}
+    assert msg.as_dict() == {"from": "sip:a@x", "body": "hi", "timestamp": "2026-04-22 10:00:00"}
+
+
+def test_offline_message_round_trips_the_implementer_text() -> None:
+    row = ("sip:a@x", "hi", "2026-04-22 10:00:00")
+    msg = OfflineMessage(row[0], row[1], datetime.fromisoformat(row[2]))
+    assert msg.as_dict() == {"from": row[0], "body": row[1], "timestamp": row[2]}
+
+
+def test_offline_message_aware_datetime_keeps_its_offset() -> None:
+    when = datetime.fromisoformat("2026-04-22 10:00:00+02:00")
+    msg = OfflineMessage(sender="s", body="b", stored_at=when)
+    assert msg.as_dict()["timestamp"] == "2026-04-22 10:00:00+02:00"
+    assert (
+        OfflineMessage("s", "b", datetime.fromisoformat("2026-04-22 10:00:00")).as_dict()[
+            "timestamp"
+        ]
+        == "2026-04-22 10:00:00"
+    )
 
 
 @pytest.mark.parametrize(

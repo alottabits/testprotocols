@@ -240,8 +240,10 @@ class SipServer(Protocol):
     def get_offline_messages(self, user: str) -> list[dict[str, Any]]:
         """Deprecated name of :meth:`read_offline_messages`.
 
-        Returns ``[m.as_dict() for m in read_offline_messages(user)]`` (keys
-        ``from``, ``body``, ``timestamp``); the driver warns with
+        Returns the entries as dicts (keys ``from``, ``body``, ``timestamp``): either
+        ``[m.as_dict() for m in read_offline_messages(user)]`` (``timestamp`` is then
+        ``"YYYY-MM-DD HH:MM:SS"``, space-separated) or, unchanged, the text the driver
+        read from its store. The driver warns with
         ``warn_renamed("get_offline_messages", "read_offline_messages")``.
         """
         ...
