@@ -264,7 +264,9 @@ keys; plugins map to vendor app-ids), grown on evidence; `L7Rule.value` for
 > `TrafficShapingRule.priority`, or defer `WifiBssConfig.security_mode` (now
 > `WifiSecurityMode`) or `MeasurementSpec.completion` (now `QoeCompletion |
 > PageCompletion`) until a test needs them, they are superseded; those two deferrals are
-> lifted. Their "leave as `str`" for `Connection.state` is upheld, not superseded. The
+> lifted. Their "leave as `str`" for `Connection.state` is upheld, not superseded, and so
+> is their deferral of `QoEResult.protocol`: it stays `str | None`, the HTTP version as the
+> device reports it. The
 > gating (A)-vs-(B) decision is settled as (A): annotation and checker only, with no
 > `__post_init__` coercion or validation in a record (`precise-types-design.md`, "The
 > contract model", C1, C4 and C5). The `ALERT`-vs-`LOG` reconciliation went to `ALERT`:

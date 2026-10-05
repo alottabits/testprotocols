@@ -111,9 +111,13 @@ class PacketFilter(Protocol):
 
     # --- Counters ---
 
-    def get_rule_counter_values(self, chain: Chain | str, name: str) -> RuleCounters:
+    def get_rule_counter_values(self, chain: Chain, name: str) -> RuleCounters:
         """Return what the rule has matched since it was added, as
         :class:`~testprotocols.models.RuleCounters`.
+
+        *chain* is a :class:`~testprotocols.models.Chain`: the member is new and has no
+        released text form, so a caller holding the chain as text converts it with
+        ``Chain(text)``.
 
         Raises ValueError if *chain* is unknown.
         Raises KeyError if no rule with that name exists in *chain*.

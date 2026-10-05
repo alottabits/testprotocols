@@ -106,4 +106,4 @@ class TestRecords:
         assert (spec.interface, spec.capture_file) == ("n0", "/tmp/a.pcap")
         assert (read.display_filter, read.field_args) == ("udp", "-e f")
         with pytest.raises(AttributeError):
-            read.display_filter = "tcp"  # type: ignore[misc]
+            read.display_filter = "tcp"  # type: ignore[misc]  # assigning a frozen field is the check

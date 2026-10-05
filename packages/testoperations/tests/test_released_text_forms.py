@@ -49,4 +49,4 @@ def test_parse_window_size_refuses_malformed_text(text: str) -> None:
 
 def test_parse_window_size_refuses_a_non_text() -> None:
     with pytest.raises(TypeError):
-        parse_window_size(8)  # type: ignore[arg-type]
+        parse_window_size(8)  # type: ignore[arg-type]  # the non-text argument is the check

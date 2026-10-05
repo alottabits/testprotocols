@@ -138,8 +138,12 @@ class WifiRadio(Protocol):
         """
         ...
 
-    def get_modes(self, band: WifiBand | str) -> frozenset[WifiPhyMode]:
+    def get_modes(self, band: WifiBand) -> frozenset[WifiPhyMode]:
         """Return the set of 802.11 PHY modes the radio on *band* currently operates.
+
+        *band* is a :class:`~testprotocols.models.wifi.WifiBand`: the member is new and has no
+        released text form, so a caller holding the band as text converts it with
+        ``WifiBand(text)``.
 
         A radio runs several modes at once (TR-181
         ``Device.WiFi.Radio.{i}.OperatingStandards`` is a list): a 5 GHz radio

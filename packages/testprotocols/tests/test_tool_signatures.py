@@ -182,7 +182,7 @@ def test_snmp_members_are_declared_and_the_fake_conforms() -> None:
     client: SnmpClient = FakeSnmp()
     assert client.snmp_get("192.0.2.1", ".1.3.6.1.2.1.1.1.0", "private") == "out"
     with pytest.warns(DeprecationWarning, match="execute_snmp_command"):
-        client.execute_snmp_command("snmpget -v 2c -c private 192.0.2.1 .1.3")  # type: ignore[deprecated]
+        client.execute_snmp_command("snmpget -v 2c -c private 192.0.2.1 .1.3")  # type: ignore[deprecated]  # the released member under test
     sig = _sig(SnmpClient, "snmp_get")
     assert [p.name for p in sig.parameters.values()][:4] == ["self", "host", "oid", "community"]
     assert _kwonly(SnmpClient, "snmp_get") == {"timeout_s": 10, "retries": 3, "command_timeout": 30}
@@ -223,7 +223,7 @@ def test_set_date_time_is_declared_and_set_date_is_deprecated() -> None:
     assert [p for p in _sig(NtpClient, "set_date_time").parameters] == ["self", "value"]
     assert _sig(NtpClient, "set_date_time").parameters["value"].annotation == "datetime"
     assert [p for p in _sig(NtpClient, "set_date").parameters] == ["self", "opt", "date_string"]
-    assert "Deprecated" in (NtpClient.set_date.__doc__ or "")  # type: ignore[deprecated]
+    assert "Deprecated" in (NtpClient.set_date.__doc__ or "")  # type: ignore[deprecated]  # the released member under test
 
 
 class _NtpWithoutSetDateTime:
@@ -294,5 +294,5 @@ def test_a_released_signature_driver_behaves_as_before_for_released_calls() -> N
     # which is how a future caller detects a driver that predates them (inspect.signature or
     # catching this TypeError) and falls back to the option string.
     with pytest.raises(TypeError, match="no_proxy"):
-        host.http_get("http://h/", no_proxy=True)  # type: ignore[call-arg]
+        host.http_get("http://h/", no_proxy=True)  # type: ignore[call-arg]  # the unknown keyword is the check
     assert "no_proxy" not in inspect.signature(host.http_get).parameters

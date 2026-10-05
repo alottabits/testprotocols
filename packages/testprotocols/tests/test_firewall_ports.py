@@ -29,11 +29,11 @@ def _rule(**kw: object) -> FirewallRule:
         "dst_cidr": "any",
         "dst_port": None,
     }
-    return FirewallRule(**{**base, **kw})  # type: ignore[arg-type]
+    return FirewallRule(**{**base, **kw})  # type: ignore[arg-type]  # the keyword values are `object`
 
 
 def _nat(**kw: object) -> NatRule:
-    return NatRule(**{"name": "n", "mode": NatMode.DNAT, "interface": "wan", **kw})  # type: ignore[arg-type]
+    return NatRule(**{"name": "n", "mode": NatMode.DNAT, "interface": "wan", **kw})  # type: ignore[arg-type]  # the keyword values are `object`
 
 
 # --- FirewallRule ---
@@ -90,14 +90,14 @@ def test_rule_counters_hold_values_and_are_frozen() -> None:
     assert (c.packets, c.bytes) == (3, 4)
     assert RuleCounters(0, 0) == RuleCounters(0, 0)
     with pytest.raises(dataclasses.FrozenInstanceError):
-        c.packets = 1  # type: ignore[misc]
+        c.packets = 1  # type: ignore[misc]  # assigning a frozen field is the check
 
 
 def test_new_counter_members_exist_and_old_remain() -> None:
     assert callable(PacketFilter.get_rule_counter_values)
-    assert callable(PacketFilter.get_rule_counters)  # type: ignore[deprecated]
+    assert callable(PacketFilter.get_rule_counters)  # type: ignore[deprecated]  # the released member under test
     assert callable(Nat.get_nat_rule_counter_values)
-    assert callable(Nat.get_nat_rule_counters)  # type: ignore[deprecated]
+    assert callable(Nat.get_nat_rule_counters)  # type: ignore[deprecated]  # the released member under test
 
 
 def test_rule_counters_accept_zero_and_large() -> None:

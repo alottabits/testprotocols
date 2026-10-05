@@ -78,7 +78,7 @@ class _FakeFilter:
     def get_default_policy(self, chain: Chain | str) -> str:
         return self.policy[Chain(chain)]
 
-    def get_rule_counter_values(self, chain: Chain | str, name: str) -> RuleCounters:
+    def get_rule_counter_values(self, chain: Chain, name: str) -> RuleCounters:
         return RuleCounters(0, 0)
 
     def get_rule_counters(self, chain: Chain | str, name: str) -> tuple[int, int]:
@@ -270,7 +270,7 @@ def _conn(**kw: object) -> Connection:
         "packets_reply": 0,
     }
     args.update(kw)
-    return Connection(**args)  # type: ignore[arg-type]
+    return Connection(**args)  # type: ignore[arg-type]  # the keyword values are `object`
 
 
 def test_models_built_from_members_do_not_warn_and_defaults_are_released() -> None:

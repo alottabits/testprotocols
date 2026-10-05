@@ -96,4 +96,4 @@ def test_offline_message_time_may_be_unreported() -> None:
 def test_records_are_frozen() -> None:
     stats = RtpStats(engaged=True, sessions=1)
     with pytest.raises(dataclasses.FrozenInstanceError):
-        stats.sessions = 2  # type: ignore[misc]
+        stats.sessions = 2  # type: ignore[misc]  # assigning a frozen field is the check

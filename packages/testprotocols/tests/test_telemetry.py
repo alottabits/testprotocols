@@ -37,14 +37,14 @@ def test_uptime_is_required_and_may_be_unreported() -> None:
 
 
 def test_get_telemetry_keeps_its_released_return() -> None:
-    hints = typing.get_type_hints(Router.get_telemetry)  # type: ignore[deprecated]
+    hints = typing.get_type_hints(Router.get_telemetry)  # type: ignore[deprecated]  # the released member under test
     assert hints["return"] == dict[str, typing.Any]
 
 
 def test_telemetry_is_frozen() -> None:
     t = Telemetry(1.0)
     with pytest.raises(dataclasses.FrozenInstanceError):
-        t.uptime_seconds = 2.0  # type: ignore[misc]
+        t.uptime_seconds = 2.0  # type: ignore[misc]  # assigning a frozen field is the check
 
 
 def test_telemetry_accepts_ints() -> None:
@@ -106,7 +106,7 @@ def test_a_driver_without_the_new_member_is_not_a_router() -> None:
 
 
 def test_apply_policy_keeps_its_name_and_takes_dict_of_objects_not_any() -> None:
-    hints = typing.get_type_hints(SdwanPolicyManager.apply_policy)  # type: ignore[deprecated]
+    hints = typing.get_type_hints(SdwanPolicyManager.apply_policy)  # type: ignore[deprecated]  # the released member under test
     assert hints["policy"] == dict[str, object]
     assert hints["return"] is type(None)
-    assert "deprecated" in (SdwanPolicyManager.apply_policy.__doc__ or "").lower()  # type: ignore[deprecated]
+    assert "deprecated" in (SdwanPolicyManager.apply_policy.__doc__ or "").lower()  # type: ignore[deprecated]  # the released member under test

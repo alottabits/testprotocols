@@ -52,28 +52,28 @@ def uses(
     radio: WifiRadio,
 ) -> list[object]:
     return [
-        models.TrafficShapingRule,  # type: ignore[deprecated]
-        models.VPNPeerStatus,  # type: ignore[deprecated]
-        arp.get_arp_table,  # type: ignore[deprecated]
-        content.get_url_rules,  # type: ignore[deprecated]
-        device.get_memory_utilization,  # type: ignore[deprecated]
-        device.get_running_processes,  # type: ignore[deprecated]
-        device.read_event_logs,  # type: ignore[deprecated]
-        dns.dns_lookup,  # type: ignore[deprecated]
-        iperf_client.start_traffic_sender,  # type: ignore[deprecated]
-        iperf_server.start_traffic_receiver,  # type: ignore[deprecated]
-        nat.get_nat_rule_counters,  # type: ignore[deprecated]
-        netem.inject_transient,  # type: ignore[deprecated]
-        nmap.nmap,  # type: ignore[deprecated]
-        ntp.get_date,  # type: ignore[deprecated]
-        ntp.set_date,  # type: ignore[deprecated]
-        packet_filter.get_rule_counters,  # type: ignore[deprecated]
-        router.get_telemetry,  # type: ignore[deprecated]
-        policy.apply_policy,  # type: ignore[deprecated]
-        sip.get_rtpengine_stats,  # type: ignore[deprecated]
-        sip.get_mwi_status,  # type: ignore[deprecated]
-        sip.get_offline_messages,  # type: ignore[deprecated]
-        snmp.execute_snmp_command,  # type: ignore[deprecated]
-        wifi.iwlist_supported_channels,  # type: ignore[deprecated]
-        radio.get_mode,  # type: ignore[deprecated]
+        models.TrafficShapingRule,  # type: ignore[deprecated]  # the use under check
+        models.VPNPeerStatus,  # type: ignore[deprecated]  # the use under check
+        arp.get_arp_table,  # type: ignore[deprecated]  # the use under check
+        content.get_url_rules,  # type: ignore[deprecated]  # the use under check
+        device.get_memory_utilization,  # type: ignore[deprecated]  # the use under check
+        device.get_running_processes,  # type: ignore[deprecated]  # the use under check
+        device.read_event_logs,  # type: ignore[deprecated]  # the use under check
+        dns.dns_lookup,  # type: ignore[deprecated]  # the use under check
+        iperf_client.start_traffic_sender,  # type: ignore[deprecated]  # the use under check
+        iperf_server.start_traffic_receiver,  # type: ignore[deprecated]  # the use under check
+        nat.get_nat_rule_counters,  # type: ignore[deprecated]  # the use under check
+        netem.inject_transient,  # type: ignore[deprecated]  # the use under check
+        nmap.nmap,  # type: ignore[deprecated]  # the use under check
+        ntp.get_date,  # type: ignore[deprecated]  # the use under check
+        ntp.set_date,  # type: ignore[deprecated]  # the use under check
+        packet_filter.get_rule_counters,  # type: ignore[deprecated]  # the use under check
+        router.get_telemetry,  # type: ignore[deprecated]  # the use under check
+        policy.apply_policy,  # type: ignore[deprecated]  # the use under check
+        sip.get_rtpengine_stats,  # type: ignore[deprecated]  # the use under check
+        sip.get_mwi_status,  # type: ignore[deprecated]  # the use under check
+        sip.get_offline_messages,  # type: ignore[deprecated]  # the use under check
+        snmp.execute_snmp_command,  # type: ignore[deprecated]  # the use under check
+        wifi.iwlist_supported_channels,  # type: ignore[deprecated]  # the use under check
+        radio.get_mode,  # type: ignore[deprecated]  # the use under check
     ]

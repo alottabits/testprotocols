@@ -19,7 +19,7 @@ pytestmark = pytest.mark.filterwarnings("error::DeprecationWarning")
 
 
 def _l3(**kw: object) -> L3Rule:
-    return L3Rule(**{"action": RuleAction.DENY, **kw})  # type: ignore[arg-type]
+    return L3Rule(**{"action": RuleAction.DENY, **kw})  # type: ignore[arg-type]  # the keyword values are `object`
 
 
 def test_l3_ports_default_to_the_released_text() -> None:
@@ -48,7 +48,7 @@ def _event(**kw: object) -> SecurityEvent:
         "action": SecurityAction.BLOCKED,
         "category": ThreatCategory.MALWARE,
     }
-    return SecurityEvent(**{**base, **kw})  # type: ignore[arg-type]
+    return SecurityEvent(**{**base, **kw})  # type: ignore[arg-type]  # the keyword values are `object`
 
 
 def test_event_released_positional_construction_still_works() -> None:
@@ -67,7 +67,7 @@ def test_event_released_positional_construction_still_works() -> None:
 
 def test_event_fields_after_ts_stay_required() -> None:
     with pytest.raises(TypeError, match="src_ip"):
-        SecurityEvent(ts="")  # type: ignore[call-arg]  # pyright: ignore[reportCallIssue]
+        SecurityEvent(ts="")  # type: ignore[call-arg]  # pyright: ignore[reportCallIssue]  # the missing argument is the check
 
 
 def test_event_naive_timestamp_stays_naive() -> None:

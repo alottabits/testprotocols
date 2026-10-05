@@ -45,10 +45,11 @@ their tags and PR history.
   old string and a typed parameter raises `ValueError`.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P8;
   design `docs/architecture/precise-types-design.md` (Tool option strings); PR #73.
-- **protocol members** `testprotocols.packet_filter:PacketFilter.get_rule_counter_values(chain, name) -> RuleCounters`
+- **protocol members** `testprotocols.packet_filter:PacketFilter.get_rule_counter_values(chain: Chain, name) -> RuleCounters`
   and `testprotocols.nat:Nat.get_nat_rule_counter_values(name) -> RuleCounters`
   (so also `Firewall`, which inherits `PacketFilter`) — new mandatory members,
-  taking the parameters of the old counter members. Migration: implement them
+  taking the parameters of the old counter members, except that `chain` is the bare `Chain`
+  (a new member has no released text form to keep). Migration: implement them
   (a driver without per-rule counters adds a one-line stub raising `NotSupportedError`) and
   keep `get_rule_counters` / `get_nat_rule_counters`, with their released
   `NotImplementedError` text, until their removal.
@@ -78,7 +79,7 @@ their tags and PR history.
   returning the record's fields as the released dict (one dict per offline message).
   Proposal `docs/proposals/2026-10-05-precise-types.md` P7;
   design `docs/architecture/precise-types-design.md` (Voice vocabularies); PR #73.
-- **protocol member** `testprotocols.wifi_radio:WifiRadio.get_modes(band: WifiBand | str) ->
+- **protocol member** `testprotocols.wifi_radio:WifiRadio.get_modes(band: WifiBand) ->
   frozenset[WifiPhyMode]` — new mandatory member, replacing `get_mode`: a radio operates a set of
   802.11 PHY modes at once (TR-181 `Device.WiFi.Radio.{i}.OperatingStandards` is a list), which
   one `str` cannot report. Migration: implement it; keep `get_mode`, returning the released
@@ -92,18 +93,18 @@ their tags and PR history.
   (a Linux host reads the `UP` flag of `ip link show`).
   Proposal `docs/proposals/2026-10-05-precise-types.md` P8;
   design `docs/architecture/precise-types-design.md` (Host-tool and service vocabularies); PR #73.
-- **protocol members** `ContentFiltering.read_url_rules() -> UrlRules`,
-  `DeviceManagement.read_memory_utilization() -> MemoryUtilization`,
+- **protocol members** `testprotocols.content_filtering:ContentFiltering.read_url_rules() -> UrlRules`,
+  `testprotocols.device_management:DeviceManagement.read_memory_utilization() -> MemoryUtilization`,
   `read_running_processes() -> list[ProcessInfo]` and
   `read_log_entries() -> list[EventLogEntry]`,
-  `DnsClient.resolve(domain_name, record_type: DnsRecordType | str) -> list[DnsRecord]`,
-  `IperfClient.start_sender_session(host, traffic_port, *, ..., window_bytes) -> IperfProcess`,
-  `IperfServer.start_receiver_session(traffic_port, *, ...) -> IperfProcess`,
-  `IpRouting.ping_stats(ping_ip, ping_count, ping_interface, timeout) -> PingResult`,
-  `NmapScanner.scan_ports(target, ip_version: IpFamily, *, ports, protocol, max_retries,
-  min_rate, timeout, fast) -> NmapResult` (not `scan`, which `WifiRf` has with another
-  signature), `ArpClient.read_arp_table() -> list[ArpEntry]`,
-  `NtpClient.read_date() -> datetime | None` and `NetemController.inject_event(event:
+  `testprotocols.dns_client:DnsClient.resolve(domain_name, record_type: DnsRecordType | str) -> list[DnsRecord]`,
+  `testprotocols.iperf_client:IperfClient.start_sender_session(host, traffic_port, *, ..., window_bytes) -> IperfProcess`,
+  `testprotocols.iperf_server:IperfServer.start_receiver_session(traffic_port, *, ...) -> IperfProcess`,
+  `testprotocols.ip_routing:IpRouting.ping_stats(ping_ip, ping_count, ping_interface, timeout) -> PingResult`,
+  `testprotocols.nmap_scanner:NmapScanner.scan_ports(target, ip_version: IpFamily, *, ports, protocol, max_retries,
+  min_rate, timeout, fast) -> NmapResult` (not `scan`, which `testprotocols.wifi_rf:WifiRf` has with another
+  signature), `testprotocols.arp_client:ArpClient.read_arp_table() -> list[ArpEntry]`,
+  `testprotocols.ntp_client:NtpClient.read_date() -> datetime | None` and `testprotocols.netem_controller:NetemController.inject_event(event:
   TransientEvent, duration_ms)` — new mandatory members. The iperf pair has two names because
   one class implements both protocols; the window is `window_bytes` (bytes) on the new member
   only; with `fast=True` the scan covers fewer ports than the default set (an explicit `ports`
@@ -194,7 +195,7 @@ their tags and PR history.
 
 #### Added
 
-- **enum** `testprotocols.models.SnmpValueType` (`integer`, `unsigned`, `octet-string`,
+- **enum** `testprotocols.models:SnmpValueType` (`integer`, `unsigned`, `octet-string`,
   `object-identifier`, `ip-address`, `timeticks`, `bits`) — the SNMP value type of a SET;
   `SnmpClient.snmp_set` takes it as `value_type`, and a driver maps each member to its tool's
   own type code. Counter types are left out (a counter only increments, RFC 2578).
@@ -460,30 +461,30 @@ their tags and PR history.
   still conforms).
   Proposal `docs/proposals/2026-10-05-precise-types.md` P3;
   design `docs/architecture/precise-types-design.md` (telemetry and policy); PR #73.
-- **models** `testprotocols.models` `WifiBssConfig` (`band`, `security_mode`, `mfp`),
-  `WifiStation.band`, `WifiNeighbor.band`, `WifiChannelUtilization.band`,
-  `WifiRadioStats.band`, `WifiMeshLink.band`, `WifiAcl.mode`, `WifiMeshStatus.role` and
-  `WifiMeshNode.role` — now `E | str` (`WifiBand`, `WifiSecurityMode`, `MfpMode`,
+- **models** `testprotocols.models:WifiBssConfig` (`band`, `security_mode`, `mfp`),
+  `testprotocols.models:WifiStation.band`, `testprotocols.models:WifiNeighbor.band`, `testprotocols.models:WifiChannelUtilization.band`,
+  `testprotocols.models:WifiRadioStats.band`, `testprotocols.models:WifiMeshLink.band`, `testprotocols.models:WifiAcl.mode`, `testprotocols.models:WifiMeshStatus.role` and
+  `testprotocols.models:WifiMeshNode.role` — now `E | str` (`WifiBand`, `WifiSecurityMode`, `MfpMode`,
   `WifiAclMode`, `MeshRole`): a member or the released word, stored as given.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P6;
   design `docs/architecture/precise-types-design.md` (Wi-Fi vocabularies); PR #73.
-- **protocol members** `WifiBss.create_bss` / `set_security` (`band`, `security_mode`,
+- **protocol members** `testprotocols.wifi_bss:WifiBss.create_bss` / `set_security` (`band`, `security_mode`,
   `mfp`; the `mfp` default stays `"optional"`),
-  `WifiBss.set_acl_mode`, every `band` of `WifiRadio` and `WifiRf`,
+  `WifiBss.set_acl_mode`, every `band` of `testprotocols.wifi_radio:WifiRadio` and `testprotocols.wifi_rf:WifiRf`,
   `WifiRadio.set_bandwidth` (`ChannelWidth | int`), `WifiRadio.set_mode`,
-  `WifiMesh.set_backhaul_band` and `WifiClient.set_wlan_scan_channel` (`int | str`) —
+  `testprotocols.wifi_mesh:WifiMesh.set_backhaul_band` and `testprotocols.wifi_client:WifiClient.set_wlan_scan_channel` (`int | str`) —
   parameter annotations widen to `E | str`, so every released call still type-checks;
   a driver converts once at the boundary. An `int` naming a `ChannelWidth` is that member.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P6;
   design `docs/architecture/precise-types-design.md` (Wi-Fi vocabularies); PR #73.
-- **protocol member** `SipPhone.wait_for_state(state)` — the annotation widens to
+- **protocol member** `testprotocols.sip_phone:SipPhone.wait_for_state(state)` — the annotation widens to
   `PhoneState | str`, so every released call still type-checks. A `wait_for_state` word
   that names no state raises `ValueError` (released implementer: the same). The presence
   parameters and return (`set_presence`, `notify_presence`, `get_user_presence`) stay
   `str`, the provider's own word.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P7;
   design `docs/architecture/precise-types-design.md` (Voice vocabularies); PR #73.
-- **models** `MeasurementSpec.tool` and `completion`, and `TrafficSpec.protocol` — now
+- **models** `testprotocols.models:MeasurementSpec.tool` and `completion`, and `testprotocols.models:TrafficSpec.protocol` — now
   `E | str`: a member or the released word, stored as given (a member compares equal to
   its text). `QoEResult.protocol`, `RadiusUser.eap_methods` and
   `RadiusAccountingRecord.record_type` / `terminate_cause` stay `str`, the device's own
@@ -493,11 +494,11 @@ their tags and PR history.
   `str(value)`.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P10;
   design `docs/architecture/precise-types-design.md` (Host-tool and service vocabularies); PR #73.
-- **protocol members** `DnsClient.dns_lookup(record_type)`, `HttpClient.curl(protocol)`,
-  `IperfClient.start_traffic_sender(ip_version)`, `IperfServer.start_traffic_receiver(ip_version)`,
-  `IpInterface.set_link_state(state)`, `NmapScanner.nmap(ip_type)`,
-  `UpnpClient.create_upnp_rule(protocol)` and `delete_upnp_rule(protocol)` and
-  `QoeBrowser.measure_productivity(scenario, wait_until)` — annotations widen to `E | str` (a
+- **protocol members** `testprotocols.dns_client:DnsClient.dns_lookup(record_type)`, `testprotocols.http_client:HttpClient.curl(protocol)`,
+  `testprotocols.iperf_client:IperfClient.start_traffic_sender(ip_version)`, `testprotocols.iperf_server:IperfServer.start_traffic_receiver(ip_version)`,
+  `testprotocols.ip_interface:IpInterface.set_link_state(state)`, `testprotocols.nmap_scanner:NmapScanner.nmap(ip_type)`,
+  `testprotocols.upnp_client:UpnpClient.create_upnp_rule(protocol)` and `delete_upnp_rule(protocol)` and
+  `testprotocols.qoe_browser:QoeBrowser.measure_productivity(scenario, wait_until)` — annotations widen to `E | str` (a
   `StrEnum` is a `str`, so every released call and implementer still type-checks) and, for
   `ip_version`, to `IpFamily | int | None` (an `IntEnum` is an `int`, so an implementer that
   declares `int | None` still conforms and still formats `4` / `6`). A plain `str` naming a member is deprecated. The numeric-text parameters
@@ -506,16 +507,16 @@ their tags and PR history.
   declare `str`; they are documented and their narrowing is announced.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P8 and P10;
   design `docs/architecture/precise-types-design.md` (Host-tool and service vocabularies); PR #73.
-- **protocol members** `NetemController.set_impairment_profile` / `set_interface_profile`
+- **protocol members** `testprotocols.netem_controller:NetemController.set_impairment_profile` / `set_interface_profile`
   (`profile: ImpairmentProfile | dict[str, object]`, was `dict[str, Any]`) and
-  `DhcpServer.provision_cpe` (`dhcpv4_options` / `dhcpv6_options: dict[str, dict[str, object]]`,
+  `testprotocols.dhcp_server:DhcpServer.provision_cpe` (`dhcpv4_options` / `dhcpv6_options: dict[str, dict[str, object]]`,
   was `dict[str, Any]`: a service-pool name to an option-name map, as the released implementer
   reads them) — no `Any`; static only: a caller's loosely typed dict variable no longer
   type-checks, and an implementer declaring `dict` or `dict[str, Any]` still conforms.
   `HeldPrefixes.hold(address)` stays `str` (released implementers declare `str`).
   Proposal `docs/proposals/2026-10-05-precise-types.md` P8 and P10;
   design `docs/architecture/precise-types-design.md` (Host-tier records); PR #73.
-- **models** `DHCPTraceData.dhcp_packet` and `DHCPV6TraceData.dhcpv6_packet` —
+- **models** `testprotocols.models:DHCPTraceData.dhcp_packet` and `testprotocols.models:DHCPV6TraceData.dhcpv6_packet` —
   `Mapping[str, object]` (was `dict[str, Any]`): a decoder's nested bag with no fixed typed
   shape; static only, a reader narrows each value it uses.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P8;
@@ -658,7 +659,7 @@ their tags and PR history.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P8;
   design `docs/architecture/precise-types-design.md`;
   register `packages/testprotocols/DEPRECATIONS.md`; PR #73.
-- **parameter** `IpRouting.ping` and `traceroute` `options` — deprecated. Replacement: none.
+- **parameter** `testprotocols.ip_routing:IpRouting.ping` and `traceroute` `options` — deprecated. Replacement: none.
   Earliest removal: the first release 6 months after the release that deprecates it.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P8;
   design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR #73.
@@ -667,140 +668,142 @@ their tags and PR history.
   release 6 months after the release that deprecates it.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P8;
   design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR #73.
-- **parameter** `PacketFilter` `chain` (every member) and `set_default_policy(policy)`: `Chain |
+- **parameter** `testprotocols.packet_filter:PacketFilter` `chain` (every member) and `set_default_policy(policy)`: `Chain |
   str`, `DefaultAction | str` — deprecated. Replacement: `Chain`, `DefaultAction` (narrows to the
   enum). Earliest removal: the first release 6 months after the release that deprecates it.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P2;
   design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR #73.
-- **parameter** `Nat.list_nat_rules(mode)`: `NatMode | str | None` — deprecated. Replacement:
+- **parameter** `testprotocols.nat:Nat.list_nat_rules(mode)`: `NatMode | str | None` — deprecated. Replacement:
   `NatMode | None` (narrows to the enum). Earliest removal: the first release 6 months after the
   release that deprecates it.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P2;
   design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR #73.
-- **parameter** `Conntrack` `protocol` (`list_connections`, `count_connections`, `get_connection`,
+- **parameter** `testprotocols.conntrack:Conntrack` `protocol` (`list_connections`, `count_connections`, `get_connection`,
   `drop_connection`): `RuleProtocol | str` — deprecated. Replacement: `RuleProtocol` (narrows to the
   enum). Earliest removal: the first release 6 months after the release that deprecates it.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P2;
   design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR #73.
-- **parameter** Wi-Fi `band` (`WifiBss.create_bss`, every `WifiRadio` and `WifiRf` member,
-  `WifiRadioWhiteBox.inject_radar_event`, `WifiMesh.set_backhaul_band`): `WifiBand | str` —
+- **parameter** Wi-Fi `band` (`testprotocols.wifi_bss:WifiBss.create_bss`, every
+  `testprotocols.wifi_radio:WifiRadio` and `testprotocols.wifi_rf:WifiRf` member,
+  `testprotocols.wifi_radio:WifiRadioWhiteBox.inject_radar_event`,
+  `testprotocols.wifi_mesh:WifiMesh.set_backhaul_band`): `WifiBand | str` —
   deprecated. Replacement: `WifiBand` (narrows to the enum). Earliest removal: the first release 6
   months after the release that deprecates it.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P6;
   design `docs/architecture/precise-types-design.md`;
   register `packages/testprotocols/DEPRECATIONS.md`; PR #73.
-- **parameter** `WifiBss.create_bss(security_mode, mfp)` and `set_security(mode, mfp)`:
+- **parameter** `testprotocols.wifi_bss:WifiBss.create_bss(security_mode, mfp)` and `set_security(mode, mfp)`:
   `WifiSecurityMode | str`, `MfpMode | str` — deprecated. Replacement: `WifiSecurityMode`, `MfpMode`
   (narrows to the enum). Earliest removal: the first release 6 months after the release that
   deprecates it.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P6;
   design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR #73.
-- **parameter** `WifiBss.set_acl_mode(mode)`: `WifiAclMode | str` — deprecated. Replacement:
+- **parameter** `testprotocols.wifi_bss:WifiBss.set_acl_mode(mode)`: `WifiAclMode | str` — deprecated. Replacement:
   `WifiAclMode` (narrows to the enum). Earliest removal: the first release 6 months after the
   release that deprecates it.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P6;
   design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR #73.
-- **parameter** `WifiRadio.set_mode(mode)`: `WifiPhyMode | str` — deprecated. Replacement:
+- **parameter** `testprotocols.wifi_radio:WifiRadio.set_mode(mode)`: `WifiPhyMode | str` — deprecated. Replacement:
   `WifiPhyMode` (narrows to the enum; a compound mode names no member). Earliest removal: the first
   release 6 months after the release that deprecates it.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P6;
   design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR #73.
-- **parameter** `WifiClient.set_wlan_scan_channel(channel)`: `int | str` — deprecated. Replacement:
+- **parameter** `testprotocols.wifi_client:WifiClient.set_wlan_scan_channel(channel)`: `int | str` — deprecated. Replacement:
   `int`. Earliest removal: the first release 6 months after the release that deprecates it.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P6;
   design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR #73.
-- **parameter** `SipPhone.wait_for_state(state)`: `PhoneState | str` — deprecated. Replacement:
+- **parameter** `testprotocols.sip_phone:SipPhone.wait_for_state(state)`: `PhoneState | str` — deprecated. Replacement:
   `PhoneState` (narrows to the enum). Earliest removal: the first release 6 months after the release
   that deprecates it.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P7;
   design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR #73.
-- **parameter** `HttpClient.curl(protocol)`: `HttpScheme | str` — deprecated. Replacement:
+- **parameter** `testprotocols.http_client:HttpClient.curl(protocol)`: `HttpScheme | str` — deprecated. Replacement:
   `HttpScheme` (narrows to the enum). Earliest removal: the first release 6 months after the release
   that deprecates it.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P8;
   design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR #73.
-- **parameter** `IpInterface.set_link_state(state)`: `LinkAdminState | str` — deprecated.
+- **parameter** `testprotocols.ip_interface:IpInterface.set_link_state(state)`: `LinkAdminState | str` — deprecated.
   Replacement: `LinkAdminState` (narrows to the enum). Earliest removal: the first release 6 months
   after the release that deprecates it.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P8;
   design `docs/architecture/precise-types-design.md`;
   register `packages/testprotocols/DEPRECATIONS.md`; PR #73.
-- **parameter** `UpnpClient.create_upnp_rule(protocol)` and `delete_upnp_rule(protocol)`:
+- **parameter** `testprotocols.upnp_client:UpnpClient.create_upnp_rule(protocol)` and `delete_upnp_rule(protocol)`:
   `PortMappingProtocol | str` — deprecated. Replacement: `PortMappingProtocol` (narrows to the
   enum). Earliest removal: the first release 6 months after the release that deprecates it.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P8;
   design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR #73.
-- **parameter** `QoeBrowser.measure_productivity(scenario, wait_until)`: `QoeScenario | str`,
+- **parameter** `testprotocols.qoe_browser:QoeBrowser.measure_productivity(scenario, wait_until)`: `QoeScenario | str`,
   `PageCompletion | str` — deprecated. Replacement: `QoeScenario`, `PageCompletion` (narrows to the
   enum). Earliest removal: the first release 6 months after the release that deprecates it.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P10;
   design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR #73.
-- **parameter** `HttpServer.start_http_service` / `stop_http_service(port)` and
+- **parameter** `testprotocols.http_server:HttpServer.start_http_service` / `stop_http_service(port)` and
   `start_http_service(ip_version)`: `str` — deprecated. Replacement: `int`, `IpFamily` (announced
   narrowing). Earliest removal: the first release 6 months after the release that deprecates it.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P8;
   design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR #73.
-- **parameter** `UpnpClient` `int_port`, `ext_port` and `VlanClient` `vlan_id`: `str` — deprecated.
+- **parameter** `testprotocols.upnp_client:UpnpClient` `int_port`, `ext_port` and `testprotocols.vlan_client:VlanClient` `vlan_id`: `str` — deprecated.
   Replacement: `int` (announced narrowing). Earliest removal: the first release 6 months after the
   release that deprecates it.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P8;
   design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR #73.
-- **parameter** `IpRouting.traceroute(version)`: `str` (`""` or `"6"`) — deprecated. Replacement:
+- **parameter** `testprotocols.ip_routing:IpRouting.traceroute(version)`: `str` (`""` or `"6"`) — deprecated. Replacement:
   `IpFamily | None` (announced narrowing). Earliest removal: the first release 6 months after the
   release that deprecates it.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P8;
   design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR #73.
-- **parameter** `IpInterface.is_link_up(pattern)` — deprecated. Replacement: `is_link_admin_up` for
+- **parameter** `testprotocols.ip_interface:IpInterface.is_link_up(pattern)` — deprecated. Replacement: `is_link_admin_up` for
   the administrative state; at removal `pattern` goes. Earliest removal: the first release 6 months
   after the release that deprecates it.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P8;
   design `docs/architecture/precise-types-design.md`;
   register `packages/testprotocols/DEPRECATIONS.md`; PR #73.
-- **parameter** `NetemController.set_impairment_profile` / `set_interface_profile(profile)` as a
+- **parameter** `testprotocols.netem_controller:NetemController.set_impairment_profile` / `set_interface_profile(profile)` as a
   `dict` — deprecated. Replacement: `ImpairmentProfile` (narrows to it). Earliest removal: the first
   release 6 months after the release that deprecates it.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P10;
   design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR #73.
-- **parameter** `MulticastClient.send_mldv2_report` records as plain tuples — deprecated.
+- **parameter** `testprotocols.multicast_client:MulticastClient.send_mldv2_report` records as plain tuples — deprecated.
   Replacement: `GroupRecord` (narrows to `Sequence[GroupRecord]`). Earliest removal: the first
   release 6 months after the release that deprecates it.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P8;
   design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR #73.
-- **parameter** `HeldPrefixes.hold(address)`: `str` — deprecated. Replacement: `IPv4Interface |
+- **parameter** `testprotocols.held_prefixes:HeldPrefixes.hold(address)`: `str` — deprecated. Replacement: `IPv4Interface |
   IPv6Interface` (announced narrowing). Earliest removal: the first release 6 months after the
   release that deprecates it.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P8;
   design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR #73.
-- **member** `PacketFilter.get_default_policy` return `str` — deprecated. Replacement:
+- **member** `testprotocols.packet_filter:PacketFilter.get_default_policy` return `str` — deprecated. Replacement:
   `DefaultAction` (announced narrowing). Earliest removal: the first release 6 months after the
   release that deprecates it.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P2;
   design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR #73.
-- **member** `WifiRadio.list_radios` and `get_bandwidth` returns (`list[str]`, `int`) —
+- **member** `testprotocols.wifi_radio:WifiRadio.list_radios` and `get_bandwidth` returns (`list[str]`, `int`) —
   deprecated. Replacement: `list[WifiBand]`, `ChannelWidth` (announced). Earliest removal: the
   first release 6 months after the release that deprecates it.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P6;
   design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`;
   PR #73.
-- **member** `RadiusServer.get_status` return `str` — deprecated. Replacement: `ServiceStatus`
+- **member** `testprotocols.radius_server:RadiusServer.get_status` return `str` — deprecated. Replacement: `ServiceStatus`
   (announced narrowing). Earliest removal: the first release 6 months after the release that
   deprecates it.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P11;
   design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR #73.
-- **field** `FirewallRule.dst_port` (port text, required) — deprecated. Replacement: `dst_ports`; at
+- **field** `testprotocols.models:FirewallRule.dst_port` (port text, required) — deprecated. Replacement: `dst_ports`; at
   removal the text field goes and `dst_ports` becomes required. Earliest removal: the first release
   6 months after the release that deprecates it.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P2;
   design `docs/architecture/precise-types-design.md`;
   register `packages/testprotocols/DEPRECATIONS.md`; PR #73.
-- **field** `NatRule.dst_port` and `translated_port` (port text, released default `""`) —
+- **field** `testprotocols.models:NatRule.dst_port` and `translated_port` (port text, released default `""`) —
   deprecated. Replacement: `dst_ports`, `translated_ports`; at removal the text fields go and the
   typed fields default to `()`, the typed form of the released default `""`, so a rule that never
   sets them keeps its meaning. Earliest removal: the first
   release 6 months after the release that deprecates it.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P2;
   design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR #73.
-- **field** `L3Rule.src_port` and `dst_port` (port text, released default `"any"`) — deprecated.
+- **field** `testprotocols.models:L3Rule.src_port` and `dst_port` (port text, released default `"any"`) — deprecated.
   Replacement: `src_ports`, `dst_ports`; at removal the text fields go and the typed fields default to
   `()`, the typed form of the released default `"any"`, so a rule that never sets them keeps its
   meaning. Earliest removal: the first release 6 months
@@ -808,63 +811,63 @@ their tags and PR history.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P3;
   design `docs/architecture/precise-types-design.md`;
   register `packages/testprotocols/DEPRECATIONS.md`; PR #73.
-- **field** `SecurityEvent.ts` (ISO-8601 text, required) — deprecated. Replacement: `timestamp`; at
+- **field** `testprotocols.models:SecurityEvent.ts` (ISO-8601 text, required) — deprecated. Replacement: `timestamp`; at
   removal `ts` goes and `timestamp` becomes required (`None`: no time reported). Earliest removal:
   the first release 6 months after the release that deprecates it.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P3;
   design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR #73.
-- **field** `QosRule.match` (classifier text, required) — deprecated. Replacement: `classifier`; at
+- **field** `testprotocols.models:QosRule.match` (classifier text, required) — deprecated. Replacement: `classifier`; at
   removal `match` goes and `classifier` becomes required (`None`: every frame). Earliest removal:
   the first release 6 months after the release that deprecates it.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P5;
   design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR #73.
-- **field** `FirewallRule.action` / `protocol`: `FirewallRuleAction | str`, `RuleProtocol | str` —
+- **field** `testprotocols.models:FirewallRule.action` / `protocol`: `FirewallRuleAction | str`, `RuleProtocol | str` —
   deprecated. Replacement: the enums (narrows from `E | str` to `E`). Earliest removal: the first
   release 6 months after the release that deprecates it.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P2;
   design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR #73.
-- **field** `NatRule.mode` / `protocol`: `NatMode | str`, `RuleProtocol | str` — deprecated.
+- **field** `testprotocols.models:NatRule.mode` / `protocol`: `NatMode | str`, `RuleProtocol | str` — deprecated.
   Replacement: the enums (narrows from `E | str` to `E`). Earliest removal: the first release 6
   months after the release that deprecates it.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P2;
   design `docs/architecture/precise-types-design.md`;
   register `packages/testprotocols/DEPRECATIONS.md`; PR #73.
-- **field** `PortMapping.protocol`, `Connection.protocol`: `PortMappingProtocol | str`,
+- **field** `testprotocols.models:PortMapping.protocol`, `testprotocols.models:Connection.protocol`: `PortMappingProtocol | str`,
   `RuleProtocol | str` — deprecated. Replacement: the enums (narrows from `E | str` to `E`).
   Earliest removal: the first release 6 months after the release that deprecates it.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P2;
   design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR #73.
-- **field** `LinkStatus.state`, `LinkHealthReport.state`: `UplinkState | str` — deprecated.
+- **field** `testprotocols.models:LinkStatus.state`, `testprotocols.models:LinkHealthReport.state`: `UplinkState | str` — deprecated.
   Replacement: `UplinkState` (narrows from `E | str` to `E`). Earliest removal: the first release 6
   months after the release that deprecates it.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P4;
   design `docs/architecture/precise-types-design.md`;
   register `packages/testprotocols/DEPRECATIONS.md`; PR #73.
-- **field** Wi-Fi fields: `band` of `WifiBssConfig`, `WifiStation`, `WifiNeighbor`,
-  `WifiChannelUtilization`, `WifiRadioStats`, `WifiMeshLink`; `WifiBssConfig.security_mode` / `mfp`;
-  `WifiAcl.mode`; `role` of `WifiMeshStatus`, `WifiMeshNode` — deprecated. Replacement: `WifiBand`,
+- **field** Wi-Fi fields: `band` of `testprotocols.models:WifiBssConfig`, `testprotocols.models:WifiStation`, `testprotocols.models:WifiNeighbor`,
+  `testprotocols.models:WifiChannelUtilization`, `testprotocols.models:WifiRadioStats`, `testprotocols.models:WifiMeshLink`; `WifiBssConfig.security_mode` / `mfp`;
+  `testprotocols.models:WifiAcl.mode`; `role` of `testprotocols.models:WifiMeshStatus`, `testprotocols.models:WifiMeshNode` — deprecated. Replacement: `WifiBand`,
   `WifiSecurityMode`, `MfpMode`, `WifiAclMode`, `MeshRole` (narrows from `E | str` to `E`). Earliest
   removal: the first release 6 months after the release that deprecates it.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P6;
   design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR #73.
-- **field** `MeasurementSpec.tool` / `completion`, `TrafficSpec.protocol` — deprecated. Replacement:
+- **field** `testprotocols.models:MeasurementSpec.tool` / `completion`, `testprotocols.models:TrafficSpec.protocol` — deprecated. Replacement:
   `QoeTool`, `QoeCompletion | PageCompletion`, `TransportProtocol` (narrows from `E | str` to `E`).
   Earliest removal: the first release 6 months after the release that deprecates it.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P10;
   design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR #73.
-- **field** `NatRule.src_cidr`, `dst_cidr`, `translated_src`, `translated_dst` (`""`: absent) —
+- **field** `testprotocols.models:NatRule.src_cidr`, `dst_cidr`, `translated_src`, `translated_dst` (`""`: absent) —
   deprecated. Replacement: `str | None`, `None` absent (announced). Earliest removal: the first
   release 6 months after the release that deprecates it.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P2;
   design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR #73.
-- **field** `L3Rule.src_cidr`, `dst_cidr` (`"any"`), `UplinkStatus.ip`, `gateway`, `public_ip`,
-  `primary_dns` and `NetworkAttachment.segment` (`""`) — deprecated. Replacement: `str | None`,
+- **field** `testprotocols.models:L3Rule.src_cidr`, `dst_cidr` (`"any"`), `testprotocols.models:UplinkStatus.ip`, `gateway`, `public_ip`,
+  `primary_dns` and `testprotocols.network_attachment:NetworkAttachment.segment` (`""`) — deprecated. Replacement: `str | None`,
   `None` unconstrained or not reported (announced). Earliest removal: the first release 6 months
   after the release that deprecates it.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P3;
   design `docs/architecture/precise-types-design.md`;
   register `packages/testprotocols/DEPRECATIONS.md`; PR #73.
-- **field** `LinkStatus.ip_address` (`""`: no address) — deprecated. Replacement: `str | None`
+- **field** `testprotocols.models:LinkStatus.ip_address` (`""`: no address) — deprecated. Replacement: `str | None`
   (announced). Earliest removal: the first release 6 months after the release that deprecates it.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P4;
   design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR #73.
@@ -1064,7 +1067,8 @@ their tags and PR history.
   release 6 months after the release that deprecates it.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P12;
   design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR #73.
-- **member** reading `IperfSession`, `HomeVerification` or `FlowPair` as the released dict
+- **member** reading `testoperations.iperf_client:IperfSession`, `testoperations.homing:HomeVerification`
+  or `testoperations.iperf_generator:FlowPair` as the released dict
   (indexing, `get`, `in`, `len`, `keys`, `items`, `values`, iteration, `==` a dict, `as_dict()`) —
   deprecated. Replacement: the record's fields; the mapping access is removed. Earliest removal: the
   first release 6 months after the release that deprecates it.

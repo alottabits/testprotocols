@@ -122,7 +122,7 @@ def _stored_as_given(record: object, kwargs: dict[str, object]) -> None:
 def test_released_records_build_as_released() -> None:
     with warnings.catch_warnings():
         warnings.simplefilter("error")
-        rule = FirewallRule(**RELEASED_FIREWALL_RULE_KWARGS)  # type: ignore[arg-type]
+        rule = FirewallRule(**RELEASED_FIREWALL_RULE_KWARGS)  # type: ignore[arg-type]  # the keyword values are `object`
     assert rule.dst_port == "1000-2000"
     assert rule.dst_ports is None
     _stored_as_given(rule, RELEASED_FIREWALL_RULE_KWARGS)
@@ -221,7 +221,7 @@ def test_typed_only_records_build() -> None:
 def test_records_do_not_convert_on_assignment() -> None:
     with warnings.catch_warnings():
         warnings.simplefilter("error")
-        rule = FirewallRule(**RELEASED_FIREWALL_RULE_KWARGS)  # type: ignore[arg-type]
+        rule = FirewallRule(**RELEASED_FIREWALL_RULE_KWARGS)  # type: ignore[arg-type]  # the keyword values are `object`
         rule.dst_port = "443"
         rule.protocol = "udp"
     assert rule.dst_port == "443"

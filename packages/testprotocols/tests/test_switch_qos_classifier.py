@@ -23,7 +23,7 @@ def test_each_form_is_stored_as_given() -> None:
 
 def test_match_stays_required() -> None:
     with pytest.raises(TypeError, match="match"):
-        QosRule(name="r")  # type: ignore[call-arg]  # pyright: ignore[reportCallIssue]
+        QosRule(name="r")  # type: ignore[call-arg]  # pyright: ignore[reportCallIssue]  # the missing argument is the check
 
 
 def test_an_empty_classifier_places_no_restriction() -> None:

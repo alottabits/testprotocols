@@ -44,7 +44,7 @@ from testprotocols.vlan_client import VlanClient
 
 
 def _values(enum_type: type[object]) -> list[object]:
-    return [m.value for m in enum_type]  # type: ignore[attr-defined]
+    return [m.value for m in enum_type]  # type: ignore[attr-defined]  # `enum_type` is typed `type[object]`
 
 
 def _equal(left: object, right: object) -> bool:
@@ -57,7 +57,7 @@ def _stub(self: object, *args: object, **kwargs: object) -> None:
 
 
 def _ann(fn: object, name: str) -> object:
-    return inspect.signature(fn).parameters[name].annotation  # type: ignore[arg-type]
+    return inspect.signature(fn).parameters[name].annotation  # type: ignore[arg-type]  # `fn` is any member, typed `object`
 
 
 # --- members equal their released strings -----------------------------------------
@@ -101,17 +101,17 @@ def test_qoe_defaults_repr_as_their_quoted_text() -> None:
 @pytest.mark.parametrize(
     ("fn", "param", "ann"),
     [
-        (DnsClient.dns_lookup, "record_type", "DnsRecordType | str"),  # type: ignore[deprecated]
+        (DnsClient.dns_lookup, "record_type", "DnsRecordType | str"),  # type: ignore[deprecated]  # the released member under test
         (DnsClient.resolve, "record_type", "DnsRecordType | str"),
         (HttpClient.curl, "protocol", "HttpScheme | str"),
         (HttpServer.start_http_service, "port", "str"),
         (HttpServer.start_http_service, "ip_version", "str"),
         (HttpServer.stop_http_service, "port", "str"),
-        (IperfClient.start_traffic_sender, "ip_version", "IpFamily | int | None"),  # type: ignore[deprecated]
-        (IperfServer.start_traffic_receiver, "ip_version", "IpFamily | int | None"),  # type: ignore[deprecated]
+        (IperfClient.start_traffic_sender, "ip_version", "IpFamily | int | None"),  # type: ignore[deprecated]  # the released member under test
+        (IperfServer.start_traffic_receiver, "ip_version", "IpFamily | int | None"),  # type: ignore[deprecated]  # the released member under test
         (IpInterface.set_link_state, "state", "LinkAdminState | str"),
         (IpRouting.traceroute, "version", "str"),
-        (NmapScanner.nmap, "ip_type", "IpVersion | str"),  # type: ignore[deprecated]
+        (NmapScanner.nmap, "ip_type", "IpVersion | str"),  # type: ignore[deprecated]  # the released member under test
         (UpnpClient.create_upnp_rule, "int_port", "str"),
         (UpnpClient.create_upnp_rule, "ext_port", "str"),
         (UpnpClient.create_upnp_rule, "protocol", "PortMappingProtocol | str"),
@@ -137,8 +137,8 @@ def test_defaults_are_unchanged_text() -> None:
 
 
 def test_nmap_protocol_and_port_stay_as_released() -> None:
-    assert _ann(NmapScanner.nmap, "protocol") == "str | None"  # type: ignore[deprecated]
-    assert _ann(NmapScanner.nmap, "port") == "str | int | None"  # type: ignore[deprecated]
+    assert _ann(NmapScanner.nmap, "protocol") == "str | None"  # type: ignore[deprecated]  # the released member under test
+    assert _ann(NmapScanner.nmap, "port") == "str | int | None"  # type: ignore[deprecated]  # the released member under test
 
 
 def test_upnp_protocol_is_the_firewall_port_mapping_protocol() -> None:
@@ -165,7 +165,7 @@ def test_ip_interface_stub_with_every_released_member_does_not_have_the_new_one(
     )
     assert "set_link_state" in released and "is_link_up" in released
     assert not isinstance(Released(), IpInterface)
-    Released.is_link_admin_up = _stub  # type: ignore[attr-defined]
+    Released.is_link_admin_up = _stub  # type: ignore[attr-defined]  # adding the member at run time is the check
     assert isinstance(Released(), IpInterface)
 
 
@@ -209,9 +209,9 @@ def test_http_result_typed_reads_follow_the_released_attributes() -> None:
 def test_http_result_typed_reads_are_read_only() -> None:
     result = HTTPResult(_RESPONSE)
     with pytest.raises(AttributeError):
-        result.status = 404  # type: ignore[misc]
+        result.status = 404  # type: ignore[misc]  # assigning a frozen field is the check
     with pytest.raises(AttributeError):
-        result.body = "x"  # type: ignore[misc]
+        result.body = "x"  # type: ignore[misc]  # assigning a frozen field is the check
 
 
 def test_http_result_reads_do_not_warn() -> None:

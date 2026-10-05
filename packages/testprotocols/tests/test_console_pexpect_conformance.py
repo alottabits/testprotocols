@@ -13,7 +13,7 @@ if TYPE_CHECKING:
     import pexpect
     from testprotocols.hw_console import Console
 
-    class _PexpectConsole(pexpect.spawn):  # type: ignore[type-arg]
+    class _PexpectConsole(pexpect.spawn):  # type: ignore[type-arg]  # the stubs make `spawn` generic; drivers subclass it bare
         """What a released implementer's console is: spawn plus two methods."""
 
         def execute_command(self, command: str, timeout: int = -1) -> str: ...

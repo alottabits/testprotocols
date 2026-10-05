@@ -221,7 +221,6 @@ def test_radio_parameters_are_typed() -> None:
         "get_tx_power",
         "set_mode",
         "get_mode",
-        "get_modes",
         "get_dfs_state",
     ):
         assert _hints(getattr(WifiRadio, name))["band"] == WifiBand | str, name
@@ -235,10 +234,10 @@ def test_radio_parameters_are_typed() -> None:
 def test_radio_get_modes_is_new_and_get_mode_is_deprecated() -> None:
     assert "get_modes" in dir(WifiRadio)
     hints = _hints(WifiRadio.get_modes)
-    assert hints["band"] == WifiBand | str
+    assert hints["band"] is WifiBand
     assert hints["return"] == frozenset[WifiPhyMode]
     # the released member keeps its signature (shape 5: deprecated, not changed)
-    released = WifiRadio.get_mode  # type: ignore[deprecated]
+    released = WifiRadio.get_mode  # type: ignore[deprecated]  # the released member under test
     assert _hints(released)["return"] is str
     assert "get_modes" in (released.__doc__ or "")
     if sys.version_info >= (3, 13):  # 3.12's identity marker records nothing
@@ -257,9 +256,9 @@ def test_client_channel_is_int_or_str_and_supported_channels_is_new() -> None:
     assert _hints(WifiClient.supported_channels)["return"] == list[int]
     assert _hints(WifiClient.supported_channels)["band"] is WifiBand
     # the released member keeps its signature (shape 5: deprecated, not changed)
-    assert _hints(WifiClient.iwlist_supported_channels)["return"] == list[str]  # type: ignore[deprecated]
-    assert _hints(WifiClient.iwlist_supported_channels)["wifi_band"] is str  # type: ignore[deprecated]
-    assert "supported_channels" in WifiClient.__protocol_attrs__  # type: ignore[attr-defined]
+    assert _hints(WifiClient.iwlist_supported_channels)["return"] == list[str]  # type: ignore[deprecated]  # the released member under test
+    assert _hints(WifiClient.iwlist_supported_channels)["wifi_band"] is str  # type: ignore[deprecated]  # the released member under test
+    assert "supported_channels" in WifiClient.__protocol_attrs__  # type: ignore[attr-defined]  # a private attribute of `typing.Protocol`
 
 
 def test_easymesh_message_type_stays_str() -> None:

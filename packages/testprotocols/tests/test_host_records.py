@@ -266,10 +266,10 @@ def test_old_reader_matches_new_record_memory() -> None:
 @pytest.mark.parametrize("entry", PS_A_PARSED)
 def test_old_reader_matches_new_record_process(entry: dict[str, object]) -> None:
     record = ProcessInfo(
-        pid=entry["pid"],  # type: ignore[arg-type]
-        tty=entry["tty"],  # type: ignore[arg-type]
-        cpu_time=_cpu_time(entry["time"]),  # type: ignore[arg-type]
-        command=entry["cmd"],  # type: ignore[arg-type]
+        pid=entry["pid"],  # type: ignore[arg-type]  # the fixture values are `object`
+        tty=entry["tty"],  # type: ignore[arg-type]  # the fixture values are `object`
+        cpu_time=_cpu_time(entry["time"]),  # type: ignore[arg-type]  # the fixture values are `object`
+        command=entry["cmd"],  # type: ignore[arg-type]  # the fixture values are `object`
     )
     assert (record.pid, record.tty, record.command) == (entry["pid"], entry["tty"], entry["cmd"])
 
@@ -287,11 +287,11 @@ def test_process_cpu_time_beyond_a_day_uses_the_ps_day_prefix() -> None:
 @pytest.mark.parametrize("entry", SYSLOG_PARSED)
 def test_old_reader_matches_new_record_event_log(entry: dict[str, object]) -> None:
     record = EventLogEntry(
-        timestamp=entry["date"],  # type: ignore[arg-type]
-        hostname=entry["hostname"],  # type: ignore[arg-type]
-        tag=entry["tag"],  # type: ignore[arg-type]
-        message=entry["content"],  # type: ignore[arg-type]
-        priority=entry["priority"],  # type: ignore[arg-type]
+        timestamp=entry["date"],  # type: ignore[arg-type]  # the fixture values are `object`
+        hostname=entry["hostname"],  # type: ignore[arg-type]  # the fixture values are `object`
+        tag=entry["tag"],  # type: ignore[arg-type]  # the fixture values are `object`
+        message=entry["content"],  # type: ignore[arg-type]  # the fixture values are `object`
+        priority=entry["priority"],  # type: ignore[arg-type]  # the fixture values are `object`
     )
     held = {
         "priority": record.priority,
@@ -306,7 +306,7 @@ def test_old_reader_matches_new_record_event_log(entry: dict[str, object]) -> No
 def test_event_log_reader_keeps_unparsable_lines_in_the_released_output() -> None:
     # jc syslog-bsd emits {"unparsable": line} for a line it cannot read; no record holds it,
     # so the deprecated reader is documented as keeping its released output
-    doc = inspect.getdoc(DeviceManagement.read_event_logs) or ""  # type: ignore[deprecated]
+    doc = inspect.getdoc(DeviceManagement.read_event_logs) or ""  # type: ignore[deprecated]  # the released member under test
     assert "unparsable" in doc and "released output also carries" in doc
     assert "left out" in (inspect.getdoc(DeviceManagement.read_log_entries) or "")
 
@@ -325,10 +325,10 @@ def test_event_log_severity_is_the_priority_low_bits() -> None:
 
 def _record_from_answer(entry: Mapping[str, object]) -> DnsRecord:
     return DnsRecord(
-        name=entry["name"],  # type: ignore[arg-type]
-        record_type=entry["type"],  # type: ignore[arg-type]
-        ttl=entry["ttl"],  # type: ignore[arg-type]
-        data=entry["data"],  # type: ignore[arg-type]
+        name=entry["name"],  # type: ignore[arg-type]  # the fixture values are `object`
+        record_type=entry["type"],  # type: ignore[arg-type]  # the fixture values are `object`
+        ttl=entry["ttl"],  # type: ignore[arg-type]  # the fixture values are `object`
+        data=entry["data"],  # type: ignore[arg-type]  # the fixture values are `object`
     )
 
 
@@ -347,7 +347,7 @@ def test_dns_record_type_outside_the_enum_is_stored_as_given() -> None:
 
 
 def test_record_type_parameters_take_the_enum_or_its_text() -> None:
-    for member in (DnsClient.dns_lookup, DnsClient.resolve):  # type: ignore[deprecated]
+    for member in (DnsClient.dns_lookup, DnsClient.resolve):  # type: ignore[deprecated]  # the released member under test
         params = inspect.signature(member).parameters
         assert params["record_type"].annotation == "DnsRecordType | str"
 
@@ -383,7 +383,7 @@ def test_sender_session_signature() -> None:
     assert params["window_bytes"].kind is inspect.Parameter.KEYWORD_ONLY
     assert params["ip_version"].annotation == "IpFamily | None"
     assert "window" not in params
-    released = inspect.signature(IperfClient.start_traffic_sender).parameters  # type: ignore[deprecated]
+    released = inspect.signature(IperfClient.start_traffic_sender).parameters  # type: ignore[deprecated]  # the released member under test
     assert released["window"].annotation == "str | None"  # the released member is unchanged
     assert "window_bytes" not in released
     assert set(released) - {"window"} == set(params) - {"window_bytes"}
@@ -391,7 +391,7 @@ def test_sender_session_signature() -> None:
 
 def test_receiver_session_signature() -> None:
     params = inspect.signature(IperfServer.start_receiver_session).parameters
-    released = inspect.signature(IperfServer.start_traffic_receiver).parameters  # type: ignore[deprecated]
+    released = inspect.signature(IperfServer.start_traffic_receiver).parameters  # type: ignore[deprecated]  # the released member under test
     assert set(params) == set(released)
     assert params["ip_version"].annotation == "IpFamily | None"
 
@@ -403,15 +403,15 @@ def test_receiver_session_signature() -> None:
 
 def _ping_from_parsed(parsed: Mapping[str, object]) -> PingResult:
     return PingResult(
-        destination=parsed["destination"],  # type: ignore[arg-type]
-        transmitted=parsed["packets_transmitted"],  # type: ignore[arg-type]
-        received=parsed["packets_received"],  # type: ignore[arg-type]
-        duplicates=parsed["duplicates"],  # type: ignore[arg-type]
-        packet_loss_percent=parsed["packet_loss_percent"],  # type: ignore[arg-type]
-        rtt_min_ms=parsed.get("round_trip_ms_min"),  # type: ignore[arg-type]
-        rtt_avg_ms=parsed.get("round_trip_ms_avg"),  # type: ignore[arg-type]
-        rtt_max_ms=parsed.get("round_trip_ms_max"),  # type: ignore[arg-type]
-        rtt_stddev_ms=parsed.get("round_trip_ms_stddev"),  # type: ignore[arg-type]
+        destination=parsed["destination"],  # type: ignore[arg-type]  # the fixture values are `object`
+        transmitted=parsed["packets_transmitted"],  # type: ignore[arg-type]  # the fixture values are `object`
+        received=parsed["packets_received"],  # type: ignore[arg-type]  # the fixture values are `object`
+        duplicates=parsed["duplicates"],  # type: ignore[arg-type]  # the fixture values are `object`
+        packet_loss_percent=parsed["packet_loss_percent"],  # type: ignore[arg-type]  # the fixture values are `object`
+        rtt_min_ms=parsed.get("round_trip_ms_min"),  # type: ignore[arg-type]  # the fixture values are `object`
+        rtt_avg_ms=parsed.get("round_trip_ms_avg"),  # type: ignore[arg-type]  # the fixture values are `object`
+        rtt_max_ms=parsed.get("round_trip_ms_max"),  # type: ignore[arg-type]  # the fixture values are `object`
+        rtt_stddev_ms=parsed.get("round_trip_ms_stddev"),  # type: ignore[arg-type]  # the fixture values are `object`
     )
 
 

@@ -47,11 +47,11 @@ def _rule(dst_port: str | None, dst_ports: tuple[PortRange, ...] | None) -> Fire
 
 
 def _nat(**ports: object) -> NatRule:
-    return NatRule(name="n", mode="dnat", interface="wan0", **ports)  # type: ignore[arg-type]
+    return NatRule(name="n", mode="dnat", interface="wan0", **ports)  # type: ignore[arg-type]  # the keyword values are `object`
 
 
 def _l3(**ports: object) -> L3Rule:
-    return L3Rule(action=RuleAction.DENY, **ports)  # type: ignore[arg-type]
+    return L3Rule(action=RuleAction.DENY, **ports)  # type: ignore[arg-type]  # the keyword values are `object`
 
 
 def _event(ts: str | None, timestamp: datetime | None) -> SecurityEvent:

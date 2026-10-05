@@ -102,7 +102,7 @@ class TestStartIperf:
     def test_host_is_required_keyword_only(self, new: bool) -> None:
         client, server = _pair(new)
         with pytest.raises(TypeError, match="host"):
-            start_iperf(client, server, 5001)  # type: ignore[call-arg]
+            start_iperf(client, server, 5001)  # type: ignore[call-arg]  # the missing argument is the check
 
 
 class TestReleasedReadAccess:
