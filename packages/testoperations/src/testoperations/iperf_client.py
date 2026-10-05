@@ -76,7 +76,7 @@ def start_iperf(
     port: int,
     time: int = 10,
     udp: bool = False,
-    ip_version: IpFamily | int = IpFamily.V4,
+    ip_version: IpFamily | int = 4,
     *,
     host: str,
 ) -> IperfSession:

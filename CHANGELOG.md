@@ -528,8 +528,9 @@ their tags and PR history.
   (`"any"` and the empty tuple). Migration: pass `DenyScope` and
   `RuleProtocol` members. Design `docs/architecture/precise-types-design.md` (Segmentation deny scope); PR pending.
 - **operation** `testoperations.iperf_generator:saturate_link(protocol)` — takes
-  `TransportProtocol | str` (default `UDP`) and converts it at its boundary with `coerce_enum`:
-  a plain `"udp"` / `"tcp"` warns at the caller; any other word is a `ValueError`. Migration:
+  `TransportProtocol | str` (default `"udp"`, as released) and converts it at its boundary with
+  `coerce_enum`: a plain `"udp"` / `"tcp"` the caller passes warns at the caller, a call that
+  leaves `protocol` out does not; any other word is a `ValueError`. Migration:
   pass `TransportProtocol`. Design `docs/architecture/precise-types-design.md` (Host-tool and service vocabularies); PR pending.
 - **operations** `testoperations.throughput:measure_concurrent_throughput` and
   `measure_external_flow` (and the operations built on them), `testoperations.netem_controller`
@@ -546,7 +547,7 @@ their tags and PR history.
   capability protocol declares and no driver in the consumer examples, the corpus or boardfarm
   implements, and it could not name the receiver's address; it now calls `start_receiver_session`
   / `start_sender_session` (or the released `start_traffic_receiver` / `start_traffic_sender` on
-  a driver that has only those). `ip_version` is `IpFamily | int` (default `IpFamily.V4`): `4` and
+  a driver that has only those). `ip_version` is `IpFamily | int` (default `4`, as released): `4` and
   `6` are accepted as numbers, any other value is a `ValueError` (released: passed through).
   Migration: pass `host=`; read the record's fields. Design `docs/architecture/precise-types-design.md` (testoperations: typed records); PR pending.
 - **operation** `testoperations.iperf_client:sender_life_record(iperf_client)` — typed

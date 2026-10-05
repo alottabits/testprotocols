@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import inspect
 import warnings
 from collections.abc import Callable
 from unittest.mock import MagicMock
@@ -78,6 +79,25 @@ class TestStartIperf:
             start_iperf(client, server, port=5001, ip_version=4, host="h")
         with pytest.raises(ValueError, match="ip_version"):
             start_iperf(client, server, port=5001, ip_version=5, host="h")
+
+    def test_the_released_default_is_4_and_does_not_warn(self, new: bool) -> None:
+        default = inspect.signature(start_iperf).parameters["ip_version"].default
+        assert default == 4 and type(default) is int  # the released default
+        client, server = _pair(new)
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+            start_iperf(client, server, port=5001, host="h")
+        start_s = server.start_receiver_session if new else server.start_traffic_receiver
+        assert start_s.call_args.kwargs["ip_version"] is IpFamily.V4
+
+    def test_an_explicit_plain_4_is_the_member_without_a_warning(self, new: bool) -> None:
+        # an IntEnum's value is the number, not a deprecated spelling: no warning by design
+        client, server = _pair(new)
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+            start_iperf(client, server, port=5001, ip_version=4, host="h")
+        start_s = server.start_receiver_session if new else server.start_traffic_receiver
+        assert start_s.call_args.kwargs["ip_version"] is IpFamily.V4
 
     def test_host_is_required_keyword_only(self, new: bool) -> None:
         client, server = _pair(new)

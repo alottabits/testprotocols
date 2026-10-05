@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import inspect
 import warnings
 from unittest.mock import MagicMock
 
@@ -102,6 +103,20 @@ class TestSaturateLink:
 
         assert record[0].filename == __file__
         assert peer_a.start_traffic.call_args[0][0].protocol is TransportProtocol.TCP
+
+    def test_the_released_default_is_udp_and_does_not_warn(self) -> None:
+        default = inspect.signature(saturate_link).parameters["protocol"].default
+        assert default == "udp" and repr(default) == "'udp'"  # the released default
+        peer_a = _peer("PEER_A_ADDR", "flow-a")
+        peer_b = _peer("PEER_B_ADDR", "flow-b")
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+            saturate_link(peer_a, peer_b, a_to_b_mbps=5.0)
+        assert peer_a.start_traffic.call_args[0][0].protocol is TransportProtocol.UDP
+
+    def test_an_explicit_plain_udp_still_warns(self) -> None:
+        with pytest.warns(DeprecationWarning, match="saturate_link.protocol"):
+            saturate_link(_peer("A", "a"), _peer("B", "b"), a_to_b_mbps=5.0, protocol="udp")
 
     def test_unknown_protocol_text_is_refused(self) -> None:
         with pytest.raises(ValueError, match="icmp"):

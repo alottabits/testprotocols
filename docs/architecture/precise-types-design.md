@@ -433,7 +433,7 @@ where one exists, also records its retype.
     no caller was seen to pass anything through the members but the released default, so there
     is no typed parameter. `opts` and a `ps_options` other than the default `"-A"` are
     deprecated with no typed successor (`resolve` and `read_running_processes` take no option);
-    the default `"-A"` is not a deprecated spelling and does not warn. This is a gap before
+    the default `"-A"` is not a deprecated spelling. This is a gap before
     removal: boardfarm's `dns_resolve` use case forwards a caller's `opts` to `dns_lookup`, and
     options such as `+short` and `@server` are used with `dig` by hand, so a typed form (or an
     maintainer decision to drop them) is needed before the strings go.
@@ -605,7 +605,8 @@ the matching CHANGELOG entry sits under *Changed*.
   dict into `L3Rule` or `SecurityEvent` fails type-checking, as for `FirewallRule`.
 - **WAN-edge models** (WAN-edge). `LinkStatus.state` and `LinkHealthReport.state`
   are `UplinkState | str`, stored as given. `testprotocols.models.TrafficShapingRule`
-  and `VPNPeerStatus` are not star-exported any more (they warn on access). Static
+  and `VPNPeerStatus` stay exported as released and carry the `@deprecated` marker (a
+  type checker reports a use; nothing warns at run time). Static
   only: `TrafficShapingRule.match` reads as `Mapping[str, object]` (was `dict[str, Any]`).
 - **Switch QoS classifier** (switch QoS). `QosRule.match` is `str | None` (still
   required); a reader of the text field sees `str | None`. Static only: unpacking a
@@ -630,13 +631,15 @@ the matching CHANGELOG entry sits under *Changed*.
   annotation is unchanged, and `wait_for_state` only widens (`PhoneState | str`).
 - **Host-tool and service vocabularies** (host tools). `HTTPResult` is frozen (assigning
   an attribute raises `FrozenInstanceError`), compares by value (released: identity) and
-  `code` / `beautified_text` warn when read; `status` is `0` outside 100 to 599.
+  `code` / `beautified_text` carry the `@deprecated` marker (nothing warns at run time);
+  `status` is `0` outside 100 to 599.
   `MeasurementSpec.tool` / `completion` and `TrafficSpec.protocol` are `E | str`, stored as
   given, so a reader sees `E | str`. `QoEResult.protocol`, `RadiusAccountingRecord.record_type` and `terminate_cause`,
-  and `RadiusUser.eap_methods` stay `str` and store the device's word as given. `repr()`: `QoeTool` and `QoeCompletion` repr as their quoted text, so text built with
-  `repr(spec.completion)` is unchanged; every other new enum (`IpVersion`, `PageCompletion`,
-  `TransportProtocol`, ...) keeps the default `<Enum.MEMBER: 'x'>` repr, and
-  code that builds text with `repr(value)` or `{value!r}` must use `str(value)`.
+  and `RadiusUser.eap_methods` stay `str` and store the device's word as given. `repr()`: the defaults of `MeasurementSpec` stay the released words, so text built
+  with `repr(spec.completion)` from a default spec is unchanged; every new enum (`QoeTool`,
+  `QoeCompletion`, `IpVersion`, `PageCompletion`, `TransportProtocol`, ...) keeps the
+  default `<Enum.MEMBER: 'x'>` repr, and code that builds text with `repr(value)` or
+  `{value!r}` from a member must use `str(value)`.
   `StormControlConfig.unit` is ignored by released drivers (they read and write their own
   unit): a writer that sets it gets no error from them. The `testoperations`
   `start_http_server` default `ip_version` is now `"4"` (was `"ipv4"`, which rendered an
@@ -693,7 +696,9 @@ the matching CHANGELOG entry sits under *Changed*.
   (`(flow, /, *, duration_s, result_timeout_s, poll_interval_s) -> FlowThroughput`), so a stand-in
   taking the flow by another name still conforms, and one with other keyword names no longer does.
   `build_deny_rule` and `saturate_link` take `DenyScope | str` / `RuleProtocol | str` and
-  `TransportProtocol | str`: a plain string naming a member warns, and an unknown word raises
+  `TransportProtocol | str`: a plain string the caller passes naming a member warns (the
+  released defaults, `saturate_link`'s `"udp"` and `start_iperf`'s `ip_version=4`, do not),
+  and an unknown word raises
   the `coerce_enum` `ValueError` (the message text for an unknown `scope` changed).
   `sender_life_record` takes `IperfClient` (was `Any`).
 

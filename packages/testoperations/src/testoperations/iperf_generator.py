@@ -13,7 +13,7 @@ from typing import override
 from testprotocols.iperf_generator import IperfGenerator
 from testprotocols.models.traffic import TrafficResult, TrafficSpec, TransportProtocol
 
-from testoperations._compat import coerce_enum
+from testoperations._compat import ReleasedDefault, coerce_enum
 from testoperations._released import ReleasedMapping
 
 
@@ -67,6 +67,10 @@ def _flow_spec(
     )
 
 
+_UDP = ReleasedDefault("udp")
+"""``saturate_link``'s released ``protocol`` default."""
+
+
 def saturate_link(
     peer_a: IperfGenerator,
     peer_b: IperfGenerator,
@@ -74,7 +78,7 @@ def saturate_link(
     b_to_a_mbps: float | None = None,
     dscp: int = 0,
     duration_s: int = 120,
-    protocol: TransportProtocol | str = TransportProtocol.UDP,
+    protocol: TransportProtocol | str = _UDP,
 ) -> FlowPair:
     """Saturate the network path between two peer generators with bidirectional traffic.
 
@@ -101,7 +105,8 @@ def saturate_link(
     :param dscp: DSCP code point for both flows (default 0 = best-effort).
     :param duration_s: Flow duration in seconds (default 120).
     :param protocol: a :class:`~testprotocols.models.traffic.TransportProtocol` (default
-        ``UDP``); a plain ``"udp"`` / ``"tcp"`` is deprecated and warns.
+        ``"udp"``, the released default, which does not warn); a plain ``"udp"`` / ``"tcp"``
+        passed by the caller is deprecated and warns.
     :return: a :class:`FlowPair`: ``a_to_b`` is the flow id on *peer_a*, ``b_to_a`` the flow id on
         *peer_b*. (The released dict, keyed ``"a_to_b"`` / ``"b_to_a"``, still reads through
         the record with a ``DeprecationWarning``.)

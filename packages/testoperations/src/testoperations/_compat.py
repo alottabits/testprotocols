@@ -286,13 +286,25 @@ def parse_window_size(text: str) -> int:
 # --- enum parameters ---------------------------------------------------------------------
 
 
+class ReleasedDefault(str):
+    """The released ``str`` default of an operation's parameter (``"udp"``).
+
+    It is that text (equal to it, and shown as it by ``repr`` and ``inspect.signature``),
+    and it lets :func:`coerce_enum` tell a call that left the parameter out, which must not
+    warn, from a caller who passed the plain text.
+    """
+
+    __slots__ = ()
+
+
 def coerce_enum[E: Enum](enum_type: type[E], value: E | str | int, *, what: str) -> E:
     """Return *value* as a member of *enum_type*, for an operation's own released ``str``
     parameter.
 
     A member is returned as is. A plain string naming a member's value is accepted for the
     deprecation period: it warns (``DeprecationWarning``, pointing at the operation's
-    caller) and returns the member. For an ``IntEnum`` the number is the value, not a
+    caller) and returns the member. A :class:`ReleasedDefault` (the parameter was left out)
+    converts the same way with no warning. For an ``IntEnum`` the number is the value, not a
     deprecated spelling: a plain ``int`` (never a ``bool``) naming a member returns it with
     no warning. A string, or an ``IntEnum``'s ``int``, that names no member raises
     ``ValueError`` listing the legal values. A value of any other type (``None``,
@@ -314,8 +326,8 @@ def coerce_enum[E: Enum](enum_type: type[E], value: E | str | int, *, what: str)
         member = enum_type(given)
     except ValueError:
         raise ValueError(f"{what}: {given!r} is not one of {legal}") from None
-    if numeric:
-        return member  # a number is an IntEnum's value, not a deprecated spelling
+    if numeric or isinstance(given, ReleasedDefault):
+        return member  # a number is an IntEnum's value; a default is not the caller's spelling
     warnings.warn(
         f"{what}: plain string {value!r} is deprecated; pass {enum_type.__name__}.{member.name}",
         DeprecationWarning,
