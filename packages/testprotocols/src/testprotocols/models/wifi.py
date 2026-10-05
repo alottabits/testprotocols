@@ -31,6 +31,7 @@ class WifiSecurityMode(StrEnum):
     WPA2_EAP = "WPA2-EAP"
     WPA3_SAE = "WPA3-SAE"
     WPA3_EAP = "WPA3-EAP"
+    WPA3_EAP_192 = "WPA3-EAP-192"  # WPA3-Enterprise 192-bit mode (CNSA suite, Suite B)
     WPA2_WPA3_PSK_MIXED = "WPA2-WPA3-PSK-Mixed"
     WPA2_WPA3_EAP_MIXED = "WPA2-WPA3-EAP-Mixed"
 

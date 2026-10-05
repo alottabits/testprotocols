@@ -30,6 +30,7 @@ from testprotocols.sdwan_policy_manager import SdwanPolicyManager
 from testprotocols.sip_server import SipServer
 from testprotocols.snmp_client import SnmpClient
 from testprotocols.wifi_client import WifiClient
+from testprotocols.wifi_radio import WifiRadio
 
 
 def uses(
@@ -50,6 +51,7 @@ def uses(
     sip: SipServer,
     snmp: SnmpClient,
     wifi: WifiClient,
+    radio: WifiRadio,
 ) -> list[object]:
     return [
         models.TrafficShapingRule,  # type: ignore[deprecated]
@@ -77,4 +79,5 @@ def uses(
         sip.get_offline_messages,  # type: ignore[deprecated]
         snmp.execute_snmp_command,  # type: ignore[deprecated]
         wifi.iwlist_supported_channels,  # type: ignore[deprecated]
+        radio.get_mode,  # type: ignore[deprecated]
     ]

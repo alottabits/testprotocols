@@ -49,6 +49,7 @@ from testprotocols.wifi_rf import WifiRf
         (WifiSecurityMode.WPA2_EAP, "WPA2-EAP"),
         (WifiSecurityMode.WPA3_SAE, "WPA3-SAE"),
         (WifiSecurityMode.WPA3_EAP, "WPA3-EAP"),
+        (WifiSecurityMode.WPA3_EAP_192, "WPA3-EAP-192"),
         (WifiSecurityMode.WPA2_WPA3_PSK_MIXED, "WPA2-WPA3-PSK-Mixed"),
         (WifiSecurityMode.WPA2_WPA3_EAP_MIXED, "WPA2-WPA3-EAP-Mixed"),
         (MfpMode.OFF, "off"),
@@ -219,6 +220,7 @@ def test_radio_parameters_are_typed() -> None:
         "get_tx_power",
         "set_mode",
         "get_mode",
+        "get_modes",
         "get_dfs_state",
     ):
         assert _hints(getattr(WifiRadio, name))["band"] == WifiBand | str, name
@@ -226,8 +228,18 @@ def test_radio_parameters_are_typed() -> None:
     assert _hints(WifiRadio.set_mode)["mode"] == WifiPhyMode | str
     # shape 6: returns are announced, not yet narrowed
     assert _hints(WifiRadio.list_radios)["return"] == list[str]
-    assert _hints(WifiRadio.get_mode)["return"] is str
     assert _hints(WifiRadio.get_bandwidth)["return"] is int
+
+
+def test_radio_get_modes_is_new_and_get_mode_is_deprecated() -> None:
+    assert "get_modes" in dir(WifiRadio)
+    hints = _hints(WifiRadio.get_modes)
+    assert hints["band"] == WifiBand | str
+    assert hints["return"] == frozenset[WifiPhyMode]
+    # the released member keeps its signature (shape 5: deprecated, not changed)
+    released = WifiRadio.get_mode  # type: ignore[deprecated]
+    assert _hints(released)["return"] is str
+    assert "get_modes" in getattr(released, "__deprecated__", "")
 
 
 def test_rf_and_mesh_bands_are_typed() -> None:

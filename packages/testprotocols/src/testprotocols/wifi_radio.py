@@ -19,6 +19,7 @@ from __future__ import annotations
 
 from typing import Protocol, runtime_checkable
 
+from testprotocols._compat import deprecated
 from testprotocols.models.wifi import (
     ChannelWidth,
     WifiBand,
@@ -115,15 +116,34 @@ class WifiRadio(Protocol):
         discretion: such a string names no member, so a driver that accepts it
         handles that ``str`` itself.
         Raises ValueError if the radio does not support *mode*.
+
+        The radio may then operate further modes as well, which :meth:`get_modes` reports.
         """
         ...
 
+    @deprecated(
+        "Deprecated: use get_modes. Removal not before the first release 6 months after "
+        "the release that deprecates it.",
+        category=None,
+    )
     def get_mode(self, band: WifiBand | str) -> str:
         """Return the 802.11 PHY mode currently in use on *band*.
 
-        Announced, not yet changed: the return narrows to ``WifiPhyMode`` in a later
-        release. It stays a ``str`` for now because a radio may run a compound mode
-        (``"n/ac/ax"``).
+        A radio operates a set of modes at once (TR-181
+        ``Device.WiFi.Radio.{i}.OperatingStandards`` is a list), so one word cannot
+        report them; a driver may return a compound form (``"n/ac/ax"``).
+
+        Deprecated: use :meth:`get_modes`. Removal not before the first release 6 months
+        after the release that deprecates it.
+        """
+        ...
+
+    def get_modes(self, band: WifiBand | str) -> frozenset[WifiPhyMode]:
+        """Return the set of 802.11 PHY modes the radio on *band* currently operates.
+
+        A radio runs several modes at once (TR-181
+        ``Device.WiFi.Radio.{i}.OperatingStandards`` is a list): a 5 GHz radio
+        commonly operates ``A``, ``N``, ``AC`` and ``AX``.
         """
         ...
 

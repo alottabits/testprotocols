@@ -56,7 +56,7 @@ class WifiBss(Protocol):
 
         *band* is a :class:`~testprotocols.models.wifi.WifiBand`. *security_mode* is
         a :class:`~testprotocols.models.wifi.WifiSecurityMode`: ``OPEN``, ``OWE``,
-        ``WPA2_PSK``, ``WPA2_EAP``, ``WPA3_SAE``, ``WPA3_EAP``,
+        ``WPA2_PSK``, ``WPA2_EAP``, ``WPA3_SAE``, ``WPA3_EAP``, ``WPA3_EAP_192``,
         ``WPA2_WPA3_PSK_MIXED`` or ``WPA2_WPA3_EAP_MIXED`` (the released strings
         ``"Open"``, ``"WPA2-PSK"`` and so on). *mfp* is a
         :class:`~testprotocols.models.wifi.MfpMode`: ``OFF``, ``OPTIONAL`` or
@@ -70,6 +70,12 @@ class WifiBss(Protocol):
         - EAP / mixed-EAP modes: *radius_server_name* required, must
           reference a server registered via RadiusClient on this device
         - Open / OWE: neither required
+
+        Management-frame protection is required by some security modes (IEEE 802.11 and
+        the WPA3 specification): ``WPA3_SAE``, ``WPA3_EAP`` and ``WPA3_EAP_192`` (the
+        WPA3-only modes), ``OWE``, and any security mode on a BSS on 6 GHz. For these a
+        driver applies ``REQUIRED`` whatever *mfp* says, and reading the configuration
+        back (``get_bss_config``) reports ``REQUIRED``.
 
         Raises ValueError on a duplicate *name* or on missing
         mode-required arguments.
@@ -128,7 +134,10 @@ class WifiBss(Protocol):
         """Reconfigure the security of an existing BSS.
 
         Same value space (``WifiSecurityMode``, ``MfpMode``) and required-argument
-        rules as ``create_bss``.
+        rules as ``create_bss``. As there, ``WPA3_SAE``, ``WPA3_EAP``, ``WPA3_EAP_192``,
+        ``OWE`` and any BSS on 6 GHz require management-frame protection: a driver applies
+        ``REQUIRED`` whatever *mfp* says, and reading the configuration back reports
+        ``REQUIRED``.
         Reconfiguration disconnects currently associated clients on most
         drivers; tests should expect re-association.
         """

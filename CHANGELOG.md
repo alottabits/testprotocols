@@ -55,6 +55,12 @@ their tags and PR history.
   new mandatory members, replacing `get_rtpengine_stats`, `get_mwi_status` and
   `get_offline_messages` (which return dicts). Migration: implement them, and keep each old name,
   returning the record's fields as the released dict (one dict per offline message). Design `docs/architecture/precise-types-design.md` (Voice vocabularies); PR pending.
+- **protocol member** `testprotocols.wifi_radio:WifiRadio.get_modes(band: WifiBand | str) ->
+  frozenset[WifiPhyMode]` — new mandatory member, replacing `get_mode`: a radio operates a set of
+  802.11 PHY modes at once (TR-181 `Device.WiFi.Radio.{i}.OperatingStandards` is a list), which
+  one `str` cannot report. Migration: implement it; keep `get_mode`, returning the released
+  `str`, until its removal. Design `docs/architecture/precise-types-design.md` (Wi-Fi
+  vocabularies); PR pending.
 - **protocol member** `testprotocols.ip_interface:IpInterface.is_link_admin_up(interface) -> bool`
   — new mandatory member: True when the interface is administratively up (the state
   `set_link_state` sets), whether or not a carrier is present. Migration: implement it
@@ -209,6 +215,10 @@ their tags and PR history.
   `MeshRole` (`CONTROLLER`, `AGENT`, `CONTROLLER_AND_AGENT`, `UNCOMMISSIONED`) — the Wi-Fi vocabularies;
   every value is the string the released contract used (`WifiBand.GHZ_5 == "5GHz"`).
   Migration: none. Design `docs/architecture/precise-types-design.md` (Wi-Fi vocabularies); PR pending.
+- **enum member** `testprotocols.models:WifiSecurityMode.WPA3_EAP_192` (`"WPA3-EAP-192"`) — the
+  WPA3-Enterprise 192-bit security mode (CNSA suite, Suite B). Like the other WPA3-only modes it
+  requires management-frame protection. Migration: none. Design
+  `docs/architecture/precise-types-design.md` (Wi-Fi vocabularies); PR pending.
 - **enums** `testprotocols.models:PhoneState` (`IDLE`, `DIALING`, `INCALL_DIALING`,
   `RINGING`, `CONNECTED`, `INCALL_CONNECTED`, `HOLD`, `DIALTONE`, `INCALL_DIALTONE`,
   `CALL_ENDED`, `CODE_ENDED`, `CALL_WAITING`, `CONFERENCE`, `BUSY`, `NOT_ANSWERED`;
@@ -397,6 +407,9 @@ their tags and PR history.
 - **member** `testprotocols.wifi_client:WifiClient.iwlist_supported_channels` — deprecated.
   Replacement: `supported_channels`. Earliest removal: the first release 6 months after the release
   that deprecates it. Design `docs/architecture/precise-types-design.md` (Deprecations); PR pending.
+- **member** `testprotocols.wifi_radio:WifiRadio.get_mode` — deprecated. Replacement: `get_modes`.
+  Earliest removal: the first release 6 months after the release that deprecates it. Design
+  `docs/architecture/precise-types-design.md` (Deprecations); PR pending.
 - **member** `testprotocols.sip_server:SipServer.get_rtpengine_stats` — deprecated. Replacement:
   `read_rtpengine_stats`. Earliest removal: the first release 6 months after the release that
   deprecates it. Design `docs/architecture/precise-types-design.md` (Deprecations); PR pending.
@@ -557,10 +570,9 @@ their tags and PR history.
   `DefaultAction` (announced narrowing). Earliest removal: the first release 6 months after the
   release that deprecates it. Design `docs/architecture/precise-types-design.md` (Deprecations); PR
   pending.
-- **member** `WifiRadio.list_radios`, `get_bandwidth` and `get_mode` returns (`list[str]`, `int`,
-  `str`) — deprecated. Replacement: `list[WifiBand]`, `ChannelWidth`, `WifiPhyMode` (announced;
-  `get_mode` once compound modes are settled). Earliest removal: the first release 6 months after
-  the release that deprecates it. Design `docs/architecture/precise-types-design.md` (Deprecations);
+- **member** `WifiRadio.list_radios` and `get_bandwidth` returns (`list[str]`, `int`) —
+  deprecated. Replacement: `list[WifiBand]`, `ChannelWidth` (announced). Earliest removal: the
+  first release 6 months after the release that deprecates it. Design `docs/architecture/precise-types-design.md` (Deprecations);
   PR pending.
 - **member** `RadiusServer.get_status` return `str` — deprecated. Replacement: `ServiceStatus`
   (announced narrowing). Earliest removal: the first release 6 months after the release that

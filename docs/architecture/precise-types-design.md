@@ -301,8 +301,17 @@ where one exists, also records its retype.
   `wifi_band: str` because that implementer passes `"2.4"` and `"5"`, not `WifiBand`
   values; `WifiRadio.set_mode` documents that a compound mode (`"n/ac/ax"`, which the
   released contract allowed at a driver's discretion) names no member and is the
-  driver's own `str`, and `get_mode` stays `str` for the same reason (announced,
-  shape 6, like `list_radios` and `get_bandwidth`). `WifiStation.capability_flags`
+  driver's own `str`, and may leave the radio operating further modes as well.
+  `get_mode -> str` is shape 5: a radio operates a set of modes at once (TR-181
+  `Device.WiFi.Radio.{i}.OperatingStandards` is a list), so the new mandatory member
+  `get_modes(band) -> frozenset[WifiPhyMode]` replaces it (breaking for driver authors)
+  and `get_mode` keeps its released `str`; `testoperations` does not call either.
+  `list_radios` and `get_bandwidth` returns are announced (shape 6).
+  `WifiSecurityMode.WPA3_EAP_192` is the WPA3-Enterprise 192-bit mode (CNSA suite,
+  Suite B). `WifiBss.create_bss` and `set_security` state that the WPA3-only modes
+  (`WPA3_SAE`, `WPA3_EAP`, `WPA3_EAP_192`), `OWE` and any BSS on 6 GHz require
+  management-frame protection, so a driver applies `REQUIRED` whatever `mfp` says
+  and the read-back reports `REQUIRED`. `WifiStation.capability_flags`
   stays `list[str]`: the device's own words (`HT`, `VHT`, `HE`, `EHT`, `MLO` and
   whatever else the driver reports), listed in the docstring.
   `WifiClient.iwlist_supported_channels -> list[str]` is shape 5: the new mandatory
@@ -661,6 +670,7 @@ required, or `E | str` becomes `E`.
 | `testprotocols.router:Router.get_telemetry` | `read_telemetry` | member | next release | next release + 6 months |
 | `testprotocols.sdwan_policy_manager:SdwanPolicyManager.apply_policy` | none: the typed steering and SLA members (`configure_sla_policy`, `set_uplink_selection`, `set_default_uplink`, `set_active_active_vpn`) | member | next release | next release + 6 months |
 | `testprotocols.wifi_client:WifiClient.iwlist_supported_channels` | `supported_channels` | member | next release | next release + 6 months |
+| `testprotocols.wifi_radio:WifiRadio.get_mode` | `get_modes` | member | next release | next release + 6 months |
 | `testprotocols.sip_server:SipServer.get_rtpengine_stats` | `read_rtpengine_stats` | member | next release | next release + 6 months |
 | `testprotocols.sip_server:SipServer.get_mwi_status` | `read_mwi_status` | member | next release | next release + 6 months |
 | `testprotocols.sip_server:SipServer.get_offline_messages` | `read_offline_messages` | member | next release | next release + 6 months |
@@ -705,7 +715,7 @@ required, or `E | str` becomes `E`.
 | `MulticastClient.send_mldv2_report` records as plain tuples | `GroupRecord` (narrows to `Sequence[GroupRecord]`) | parameter | next release | next release + 6 months |
 | `HeldPrefixes.hold(address)`: `str` | `IPv4Interface \| IPv6Interface` (announced narrowing) | parameter | next release | next release + 6 months |
 | `PacketFilter.get_default_policy` return `str` | `DefaultAction` (announced narrowing) | member | next release | next release + 6 months |
-| `WifiRadio.list_radios`, `get_bandwidth` and `get_mode` returns (`list[str]`, `int`, `str`) | `list[WifiBand]`, `ChannelWidth`, `WifiPhyMode` (announced; `get_mode` once compound modes are settled) | member | next release | next release + 6 months |
+| `WifiRadio.list_radios` and `get_bandwidth` returns (`list[str]`, `int`) | `list[WifiBand]`, `ChannelWidth` (announced) | member | next release | next release + 6 months |
 | `RadiusServer.get_status` return `str` | `ServiceStatus` (announced narrowing) | member | next release | next release + 6 months |
 | `FirewallRule.dst_port` (port text, required) | `dst_ports`; at removal the text field goes and `dst_ports` becomes required | field | next release | next release + 6 months |
 | `NatRule.dst_port` and `translated_port` (port text, released default `""`) | `dst_ports`, `translated_ports`; at removal the text fields go and the typed fields default to `()` (the typed form of the released default `""`) | field | next release | next release + 6 months |

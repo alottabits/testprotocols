@@ -367,8 +367,8 @@ specification table or a maintainer decision), not more code.
   implementer passes a client key-management word (`NONE`, `WPA-PSK`, `WPA-EAP`), not an
   access-point `WifiSecurityMode`. A key-management vocabulary (probably its own enum,
   open) needs a second implementer or a supplicant specification table.
-  `WifiClient.iwlist_supported_channels(wifi_band)` is deprecated; `WifiNeighbor.security_mode`
-  and `WifiRadio.get_mode` (compound modes such as `"n/ac/ax"`) stay text.
+  `WifiClient.iwlist_supported_channels(wifi_band)` and `WifiRadio.get_mode` (replaced by
+  `get_modes`, a set of `WifiPhyMode`) are deprecated; `WifiNeighbor.security_mode` stays text.
   `WifiMeshWhiteBox.get_raw_easymesh_tlvs(message_type)` waits for the EasyMesh message
   names from a specification.
 - **`QosRule.match` text that does not parse stays untyped.** The released contract
