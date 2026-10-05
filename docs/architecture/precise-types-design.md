@@ -87,7 +87,10 @@ implementation of this change that did so produced four findings, which C1 rests
    the contract does not.
 
 The deprecation period itself (until the first release 6 months after the release that
-deprecates it) is kept, and `testoperations` keeps the runtime warning for its own
+deprecates it) is kept. This formula subsumes the released "and at least one MINOR release,
+whichever is later": a removal is a *Breaking for driver authors* entry, and the Versioning
+table in `CONTRIBUTING.md` makes any release carrying one a MINOR bump, so a removal release
+is always a MINOR. `testoperations` keeps the runtime warning for its own
 operations' released forms (C6), where the warning names the operation's caller. The
 change governs the rung-5 items of the retypes below; it adds no protocol member of its
 own.
@@ -505,6 +508,9 @@ where one exists, also records its retype.
     `nmap`, `get_arp_table` and `get_date` (a tool's full parse or device text, which the
     record cannot rebuild). The new readers' names avoid near-collisions: `read_log_entries`
     (one letter from `read_event_logs`) and `scan_ports` (`WifiRf.scan` exists).
+  - `ContentFiltering.set_url_rules` replaces two lists in more than one device step, and
+    states, as the `L3Firewall.set_*_rules` members and `SwitchQos.set_rules` do, that a write
+    that fails at any step, rejected or not verified, leaves the as-found state.
   - `EventLogEntry.timestamp` stays the device's text: the BSD syslog date has no year, and a
     `datetime` would invent one. `severity` is derived from `priority` (`SyslogSeverity`, RFC
     5424, closed). `DnsRecord.record_type` is `str`, the resolver's own word: an answer can

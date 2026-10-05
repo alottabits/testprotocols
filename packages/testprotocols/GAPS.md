@@ -431,6 +431,7 @@ compatibility exemption only with the typing ratchet's count lowered in the same
 
 **Cross-references:** `docs/architecture/precise-types-design.md` ("Retypes"),
 `packages/testprotocols/DEPRECATIONS.md`, `models/wifi.py`, `models/switch.py`.
+`docs/proposals/2026-10-05-precise-types.md`; PR #73.
 
 ---
 
@@ -494,6 +495,7 @@ read can return), returned by new members beside the text ones (shape 5).
 
 **Cross-references:** `snmp_client.py`, `models/networking.py` (`SnmpValueType`),
 `docs/architecture/precise-types-families.md` ("SNMP and NTP").
+`docs/proposals/2026-10-05-precise-types.md`; PR #73.
 
 ---
 

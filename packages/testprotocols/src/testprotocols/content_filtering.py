@@ -40,6 +40,9 @@ class ContentFiltering(Protocol):
         *allowed* takes precedence over both *blocked* and category blocks, per
         the usual content-filter precedence; the driver maps that intent to its
         product's allow/deny-list semantics.
+
+        A write that fails at any step, rejected or not verified, leaves the
+        as-found state: the URL rules as they were before the call.
         """
         ...
 

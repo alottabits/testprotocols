@@ -60,7 +60,7 @@ The design records behind the current rows are in
 | `testprotocols.snmp_client:SnmpClient.execute_snmp_command` | `snmp_get`, `snmp_walk`, `snmp_set` or `snmp_bulk_get`; any other command has no successor | member | next release | next release + 6 months |
 | `testprotocols.models:HTTPResult.code` (a plain attribute: docstring only, no marker) | `status` (`int \| None`) | attribute | next release | next release + 6 months |
 | `testprotocols.models:HTTPResult.beautified_text` (a plain attribute: docstring only, no marker) | `body` | attribute | next release | next release + 6 months |
-| `testprotocols.models:VPNPeerStatus` | none (`VpnPeerStatus` for site-to-site peers) | class | next release | next release + 6 months |
+| `testprotocols.models:VPNPeerStatus` | none (no successor) | class | next release | next release + 6 months |
 | `testprotocols.models:TrafficShapingRule` | none (`ShapingRule` where a capability needs one) | class | next release | next release + 6 months |
 | `testprotocols.ip_routing:IpRouting.ping(json_output=True)` | `ping_stats`; at removal `ping` returns `bool` | parameter | next release | next release + 6 months |
 | `IpRouting.ping` and `traceroute` `options` | none | parameter | next release | next release + 6 months |

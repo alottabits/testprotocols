@@ -643,8 +643,7 @@ their tags and PR history.
   entry; a plain attribute carries no marker). Replacement: `body`. Earliest removal: the first release 6 months after the release that deprecates it.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P8;
   design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR #73.
-- **class** `testprotocols.models:VPNPeerStatus` — deprecated. Replacement: none (`VpnPeerStatus`
-  for site-to-site peers). Earliest removal: the first release 6 months after the release that
+- **class** `testprotocols.models:VPNPeerStatus` — deprecated. Replacement: none (no successor). Earliest removal: the first release 6 months after the release that
   deprecates it.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P4;
   design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR #73.

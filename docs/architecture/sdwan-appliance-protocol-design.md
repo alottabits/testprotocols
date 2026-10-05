@@ -165,7 +165,7 @@ shaping. Cross-vendor: per-link + per-app shaping and DSCP marking exist on
 every reviewed appliance.
 
 (Correction of the record: the protocol has taken `ShapingRule` since it landed;
-the released text, which said it reused `wan_edge.TrafficShapingRule`, was wrong.
+the released text, which said it reused `wan_edge.TrafficShapingRule`, was wrong. PR #73.
 This is not a design change.)
 
 ### `l3_firewall: L3Firewall`
