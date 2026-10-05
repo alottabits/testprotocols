@@ -23,10 +23,10 @@ from dataclasses import dataclass, replace
 from enum import StrEnum
 from typing import Protocol, cast
 
-from testprotocols.deprecation import coerce_enum
 from testprotocols.iperf_client import IperfClient
 from testprotocols.iperf_server import IperfServer
 
+from testoperations._compat import coerce_enum
 from testoperations._renamed import start_receiver_session, start_sender_session
 
 # A finished iperf3 session is flushed to the --logfile when the sender

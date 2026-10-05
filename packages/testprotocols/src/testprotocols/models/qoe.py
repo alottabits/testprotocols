@@ -4,22 +4,16 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import override
 
 
 class QoeTool(StrEnum):
     """The tool a :class:`MeasurementSpec` measures with: the four the released
-    implementers dispatch on. ``repr()`` of a member is the quoted text (``'browser'``)."""
+    implementers dispatch on."""
 
     BROWSER = "browser"
     HTTP_CLIENT = "http_client"
     WEBRTC = "webrtc"
     TCP_PROBE = "tcp_probe"
-
-    @override
-    def __repr__(self) -> str:
-        """The text, quoted: released implementers build generated text with ``repr(spec.tool)``."""
-        return repr(self.value)
 
 
 class PageCompletion(StrEnum):
@@ -35,11 +29,7 @@ class QoeCompletion(StrEnum):
     """When a :class:`MeasurementSpec` measurement is complete: a
     :class:`PageCompletion` event; ``DURATION`` (run for ``duration_s``, as the streaming and
     conferencing measurements do); ``RESPONSE`` (the HTTP response arrived, for the
-    ``http_client`` tool) or ``CONNECT`` (the connection opened, for ``tcp_probe``).
-
-    ``repr()`` of a member is the quoted text (``'load'``), not the enum default, like
-    :class:`QoeTool`: a released implementer embeds ``repr(spec.completion)`` in generated
-    text and must keep getting a quoted literal."""
+    ``http_client`` tool) or ``CONNECT`` (the connection opened, for ``tcp_probe``)."""
 
     LOAD = "load"
     DOMCONTENTLOADED = "domcontentloaded"
@@ -48,12 +38,6 @@ class QoeCompletion(StrEnum):
     DURATION = "duration"
     RESPONSE = "response"
     CONNECT = "connect"
-
-    @override
-    def __repr__(self) -> str:
-        """The text, quoted: released implementers build generated text with
-        ``repr(spec.completion)``, as for :class:`QoeTool`."""
-        return repr(self.value)
 
 
 class QoeScenario(StrEnum):
@@ -92,8 +76,8 @@ class MeasurementSpec:
     narrows to its enum when the plain ``str`` form is removed.
     """
 
-    tool: QoeTool | str = QoeTool.BROWSER
-    completion: QoeCompletion | PageCompletion | str = QoeCompletion.NETWORKIDLE
+    tool: QoeTool | str = "browser"
+    completion: QoeCompletion | PageCompletion | str = "networkidle"
     timeout_ms: int = 30000
     duration_s: int | None = None
     force_quic: bool = True

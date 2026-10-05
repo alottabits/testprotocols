@@ -8,6 +8,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import Any, Protocol, runtime_checkable
 
+from testprotocols._compat import deprecated
 from testprotocols.models.networking import IpFamily, IpVersion, NmapResult
 from testprotocols.models.ports import PortRange
 from testprotocols.models.traffic import TransportProtocol
@@ -17,6 +18,11 @@ from testprotocols.models.traffic import TransportProtocol
 class NmapScanner(Protocol):
     """Abstract contract for nmap network scanning operations."""
 
+    @deprecated(
+        "Deprecated: use scan_ports. Removal not before the first release 6 months "
+        "after the release that deprecates it.",
+        category=None,
+    )
     def nmap(  # type: ignore[explicit-any]  # released signature kept until removal
         self,
         ipaddr: str,
@@ -30,22 +36,22 @@ class NmapScanner(Protocol):
         *,
         fast: bool = False,
     ) -> dict[str, Any]:
-        """Deprecated: use :meth:`scan_ports`, which returns a typed result.
+        """Run an nmap scan against *ipaddr* and return the parsed results.
 
-        Runs an nmap scan against *ipaddr* and returns the parsed results. A driver keeps its
-        released output here until the removal step (it warns with
-        ``warn_renamed("nmap", "scan_ports")``): drivers return differently shaped trees, which a
-        typed result cannot reproduce.
+        Drivers return differently shaped trees, which the typed result of
+        :meth:`scan_ports` cannot reproduce.
 
         *ip_type* is an :class:`~testprotocols.models.IpVersion` (``"ipv4"`` or
         ``"ipv6"``; a released implementer raises ``ValueError`` for any other word). A
-        plain ``str`` naming a member is deprecated: the driver converts it and warns.
+        plain ``str`` naming a member is deprecated.
         *protocol* stays free text: it is the scan-type option the tool is given
         (``"-sU"``), not an IP protocol.
 
         *fast* scans fewer ports than the tool's default set. It replaces the released *opts*
-        string, which is deprecated (a driver warns when it is non-empty and raises
-        ``ValueError`` when it is given together with *fast*).
+        string, which is deprecated; giving both raises ``ValueError``.
+
+        Deprecated: use :meth:`scan_ports`. Removal not before the first release 6 months after the
+        release that deprecates it.
         """
         ...
 

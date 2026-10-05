@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import pytest
 from testoperations._compat import (
-    format_qos_classifier,
     parse_qos_classifier,
     qos_rule_classifier,
 )
@@ -43,25 +42,6 @@ def test_every_released_form_parses(text: str, expected: QosClassifier) -> None:
 
 def test_a_range_may_be_written_under_either_port_key() -> None:
     assert parse_qos_classifier("dstPort=80-90") == QosClassifier(dst_ports=(PortRange(80, 90),))
-
-
-def test_format_writes_canonical_text() -> None:
-    classifier = QosClassifier(
-        vlan=10, protocol=RuleProtocol.TCP, src_ports=_port(53), dst_ports=(PortRange(80, 90),)
-    )
-    assert format_qos_classifier(classifier) == "vlan=10,protocol=tcp,srcPort=53,dstPortRange=80-90"
-    assert format_qos_classifier(QosClassifier(vlan=5)) == "vlan=5"
-    assert format_qos_classifier(None) == ""
-
-
-def test_format_and_parse_round_trip() -> None:
-    for _, expected in RELEASED:
-        assert parse_qos_classifier(format_qos_classifier(expected)) == expected
-
-
-def test_format_refuses_more_than_one_range_per_direction() -> None:
-    with pytest.raises(ValueError, match="one dstPort range"):
-        format_qos_classifier(QosClassifier(dst_ports=(PortRange(1, 2), PortRange(5, 6))))
 
 
 @pytest.mark.parametrize(

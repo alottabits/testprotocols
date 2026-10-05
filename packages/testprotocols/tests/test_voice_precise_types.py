@@ -7,7 +7,6 @@ import inspect
 from datetime import datetime
 
 import pytest
-from testprotocols.deprecation import coerce_enum
 from testprotocols.models import (
     MwiStatus,
     OfflineMessage,
@@ -48,7 +47,7 @@ def test_phone_state_has_a_member_per_state_predicate() -> None:
 
 def test_phone_state_unknown_word_raises() -> None:
     with pytest.raises(ValueError, match="spinning"):
-        coerce_enum(PhoneState, "spinning", what="wait_for_state(state)")
+        PhoneState("spinning")
 
 
 def test_presence_parameters_and_returns_are_str() -> None:

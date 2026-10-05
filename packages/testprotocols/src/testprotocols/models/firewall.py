@@ -148,7 +148,7 @@ class NatRule:
     name: str
     mode: NatMode | str
     interface: str
-    protocol: RuleProtocol | str = RuleProtocol.ANY
+    protocol: RuleProtocol | str = "any"
     src_cidr: str = ""
     dst_cidr: str = ""
     dst_port: str | None = None

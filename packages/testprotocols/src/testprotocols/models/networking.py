@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from enum import IntEnum, StrEnum
 from ipaddress import IPv4Address, IPv6Address
 
-from testprotocols.deprecation import MODEL_FRAMES, warn_at_caller
+from testprotocols._compat import deprecated
 from testprotocols.models.traffic import TransportProtocol
 
 
@@ -85,17 +85,14 @@ class ICMPPacketData:
 class HTTPResult:
     """An HTTP response parsed from its text: the status code, the body and the raw text.
 
-    ``HTTPResult(response)`` takes the raw response text, as it always has (the
-    parameter is named ``response``); :func:`parse_http_response` is the same parse as a
-    function. *status* is the numeric status code, ``0`` when the response has none (an
-    empty response, a status line without a numeric code, or a number outside 100 to 599);
-    it will become ``int | None``. *body* is the text after the headers and *raw* the
-    response as given.
+    ``HTTPResult(response)`` takes the raw response text, as it always has (the parameter is named
+    ``response``). *status* is the numeric status code, ``0`` when the response has none (an empty
+    response, a status line without a numeric code, or a number outside 100 to 599); it will become
+    ``int | None``. *body* is the text after the headers and *raw* the response as given.
 
     Equality is by value (*status*, *body* and *raw*); the released class compared by
     identity. The record is frozen. The released attributes still read: *code* is the status
-    code as text (``""`` when absent) and *beautified_text* is *body*; each is
-    deprecated, warns when read, and goes when the removal step is taken.
+    code as text (``""`` when absent) and *beautified_text* is *body*; each is deprecated.
     """
 
     status: int
@@ -109,37 +106,42 @@ class HTTPResult:
         object.__setattr__(self, "raw", response)
 
     @property
+    @deprecated(
+        "Deprecated: use status. Removal not before the first release 6 months after the "
+        "release that deprecates it.",
+        category=None,
+    )
     def code(self) -> str:
-        """Deprecated: the status code as text; use *status*."""
-        warn_at_caller(
-            "HTTPResult.code is deprecated; use HTTPResult.status",
-            skip_file_prefixes=MODEL_FRAMES,
-        )
+        """The status code as text (``""`` when absent).
+
+        Deprecated: use *status*. Removal not before the first release 6 months after the
+        release that deprecates it.
+        """
         return _split_response(self.raw)[0]
 
     @property
+    @deprecated(
+        "Deprecated: use body. Removal not before the first release 6 months after the "
+        "release that deprecates it.",
+        category=None,
+    )
     def beautified_text(self) -> str:
-        """Deprecated: the body; use *body*."""
-        warn_at_caller(
-            "HTTPResult.beautified_text is deprecated; use HTTPResult.body",
-            skip_file_prefixes=MODEL_FRAMES,
-        )
+        """The body.
+
+        Deprecated: use *body*. Removal not before the first release 6 months after the
+        release that deprecates it.
+        """
         return self.body
 
     @staticmethod
     def _parse_response(response: str) -> tuple[str, str, str]:
-        """Deprecated: the (code, body, reason) split; kept for released callers."""
+        """The released (code, body, reason) split."""
         return _split_response(response)
 
 
 def _status(code: str) -> int:
     number = int(code) if code.isascii() and code.isdigit() else 0
     return number if 100 <= number <= 599 else 0
-
-
-def parse_http_response(response: str) -> HTTPResult:
-    """Parse the text of an HTTP response (status line, headers, body) into an HTTPResult."""
-    return HTTPResult(response)
 
 
 def _split_response(response: str) -> tuple[str, str, str]:

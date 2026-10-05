@@ -24,6 +24,7 @@ from __future__ import annotations
 
 from typing import Protocol, runtime_checkable
 
+from testprotocols._compat import deprecated
 from testprotocols.models.firewall import Chain, DefaultAction, FirewallRule, RuleCounters
 
 
@@ -42,11 +43,10 @@ class PacketFilter(Protocol):
         """Insert *rule* into *chain* at *position*.
 
         *chain* is a :class:`~testprotocols.models.Chain` (``INPUT``, ``OUTPUT``,
-        ``FORWARD``); a plain ``str`` naming one is deprecated and, like every
-        other *chain* parameter here, a driver coerces it once with
-        ``coerce_enum(Chain, chain, what=...)`` before any device I/O (it warns;
-        an unknown string raises ``ValueError``). *position* is 1-based: ``1``
-        inserts at the top, ``None`` appends at the end.
+        ``FORWARD``); a plain ``str`` naming one is deprecated, as for every
+        other *chain* parameter here, and an unknown string raises
+        ``ValueError``. *position* is 1-based: ``1`` inserts at the top,
+        ``None`` appends at the end.
 
         Raises ValueError if *chain* is unknown, if a rule named
         ``rule.name`` already exists in *chain*, or if *position* is
@@ -90,8 +90,8 @@ class PacketFilter(Protocol):
         """Set the default action for traffic on *chain* that matches no rule.
 
         *policy* is a :class:`~testprotocols.models.DefaultAction` (``accept``,
-        ``drop``, ``reject``); a plain ``str`` naming one is deprecated: a driver
-        coerces it with ``coerce_enum`` (it warns). Raises ValueError if
+        ``drop``, ``reject``); a plain ``str`` naming one is deprecated. Raises
+        ValueError if
         *chain* is unknown or *policy* is not a valid value.
         """
         ...
@@ -121,15 +121,20 @@ class PacketFilter(Protocol):
         """
         ...
 
+    @deprecated(
+        "Deprecated: use get_rule_counter_values. Removal not before the first "
+        "release 6 months after the release that deprecates it.",
+        category=None,
+    )
     def get_rule_counters(self, chain: Chain | str, name: str) -> tuple[int, int]:
-        """Deprecated name of :meth:`get_rule_counter_values`.
-
-        Return ``(packets, bytes)`` matched by the rule since it was added. A
-        driver's old name warns with ``warn_renamed`` and delegates to the new one.
+        """Return ``(packets, bytes)`` matched by the rule since it was added.
 
         Raises ValueError if *chain* is unknown.
         Raises KeyError if no rule with that name exists in *chain*.
         Drivers without per-rule counter support raise NotImplementedError.
+
+        Deprecated: use :meth:`get_rule_counter_values`. Removal not before the first release 6
+        months after the release that deprecates it.
         """
         ...
 

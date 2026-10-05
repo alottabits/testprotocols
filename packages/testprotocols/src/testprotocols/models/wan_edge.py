@@ -5,9 +5,8 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import TYPE_CHECKING
 
-from testprotocols.deprecation import deprecated_attribute
+from testprotocols._compat import deprecated
 from testprotocols.models.sdwan_appliance import UplinkState
 
 
@@ -129,12 +128,20 @@ class AppFlow:
     bytes_received: int
 
 
+@deprecated(
+    "Deprecated, with no successor. Removal not before the first release 6 months after "
+    "the release that deprecates it.",
+    category=None,
+)
 @dataclass
 class VPNPeerStatus:
     """Holds the reachability and uplink state of a VPN peer.
 
-    Deprecated, with no successor: no capability returns it. The site-to-site VPN
-    capability reports ``testprotocols.models.VpnPeerStatus``.
+    No capability returns it. The site-to-site VPN capability reports
+    ``testprotocols.models.VpnPeerStatus``.
+
+    Deprecated, with no successor. Removal not before the first release 6 months after the
+    release that deprecates it.
     """
 
     peer_id: str
@@ -143,14 +150,22 @@ class VPNPeerStatus:
     uplink: str
 
 
+@deprecated(
+    "Deprecated, with no successor. Removal not before the first release 6 months after "
+    "the release that deprecates it.",
+    category=None,
+)
 @dataclass
 class TrafficShapingRule:
     """Holds a traffic shaping rule.
 
     Includes match criteria and optional DSCP, bandwidth, or priority.
 
-    Deprecated, with no successor: no capability takes or returns it. Traffic
-    shaping uses ``testprotocols.models.ShapingRule``.
+    No capability takes or returns it. Traffic shaping uses
+    ``testprotocols.models.ShapingRule``.
+
+    Deprecated, with no successor. Removal not before the first release 6 months after the
+    release that deprecates it.
     """
 
     name: str
@@ -158,21 +173,3 @@ class TrafficShapingRule:
     dscp_tag: int | None = None
     bandwidth_limit_kbps: int | None = None
     priority: str | None = None
-
-
-# The deprecated orphan models and the reason, shared with ``testprotocols.models``.
-ORPHAN_REASON = "no capability uses it and it has no successor; it will be removed"
-DEPRECATED_ORPHANS: dict[str, object] = {
-    "VPNPeerStatus": VPNPeerStatus,
-    "TrafficShapingRule": TrafficShapingRule,
-}
-
-if not TYPE_CHECKING:
-    # Remove the names at run time so that every access reaches ``__getattr__`` and
-    # warns; type checkers still see the definitions above. ``__getattr__`` is defined
-    # here too, not at module level: a checker that saw it would type every unknown
-    # name as ``object``.
-    del VPNPeerStatus, TrafficShapingRule
-
-    def __getattr__(name: str) -> object:
-        return deprecated_attribute(__name__, name, ORPHAN_REASON, DEPRECATED_ORPHANS)

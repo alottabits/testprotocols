@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from typing import Protocol, runtime_checkable
 
+from testprotocols._compat import deprecated
 from testprotocols.models.wifi import WifiBand
 
 
@@ -59,21 +60,27 @@ class WifiClient(Protocol):
     def set_wlan_scan_channel(self, channel: int | str) -> None:
         """Set the WiFi scan channel to *channel*, a channel number.
 
-        A numeric ``str`` (``"6"``) is deprecated: the driver converts it with
-        ``coerce_int`` (it warns); text that is not a decimal integer raises ``ValueError``.
+        A numeric ``str`` (``"6"``) is deprecated; text that is not a decimal integer raises
+        ``ValueError``.
         """
         ...
 
+    @deprecated(
+        "Deprecated: use supported_channels. Removal not before the first release 6 "
+        "months after the release that deprecates it.",
+        category=None,
+    )
     def iwlist_supported_channels(self, wifi_band: str) -> list[str]:
         """Return the list of channels supported by the adapter for *wifi_band*.
 
-        Deprecated name of :meth:`supported_channels`, which returns channel numbers
-        as ``int`` and takes a :class:`~testprotocols.models.wifi.WifiBand`. This
-        member keeps its released signature: *wifi_band* is the short frequency
+        This member keeps its released signature: *wifi_band* is the short frequency
         text a client's tooling uses (``"2.4"``, ``"5"``), not a ``WifiBand`` value,
-        and the channels are text (``"36"``). A driver implements the new member and
-        lets this one warn with ``warn_renamed`` and return
-        ``[str(c) for c in self.supported_channels(band)]``.
+        and the channels are text (``"36"``). :meth:`supported_channels` returns
+        channel numbers as ``int`` and takes a
+        :class:`~testprotocols.models.wifi.WifiBand`.
+
+        Deprecated: use :meth:`supported_channels`. Removal not before the first release 6 months
+        after the release that deprecates it.
         """
         ...
 

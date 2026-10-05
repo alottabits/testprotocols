@@ -9,7 +9,6 @@ from enum import IntEnum
 
 import pytest
 from _helpers import assert_str_value
-from testprotocols.deprecation import coerce_enum
 from testprotocols.models.wifi import (
     ChannelWidth,
     MeshRole,
@@ -83,33 +82,6 @@ def test_enum_member_sets_are_the_released_ones() -> None:
     assert {int(m) for m in ChannelWidth} == {20, 40, 80, 160, 320}
     assert issubclass(ChannelWidth, IntEnum)
     assert_str_value(WifiBand.GHZ_5, "5GHz")
-
-
-# --- coerce_enum: an IntEnum takes an int without a warning ---
-
-
-def test_coerce_enum_accepts_an_int_for_an_int_enum_silently() -> None:
-    with warnings.catch_warnings():
-        warnings.simplefilter("error")
-        assert coerce_enum(ChannelWidth, 80, what="bandwidth_mhz") is ChannelWidth.MHZ_80
-        assert coerce_enum(ChannelWidth, ChannelWidth.MHZ_20, what="w") is ChannelWidth.MHZ_20
-
-
-def test_coerce_enum_int_enum_refuses_a_number_that_is_no_member() -> None:
-    with pytest.raises(ValueError, match="bandwidth_mhz: 30 is not one of"):
-        coerce_enum(ChannelWidth, 30, what="bandwidth_mhz")
-
-
-def test_coerce_enum_int_enum_refuses_a_bool_and_text() -> None:
-    with pytest.raises(TypeError):  # a bool is a wrong type
-        coerce_enum(ChannelWidth, True, what="w")
-    with pytest.raises(ValueError):  # text is never an IntEnum's value
-        coerce_enum(ChannelWidth, "80", what="w")
-
-
-def test_coerce_enum_str_enum_still_warns_on_a_plain_string() -> None:
-    with pytest.warns(DeprecationWarning):
-        assert coerce_enum(WifiBand, "5GHz", what="band") is WifiBand.GHZ_5
 
 
 # --- model fields: a member or its released word, stored as given ---
@@ -270,8 +242,8 @@ def test_client_channel_is_int_or_str_and_supported_channels_is_new() -> None:
     assert _hints(WifiClient.supported_channels)["return"] == list[int]
     assert _hints(WifiClient.supported_channels)["band"] is WifiBand
     # the released member keeps its signature (shape 5: deprecated, not changed)
-    assert _hints(WifiClient.iwlist_supported_channels)["return"] == list[str]
-    assert _hints(WifiClient.iwlist_supported_channels)["wifi_band"] is str
+    assert _hints(WifiClient.iwlist_supported_channels)["return"] == list[str]  # type: ignore[deprecated]
+    assert _hints(WifiClient.iwlist_supported_channels)["wifi_band"] is str  # type: ignore[deprecated]
     assert "supported_channels" in WifiClient.__protocol_attrs__  # type: ignore[attr-defined]
 
 

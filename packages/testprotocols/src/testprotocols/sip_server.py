@@ -9,6 +9,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, Protocol, runtime_checkable
 
+from testprotocols._compat import deprecated
 from testprotocols.models.voice import (
     MwiStatus,
     OfflineMessage,
@@ -102,12 +103,16 @@ class SipServer(Protocol):
         """
         ...
 
+    @deprecated(
+        "Deprecated: use read_rtpengine_stats. Removal not before the first release 6 "
+        "months after the release that deprecates it.",
+        category=None,
+    )
     def get_rtpengine_stats(self) -> dict[str, Any]:  # type: ignore[explicit-any]  # released signature kept until removal
-        """Deprecated name of :meth:`read_rtpengine_stats`.
+        """Return the fields of ``read_rtpengine_stats()`` (keys ``engaged``, ``sessions``).
 
-        Returns the fields of ``read_rtpengine_stats()`` (keys ``engaged``, ``sessions``);
-        the driver warns with
-        ``warn_renamed("get_rtpengine_stats", "read_rtpengine_stats")``.
+        Deprecated: use :meth:`read_rtpengine_stats`. Removal not before the first release 6 months
+        after the release that deprecates it.
         """
         ...
 
@@ -168,12 +173,17 @@ class SipServer(Protocol):
     # MWI — Message Waiting Indication (v0.2.0+)
     # ------------------------------------------------------------------
 
+    @deprecated(
+        "Deprecated: use read_mwi_status. Removal not before the first release 6 "
+        "months after the release that deprecates it.",
+        category=None,
+    )
     def get_mwi_status(self, user: str) -> dict[str, Any]:  # type: ignore[explicit-any]  # released signature kept until removal
-        """Deprecated name of :meth:`read_mwi_status`.
+        """Return the fields of ``read_mwi_status(user)`` (keys ``waiting``, ``new``,
+        ``old``).
 
-        Returns the fields of ``read_mwi_status(user)`` (keys ``waiting``, ``new``,
-        ``old``); the driver warns with
-        ``warn_renamed("get_mwi_status", "read_mwi_status")``.
+        Deprecated: use :meth:`read_mwi_status`. Removal not before the first release 6 months after
+        the release that deprecates it.
         """
         ...
 
@@ -227,14 +237,19 @@ class SipServer(Protocol):
         """
         ...
 
+    @deprecated(
+        "Deprecated: use read_offline_messages. Removal not before the first release "
+        "6 months after the release that deprecates it.",
+        category=None,
+    )
     def get_offline_messages(self, user: str) -> list[dict[str, Any]]:  # type: ignore[explicit-any]  # released signature kept until removal
-        """Deprecated name of :meth:`read_offline_messages`.
-
-        Returns the entries as dicts (keys ``from``, ``body``, ``timestamp``): the fields of
+        """Return the entries as dicts (keys ``from``, ``body``, ``timestamp``): the fields of
         each ``read_offline_messages(user)`` record (``timestamp`` as
         ``"YYYY-MM-DD HH:MM:SS"``, space-separated) or, unchanged, the text the driver
-        read from its store. The driver warns with
-        ``warn_renamed("get_offline_messages", "read_offline_messages")``.
+        read from its store.
+
+        Deprecated: use :meth:`read_offline_messages`. Removal not before the first release 6 months
+        after the release that deprecates it.
         """
         ...
 

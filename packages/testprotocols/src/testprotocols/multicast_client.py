@@ -20,8 +20,7 @@ class MulticastClient(Protocol):
 
         Each record is a :class:`~testprotocols.models.GroupRecord` (a named tuple, so the
         parameter type is unchanged and a driver that unpacks
-        ``(sources, group, record_type)`` keeps working). A plain tuple is deprecated: the
-        driver converts with :func:`~testprotocols.models.group_records`, which warns. The
+        ``(sources, group, record_type)`` keeps working). A plain tuple is deprecated. The
         parameter narrows to ``Sequence[GroupRecord]`` in a later release.
         """
         ...

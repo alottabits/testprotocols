@@ -193,53 +193,6 @@ class ApplicationCategory(StrEnum):
     WEB_FILE_TRANSFER = "web_file_transfer"
 
 
-# --- Traffic match (what an L7 or shaping rule selects) ---
-
-
-@dataclass(frozen=True)
-class ApplicationMatch:
-    """Traffic of one application, by its vendor-mapped name (an open name: a
-    normalized application registry is not seeded; grow on evidence). The name is
-    not empty."""
-
-    name: str
-
-
-@dataclass(frozen=True)
-class CategoryMatch:
-    """Traffic of one application category."""
-
-    category: ApplicationCategory
-
-
-@dataclass(frozen=True)
-class HostMatch:
-    """Traffic to one host, by name. The name is not empty."""
-
-    host: str
-
-
-@dataclass(frozen=True)
-class PortMatch:
-    """Traffic to the given ports (at least one :class:`PortRange`)."""
-
-    ports: tuple[PortRange, ...]
-
-
-@dataclass(frozen=True)
-class IpRangeMatch:
-    """Traffic to or from an address range: an address prefix
-    (``198.51.100.0/24``) or a first-last range (``198.51.100.10-198.51.100.20``).
-    A product that matches prefixes only refuses a first-last range per value. The
-    range is not empty."""
-
-    cidr: str
-
-
-TrafficMatch = ApplicationMatch | CategoryMatch | HostMatch | PortMatch | IpRangeMatch
-"""What an L7 or shaping rule selects: one of the five match kinds."""
-
-
 # --- Traffic shaping ---
 
 

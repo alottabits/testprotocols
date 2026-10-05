@@ -10,7 +10,6 @@ import warnings
 
 import pytest
 from testprotocols.conntrack import Conntrack
-from testprotocols.deprecation import coerce_enum
 from testprotocols.models import (
     Chain,
     Connection,
@@ -52,34 +51,32 @@ def test_port_mapping_protocol_values() -> None:
 
 
 class _FakeFilter:
-    """Coerces each parameter once, at the boundary, as a driver does."""
+    """Converts each parameter once, at the boundary, as a driver does."""
 
     def __init__(self) -> None:
         self.rules: dict[Chain, list[FirewallRule]] = {c: [] for c in Chain}
         self.policy: dict[Chain, DefaultAction] = {}
 
     def add_rule(self, chain: Chain | str, rule: FirewallRule, position: int | None = None) -> None:
-        self.rules[coerce_enum(Chain, chain, what="add_rule chain")].append(rule)
+        self.rules[Chain(chain)].append(rule)
 
     def remove_rule(self, chain: Chain | str, name: str) -> None:
-        coerce_enum(Chain, chain, what="remove_rule chain")
+        Chain(chain)
 
     def list_rules(self, chain: Chain | str) -> list[FirewallRule]:
-        return self.rules[coerce_enum(Chain, chain, what="list_rules chain")]
+        return self.rules[Chain(chain)]
 
     def get_rule(self, chain: Chain | str, name: str) -> FirewallRule:
         raise KeyError(name)
 
     def flush_chain(self, chain: Chain | str) -> None:
-        self.rules[coerce_enum(Chain, chain, what="flush_chain chain")].clear()
+        self.rules[Chain(chain)].clear()
 
     def set_default_policy(self, chain: Chain | str, policy: DefaultAction | str) -> None:
-        self.policy[coerce_enum(Chain, chain, what="set_default_policy chain")] = coerce_enum(
-            DefaultAction, policy, what="set_default_policy policy"
-        )
+        self.policy[Chain(chain)] = DefaultAction(policy)
 
     def get_default_policy(self, chain: Chain | str) -> str:
-        return self.policy[coerce_enum(Chain, chain, what="get_default_policy chain")]
+        return self.policy[Chain(chain)]
 
     def get_rule_counter_values(self, chain: Chain | str, name: str) -> RuleCounters:
         return RuleCounters(0, 0)
@@ -96,15 +93,13 @@ def test_the_fake_conforms_to_packet_filter() -> None:
     assert isinstance(_FakeFilter(), PacketFilter)
 
 
-def test_a_plain_chain_warns_and_works_at_the_callers_frame() -> None:
+def test_a_plain_chain_works() -> None:
     fake = _FakeFilter()
-    with pytest.warns(DeprecationWarning, match=r"add_rule chain.*Chain\.FORWARD") as caught:
-        fake.add_rule("FORWARD", _rule())
-    assert caught[0].filename == __file__
-    assert fake.list_rules(Chain.FORWARD) == [_rule()]
     with warnings.catch_warnings():
         warnings.simplefilter("error")
+        fake.add_rule("FORWARD", _rule())
         fake.add_rule(Chain.INPUT, _rule())
+    assert fake.list_rules(Chain.FORWARD) == [_rule()]
 
 
 @pytest.mark.parametrize("call", ["add_rule", "remove_rule", "list_rules", "flush_chain"])
@@ -116,14 +111,13 @@ def test_an_unknown_chain_raises_value_error(call: str) -> None:
         "list_rules": ("MANGLE",),
         "flush_chain": ("MANGLE",),
     }[call]
-    with pytest.raises(ValueError, match=r"MANGLE.*INPUT"):
+    with pytest.raises(ValueError, match="MANGLE"):
         getattr(fake, call)(*args)
 
 
-def test_a_plain_policy_warns_and_an_unknown_one_raises() -> None:
+def test_a_plain_policy_works_and_an_unknown_one_raises() -> None:
     fake = _FakeFilter()
-    with pytest.warns(DeprecationWarning, match=r"DefaultAction\.DROP"):
-        fake.set_default_policy(Chain.INPUT, "drop")
+    fake.set_default_policy(Chain.INPUT, "drop")
     assert fake.get_default_policy(Chain.INPUT) == "drop"
     with pytest.raises(ValueError, match="allow"):
         fake.set_default_policy(Chain.INPUT, "allow")
@@ -139,7 +133,7 @@ class _FakeNat:
     def list_nat_rules(self, mode: NatMode | str | None = None) -> list[NatRule]:
         if mode is None:
             return list(self.rules)
-        wanted = coerce_enum(NatMode, mode, what="list_nat_rules mode")
+        wanted = NatMode(mode)
         return [r for r in self.rules if r.mode is wanted]
 
     def get_nat_rule(self, name: str) -> NatRule:
@@ -161,9 +155,7 @@ def test_list_nat_rules_mode() -> None:
     with warnings.catch_warnings():
         warnings.simplefilter("error")
         assert [r.name for r in fake.list_nat_rules(NatMode.DNAT)] == ["b"]
-    with pytest.warns(DeprecationWarning, match=r"NatMode\.SNAT") as caught:
-        assert [r.name for r in fake.list_nat_rules("snat")] == ["a"]
-    assert caught[0].filename == __file__
+    assert [r.name for r in fake.list_nat_rules("snat")] == ["a"]
     with pytest.raises(ValueError, match="nat44"):
         fake.list_nat_rules("nat44")
 
@@ -203,7 +195,7 @@ class _FakeConntrack:
     ) -> list[Connection]:
         found = self.flows
         if protocol is not None:
-            wanted = coerce_enum(RuleProtocol, protocol, what="list_connections protocol")
+            wanted = RuleProtocol(protocol)
             found = [c for c in found if c.protocol is wanted]
         if state is not None:
             found = [c for c in found if c.state == state]
@@ -247,8 +239,7 @@ def test_conntrack_filters() -> None:
         # the state is the device's own word: it filters on that word, silently
         assert fake.count_connections(state="gre-weird") == 1
         assert fake.count_connections(state="other-weird") == 0
-    with pytest.warns(DeprecationWarning, match=r"RuleProtocol\.UDP"):
-        assert fake.count_connections(protocol="udp") == 1
+    assert fake.count_connections(protocol="udp") == 1
     with pytest.raises(ValueError, match="sctp"):
         fake.count_connections(protocol="sctp")
 
@@ -282,11 +273,12 @@ def _conn(**kw: object) -> Connection:
     return Connection(**args)  # type: ignore[arg-type]
 
 
-def test_models_built_from_members_do_not_warn_and_defaults_are_members() -> None:
+def test_models_built_from_members_do_not_warn_and_defaults_are_released() -> None:
     with warnings.catch_warnings():
         warnings.simplefilter("error")
         rule, nat, mapping, conn = _rule(), _nat(), _mapping(), _conn()
-    assert nat.protocol is RuleProtocol.ANY
+    assert nat.protocol == "any" and type(nat.protocol) is str  # the released default
+    assert nat.protocol == RuleProtocol.ANY
     assert rule.action is FirewallRuleAction.ALLOW and rule.protocol is RuleProtocol.TCP
     assert mapping.protocol is PortMappingProtocol.TCP
     assert conn.state == "ESTABLISHED"

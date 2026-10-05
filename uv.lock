@@ -304,6 +304,12 @@ requires-dist = [{ name = "testprotocols", editable = "packages/testprotocols" }
 name = "testprotocols"
 version = "0.12.1"
 source = { editable = "packages/testprotocols" }
+dependencies = [
+    { name = "typing-extensions", marker = "python_full_version < '3.13'" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "typing-extensions", marker = "python_full_version < '3.13'", specifier = ">=4.5" }]
 
 [[package]]
 name = "types-pexpect"

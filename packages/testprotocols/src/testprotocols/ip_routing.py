@@ -28,13 +28,12 @@ class IpRouting(Protocol):
         """Send ICMP echo requests to *ping_ip* and return success or parsed output.
 
         *options* is deprecated with no typed replacement: no caller was seen to pass one
-        through this member. A driver warns when it is non-empty.
+        through this member.
 
         Returns ``True`` when every request was answered. With ``json_output=True`` it
         returns the tool's parsed output instead; that form is deprecated: use
-        :meth:`ping_stats`, which returns a typed summary (a driver warns when
-        ``json_output`` is true, and keeps its released parsed output until the removal
-        step, since that output carries more than the summary holds).
+        :meth:`ping_stats`, which returns a typed summary (the released parsed output
+        carries more than the summary holds).
         """
         ...
 
@@ -58,8 +57,7 @@ class IpRouting(Protocol):
     ) -> str | None:
         """Run a traceroute to *host_ip* and return the output.
 
-        *options* is deprecated with no typed replacement: no caller was seen to pass one. A
-        driver warns when it is non-empty.
+        *options* is deprecated with no typed replacement: no caller was seen to pass one.
 
         *version* is the suffix of the command name: ``""`` (the default) runs
         ``traceroute`` and ``"6"`` runs ``traceroute6``. It stays ``str`` because the released

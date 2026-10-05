@@ -2,10 +2,6 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
-from testprotocols.deprecation import deprecated_attribute
-from testprotocols.models import wan_edge as _wan_edge
 from testprotocols.models.device_management import (
     EventLogEntry,
     MemoryUtilization,
@@ -36,8 +32,6 @@ from testprotocols.models.impairment import (
     LatencySpike,
     PacketStorm,
     TransientEvent,
-    coerce_impairment_profile,
-    transient_event,
 )
 from testprotocols.models.l2_common import (
     MacTableEntry,
@@ -51,7 +45,6 @@ from testprotocols.models.multicast import (
     McastSource,
     MulticastGroupRecord,
     MulticastGroupRecordType,
-    group_records,
 )
 from testprotocols.models.networking import (
     ArpEntry,
@@ -68,7 +61,6 @@ from testprotocols.models.networking import (
     NmapPortState,
     NmapResult,
     PingResult,
-    parse_http_response,
 )
 from testprotocols.models.packets import RIPv2PacketData
 from testprotocols.models.ports import PortRange
@@ -89,12 +81,10 @@ from testprotocols.models.radius import (
 )
 from testprotocols.models.sdwan_appliance import (
     ApplicationCategory,
-    ApplicationMatch,
     BgpConfig,
     BgpNeighbor,
     BgpPeerStatus,
     BgpSessionState,
-    CategoryMatch,
     ContentCategory,
     DhcpLease,
     DhcpMode,
@@ -102,11 +92,9 @@ from testprotocols.models.sdwan_appliance import (
     DhcpOptionType,
     DhcpReservation,
     FlowMatch,
-    HostMatch,
     IntrusionConfig,
     IntrusionMode,
     IntrusionSensitivity,
-    IpRangeMatch,
     L3Rule,
     L7MatchType,
     L7Rule,
@@ -116,7 +104,6 @@ from testprotocols.models.sdwan_appliance import (
     OneToManyNatRule,
     OneToOneNatRule,
     PortForwardRule,
-    PortMatch,
     ReservedRange,
     RuleAction,
     RuleProtocol,
@@ -130,7 +117,6 @@ from testprotocols.models.sdwan_appliance import (
     SyslogRole,
     SyslogServer,
     ThreatCategory,
-    TrafficMatch,
     UplinkSelectionRule,
     UplinkState,
     UplinkStatus,
@@ -190,7 +176,6 @@ from testprotocols.models.traffic import (
     TrafficResult,
     TrafficSpec,
     TransportProtocol,
-    parse_window_size,
 )
 from testprotocols.models.voice import (
     MwiStatus,
@@ -198,7 +183,7 @@ from testprotocols.models.voice import (
     PhoneState,
     RtpStats,
 )
-from testprotocols.models.wan_edge import (
+from testprotocols.models.wan_edge import (  # type: ignore[deprecated]  # re-exported as released
     AppFlow,
     LinkHealthReport,
     LinkStatus,
@@ -207,6 +192,8 @@ from testprotocols.models.wan_edge import (
     RouteOrigin,
     SLAPolicy,
     Telemetry,
+    TrafficShapingRule,  # pyright: ignore[reportDeprecated]
+    VPNPeerStatus,  # pyright: ignore[reportDeprecated]
 )
 from testprotocols.models.wifi import (
     ChannelWidth,
@@ -241,7 +228,6 @@ __all__ = [
     "AppFlow",
     # sdwan_appliance
     "ApplicationCategory",
-    "ApplicationMatch",
     "ArpEntry",
     "BgpConfig",
     "BgpNeighbor",
@@ -250,7 +236,6 @@ __all__ = [
     "BindingSource",
     "Blackout",
     "Brownout",
-    "CategoryMatch",
     "Chain",
     "ChannelWidth",
     # firewall
@@ -285,7 +270,6 @@ __all__ = [
     # networking
     "GroupRecord",
     "HTTPResult",
-    "HostMatch",
     "HttpScheme",
     "ICMPPacketData",
     "IPAddresses",
@@ -298,7 +282,6 @@ __all__ = [
     "IntrusionMode",
     "IntrusionSensitivity",
     "IpFamily",
-    "IpRangeMatch",
     "IpVersion",
     "IperfProcess",
     "L3Rule",
@@ -352,7 +335,6 @@ __all__ = [
     "PortForwardRule",
     "PortMapping",
     "PortMappingProtocol",
-    "PortMatch",
     "PortMode",
     "PortRange",
     "PortStatusEntry",
@@ -405,9 +387,9 @@ __all__ = [
     "SyslogSeverity",
     "Telemetry",
     "ThreatCategory",
-    "TrafficMatch",
     # traffic
     "TrafficResult",
+    "TrafficShapingRule",
     "TrafficSpec",
     "TransientEvent",
     "TransportProtocol",
@@ -415,6 +397,7 @@ __all__ = [
     "UplinkState",
     "UplinkStatus",
     "UrlRules",
+    "VPNPeerStatus",
     "VlanConfig",
     "VlanDef",
     "VpnHub",
@@ -442,24 +425,4 @@ __all__ = [
     "WifiTransitionConfig",
     "Zone",
     "ZonePolicy",
-    # ports
-    "coerce_impairment_profile",
-    "group_records",
-    "parse_http_response",
-    "parse_window_size",
-    "transient_event",
 ]
-
-if TYPE_CHECKING:
-    # Deprecated, with no successor: not in ``__all__``. Type checkers see the names here
-    # and nothing else; at run time ``__getattr__`` (below) resolves them and warns.
-    from testprotocols.models.wan_edge import TrafficShapingRule as TrafficShapingRule
-    from testprotocols.models.wan_edge import VPNPeerStatus as VPNPeerStatus
-else:
-    # Defined only at run time: a module ``__getattr__`` visible to a type checker would
-    # make every unknown name import as ``object``.
-
-    def __getattr__(name: str) -> object:
-        return deprecated_attribute(
-            __name__, name, _wan_edge.ORPHAN_REASON, _wan_edge.DEPRECATED_ORPHANS
-        )

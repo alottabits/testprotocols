@@ -38,8 +38,7 @@ class WifiRadio(Protocol):
 
         Every *band* parameter of this Protocol is a
         :class:`~testprotocols.models.wifi.WifiBand`; a plain ``str`` naming one
-        (``"5GHz"``) is deprecated: the driver coerces it once with ``coerce_enum``
-        (it warns) and raises ``ValueError`` for any other string.
+        (``"5GHz"``) is deprecated; any other string raises ``ValueError``.
 
         Announced, not yet changed: the return narrows to ``list[WifiBand]`` in a
         later release (each element is a ``str`` equal to its ``WifiBand`` today).
@@ -79,8 +78,8 @@ class WifiRadio(Protocol):
         """Set channel bandwidth on *band*: a :class:`~testprotocols.models.wifi.ChannelWidth`
         (20, 40, 80, 160 or 320 MHz).
 
-        A plain ``int`` is accepted with no warning (``coerce_enum`` returns the
-        member for an ``IntEnum``); a number that is no member raises ``ValueError``.
+        A plain ``int`` naming a member is that member (a ``ChannelWidth`` is an ``int``);
+        a number that is no member raises ``ValueError``.
 
         Raises ValueError if the radio does not support *bandwidth_mhz*
         (e.g. 320 on a non-Wi-Fi-7 radio).
@@ -112,10 +111,9 @@ class WifiRadio(Protocol):
 
         *mode* is a :class:`~testprotocols.models.wifi.WifiPhyMode` (``"a"``, ``"b"``,
         ``"g"``, ``"n"``, ``"ac"``, ``"ax"``, ``"be"``); a plain ``str`` naming one is
-        deprecated (the driver coerces it with ``coerce_enum``, which warns).
-        Drivers may accept compound forms (``"n/ac/ax"``) at their discretion: such
-        a string names no member and is not coerced by the Protocol, so a driver
-        that accepts it handles that ``str`` itself and only coerces a single mode.
+        deprecated. Drivers may accept compound forms (``"n/ac/ax"``) at their
+        discretion: such a string names no member, so a driver that accepts it
+        handles that ``str`` itself.
         Raises ValueError if the radio does not support *mode*.
         """
         ...

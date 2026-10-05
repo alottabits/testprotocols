@@ -25,6 +25,7 @@ from __future__ import annotations
 
 from typing import Protocol, runtime_checkable
 
+from testprotocols._compat import deprecated
 from testprotocols.models.sdwan_appliance import (
     UplinkSelectionRule,
     UplinkSelectionSettings,
@@ -36,13 +37,20 @@ from testprotocols.models.wan_edge import AppFlow, SLAPolicy
 class SdwanPolicyManager(Protocol):
     """Abstract contract for SD-WAN policy management operations."""
 
+    @deprecated(
+        "Deprecated, with no successor. Removal not before the first release 6 months "
+        "after the release that deprecates it.",
+        category=None,
+    )
     def apply_policy(self, policy: dict[str, object]) -> None:
         """Apply a generic SD-WAN policy specified as a dict.
 
-        Deprecated, with no successor: the typed members of this capability
-        (``configure_sla_policy``, ``set_uplink_selection``, ``set_default_uplink``,
-        ``set_active_active_vpn``) cover what a policy expresses. A driver keeps
-        the member for the deprecation period.
+        The typed members of this capability (``configure_sla_policy``,
+        ``set_uplink_selection``, ``set_default_uplink``, ``set_active_active_vpn``)
+        cover what a policy expresses.
+
+        Deprecated, with no successor. Removal not before the first release 6 months after the
+        release that deprecates it.
         """
         ...
 

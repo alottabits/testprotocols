@@ -22,6 +22,7 @@ from __future__ import annotations
 
 from typing import Protocol, runtime_checkable
 
+from testprotocols._compat import deprecated
 from testprotocols.models.firewall import NatMode, NatRule, RuleCounters
 
 
@@ -53,9 +54,8 @@ class Nat(Protocol):
         """Return installed NAT rules, optionally filtered by *mode*.
 
         *mode* is ``None`` (all) or a :class:`~testprotocols.models.NatMode`. A
-        plain ``str`` naming one is deprecated: a driver coerces it with
-        ``coerce_enum(NatMode, mode, what=...)`` (it warns). Raises ValueError
-        if *mode* is set but not one of the recognized values.
+        plain ``str`` naming one is deprecated. Raises ValueError if *mode* is
+        set but not one of the recognized values.
         """
         ...
 
@@ -88,13 +88,18 @@ class Nat(Protocol):
         """
         ...
 
+    @deprecated(
+        "Deprecated: use get_nat_rule_counter_values. Removal not before the first "
+        "release 6 months after the release that deprecates it.",
+        category=None,
+    )
     def get_nat_rule_counters(self, name: str) -> tuple[int, int]:
-        """Deprecated name of :meth:`get_nat_rule_counter_values`.
-
-        Return ``(packets, bytes)`` matched by the rule since it was added. A
-        driver's old name warns with ``warn_renamed`` and delegates to the new one.
+        """Return ``(packets, bytes)`` matched by the rule since it was added.
 
         Raises KeyError if no rule with that name exists.
         Drivers without per-rule counter support raise NotImplementedError.
+
+        Deprecated: use :meth:`get_nat_rule_counter_values`. Removal not before the first release 6
+        months after the release that deprecates it.
         """
         ...

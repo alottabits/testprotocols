@@ -46,7 +46,7 @@ class WifiBss(Protocol):
         *,
         passphrase: str | None = None,
         radius_server_name: str | None = None,
-        mfp: MfpMode | str = MfpMode.OPTIONAL,
+        mfp: MfpMode | str = "optional",
         vlan_id: int | None = None,
         max_clients: int | None = None,
         broadcast_enabled: bool = True,
@@ -62,9 +62,8 @@ class WifiBss(Protocol):
         :class:`~testprotocols.models.wifi.MfpMode`: ``OFF``, ``OPTIONAL`` or
         ``REQUIRED`` (``"off"``, ``"optional"``, ``"required"``).
 
-        A plain ``str`` naming a member is deprecated: the driver coerces each of
-        these once, before any device I/O, with ``coerce_enum`` (it warns and
-        converts), and raises ``ValueError`` for any other string.
+        A plain ``str`` naming a member is deprecated; any other string raises
+        ``ValueError`` before any device I/O.
 
         Required arguments per security_mode:
         - PSK / SAE / mixed-PSK modes: *passphrase* required
@@ -124,7 +123,7 @@ class WifiBss(Protocol):
         *,
         passphrase: str | None = None,
         radius_server_name: str | None = None,
-        mfp: MfpMode | str = MfpMode.OPTIONAL,
+        mfp: MfpMode | str = "optional",
     ) -> None:
         """Reconfigure the security of an existing BSS.
 
@@ -145,8 +144,8 @@ class WifiBss(Protocol):
         - ``ALLOW`` (``"allow"``) — allow-list (whitelist); only MACs in the ACL may associate
         - ``DENY`` (``"deny"``) — deny-list (blacklist); MACs in the ACL are blocked
 
-        A plain ``str`` naming a member is deprecated: the driver coerces it with
-        ``coerce_enum`` (it warns); any other string raises ``ValueError``.
+        A plain ``str`` naming a member is deprecated; any other string raises
+        ``ValueError``.
 
         Raises KeyError if *name* is not registered.
         """

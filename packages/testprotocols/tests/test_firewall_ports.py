@@ -95,9 +95,9 @@ def test_rule_counters_hold_values_and_are_frozen() -> None:
 
 def test_new_counter_members_exist_and_old_remain() -> None:
     assert callable(PacketFilter.get_rule_counter_values)
-    assert callable(PacketFilter.get_rule_counters)
+    assert callable(PacketFilter.get_rule_counters)  # type: ignore[deprecated]
     assert callable(Nat.get_nat_rule_counter_values)
-    assert callable(Nat.get_nat_rule_counters)
+    assert callable(Nat.get_nat_rule_counters)  # type: ignore[deprecated]
 
 
 def test_rule_counters_accept_zero_and_large() -> None:

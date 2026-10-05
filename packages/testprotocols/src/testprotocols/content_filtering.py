@@ -18,6 +18,7 @@ from __future__ import annotations
 
 from typing import Protocol, runtime_checkable
 
+from testprotocols._compat import deprecated
 from testprotocols.models.sdwan_appliance import ContentCategory, UrlRules
 
 
@@ -42,12 +43,17 @@ class ContentFiltering(Protocol):
         """
         ...
 
+    @deprecated(
+        "Deprecated: use read_url_rules. Removal not before the first release 6 "
+        "months after the release that deprecates it.",
+        category=None,
+    )
     def get_url_rules(self) -> tuple[list[str], list[str]]:
-        """Deprecated name of :meth:`read_url_rules`.
+        """Return the ``(allowed, blocked)`` URL-pattern lists, the fields of
+        ``read_url_rules()`` as lists.
 
-        Returns the ``(allowed, blocked)`` URL-pattern lists, the fields of
-        ``read_url_rules()`` as lists; the driver warns with
-        ``warn_renamed("get_url_rules", "read_url_rules")``.
+        Deprecated: use :meth:`read_url_rules`. Removal not before the first release 6 months after
+        the release that deprecates it.
         """
         ...
 

@@ -32,7 +32,9 @@ quote-style = "double"
 [tool.mypy]
 strict = true
 python_version = "3.12"
-enable_error_code = ["explicit-override", "exhaustive-match"]
+enable_error_code = ["explicit-override", "exhaustive-match", "deprecated"]
+# Also implied by `strict`; packages/testprotocols/tests/typing/deprecated_usage.py relies on it.
+warn_unused_ignores = true
 warn_unreachable = true
 # `scripts/` holds top-level modules the tests under `scripts/tests/` import.
 mypy_path = "scripts"
@@ -47,6 +49,9 @@ disallow_any_explicit = true
 [tool.pyright]
 typeCheckingMode = "strict"
 pythonVersion = "3.12"
+# Using a member marked `@deprecated` is an error; an intentional use carries
+# `# type: ignore[deprecated]`, which pyright honours as well.
+reportDeprecated = "error"
 # Type-check the workspace packages from source rather than through whatever
 # copy the selected interpreter happens to expose (a stale non-editable install
 # would otherwise win). Third-party deps still come from the environment, so

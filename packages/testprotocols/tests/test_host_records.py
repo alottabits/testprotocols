@@ -11,7 +11,6 @@ from __future__ import annotations
 import dataclasses
 import inspect
 import re
-import warnings
 from collections.abc import Iterable, Mapping
 from datetime import timedelta
 from ipaddress import IPv4Address
@@ -38,7 +37,6 @@ from testprotocols.models import (
     DnsRecord,
     EventLogEntry,
     GroupRecord,
-    ImpairmentProfile,
     IperfProcess,
     LatencySpike,
     MemoryUtilization,
@@ -53,10 +51,6 @@ from testprotocols.models import (
     TransientEvent,
     TransportProtocol,
     UrlRules,
-    coerce_impairment_profile,
-    group_records,
-    parse_window_size,
-    transient_event,
 )
 from testprotocols.multicast_client import MulticastClient
 from testprotocols.netem_controller import NetemController
@@ -311,8 +305,8 @@ def test_old_reader_matches_new_record_event_log(entry: dict[str, object]) -> No
 def test_event_log_reader_keeps_unparsable_lines_in_the_released_output() -> None:
     # jc syslog-bsd emits {"unparsable": line} for a line it cannot read; no record holds it,
     # so the deprecated reader is documented as keeping its released output
-    doc = inspect.getdoc(DeviceManagement.read_event_logs) or ""
-    assert "unparsable" in doc and "keeps its released output" in doc
+    doc = inspect.getdoc(DeviceManagement.read_event_logs) or ""  # type: ignore[deprecated]
+    assert "unparsable" in doc and "released output also carries" in doc
     assert "left out" in (inspect.getdoc(DeviceManagement.read_log_entries) or "")
 
 
@@ -352,7 +346,7 @@ def test_dns_record_type_outside_the_enum_is_stored_as_given() -> None:
 
 
 def test_record_type_parameters_take_the_enum_or_its_text() -> None:
-    for member in (DnsClient.dns_lookup, DnsClient.resolve):
+    for member in (DnsClient.dns_lookup, DnsClient.resolve):  # type: ignore[deprecated]
         params = inspect.signature(member).parameters
         assert params["record_type"].annotation == "DnsRecordType | str"
 
@@ -382,40 +376,13 @@ def test_old_reader_matches_new_record_iperf() -> None:
     assert (record.pid, record.log_file) == released
 
 
-@pytest.mark.parametrize(
-    ("text", "size"),
-    [
-        ("8M", 8 * 1024 * 1024),
-        ("8m", 8 * 1024 * 1024),
-        ("512K", 512 * 1024),
-        ("1G", 1024**3),
-        ("1.5M", 1572864),
-        ("65536", 65536),
-        (" 2M ", 2 * 1024 * 1024),
-    ],
-)
-def test_parse_window_size_uses_iperf_binary_units(text: str, size: int) -> None:
-    assert parse_window_size(text) == size
-
-
-@pytest.mark.parametrize("text", ["", "8MB", "M", "-1M", "0", "eight"])
-def test_parse_window_size_refuses_malformed_text(text: str) -> None:
-    with pytest.raises(ValueError):
-        parse_window_size(text)
-
-
-def test_parse_window_size_refuses_a_non_text() -> None:
-    with pytest.raises(TypeError):
-        parse_window_size(8)  # type: ignore[arg-type]
-
-
 def test_sender_session_signature() -> None:
     params = inspect.signature(IperfClient.start_sender_session).parameters
     assert params["window_bytes"].annotation == "int | None"
     assert params["window_bytes"].kind is inspect.Parameter.KEYWORD_ONLY
     assert params["ip_version"].annotation == "IpFamily | None"
     assert "window" not in params
-    released = inspect.signature(IperfClient.start_traffic_sender).parameters
+    released = inspect.signature(IperfClient.start_traffic_sender).parameters  # type: ignore[deprecated]
     assert released["window"].annotation == "str | None"  # the released member is unchanged
     assert "window_bytes" not in released
     assert set(released) - {"window"} == set(params) - {"window_bytes"}
@@ -423,7 +390,7 @@ def test_sender_session_signature() -> None:
 
 def test_receiver_session_signature() -> None:
     params = inspect.signature(IperfServer.start_receiver_session).parameters
-    released = inspect.signature(IperfServer.start_traffic_receiver).parameters
+    released = inspect.signature(IperfServer.start_traffic_receiver).parameters  # type: ignore[deprecated]
     assert set(params) == set(released)
     assert params["ip_version"].annotation == "IpFamily | None"
 
@@ -560,37 +527,10 @@ def test_arp_entry_from_a_real_table_line() -> None:
         (PacketStorm(), "packet_storm", {}),
     ],
 )
-def test_transient_event_is_what_the_released_call_spells(
+def test_transient_event_name_is_the_released_word(
     event: TransientEvent, name: str, kwargs: dict[str, float | int]
 ) -> None:
     assert event.event_name == name
-    # the released form converts to the same event (the driver warns, not this)
-    with warnings.catch_warnings():
-        warnings.simplefilter("error")
-        assert transient_event(name, **kwargs) == event
-
-
-def test_transient_event_accepts_the_released_caller_spelling_for_a_spike() -> None:
-    assert transient_event("latency_spike", latency_ms=400) == LatencySpike(latency_ms=400)
-    assert transient_event("latency_spike", spike_latency_ms=400.0) == LatencySpike(latency_ms=400)
-    with pytest.raises(ValueError, match="whole"):
-        transient_event("brownout", latency_ms=1.5)
-
-
-@pytest.mark.parametrize(
-    ("name", "kwargs", "error"),
-    [
-        ("meltdown", {}, ValueError),
-        ("blackout", {"loss_percent": 10.0}, ValueError),
-        ("brownout", {"duplicate_percent": 1.0}, ValueError),
-        ("latency_spike", {"latency_ms": 1, "spike_latency_ms": 2}, ValueError),
-    ],
-)
-def test_transient_event_refuses_unknown_events_and_keys(
-    name: str, kwargs: dict[str, float], error: type[Exception]
-) -> None:
-    with pytest.raises(error):
-        transient_event(name, **kwargs)
 
 
 def test_inject_event_signature() -> None:
@@ -608,46 +548,6 @@ def test_netem_profile_parameter_has_no_any() -> None:
     for member in (NetemController.set_impairment_profile, NetemController.set_interface_profile):
         ann = inspect.signature(member).parameters["profile"].annotation
         assert ann == "ImpairmentProfile | dict[str, object]"
-
-
-def test_coerce_impairment_profile_passes_a_profile_silently() -> None:
-    profile = ImpairmentProfile(10, 2, 0.1)
-    with warnings.catch_warnings():
-        warnings.simplefilter("error")
-        assert coerce_impairment_profile(profile, what="profile") is profile
-
-
-def test_coerce_impairment_profile_converts_a_dict_with_a_warning() -> None:
-    with pytest.warns(DeprecationWarning, match="ImpairmentProfile"):
-        profile = coerce_impairment_profile(
-            {"latency_ms": 20, "jitter_ms": 5, "loss_percent": 0.1, "bandwidth_limit_mbps": 20},
-            what="profile",
-        )
-    assert profile == ImpairmentProfile(20, 5, 0.1, bandwidth_limit_mbps=20)
-
-
-def test_coerce_impairment_profile_defaults_missing_figures_to_zero() -> None:
-    # as the released example implementer's own dict conversion does
-    with pytest.warns(DeprecationWarning):
-        profile = coerce_impairment_profile({"latency_ms": 40}, what="profile")
-    assert profile == ImpairmentProfile(latency_ms=40, jitter_ms=0, loss_percent=0.0)
-
-
-@pytest.mark.parametrize(
-    ("value", "error"),
-    [
-        ({"latency_ms": 1, "jitter_ms": 0, "loss_percent": 0.0, "colour": 1}, ValueError),
-        ({"latency_ms": "20"}, TypeError),
-        ({"jitter_ms": True}, TypeError),
-        ({"loss_percent": "5"}, TypeError),
-        ({"bandwidth_limit_mbps": 2.5}, TypeError),
-        ("dsl", TypeError),
-    ],
-)
-def test_coerce_impairment_profile_refuses(value: object, error: type[Exception]) -> None:
-    with pytest.raises(error), warnings.catch_warnings():
-        warnings.simplefilter("ignore", DeprecationWarning)
-        coerce_impairment_profile(value, what="profile")  # type: ignore[arg-type]
 
 
 # --------------------------------------------------------------------------------------
@@ -679,22 +579,6 @@ def test_group_record_fits_the_released_parameter_type() -> None:
     hints = get_type_hints(MulticastClient.send_mldv2_report)
     assert "list[tuple[list[str], str, " in str(hints["mcast_group_record"])
     assert issubclass(GroupRecord, tuple)
-
-
-def test_group_records_converts_a_plain_tuple_with_a_warning() -> None:
-    rtype = MulticastGroupRecordType.ALLOW_NEW_SOURCES
-    record = GroupRecord([], "ff3e::1", rtype)
-    with warnings.catch_warnings():
-        warnings.simplefilter("error")
-        assert group_records([record], what="records") == [record]
-    with pytest.warns(DeprecationWarning, match="GroupRecord"):
-        converted = group_records([([], "ff3e::1", rtype)], what="records")
-    assert converted == [record] and isinstance(converted[0], GroupRecord)
-
-
-def test_group_records_refuses_a_wrong_shape() -> None:
-    with pytest.raises(TypeError):
-        group_records([("ff3e::1",)], what="records")  # type: ignore[list-item]
 
 
 # --------------------------------------------------------------------------------------

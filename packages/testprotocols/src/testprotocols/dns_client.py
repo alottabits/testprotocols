@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from typing import Any, Protocol, runtime_checkable
 
+from testprotocols._compat import deprecated
 from testprotocols.models.networking import DnsRecord, DnsRecordType
 
 
@@ -15,26 +16,31 @@ from testprotocols.models.networking import DnsRecord, DnsRecordType
 class DnsClient(Protocol):
     """Abstract contract for DNS client operations."""
 
+    @deprecated(
+        "Deprecated: use resolve. Removal not before the first release 6 months after "
+        "the release that deprecates it.",
+        category=None,
+    )
     def dns_lookup(  # type: ignore[explicit-any]  # released signature kept until removal
         self,
         domain_name: str,
         record_type: DnsRecordType | str,
         opts: str = "",
     ) -> list[dict[str, Any]]:
-        """Deprecated: use :meth:`resolve`, which returns typed records.
+        """Perform a DNS lookup for *domain_name* and return the resolver's parsed responses.
 
-        Performs a DNS lookup for *domain_name* and returns the resolver's parsed responses.
-        A driver keeps its released output here until the removal step (it warns with
-        ``warn_renamed("dns_lookup", "resolve")``): the responses carry more than the answer
-        records :meth:`resolve` returns, so they cannot be rebuilt from them.
+        The responses carry more than the answer records :meth:`resolve` returns, so they
+        cannot be rebuilt from them.
 
         *record_type* is a :class:`~testprotocols.models.DnsRecordType` or its text (``"A"``);
         a record type the enum does not name yet (``"CAA"``) is passed as text. The annotation
         narrows to ``DnsRecordType`` at removal.
 
         *opts* (extra resolver options) is deprecated with no typed replacement: no caller
-        was seen to pass a particular option, and :meth:`resolve` takes none. A driver warns
-        when it is non-empty.
+        was seen to pass a particular option, and :meth:`resolve` takes none.
+
+        Deprecated: use :meth:`resolve`. Removal not before the first release 6 months after the
+        release that deprecates it.
         """
         ...
 

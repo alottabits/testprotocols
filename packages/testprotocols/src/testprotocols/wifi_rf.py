@@ -11,7 +11,7 @@ WifiSpectrum template, given the low cross-vendor uniformity.
 
 Per-radio identity is band-keyed, matching WifiRadio: every *band* parameter is a
 :class:`~testprotocols.models.wifi.WifiBand`, and a plain ``str`` naming one is
-deprecated (the driver coerces it with ``coerce_enum``, which warns).
+deprecated.
 """
 
 from __future__ import annotations

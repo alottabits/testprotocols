@@ -9,17 +9,24 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Protocol, runtime_checkable
 
+from testprotocols._compat import deprecated
+
 
 @runtime_checkable
 class NtpClient(Protocol):
     """Abstract contract for NTP client operations."""
 
+    @deprecated(
+        "Deprecated: use read_date. Removal not before the first release 6 months "
+        "after the release that deprecates it.",
+        category=None,
+    )
     def get_date(self) -> str | None:
-        """Deprecated: use :meth:`read_date`, which returns a ``datetime``.
+        """Return the current date/time string from the device, in the device's own format
+        (``None`` when it cannot be read).
 
-        Returns the current date/time string from the device, in the device's own format
-        (``None`` when it cannot be read). A driver keeps returning that text until the
-        removal step (it warns with ``warn_renamed("get_date", "read_date")``).
+        Deprecated: use :meth:`read_date`, which returns a ``datetime``. Removal not before the
+        first release 6 months after the release that deprecates it.
         """
         ...
 
@@ -31,12 +38,18 @@ class NtpClient(Protocol):
         """
         ...
 
+    @deprecated(
+        "Deprecated: use set_date_time. Removal not before the first release 6 months "
+        "after the release that deprecates it.",
+        category=None,
+    )
     def set_date(self, opt: str, date_string: str) -> bool:
-        """Deprecated: use :meth:`set_date_time`.
+        """Set the device date/time using *opt* and *date_string*.
 
-        Sets the device date/time using *opt* and *date_string*. A driver keeps this form until
-        the removal step and warns with ``warn_renamed("set_date", "set_date_time")``; no
-        caller was seen to pass an *opt* other than the set-the-date flag.
+        No caller was seen to pass an *opt* other than the set-the-date flag.
+
+        Deprecated: use :meth:`set_date_time`. Removal not before the first release 6 months after
+        the release that deprecates it.
         """
         ...
 

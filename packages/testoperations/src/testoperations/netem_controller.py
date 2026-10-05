@@ -10,7 +10,6 @@ from __future__ import annotations
 
 from enum import StrEnum
 
-from testprotocols.deprecation import coerce_enum
 from testprotocols.models.impairment import (
     Blackout,
     Brownout,
@@ -20,6 +19,7 @@ from testprotocols.models.impairment import (
 )
 from testprotocols.netem_controller import NetemController
 
+from testoperations._compat import coerce_enum
 from testoperations._renamed import inject
 
 # ---------------------------------------------------------------------------

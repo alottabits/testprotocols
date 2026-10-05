@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from typing import Protocol, runtime_checkable
 
+from testprotocols._compat import deprecated
 from testprotocols.models.networking import IpFamily
 from testprotocols.models.traffic import IperfProcess
 
@@ -16,6 +17,11 @@ from testprotocols.models.traffic import IperfProcess
 class IperfServer(Protocol):
     """Abstract contract for iperf server (traffic receiver) operations."""
 
+    @deprecated(
+        "Deprecated: use start_receiver_session. Removal not before the first release "
+        "6 months after the release that deprecates it.",
+        category=None,
+    )
     def start_traffic_receiver(
         self,
         traffic_port: int,
@@ -23,18 +29,18 @@ class IperfServer(Protocol):
         ip_version: IpFamily | int | None = None,
         udp_only: bool | None = None,
     ) -> tuple[int, str]:
-        """Deprecated name of :meth:`start_receiver_session`.
+        """Start an iperf traffic receiver on *traffic_port*.
 
-        Returns the ``(pid, log_file)`` of ``start_receiver_session(...)``; the driver warns with
-        ``warn_renamed("start_traffic_receiver", "start_receiver_session")``.
-
-        Start an iperf traffic receiver on *traffic_port*.
+        Returns the ``(pid, log_file)`` of ``start_receiver_session(...)``.
 
         *ip_version* is an :class:`~testprotocols.models.IpFamily` (``V4 = 4``, ``V6 = 6``) or
         ``None`` to leave the version to the tool; a plain ``int`` is the released spelling
         and narrows to ``IpFamily`` in a later release (see ``IperfClient``).
 
         Returns a tuple of (pid, log_file_path).
+
+        Deprecated: use :meth:`start_receiver_session`. Removal not before the first release 6
+        months after the release that deprecates it.
         """
         ...
 

@@ -52,8 +52,7 @@ class Conntrack(Protocol):
         :class:`~testprotocols.models.RuleProtocol` naming a transport the device
         tracks (``tcp``, ``udp``, ``icmp``; ``icmp6`` where tracked) — raises
         ValueError otherwise, and for ``any``, which is no flow's transport. A
-        plain ``str`` is deprecated: a driver coerces it with ``coerce_enum``
-        (it warns). *state*, when set, is the device's own state word (for example
+        plain ``str`` is deprecated. *state*, when set, is the device's own state word (for example
         ``ESTABLISHED``, ``TIME_WAIT``) and matches flows whose ``state`` equals it.
         Empty list when no flow matches.
         """

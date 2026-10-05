@@ -54,11 +54,9 @@ class IpInterface(Protocol):
     def is_link_up(self, interface: str, pattern: str = "BROADCAST,MULTICAST,UP") -> bool:
         """Return True if *interface* flags match *pattern*.
 
-        Deprecated parameter: *pattern* is a free-text grammar (the ``ip link`` flag
-        list). A driver warns when it is passed (that is, differs from the default) and
-        keeps matching it; the parameter is removed in a later release. A caller that
-        wants the administrative state uses :meth:`is_link_admin_up`; the default call
-        is unchanged.
+        Deprecated parameter: *pattern* is a free-text grammar (the ``ip link`` flag list). A driver
+        keeps matching it; the parameter is removed in a later release. A caller that wants the
+        administrative state uses :meth:`is_link_admin_up`; the default call is unchanged.
         """
         ...
 
@@ -71,8 +69,7 @@ class IpInterface(Protocol):
         """Bring *interface* up or down according to *state*.
 
         *state* is a :class:`~testprotocols.models.LinkAdminState` (``"up"`` or
-        ``"down"``). A plain ``str`` naming a member is deprecated: the driver converts it
-        with ``coerce_enum`` and warns.
+        ``"down"``). A plain ``str`` naming a member is deprecated.
         """
         ...
 

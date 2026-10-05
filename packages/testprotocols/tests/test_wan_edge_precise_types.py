@@ -96,11 +96,14 @@ def test_other_is_not_a_category() -> None:
 
 @pytest.mark.parametrize("name", ["VPNPeerStatus", "TrafficShapingRule"])
 @pytest.mark.parametrize("module", ["testprotocols.models.wan_edge", "testprotocols.models"])
-def test_orphan_models_warn_on_access_and_still_work(module: str, name: str) -> None:
+def test_orphan_models_are_marked_and_work_without_a_warning(module: str, name: str) -> None:
     mod = importlib.import_module(module)
-    with pytest.warns(DeprecationWarning, match=rf"{module}.{name} is deprecated; "):
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")  # the deprecation is stated, not raised
         cls = getattr(mod, name)
-    assert cls.__name__ == name
+        assert cls.__name__ == name
+        assert "Deprecated, with no successor." in cls.__deprecated__
+        assert "Deprecated, with no successor." in (cls.__doc__ or "")
     if name == "VPNPeerStatus":
         v = cls(peer_id="1", peer_name="a", reachability="up", uplink="wan1")
         assert v.peer_name == "a"
@@ -109,11 +112,11 @@ def test_orphan_models_warn_on_access_and_still_work(module: str, name: str) -> 
         assert r.dscp_tag == 46
 
 
-def test_orphans_are_not_star_exported_and_unknown_names_still_fail() -> None:
+def test_orphans_are_exported_as_released_and_unknown_names_still_fail() -> None:
     import testprotocols.models as models
 
-    assert "VPNPeerStatus" not in models.__all__
-    assert "TrafficShapingRule" not in models.__all__
+    assert "VPNPeerStatus" in models.__all__
+    assert "TrafficShapingRule" in models.__all__
     name = "NoSuchModel"
     with pytest.raises(AttributeError):
         getattr(models, name)
@@ -123,7 +126,7 @@ def test_orphans_are_not_star_exported_and_unknown_names_still_fail() -> None:
         exec("from testprotocols.models import *", namespace)
 
 
-# --- the deprecation __getattr__ must not make unknown names type-check ---
+# --- an unknown name is a static error; the orphans import ---
 
 
 def test_an_unknown_name_is_a_static_error_but_the_deprecated_ones_are_not(

@@ -20,8 +20,9 @@ from testprotocols.models import (
     IperfProcess,
     IpFamily,
     TransientEvent,
-    parse_window_size,
 )
+
+from testoperations._compat import parse_window_size
 
 
 class _Member(Protocol):

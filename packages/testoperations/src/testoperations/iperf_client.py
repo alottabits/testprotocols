@@ -12,11 +12,11 @@ import re
 from dataclasses import dataclass
 from typing import override
 
-from testprotocols.deprecation import coerce_enum
 from testprotocols.iperf_client import IperfClient
 from testprotocols.iperf_server import IperfServer
 from testprotocols.models import IperfProcess, IpFamily
 
+from testoperations._compat import coerce_enum
 from testoperations._released import ReleasedMapping
 from testoperations._renamed import (
     start_receiver_session_of,

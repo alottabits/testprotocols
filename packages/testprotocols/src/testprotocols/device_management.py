@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from typing import Any, Protocol, runtime_checkable
 
+from testprotocols._compat import deprecated
 from testprotocols.models.device_management import (
     EventLogEntry,
     MemoryUtilization,
@@ -31,13 +32,18 @@ class DeviceManagement(Protocol):
         """Return the current 1-minute load average of the device."""
         ...
 
+    @deprecated(
+        "Deprecated: use read_memory_utilization. Removal not before the first "
+        "release 6 months after the release that deprecates it.",
+        category=None,
+    )
     def get_memory_utilization(self) -> dict[str, int]:
-        """Deprecated name of :meth:`read_memory_utilization`.
-
-        Returns the figures of ``read_memory_utilization()``: memory utilization in bytes,
+        """Return the figures of ``read_memory_utilization()``: memory utilization in bytes,
         keyed by metric name (``total``, ``used``, ``free`` and, when reported, ``shared``,
-        ``cache``, ``available``); the driver warns with
-        ``warn_renamed("get_memory_utilization", "read_memory_utilization")``.
+        ``cache``, ``available``).
+
+        Deprecated: use :meth:`read_memory_utilization`. Removal not before the first release 6
+        months after the release that deprecates it.
         """
         ...
 
@@ -45,18 +51,22 @@ class DeviceManagement(Protocol):
         """Return the device's memory figures, in bytes."""
         ...
 
+    @deprecated(
+        "Deprecated: use read_running_processes. Removal not before the first release "
+        "6 months after the release that deprecates it.",
+        category=None,
+    )
     def get_running_processes(self, ps_options: str = "-A") -> list[Any]:  # type: ignore[explicit-any]  # released signature kept until removal
-        """Deprecated name of :meth:`read_running_processes`.
+        """Return the list of running processes using the given ps options.
 
-        Returns the list of running processes using the given ps options. For the default
-        ``"-A"`` on a procps host each entry holds the fields of a ``read_running_processes()``
-        record (``pid``, ``tty``, ``time`` as ``[DD-]hh:mm:ss``, ``cmd``); the driver warns with
-        ``warn_renamed("get_running_processes", "read_running_processes")``. Other
-        options keep the driver's released output until the removal step.
+        For the default ``"-A"`` on a procps host each entry holds the fields of a
+        ``read_running_processes()`` record (``pid``, ``tty``, ``time`` as
+        ``[DD-]hh:mm:ss``, ``cmd``). Other options give the driver's released output.
+        *ps_options* has no typed replacement: no caller was seen to pass one, and
+        :meth:`read_running_processes` lists every process.
 
-        *ps_options* other than the default ``"-A"`` is deprecated with no typed replacement
-        (no caller was seen to pass one, and :meth:`read_running_processes` lists every
-        process): a driver warns when it differs from ``"-A"``.
+        Deprecated: use :meth:`read_running_processes`. Removal not before the first release 6
+        months after the release that deprecates it.
         """
         ...
 
@@ -68,16 +78,22 @@ class DeviceManagement(Protocol):
         """Return the board system log as a string, waiting up to *timeout* seconds."""
         ...
 
+    @deprecated(
+        "Deprecated: use read_log_entries. Removal not before the first release 6 "
+        "months after the release that deprecates it.",
+        category=None,
+    )
     def read_event_logs(self) -> list[dict[str, Any]]:  # type: ignore[explicit-any]  # released signature kept until removal
-        """Deprecated: use :meth:`read_log_entries`, which returns typed entries.
+        """Return the structured event log entries (``priority``, ``date``, ``hostname``,
+        ``tag``, ``content``).
 
-        Returns the structured event log entries (``priority``, ``date``, ``hostname``,
-        ``tag``, ``content``). A driver keeps its released output here until the removal
-        step (it warns with ``warn_renamed("read_event_logs", "read_log_entries")``): that
-        output also carries the lines its parser could not read (``{"unparsable": line}``),
-        which :meth:`read_log_entries` leaves out. For a parsed line, the released entry holds
-        the fields of an ``EventLogEntry`` (``date`` is its *timestamp*, ``content`` its
-        *message*).
+        The released output also carries the lines the driver's parser could not read
+        (``{"unparsable": line}``), which :meth:`read_log_entries` leaves out. For a parsed line,
+        the released entry holds the fields of an ``EventLogEntry`` (``date`` is its *timestamp*,
+        ``content`` its *message*).
+
+        Deprecated: use :meth:`read_log_entries`. Removal not before the first release 6 months
+        after the release that deprecates it.
         """
         ...
 

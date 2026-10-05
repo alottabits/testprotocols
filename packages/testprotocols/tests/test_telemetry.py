@@ -7,7 +7,6 @@ import typing
 from collections.abc import Mapping
 
 import pytest
-from testprotocols.deprecation import warn_renamed
 from testprotocols.models import (
     LinkHealthReport,
     LinkStatus,
@@ -56,7 +55,6 @@ class _Router:
         return self._telemetry
 
     def get_telemetry(self) -> Mapping[str, float]:
-        warn_renamed("get_telemetry", "read_telemetry")
         return _released(self.read_telemetry())
 
     def get_active_wan_interface(self, flow_dst: str | None = None) -> str | None:
@@ -81,8 +79,7 @@ class _Router:
 def test_old_member_equals_the_new_record_as_a_dict(telemetry: Telemetry) -> None:
     router = _Router(telemetry)
     assert isinstance(router, Router)
-    with pytest.warns(DeprecationWarning, match=r"get_telemetry is deprecated; use read_telemetry"):
-        old = router.get_telemetry()
+    old = router.get_telemetry()
     new = router.read_telemetry()
     assert old == _released(new)
 
@@ -96,7 +93,7 @@ def test_a_driver_without_the_new_member_is_not_a_router() -> None:
 
 
 def test_apply_policy_keeps_its_name_and_takes_dict_of_objects_not_any() -> None:
-    hints = typing.get_type_hints(SdwanPolicyManager.apply_policy)
+    hints = typing.get_type_hints(SdwanPolicyManager.apply_policy)  # type: ignore[deprecated]
     assert hints["policy"] == dict[str, object]
     assert hints["return"] is type(None)
-    assert "deprecated" in (SdwanPolicyManager.apply_policy.__doc__ or "").lower()
+    assert "deprecated" in (SdwanPolicyManager.apply_policy.__doc__ or "").lower()  # type: ignore[deprecated]

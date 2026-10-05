@@ -43,7 +43,7 @@ class Firewall(PacketFilter, Protocol):
         *external_port* / *internal_port* outside ``1..65535``, or on
         *mapping.protocol* that is not a
         :class:`~testprotocols.models.PortMappingProtocol` (``tcp``, ``udp``,
-        ``tcp-udp``; the record converts a plain string and warns).
+        ``tcp-udp``; a plain string naming one is deprecated).
         """
         ...
 

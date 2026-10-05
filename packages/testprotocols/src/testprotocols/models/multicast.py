@@ -2,10 +2,8 @@
 
 from __future__ import annotations
 
-import warnings
-from collections.abc import Iterable
 from enum import Enum
-from typing import NamedTuple, cast
+from typing import NamedTuple
 
 
 class MulticastGroupRecordType(Enum):
@@ -23,7 +21,7 @@ McastSource = str
 McastGroup = str
 MulticastGroupRecord = list[tuple[list[McastSource], McastGroup, MulticastGroupRecordType]]
 """A list of (sources, group, record_type) group records (IGMPv3 / MLDv2). Each entry is a
-:class:`GroupRecord`; a plain tuple is deprecated (see :func:`group_records`)."""
+:class:`GroupRecord`; a plain tuple is deprecated."""
 
 
 class _GroupRecordFields(NamedTuple):
@@ -42,37 +40,3 @@ class GroupRecord(_GroupRecordFields):
     """
 
     __slots__ = ()
-
-
-def group_records(
-    records: Iterable[GroupRecord | tuple[list[McastSource], McastGroup, MulticastGroupRecordType]],
-    *,
-    what: str,
-) -> list[GroupRecord]:
-    """Return *records* as :class:`GroupRecord` entries, for a driver's group-record parameter.
-
-    A :class:`GroupRecord` passes as is. A plain ``(sources, group, record_type)`` tuple is
-    deprecated: it converts, and the call warns once (``DeprecationWarning``, pointing at the
-    driver's caller). Anything else raises ``TypeError``.
-    """
-    converted: list[GroupRecord] = []
-    plain = False
-    for record in records:
-        item = cast(object, record)
-        if isinstance(item, GroupRecord):
-            converted.append(item)
-            continue
-        if not isinstance(item, tuple) or len(cast("tuple[object, ...]", item)) != 3:
-            raise TypeError(f"{what}: takes GroupRecord entries, not {item!r}")
-        sources, group, record_type = cast(
-            "tuple[list[McastSource], McastGroup, MulticastGroupRecordType]", item
-        )
-        converted.append(GroupRecord(sources, group, record_type))
-        plain = True
-    if plain:
-        warnings.warn(
-            f"{what}: a plain (sources, group, record_type) tuple is deprecated; pass GroupRecord",
-            DeprecationWarning,
-            stacklevel=3,
-        )
-    return converted

@@ -7,7 +7,6 @@ import inspect
 import warnings
 
 import pytest
-from testprotocols.deprecation import coerce_enum
 from testprotocols.dns_client import DnsClient
 from testprotocols.http_client import HttpClient
 from testprotocols.http_server import HttpServer
@@ -35,7 +34,6 @@ from testprotocols.models import (
     StormControlUnit,
     TrafficSpec,
     TransportProtocol,
-    parse_http_response,
 )
 from testprotocols.nmap_scanner import NmapScanner
 from testprotocols.qoe_browser import QoeBrowser
@@ -84,29 +82,15 @@ def test_ip_family_is_an_int_enum_for_the_iperf_options() -> None:
     assert [m.value for m in IpFamily] == [4, 6]
     assert f"-{IpFamily.V4}" == "-4" and f"-{IpFamily.V6}" == "-6"  # how a driver formats it
     assert _equal(IpFamily.V6, 6)
-    with warnings.catch_warnings():
-        warnings.simplefilter(
-            "error"
-        )  # an int naming a member is its value, not a deprecated spelling
-        assert coerce_enum(IpFamily, 4, what="ip_version") is IpFamily.V4
-        assert coerce_enum(IpFamily, IpFamily.V6, what="ip_version") is IpFamily.V6
-    with pytest.raises(ValueError, match="ip_version"):
-        coerce_enum(IpFamily, 5, what="ip_version")  # a number naming no member: a bad value
-    for wrong in (True, 4.0):  # a bool or a float is a wrong type
-        with pytest.raises(TypeError, match="ip_version"):
-            coerce_enum(IpFamily, wrong, what="ip_version")  # type: ignore[arg-type]
+    assert IpFamily(4) is IpFamily.V4  # an int naming a member is its value
 
 
-def test_qoe_enums_used_in_generated_text_repr_as_their_quoted_text() -> None:
-    spec = MeasurementSpec(tool=QoeTool.BROWSER, completion=QoeCompletion.LOAD)
+def test_qoe_defaults_repr_as_their_quoted_text() -> None:
+    spec = MeasurementSpec()
     # the example implementer builds its script with repr(spec.completion)
     script = "wait_until={wait_until_repr}".replace("{wait_until_repr}", repr(spec.completion))
-    assert script == "wait_until='load'"
+    assert script == "wait_until='networkidle'"
     assert repr(spec.tool) == "'browser'"
-    assert repr(QoeCompletion.RESPONSE) == "'response'"
-    # the other enums keep the default repr
-    assert repr(IpVersion.IPV4) == "<IpVersion.IPV4: 'ipv4'>"
-    assert repr(PageCompletion.LOAD) == "<PageCompletion.LOAD: 'load'>"
     assert str(QoeCompletion.LOAD) == "load"
 
 
@@ -116,17 +100,17 @@ def test_qoe_enums_used_in_generated_text_repr_as_their_quoted_text() -> None:
 @pytest.mark.parametrize(
     ("fn", "param", "ann"),
     [
-        (DnsClient.dns_lookup, "record_type", "DnsRecordType | str"),
+        (DnsClient.dns_lookup, "record_type", "DnsRecordType | str"),  # type: ignore[deprecated]
         (DnsClient.resolve, "record_type", "DnsRecordType | str"),
         (HttpClient.curl, "protocol", "HttpScheme | str"),
         (HttpServer.start_http_service, "port", "str"),
         (HttpServer.start_http_service, "ip_version", "str"),
         (HttpServer.stop_http_service, "port", "str"),
-        (IperfClient.start_traffic_sender, "ip_version", "IpFamily | int | None"),
-        (IperfServer.start_traffic_receiver, "ip_version", "IpFamily | int | None"),
+        (IperfClient.start_traffic_sender, "ip_version", "IpFamily | int | None"),  # type: ignore[deprecated]
+        (IperfServer.start_traffic_receiver, "ip_version", "IpFamily | int | None"),  # type: ignore[deprecated]
         (IpInterface.set_link_state, "state", "LinkAdminState | str"),
         (IpRouting.traceroute, "version", "str"),
-        (NmapScanner.nmap, "ip_type", "IpVersion | str"),
+        (NmapScanner.nmap, "ip_type", "IpVersion | str"),  # type: ignore[deprecated]
         (UpnpClient.create_upnp_rule, "int_port", "str"),
         (UpnpClient.create_upnp_rule, "ext_port", "str"),
         (UpnpClient.create_upnp_rule, "protocol", "PortMappingProtocol | str"),
@@ -152,8 +136,8 @@ def test_defaults_are_unchanged_text() -> None:
 
 
 def test_nmap_protocol_and_port_stay_as_released() -> None:
-    assert _ann(NmapScanner.nmap, "protocol") == "str | None"
-    assert _ann(NmapScanner.nmap, "port") == "str | int | None"
+    assert _ann(NmapScanner.nmap, "protocol") == "str | None"  # type: ignore[deprecated]
+    assert _ann(NmapScanner.nmap, "port") == "str | int | None"  # type: ignore[deprecated]
 
 
 def test_upnp_protocol_is_the_firewall_port_mapping_protocol() -> None:
@@ -198,19 +182,17 @@ def test_http_result_released_constructor_and_typed_attributes() -> None:
     result = HTTPResult(_RESPONSE)
     assert (result.status, result.body, result.raw) == (200, "hello", _RESPONSE)
     assert HTTPResult(response=_RESPONSE) == result
-    assert parse_http_response(_RESPONSE) == result
     assert dataclasses.is_dataclass(result)
     with pytest.raises(dataclasses.FrozenInstanceError):
         result.status = 404  # type: ignore[misc]
 
 
-def test_http_result_released_attributes_warn_but_work() -> None:
+def test_http_result_released_attributes_work_silently() -> None:
     result = HTTPResult(_RESPONSE)
-    with pytest.warns(DeprecationWarning, match="HTTPResult.code") as record:
-        assert result.code == "200"
-    assert record[0].filename == __file__
-    with pytest.warns(DeprecationWarning, match="beautified_text"):
-        assert result.beautified_text == "hello"
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        assert result.code == "200"  # type: ignore[deprecated]
+        assert result.beautified_text == "hello"  # type: ignore[deprecated]
     assert result.raw == _RESPONSE  # released attribute, not deprecated
 
 
@@ -232,8 +214,7 @@ def test_http_result_without_a_numeric_status(text: str) -> None:
 def test_http_result_status_outside_100_to_599_is_no_status(code: str) -> None:
     result = HTTPResult(f"HTTP/1.1 {code} Odd\n\nx")
     assert result.status == 0
-    with pytest.warns(DeprecationWarning):
-        assert result.code == code  # the released text is unchanged
+    assert result.code == code  # type: ignore[deprecated]  # the released text is unchanged
 
 
 def test_http_result_equality_is_by_value() -> None:
@@ -243,8 +224,7 @@ def test_http_result_equality_is_by_value() -> None:
 
 
 def test_http_result_non_numeric_code_text_is_kept_in_the_released_attribute() -> None:
-    with pytest.warns(DeprecationWarning):
-        assert HTTPResult("HTTP/1.1 abc Weird\n\nx").code == "abc"
+    assert HTTPResult("HTTP/1.1 abc Weird\n\nx").code == "abc"  # type: ignore[deprecated]
 
 
 # --- QoEResult.protocol --------------------------------------------------------------
@@ -267,9 +247,9 @@ def test_qoe_result_protocol_is_the_device_word_stored_as_given() -> None:
 
 def test_measurement_spec_defaults_equal_released_text() -> None:
     spec = MeasurementSpec()
-    assert spec.tool is QoeTool.BROWSER and _equal(spec.tool, "browser")
-    assert spec.completion is QoeCompletion.NETWORKIDLE
-    assert _equal(spec.completion, "networkidle")
+    assert type(spec.tool) is str and _equal(spec.tool, QoeTool.BROWSER)  # the released default
+    assert type(spec.completion) is str
+    assert _equal(spec.completion, QoeCompletion.NETWORKIDLE)
 
 
 def test_measurement_spec_plain_strings_are_stored_as_given() -> None:
@@ -287,7 +267,8 @@ def test_measurement_spec_plain_strings_are_stored_as_given() -> None:
 
 
 def test_traffic_spec_protocol() -> None:
-    assert TrafficSpec("10.0.0.1", 1.0).protocol is TransportProtocol.UDP
+    default = TrafficSpec("10.0.0.1", 1.0).protocol
+    assert type(default) is str and _equal(default, TransportProtocol.UDP)  # the released default
     with warnings.catch_warnings():
         warnings.simplefilter("error")
         spec = TrafficSpec("10.0.0.1", 1.0, protocol="tcp")

@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from typing import Protocol, runtime_checkable
 
+from testprotocols._compat import deprecated
 from testprotocols.models.impairment import ImpairmentProfile, TransientEvent
 
 
@@ -18,9 +19,8 @@ class NetemController(Protocol):
     def set_impairment_profile(self, profile: ImpairmentProfile | dict[str, object]) -> None:
         """Apply *profile* as the default impairment on all managed interfaces.
 
-        A ``dict`` of the profile's field names is deprecated: the driver converts it with
-        :func:`~testprotocols.models.coerce_impairment_profile`, which warns. The annotation
-        narrows to ``ImpairmentProfile`` in a later release.
+        A ``dict`` of the profile's field names is deprecated. The annotation narrows to
+        ``ImpairmentProfile`` in a later release.
         """
         ...
 
@@ -45,15 +45,20 @@ class NetemController(Protocol):
         """Remove all active impairments from all managed interfaces."""
         ...
 
+    @deprecated(
+        "Deprecated: use inject_event. Removal not before the first release 6 months "
+        "after the release that deprecates it.",
+        category=None,
+    )
     def inject_transient(self, event: str, duration_ms: int, **kwargs: float | int) -> None:
-        """Deprecated name of :meth:`inject_event`.
-
-        Injects a transient impairment *event* (``"blackout"``, ``"brownout"``,
+        """Inject a transient impairment *event* (``"blackout"``, ``"brownout"``,
         ``"latency_spike"`` or ``"packet_storm"``) lasting *duration_ms* milliseconds, with
-        the event's keyword options. The driver warns with
-        ``warn_renamed("inject_transient", "inject_event")`` and calls
-        ``inject_event(transient_event(event, **kwargs), duration_ms)``
-        (:func:`~testprotocols.models.transient_event`).
+        the event's keyword options.
+
+        Each word is the ``event_name`` of a :data:`~testprotocols.models.TransientEvent`.
+
+        Deprecated: use :meth:`inject_event`. Removal not before the first release 6 months after
+        the release that deprecates it.
         """
         ...
 

@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from typing import Protocol, runtime_checkable
 
+from testprotocols._compat import deprecated
 from testprotocols.models.networking import ArpEntry
 
 
@@ -19,13 +20,18 @@ class ArpClient(Protocol):
         """Flush all entries from the ARP cache."""
         ...
 
+    @deprecated(
+        "Deprecated: use read_arp_table. Removal not before the first release 6 "
+        "months after the release that deprecates it.",
+        category=None,
+    )
     def get_arp_table(self) -> str:
-        """Deprecated: use :meth:`read_arp_table`, which returns typed entries.
+        """Return the current ARP table as the device prints it.
 
-        Returns the current ARP table as the device prints it. A driver keeps returning that
-        text until the removal step (it warns with
-        ``warn_renamed("get_arp_table", "read_arp_table")``); the text cannot be rebuilt
-        from the entries.
+        The text cannot be rebuilt from the entries :meth:`read_arp_table` returns.
+
+        Deprecated: use :meth:`read_arp_table`. Removal not before the first release 6 months after
+        the release that deprecates it.
         """
         ...
 

@@ -13,6 +13,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Protocol, runtime_checkable
 
+from testprotocols._compat import deprecated
 from testprotocols.models.wan_edge import (
     LinkHealthReport,
     LinkStatus,
@@ -51,14 +52,19 @@ class Router(Protocol):
         memory use (:class:`~testprotocols.models.Telemetry`)."""
         ...
 
+    @deprecated(
+        "Deprecated: use read_telemetry. Removal not before the first release 6 "
+        "months after the release that deprecates it.",
+        category=None,
+    )
     def get_telemetry(self) -> Mapping[str, float]:
-        """Deprecated name of :meth:`read_telemetry`.
-
-        Returns a mapping of current device telemetry data: the keys
+        """Return a mapping of current device telemetry data: the keys
         ``uptime_seconds``, ``cpu_load_percent`` and ``mem_used_percent`` (a key
-        is absent when the device does not report it), each a number. A driver
-        implements ``read_telemetry`` and lets this member warn with
-        ``warn_renamed`` and return the reported fields of ``read_telemetry()``.
+        is absent when the device does not report it), each a number: the reported
+        fields of ``read_telemetry()``.
+
+        Deprecated: use :meth:`read_telemetry`. Removal not before the first release 6 months after
+        the release that deprecates it.
         """
         ...
 

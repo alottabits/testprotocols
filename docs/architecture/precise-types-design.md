@@ -5,7 +5,7 @@
 | Status  | Implemented, unreleased                                               |
 | Author  | rjvisser                                                              |
 | Date    | 2026-10-04                                                            |
-| Related | `docs/proposals/README.md` (question 9, precise types), `CONTRIBUTING.md` (Versioning), `testprotocols.deprecation`, `testoperations._compat`, `packages/testprotocols/tests/test_typing_ratchet.py` |
+| Related | `docs/proposals/README.md` (question 9, precise types), `CONTRIBUTING.md` (Versioning), `testprotocols._compat`, `testoperations._compat`, `packages/testprotocols/tests/test_typing_ratchet.py` |
 
 ## Purpose
 
@@ -43,24 +43,33 @@ shapes below are the only ones used.
 
 ## Deprecation shapes
 
-Each retype names one of these shapes. The building blocks are reused, never
-copied: `testprotocols.deprecation` (`coerce_enum`, `coerce_int`,
-`warn_renamed`, `renamed_attribute`, `warn_at_caller`,
-`MODEL_FRAMES`),
-and `testoperations._compat`.
+Each retype names one of these shapes. A deprecation is stated, not implemented:
+`testprotocols` carries no code for it. A deprecated protocol member, model or property
+keeps its declaration and gets a docstring paragraph ("Deprecated: use `<new>`. Removal not
+before the first release 6 months after the release that deprecates it.") and the standard
+`@deprecated` marker with the same sentence, imported from `testprotocols._compat`
+(`warnings.deprecated` on Python 3.13 and later, `typing_extensions.deprecated` before).
+The marker is passed `category=None`, so it is seen by the type checkers (mypy's
+`deprecated` error code, pyright's `reportDeprecated`, both enabled here) and nothing warns
+at run time. `packages/testprotocols/tests/typing/deprecated_usage.py` uses every marked
+name under `# type: ignore[deprecated]`; a missing marker leaves that ignore unused, which
+fails both checkers. A deprecated parameter or field cannot carry the marker: its docstring
+states it. The transition belongs to the drivers and to `testoperations._compat` (the readers
+of either form, the parsers of released text forms, and `coerce_enum` for an operation's own
+released `str` parameter).
 
 - **Shape 1: a released `str` parameter becomes an enum.** The parameter is
-  annotated `E | str`. A driver or operation coerces it once, at its boundary
-  and before any device I/O, with `coerce_enum(E, value, what=…)`: a member
-  passes, a plain string naming a member warns (`DeprecationWarning`) and
-  converts, any other string raises `ValueError` listing the legal values, and
-  a value of another type (`None`, `bytes`, a `bool`, a `float`, a list)
-  raises `TypeError`, as every other coercion helper does. For an `IntEnum` an
-  `int` is a legal type, so a number that names no member is a `ValueError`.
+  annotated `E | str`. A driver converts it once, at its boundary and before any
+  device I/O; any other string raises `ValueError`. A `testoperations` operation
+  converts its own released parameter with `testoperations._compat.coerce_enum(E, value,
+  what=…)`: a member passes, a plain string naming a member warns (`DeprecationWarning`,
+  at the operation's caller) and converts, any other string raises `ValueError` listing
+  the legal values, and a value of another type (`None`, `bytes`, a `bool`, a `float`, a
+  list) raises `TypeError`. For an `IntEnum` an `int` is a legal type, so a number that
+  names no member is a `ValueError`.
 - **Shape 1i: a released `str` parameter that is really a number becomes
-  `int`.** The parameter is annotated `int | str`; `coerce_int` returns the
-  int and warns on a numeric string, and a non-numeric string raises
-  `ValueError`.
+  `int`.** The parameter is annotated `int | str`; a driver converts a numeric
+  string, and a non-numeric string raises `ValueError`.
 - **Shape 3: a released model field becomes an enum.** The field is annotated
   `E | str`, where `E` is a `StrEnum` (or `IntEnum`) whose values are the released
   spellings. Nothing converts at run time: a plain string is stored as given, and a
@@ -75,12 +84,10 @@ and `testoperations._compat`.
   form (below).
 - **Shape 4p: a free-string tool parameter becomes typed keyword
   parameters.** The typed keyword-only parameters are added; the old string
-  parameter stays, documented as deprecated, and warns when non-empty; passing
-  both raises `ValueError`. No parameter changes position.
+  parameter stays, documented as deprecated; passing both raises `ValueError`. No parameter changes position.
 - **Shape 5: a tuple, dict or `Any` record return becomes a dataclass.** A new
   member name returns the dataclass. The old name is documented "Deprecated
-  name of …" and an implementer delegates to the new one after
-  `warn_renamed`. `testoperations` callers move to the new name through a
+  name of …" and an implementer delegates to the new one. `testoperations` callers move to the new name through a
   typed fallback accessor, new name first, then the old, in
   `testoperations/_renamed.py` (each accessor casts to a callable Protocol whose
   shape a typing-only test checks against the contract). Where the old return
@@ -166,13 +173,11 @@ where one exists, also records its retype.
   `UplinkState` is not the appliance's state of record, only the shared vocabulary.
   `AppFlow.category` stays `str`: the product's own word, whose common values are
   the `ApplicationCategory` values. `VPNPeerStatus` and
-  `TrafficShapingRule` have no capability using them and no successor: both are deprecated by a
-  module `__getattr__` (`deprecated_attribute`, the no-successor counterpart of
-  `renamed_attribute`) in `wan_edge` and in `testprotocols.models`, removed from
-  `models.__all__`, and still defined for type checkers under `TYPE_CHECKING`, so
-  a consumer that imports them sees a `DeprecationWarning` and no static error.
+  `TrafficShapingRule` have no capability using them and no successor: both are deprecated with
+  the `@deprecated` marker and stay exported from `testprotocols.models` as released, so
+  a consumer's type checker reports a use and nothing warns at run time.
   `TrafficShapingRule.match` is `Mapping[str, object]`. `ShapingRule` is not a
-  drop-in successor: its `match` is one `TrafficMatch`, so it cannot express the
+  drop-in successor: its match is one `(match_type, value)` pair, so it cannot express the
   dict match (destination prefix, source prefix, protocol, port) a reference
   consumer builds into `TrafficShapingRule`.
 - **Switch QoS classifier** (shape 4(ii)). `QosRule.classifier` is
@@ -186,17 +191,15 @@ where one exists, also records its retype.
   ports (a port, or an `a-b` range). The parser accepts that list (protocol in any
   letter case, `any` is `RuleProtocol.ANY`); text that is not such a list has no
   classifier: the reader gives `None`, and `match` keeps the text exactly as given.
-  A term given twice raises `ValueError` in the reader. A
-  `TrafficMatch` was the wrong carrier: it is one match of one kind and has no VLAN
-  or protocol. A rule holds one source and one destination range at most, because
+  A term given twice raises `ValueError` in the reader. A rule holds one source and one destination range at most, because
   the text spells one range per direction.
 - **Telemetry and policy** (shapes 5 and the no-successor deprecation). `Telemetry`
   replaces the `dict[str, Any]` that `Router.get_telemetry` returned (shape 5); the old member now returns
   `Mapping[str, float]`, so an implementer whose declared return is not
   `float`-valued no longer conforms:
   `Router.read_telemetry() -> Telemetry` is a new mandatory member, and the old name
-  is documented "Deprecated name of" it; a driver returns the reported fields of
-  `read_telemetry()` after `warn_renamed`. The fields come from evidence,
+  is deprecated in its favour; a driver returns the reported fields of
+  `read_telemetry()`. The fields come from evidence,
   not from design. The released docstring said only "a dict of current device
   telemetry data" and named no key. The only implementer in the consumer examples
   (a Linux router) returns `uptime_seconds`, `cpu_load_percent` and
@@ -224,11 +227,10 @@ where one exists, also records its retype.
   strings: `WifiBand` (`2.4GHz`, `5GHz`, `6GHz`), `WifiSecurityMode` (the eight words
   of the `create_bss` docstring, `WPA2-WPA3-PSK-Mixed` included), `MfpMode`,
   `WifiAclMode`, `WifiPhyMode`, `ChannelWidth` (an `IntEnum`) and `MeshRole`. The `band`, `security_mode`, `mfp`, `mode`, `bandwidth_mhz` and
-  `set_acl_mode` parameters are `E | str` (`ChannelWidth | int`), coerced by the
-  driver once; `coerce_enum` now returns an `IntEnum` member for a plain `int`
-  with no warning (the number is the value, not a deprecated spelling), and refuses
-  a `bool`, a `float` and text. `WifiClient.set_wlan_scan_channel` takes `int | str`
-  (`coerce_int`). The model fields (`WifiBssConfig`, `WifiStation`, `WifiNeighbor`,
+  `set_acl_mode` parameters are `E | str` (`ChannelWidth | int`), converted by the
+  driver once; a plain `int` naming a `ChannelWidth` is that member (the number is the
+  value, not a deprecated spelling). `WifiClient.set_wlan_scan_channel` takes `int | str`
+  (shape 1i). The model fields (`WifiBssConfig`, `WifiStation`, `WifiNeighbor`,
   `WifiChannelUtilization`, `WifiRadioStats`, `WifiMeshLink`, `WifiAcl`,
   `WifiMeshStatus`, `WifiMeshNode`) are shape 3, stored as given. Decisions
   taken on evidence rather than from a first assessment: `WifiNeighbor.security_mode` stays free text
@@ -244,8 +246,7 @@ where one exists, also records its retype.
   stays `list[str]`: the device's own words (`HT`, `VHT`, `HE`, `EHT`, `MLO` and
   whatever else the driver reports), listed in the docstring.
   `WifiClient.iwlist_supported_channels -> list[str]` is shape 5: the new mandatory
-  member `supported_channels(band: WifiBand) -> list[int]` replaces it (breaking for
-  driver authors; a driver delegates with `warn_renamed`); `testoperations` does not
+  member `supported_channels(band: WifiBand) -> list[int]` replaces it (breaking for driver authors); `testoperations` does not
   call either. `WifiMeshWhiteBox.get_raw_easymesh_tlvs(message_type)` stays `str |
   None`: no local source lists the EasyMesh message names (the repository mentions
   two examples in a docstring and no vocabulary), and an enum from memory would
@@ -303,14 +304,12 @@ where one exists, also records its retype.
     outside the accepted classes. Their narrowing to `int` is announced.
   - `ip_version` of the iperf members is `IpFamily | int | None`, with `IpFamily` an
     `IntEnum` (`V4 = 4`, `V6 = 6`): an implementer that declares `int | None` still
-    conforms, and a driver that formats it as `-{ip_version}` still emits `4` / `6`. A driver
-    may convert with `coerce_enum` (an `int` is silent for an `IntEnum`).
+    conforms, and a driver that formats it as `-{ip_version}` still emits `4` / `6`. 
   - `LinkAdminState` (`up`, `down`) is new and is not `PortAdminState` (`enabled` /
     `disabled`): every implementer passes `up` or `down` to `ip link set`. `set_link_state(state)`
     is `LinkAdminState | str`.
   - (shape 4p) `is_link_admin_up(interface) -> bool` is a new mandatory member; the
-    `pattern` parameter of `is_link_up` is documented deprecated and a driver warns when it
-    differs from the default. A Linux host reads the `UP` flag of `ip link show`.
+    `pattern` parameter of `is_link_up` is documented deprecated. A Linux host reads the `UP` flag of `ip link show`.
   - UPnP port mapping reuses `PortMappingProtocol` (`tcp`, `udp`, `tcp-udp`); `tcp-udp` is not a UPnP
     protocol and a driver refuses it. The plain `str` stays legal.
   - `DnsRecordType` (for `dns_lookup` and `resolve`), `QoeScenario` (`page_load`, the only
@@ -323,13 +322,13 @@ where one exists, also records its retype.
     `DURATION` (the example's streaming and conferencing specs), and `RESPONSE` and `CONNECT`
     (the boardfarm QoE specification's tool by completion matrix: `http_client` completes on
     `response` or `duration`, `tcp_probe` on `connect`). A `PageCompletion` has the same
-    words. `QoeTool` and `QoeCompletion` have `__repr__` returning `repr(self.value)`:
-    the example browser measurement embeds `repr(spec.completion)` in a generated script,
-    and the default enum repr would break it. Every other enum keeps the default repr.
+    words. The defaults stay the released words (`"browser"`, `"networkidle"`), so the
+    example browser measurement, which embeds `repr(spec.completion)` in a generated
+    script, is unchanged for a default spec; every enum keeps the default repr.
   - `QoEResult.protocol` stays `str | None`: the HTTP version as the device reports it
     (`h2`, `h3`, `http/1.1`, `http/1.0`, ...), listed in the docstring.
   - `TransportProtocol` (`tcp`, `udp`): the released docstring of `saturate_link` lists
-    exactly those two; `saturate_link` coerces at its boundary.
+    exactly those two; `saturate_link` converts at its boundary.
   - `RadiusAccountingRecord.record_type` and `terminate_cause` stay `str` and
     `RadiusUser.eap_methods` stays `list[str]`: the server's own words (the accounting
     types `Start`, `Interim-Update`, `Stop`; EAP methods such as `PEAP-MSCHAPv2`), whose
@@ -338,12 +337,12 @@ where one exists, also records its retype.
   - `StormControlConfig.unit: StormControlUnit | None = None` is an addition.
   - `HTTPResult` is a frozen dataclass `(status, body, raw)` whose constructor still
     takes the response text (`init=False`, parameter `response`), so the released
-    `HTTPResult(response)` works; `parse_http_response` is the same parse. `status` is `0`
+    `HTTPResult(response)` works. `status` is `0`
     for a response with no numeric code or one outside 100 to 599. The released `code` is a
-    property returning the text (`""` when absent, the original word when not numeric)
-    that warns; `beautified_text` is `body`, warning. The example implementer builds
-    `HTTPResult(response)` and its test reads `result.code == "200"`, which still passes with
-    a warning.
+    property returning the text (`""` when absent, the original word when not numeric);
+    `beautified_text` is `body`. Both carry the `@deprecated` marker. The example implementer
+    builds `HTTPResult(response)` and its test reads `result.code == "200"`, which still
+    passes.
 
 - **Host-tier records** (shapes 5, 1-like converters and 6). New frozen records and the
   mandatory members that return them, each beside its deprecated name: `UrlRules`
@@ -376,8 +375,8 @@ where one exists, also records its retype.
     released implementers, so the two new members need two names (`start_sender_session`,
     `start_receiver_session`), not one `start_traffic_session`. The window moves to the new
     member only: `start_sender_session(window_bytes: int | None)`, keyword-only;
-    `start_traffic_sender(window: str)` is unchanged, and a driver passes it on through
-    `parse_window_size` (iperf's grammar, binary units: `"8M"` is 8388608).
+    `start_traffic_sender(window: str)` is unchanged. `testoperations._compat.parse_window_size`
+    reads the size text (iperf's grammar, binary units: `"8M"` is 8388608).
   - `NmapScanner.scan_ports` takes `IpFamily` for the version (the released `nmap` takes the
     words of `IpVersion`). The new members take no free tool-option string (`options`, `opts`,
     `ps_options`); typed options come with the tool-option retype.
@@ -386,20 +385,16 @@ where one exists, also records its retype.
     jitter_ms, duplicate_percent)`, every field optional (`None`: the driver's default; the
     released implementers' defaults differ). The fields are the keywords the released
     implementers read (a spike's latency is `spike_latency_ms` there), and
-    `transient_event(event, **kwargs)` converts the released call, refusing an
-    unknown event or keyword. A packet storm keeps its released meaning, a loss burst:
+    each event's `event_name` is its released word. A packet storm keeps its released meaning, a loss burst:
     `duplicate_percent` (from the in-repo caller; no released implementer reads it) is `None`,
     not requested, unless given, and a driver that cannot apply a requested field raises.
   - Parameters, checked against every known implementer's declaration (contravariance): the
     netem `profile` is `ImpairmentProfile | dict[str, object]` (a `Mapping` would break
-    implementers declaring `dict`; the dict is deprecated through
-    `coerce_impairment_profile`, which warns, takes a missing figure as `0` as the released
-    example's conversion does, and refuses a wrong value type); `provision_cpe` options are
+    implementers declaring `dict`; the dict is deprecated); `provision_cpe` options are
     `dict[str, dict[str, object]]`, the released shape (service pool to option-name map), not
     option codes, which the one implementer indexes by pool; `GroupRecord` is a `NamedTuple`,
     a subtype of the released tuple, so `send_mldv2_report`'s parameter type is unchanged and
-    implementers that unpack the tuple work (a plain tuple is deprecated through
-    `group_records`); `HeldPrefixes.hold(address)` stays `str` (an implementer declares
+    implementers that unpack the tuple work (a plain tuple is deprecated); `HeldPrefixes.hold(address)` stays `str` (an implementer declares
     `str`), its narrowing to `IPv4Interface | IPv6Interface` announced.
   - `DHCPTraceData.dhcp_packet` / `DHCPV6TraceData.dhcpv6_packet` are
     `Mapping[str, object]`: a decoder's nested bag with no stable typed shape. The device
@@ -413,19 +408,16 @@ where one exists, also records its retype.
   were seen to pass options gets the typed keyword-only parameters for exactly those options.
   A member no caller passes anything to through that member gets none: nothing is invented.
   The string keeps its position and its released type (`options: str`, `opts: str | None`), is
-  documented deprecated, and a driver warns when it is non-empty; with a typed parameter also
-  set it raises `ValueError` first. Where the typed form is turned into the tool's command line
-  is the driver's job: the protocol only declares the parameters, and
-  `testprotocols.tool_options` holds the shared pieces (`settle_option_string` for the
-  warn-or-raise rule, a renderer per tool with typed options, `option_text` for the string a
-  pre-typed driver would be given). Evidence (every option string seen, from `testoperations`
+  documented deprecated; with a typed parameter also set a driver raises `ValueError`. Where
+  the typed form is turned into the tool's command line is the driver's job: the protocol only
+  declares the parameters. Evidence (every option string seen, from `testoperations`
   on this branch and on `origin/main`, the boardfarm implementers, templates and use cases,
   downstream implementers, and the vitro-bdd examples):
   - `testoperations` passes no option string to any of these members, so no operation adopts
     the typed parameters and no `_renamed.py` accessor exists. A future operation that does
     must detect a driver from before the typed parameters (`inspect.signature` shows no such
     parameter, or catch the `TypeError` a call raises) and fall back to
-    `option_text(<renderer>(...))`.
+    the option string.
   - `HttpClient.http_get`: the boardfarm use case builds `--noproxy '*'`, `-k` and `-L`, which
     become `no_proxy`, `insecure`, `follow_redirects`. `curl` takes the same three: no caller
     passes `options` to it, but every implementer builds the same `curl` command line, so the

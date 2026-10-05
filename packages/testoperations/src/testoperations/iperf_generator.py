@@ -10,10 +10,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import override
 
-from testprotocols.deprecation import coerce_enum
 from testprotocols.iperf_generator import IperfGenerator
 from testprotocols.models.traffic import TrafficResult, TrafficSpec, TransportProtocol
 
+from testoperations._compat import coerce_enum
 from testoperations._released import ReleasedMapping
 
 

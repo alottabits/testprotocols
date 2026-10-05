@@ -391,7 +391,7 @@ package, so the width question arises only for a model that carries an integer c
 type.
 
 **Cross-references:** `docs/architecture/precise-types-design.md` ("Retypes", "Pending
-narrow steps"), `tool_options.py`, `models/wifi.py`, `models/switch.py`.
+narrow steps"), `models/wifi.py`, `models/switch.py`.
 
 ---
 

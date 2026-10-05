@@ -1,11 +1,10 @@
-"""DefaultAction: what traffic no rule decides gets; a driver coerces a plain string once."""
+"""DefaultAction: what traffic no rule decides gets; a driver converts a plain string once."""
 
 from __future__ import annotations
 
 import warnings
 
 import pytest
-from testprotocols.deprecation import coerce_enum
 from testprotocols.models import DefaultAction
 
 
@@ -14,22 +13,17 @@ def test_default_action_values() -> None:
 
 
 def _boundary(action: DefaultAction | str) -> DefaultAction:
-    """A minimal driver member: it coerces the action once, at its boundary."""
-    return coerce_enum(DefaultAction, action, what="set_policy action")
+    """A minimal driver member: it converts the action once, at its boundary."""
+    return DefaultAction(action)
 
 
-def test_a_driver_that_coerces_at_the_boundary_rejects_an_unknown_action() -> None:
-    with pytest.raises(
-        ValueError,
-        match=r"set_policy action: 'allow' is not one of \['accept', 'drop', 'reject'\]",
-    ):
+def test_a_driver_that_converts_at_the_boundary_rejects_an_unknown_action() -> None:
+    with pytest.raises(ValueError, match="'allow'"):
         _boundary("allow")
 
 
-def test_a_driver_that_coerces_at_the_boundary_warns_at_its_caller() -> None:
-    with pytest.warns(DeprecationWarning) as caught:
-        assert _boundary("drop") is DefaultAction.DROP
-    assert caught[0].filename == __file__
+def test_a_driver_that_converts_at_the_boundary_takes_either_form_silently() -> None:
     with warnings.catch_warnings():
         warnings.simplefilter("error")
+        assert _boundary("drop") is DefaultAction.DROP
         assert _boundary(DefaultAction.ACCEPT) is DefaultAction.ACCEPT

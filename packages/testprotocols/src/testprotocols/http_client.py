@@ -31,13 +31,11 @@ class HttpClient(Protocol):
 
         *protocol* is the URL scheme, an :class:`~testprotocols.models.HttpScheme`
         (``"http"`` or ``"https"``): the released implementers fold it into the target
-        URL as ``<protocol>://<url>``. A plain ``str`` naming a member is deprecated: the
-        driver converts it and warns.
+        URL as ``<protocol>://<url>``. A plain ``str`` naming a member is deprecated.
 
         *no_proxy* bypasses any proxy, *insecure* skips certificate verification and
         *follow_redirects* follows redirects; they replace the released *options* string,
-        which is deprecated (a driver warns when it is non-empty and raises ``ValueError``
-        when it is given together with a typed parameter).
+        which is deprecated; giving it together with a typed parameter raises ``ValueError``.
         """
         ...
 

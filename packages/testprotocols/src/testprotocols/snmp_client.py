@@ -7,19 +7,27 @@ from __future__ import annotations
 
 from typing import Protocol, runtime_checkable
 
+from testprotocols._compat import deprecated
+
 
 @runtime_checkable
 class SnmpClient(Protocol):
     """Abstract contract for SNMP client operations."""
 
+    @deprecated(
+        "Deprecated: use snmp_get or snmp_walk. Removal not before the first release "
+        "6 months after the release that deprecates it.",
+        category=None,
+    )
     def execute_snmp_command(self, snmp_command: str, timeout: int = 30) -> str:
-        """Deprecated: use :meth:`snmp_get` or :meth:`snmp_walk`.
+        """Execute an SNMP command line and return the output string.
 
-        Executes an SNMP command line and returns the output string. A driver keeps it until
-        the removal step and warns (``DeprecationWarning``). The typed members cover the
-        commands callers were seen to run (``snmpget``, ``snmpwalk``, ``snmpset``,
-        ``snmpbulkget``); any other command has no successor, because a whole command line
-        stops being part of the contract.
+        The typed members cover the commands callers were seen to run (``snmpget``,
+        ``snmpwalk``, ``snmpset``, ``snmpbulkget``); any other command has no successor,
+        because a whole command line stops being part of the contract.
+
+        Deprecated: use :meth:`snmp_get` or :meth:`snmp_walk`. Removal not before the first release
+        6 months after the release that deprecates it.
         """
         ...
 

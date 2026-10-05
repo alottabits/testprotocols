@@ -24,8 +24,9 @@ from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from enum import StrEnum
 
-from testprotocols.deprecation import coerce_enum
 from testprotocols.models import L3Rule, RuleAction, RuleProtocol
+
+from testoperations._compat import coerce_enum
 
 
 class DenyScope(StrEnum):

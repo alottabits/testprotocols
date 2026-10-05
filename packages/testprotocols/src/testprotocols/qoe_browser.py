@@ -24,8 +24,8 @@ class QoeBrowser(Protocol):
         url: str,
         *,
         spec: MeasurementSpec | None = None,
-        scenario: QoeScenario | str = QoeScenario.PAGE_LOAD,
-        wait_until: PageCompletion | str = PageCompletion.NETWORKIDLE,
+        scenario: QoeScenario | str = "page_load",
+        wait_until: PageCompletion | str = "networkidle",
         timeout_ms: int = 30000,
         force_quic: bool = True,
     ) -> QoEResult:
@@ -33,8 +33,7 @@ class QoeBrowser(Protocol):
 
         *scenario* is a :class:`~testprotocols.models.QoeScenario` and *wait_until* a
         :class:`~testprotocols.models.PageCompletion` (the page event the load waits
-        for). A plain ``str`` naming a member is deprecated: the driver converts it and
-        warns.
+        for). A plain ``str`` naming a member is deprecated.
 
         ``force_quic=True`` (default) forces HTTP/3/QUIC, as a QoE measurement
         should. Set ``force_quic=False`` for a reachability/block probe: the

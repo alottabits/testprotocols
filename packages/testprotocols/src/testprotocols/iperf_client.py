@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from typing import Protocol, runtime_checkable
 
+from testprotocols._compat import deprecated
 from testprotocols.models.networking import IpFamily
 from testprotocols.models.traffic import IperfProcess
 
@@ -16,6 +17,11 @@ from testprotocols.models.traffic import IperfProcess
 class IperfClient(Protocol):
     """Abstract contract for iperf client (traffic sender) operations."""
 
+    @deprecated(
+        "Deprecated: use start_sender_session. Removal not before the first release 6 "
+        "months after the release that deprecates it.",
+        category=None,
+    )
     def start_traffic_sender(
         self,
         host: str,
@@ -35,20 +41,16 @@ class IperfClient(Protocol):
         datagram_bytes: int | None = None,
         report_interval_s: int | None = None,
     ) -> tuple[int, str]:
-        """Deprecated name of :meth:`start_sender_session`.
+        """Start an iperf traffic sender towards *host* on *traffic_port*.
 
-        Returns the ``(pid, log_file)`` of ``start_sender_session(...)``; the driver warns with
-        ``warn_renamed("start_traffic_sender", "start_sender_session")`` and passes *window*
-        on as ``window_bytes=parse_window_size(window)`` (``None`` stays ``None``). The
-        parameters below keep their released meaning.
-
-        Start an iperf traffic sender towards *host* on *traffic_port*.
+        Returns the ``(pid, log_file)`` of ``start_sender_session(...)``; *window* is the
+        size text (``"8M"``) that ``window_bytes`` gives in bytes. The parameters below keep
+        their released meaning.
 
         *ip_version* is an :class:`~testprotocols.models.IpFamily` (``V4 = 4``, ``V6 = 6``) or
         ``None`` to leave the version to the tool. An ``IpFamily`` is an ``int``, so a driver
         that formats it as ``-<ip_version>`` is unchanged; a plain ``int`` is the released
-        spelling and narrows to ``IpFamily`` in a later release. A driver may convert with
-        ``coerce_enum`` (a plain ``int`` is silent for an ``IntEnum``).
+        spelling and narrows to ``IpFamily`` in a later release.
 
         Typed option parameters (each defaults to "absent": no flag emitted):
 
@@ -79,6 +81,9 @@ class IperfClient(Protocol):
           accordingly.
 
         Returns a tuple of (pid, log_file_path).
+
+        Deprecated: use :meth:`start_sender_session`. Removal not before the first release 6 months
+        after the release that deprecates it.
         """
         ...
 
@@ -111,7 +116,7 @@ class IperfClient(Protocol):
           tool's choice);
         - ``window_bytes`` pins the socket buffer, in bytes (``-w <n>``), on both ends;
           ``None`` leaves the tool's autotuning on. It replaces the size text ``window``
-          (``"8M"``; :func:`~testprotocols.models.parse_window_size` converts one).
+          (``"8M"``).
         """
         ...
 

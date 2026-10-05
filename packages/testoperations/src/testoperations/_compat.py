@@ -8,32 +8,29 @@ meant (or ``ValueError`` naming the record and field, when the released field wa
 required). No other operation reads either field of such a pair directly. The readers go
 with the text fields at removal.
 
-The parsers and formatters of the released text forms live here too.
+The parsers of the released text forms live here too, and :func:`coerce_enum`, which
+converts an operation's own released string parameter to its enum.
 """
 
 from __future__ import annotations
 
-from collections.abc import Callable, Iterable
+import re
+import warnings
+from collections.abc import Callable
 from datetime import datetime
-from typing import assert_never, cast
+from decimal import Decimal
+from enum import Enum, IntEnum
+from typing import cast
 
 from testprotocols.models import (
-    ApplicationCategory,
-    ApplicationMatch,
-    CategoryMatch,
     FirewallRule,
-    HostMatch,
-    IpRangeMatch,
     L3Rule,
-    L7MatchType,
     NatRule,
-    PortMatch,
     PortRange,
     QosClassifier,
     QosRule,
     RuleProtocol,
     SecurityEvent,
-    TrafficMatch,
 )
 
 _MAX_PORT = 65535
@@ -76,28 +73,6 @@ def parse_port_ranges(text: str) -> tuple[PortRange, ...]:
     return tuple(ranges)
 
 
-def format_port_ranges(ranges: tuple[PortRange, ...]) -> str:
-    """The released text of *ranges*; ``()`` gives ``"any"``."""
-    return ",".join(str(r) for r in ranges) if ranges else "any"
-
-
-def port_tuple(value: object) -> tuple[PortRange, ...]:
-    """*value* as a tuple of :class:`PortRange`.
-
-    A list is converted to a tuple. A string or bytes (the released text passed where the
-    typed form belongs), another non-iterable, or an item that is not a ``PortRange`` (a
-    bare port number) raises ``TypeError``.
-    """
-    if isinstance(value, str | bytes) or not isinstance(value, Iterable):
-        raise TypeError(f"port ranges take a tuple of PortRange, not {value!r}")
-    ranges: list[PortRange] = []
-    for item in cast("Iterable[object]", value):
-        if not isinstance(item, PortRange):
-            raise TypeError(f"port ranges take a tuple of PortRange, not {item!r}")
-        ranges.append(item)
-    return tuple(ranges)
-
-
 def parse_nat_port_ranges(text: str) -> tuple[PortRange, ...]:
     """Parse a released ``NatRule`` port text: ``""`` (no port) gives ``()``; otherwise as
     :func:`parse_port_ranges` (``"any"`` gives ``()`` too)."""
@@ -109,7 +84,7 @@ def ports_of(
     text: str | None,
     *,
     unset: str | None,
-    owner: str,
+    record: str,
     field: str,
     parse: Callable[[str], tuple[PortRange, ...]] = parse_port_ranges,
 ) -> tuple[PortRange, ...]:
@@ -117,7 +92,7 @@ def ports_of(
 
     *unset* is the released default's text (``"any"``, ``""``) when the released field had
     one, and ``None`` when the released field was required: then neither form filled raises
-    ``ValueError`` naming *owner* and *field*. *parse* reads the text form.
+    ``ValueError`` naming *record* and *field*. *parse* reads the text form.
     """
     if typed is not None:
         return typed
@@ -125,7 +100,7 @@ def ports_of(
         return parse(text)
     if unset is None:
         raise ValueError(
-            f"{owner}.{field}: neither the ports nor their released text form is filled"
+            f"{record}.{field}: neither the ports nor their released text form is filled"
         )
     return parse(unset)
 
@@ -134,7 +109,7 @@ def firewall_rule_dst_ports(rule: FirewallRule) -> tuple[PortRange, ...]:
     """*rule*'s destination ports (``()`` is any port). The released ``dst_port`` was
     required, so a rule with neither form filled raises ``ValueError``."""
     return ports_of(
-        rule.dst_ports, rule.dst_port, unset=None, owner="FirewallRule", field="dst_port"
+        rule.dst_ports, rule.dst_port, unset=None, record="FirewallRule", field="dst_port"
     )
 
 
@@ -145,7 +120,7 @@ def nat_rule_dst_ports(rule: NatRule) -> tuple[PortRange, ...]:
         rule.dst_ports,
         rule.dst_port,
         unset="",
-        owner="NatRule",
+        record="NatRule",
         field="dst_port",
         parse=parse_nat_port_ranges,
     )
@@ -158,7 +133,7 @@ def nat_rule_translated_ports(rule: NatRule) -> tuple[PortRange, ...]:
         rule.translated_ports,
         rule.translated_port,
         unset="",
-        owner="NatRule",
+        record="NatRule",
         field="translated_port",
         parse=parse_nat_port_ranges,
     )
@@ -167,13 +142,13 @@ def nat_rule_translated_ports(rule: NatRule) -> tuple[PortRange, ...]:
 def l3_rule_src_ports(rule: L3Rule) -> tuple[PortRange, ...]:
     """*rule*'s source ports (``()`` is any port). Neither form filled reads as the
     released default ``"any"``."""
-    return ports_of(rule.src_ports, rule.src_port, unset="any", owner="L3Rule", field="src_port")
+    return ports_of(rule.src_ports, rule.src_port, unset="any", record="L3Rule", field="src_port")
 
 
 def l3_rule_dst_ports(rule: L3Rule) -> tuple[PortRange, ...]:
     """*rule*'s destination ports (``()`` is any port). Neither form filled reads as the
     released default ``"any"``."""
-    return ports_of(rule.dst_ports, rule.dst_port, unset="any", owner="L3Rule", field="dst_port")
+    return ports_of(rule.dst_ports, rule.dst_port, unset="any", record="L3Rule", field="dst_port")
 
 
 # --- timestamp ---------------------------------------------------------------------------
@@ -263,31 +238,6 @@ def parse_qos_classifier(text: str) -> QosClassifier | None:
     return QosClassifier(vlan=vlan, protocol=protocol, src_ports=src, dst_ports=dst)
 
 
-def _qos_port_text(key: str, ranges: tuple[PortRange, ...]) -> list[str]:
-    if len(ranges) > 1:
-        raise ValueError(f"the released QoS text holds one {key} range, not {len(ranges)}")
-    return [
-        f"{key}={r.first}" if r.first == r.last else f"{key}Range={r.first}-{r.last}"
-        for r in ranges
-    ]
-
-
-def format_qos_classifier(value: QosClassifier | None) -> str:
-    """The released ``QosRule.match`` text of *value*; ``None`` gives ``""`` (every frame).
-    A classifier with more than one range in a direction raises ``ValueError``: the
-    released text spells one."""
-    if value is None:
-        return ""
-    terms: list[str] = []
-    if value.vlan is not None:
-        terms.append(f"vlan={value.vlan}")
-    if value.protocol is not None:
-        terms.append(f"protocol={value.protocol.value}")
-    terms += _qos_port_text("srcPort", value.src_ports)
-    terms += _qos_port_text("dstPort", value.dst_ports)
-    return ",".join(terms)
-
-
 def classifier_of(typed: QosClassifier | None, text: str | None) -> QosClassifier | None:
     """The classifier a driver gave in either form, or ``None`` for every frame (or a
     released text that spells no classifier).
@@ -307,53 +257,68 @@ def qos_rule_classifier(rule: QosRule) -> QosClassifier | None:
     return classifier_of(rule.classifier, rule.match)
 
 
-# --- traffic match -----------------------------------------------------------------------
+# --- window size -------------------------------------------------------------------------
 
-# the released port text "any" as a port match: every port
-_EVERY_PORT = PortRange(1, _MAX_PORT)
+_SIZE = re.compile(r"\s*([0-9]+(?:\.[0-9]+)?)([kKmMgGtT]?)\s*")
+_SIZE_UNITS = {"": 1, "k": 1024, "m": 1024**2, "g": 1024**3, "t": 1024**4}
 
 
-def traffic_match(match_type: L7MatchType, value: str) -> TrafficMatch:
-    """The :data:`~testprotocols.models.TrafficMatch` the released ``(match_type, value)``
-    pair spells.
+def parse_window_size(text: str) -> int:
+    """Return an iperf size option (``"8M"``, ``"512K"``, ``"65536"``) as a byte count.
 
-    ``value`` is an application name, an ``ApplicationCategory`` value, a host, a
-    port text (``"80"``, ``"8000-8100"``, ``"22,80-90"``; ``"any"`` is every port,
-    ``1-65535``) or an address range, by ``match_type``. Raises ``ValueError`` for a
-    value that names no match: an empty one, an unknown category, or a port text
-    that names no port number (a service name such as ``"http"``).
+    The grammar is iperf's: a decimal number, optionally with a fraction, and an optional
+    suffix ``K``, ``M``, ``G`` or ``T`` (either case) in binary units (``K`` = 1024). A
+    fractional result is truncated, as iperf does. Text that is not such a size, or that
+    gives zero, raises ``ValueError``; a non-text value raises ``TypeError``.
     """
-    kind = L7MatchType(match_type)
-    if kind is not L7MatchType.PORT and value == "":
-        raise ValueError(f"an empty {kind.value} names no match")
-    match kind:
-        case L7MatchType.APPLICATION:
-            return ApplicationMatch(value)
-        case L7MatchType.APPLICATION_CATEGORY:
-            return CategoryMatch(ApplicationCategory(value))
-        case L7MatchType.HOST:
-            return HostMatch(value)
-        case L7MatchType.PORT:
-            return PortMatch(parse_port_ranges(value) or (_EVERY_PORT,))
-        case L7MatchType.IP_RANGE:
-            return IpRangeMatch(value)
-        case _:
-            assert_never(kind)
+    if not isinstance(cast(object, text), str):
+        raise TypeError(f"window size: takes text, not {text!r}")
+    match = _SIZE.fullmatch(text)
+    if match is None:
+        raise ValueError(f"window size: {text!r} is not a size such as '8M'")
+    number, unit = match.groups()
+    size = int(Decimal(number) * _SIZE_UNITS[unit.lower()])
+    if size <= 0:
+        raise ValueError(f"window size: {text!r} is not a positive size")
+    return size
 
 
-def match_fields(match: TrafficMatch) -> tuple[L7MatchType, str]:
-    """The released ``(match_type, value)`` pair of *match*; the inverse of
-    :func:`traffic_match` (port text in canonical form)."""
-    match match:
-        case ApplicationMatch(name=name):
-            return L7MatchType.APPLICATION, name
-        case CategoryMatch(category=category):
-            return L7MatchType.APPLICATION_CATEGORY, str(category)
-        case HostMatch(host=host):
-            return L7MatchType.HOST, host
-        case PortMatch(ports=ports):
-            return L7MatchType.PORT, format_port_ranges(ports)
-        case IpRangeMatch(cidr=cidr):
-            return L7MatchType.IP_RANGE, cidr
-        case _:
-            assert_never(match)
+# --- enum parameters ---------------------------------------------------------------------
+
+
+def coerce_enum[E: Enum](enum_type: type[E], value: E | str | int, *, what: str) -> E:
+    """Return *value* as a member of *enum_type*, for an operation's own released ``str``
+    parameter.
+
+    A member is returned as is. A plain string naming a member's value is accepted for the
+    deprecation period: it warns (``DeprecationWarning``, pointing at the operation's
+    caller) and returns the member. For an ``IntEnum`` the number is the value, not a
+    deprecated spelling: a plain ``int`` (never a ``bool``) naming a member returns it with
+    no warning. A string, or an ``IntEnum``'s ``int``, that names no member raises
+    ``ValueError`` listing the legal values. A value of any other type (``None``,
+    ``bytes``, a ``bool``, a ``float``, a list, or an ``int`` for an enum that is not an
+    ``IntEnum``) raises ``TypeError``.
+    """
+    if isinstance(value, enum_type):
+        return value
+    given = cast(object, value)  # checked at run time too: callers are not all type-checked
+    numeric = issubclass(enum_type, IntEnum)
+    # True == 1 and 80.0 == 80 must not pick an IntEnum member: a bool or float is a wrong type.
+    if isinstance(given, bool) or not isinstance(given, (int, str) if numeric else str):
+        kinds = f"{enum_type.__name__}, int or str" if numeric else f"{enum_type.__name__} or str"
+        raise TypeError(f"{what}: takes a {kinds}, not {given!r}")
+    legal = [m.value for m in enum_type]
+    if numeric and isinstance(given, str):  # an IntEnum's value is the number, never its text
+        raise ValueError(f"{what}: {given!r} is not one of {legal}")
+    try:
+        member = enum_type(given)
+    except ValueError:
+        raise ValueError(f"{what}: {given!r} is not one of {legal}") from None
+    if numeric:
+        return member  # a number is an IntEnum's value, not a deprecated spelling
+    warnings.warn(
+        f"{what}: plain string {value!r} is deprecated; pass {enum_type.__name__}.{member.name}",
+        DeprecationWarning,
+        stacklevel=3,
+    )
+    return member
