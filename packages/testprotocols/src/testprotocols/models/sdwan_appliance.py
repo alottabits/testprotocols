@@ -445,10 +445,11 @@ class SecurityEvent:
     :class:`~datetime.datetime`, or ``None`` when the product reports no time; a
     timezone-naive value stays naive (no zone is assumed). ``ts`` is the released text
     form, an ISO-8601 timestamp string (``""`` for none), deprecated. A driver fills
-    either field, or both; when both are filled they describe the same instant. At
-    least one is filled: ``ts`` stays required, and a driver that fills only
-    ``timestamp`` passes ``ts=None`` (``timestamp=None`` is then the value "no time
-    reported"). At removal, ``ts`` goes and ``timestamp`` becomes required.
+    either field, or both; when both are filled they describe the same instant. ``ts``
+    stays required, and a driver that fills only ``timestamp`` passes ``ts=None``.
+    ``timestamp=None`` is itself a value ("no time reported"), so an event with both
+    fields ``None`` is read as no time reported, not as an unfilled pair. At removal,
+    ``ts`` goes and ``timestamp`` becomes required.
     """
 
     ts: str | None

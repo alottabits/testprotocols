@@ -300,10 +300,10 @@ class QosRule:
     spelling of a classifier is a comma list of ``key=value`` terms: ``vlan``,
     ``protocol``, ``srcPort`` / ``srcPortRange`` and ``dstPort`` / ``dstPortRange`` (a
     port or an ``a-b`` range). A driver fills either field, or both; when both are
-    filled they describe the same traffic. At least one is filled: ``match`` stays
-    required, and a driver that fills only ``classifier`` passes ``match=None``
-    (``classifier=None`` is then the value "every frame"). At removal, ``match`` goes
-    and ``classifier`` becomes required.
+    filled they describe the same traffic. ``match`` stays required, and a driver that
+    fills only ``classifier`` passes ``match=None``. ``classifier=None`` is itself a value
+    ("every frame"), so a rule with both fields ``None`` is read as every frame, not as
+    an unfilled pair. At removal, ``match`` goes and ``classifier`` becomes required.
 
     The driver maps the selection to its product's QoS classifier; ``dscp`` and
     ``cos`` are the resulting mark values.

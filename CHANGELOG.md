@@ -548,7 +548,10 @@ their tags and PR history.
   text form and a typed form (`FirewallRule`, `NatRule` and `L3Rule` ports,
   `SecurityEvent` time, `QosRule` classifier) the same way whichever form the driver
   filled: the typed field, else the text parsed, else the released default's meaning (or
-  `ValueError` naming the record and field when the released field was required). It also
+  `ValueError` naming the record and field when the released field was required and the
+  typed field cannot hold `None` as a value: `FirewallRule.dst_port`). `SecurityEvent` and
+  `QosRule` are the exception: their typed fields hold `None` as a value (no time reported;
+  every frame), so a record with neither form filled reads as `None`. It also
   holds the parsers and formatters of those text forms (`parse_port_ranges`,
   `format_port_ranges`, the QoS classifier text, `traffic_match` / `match_fields` for the
   released `(L7MatchType, value)` pair). Not public API. Migration: none. Design
