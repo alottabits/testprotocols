@@ -30,13 +30,19 @@ their tags and PR history.
   matching `snmpwalk`, `snmpset` and `snmpbulkget` command; the NTP member formats `value` for
   the device's `date`); keep `set_date` and `execute_snmp_command` until their removal. Design
   `docs/architecture/precise-types-design.md` (Tool option strings); PR pending.
-- **protocol members** `testprotocols.http_client:HttpClient.curl` and `http_get`
-  (`no_proxy`, `insecure`, `follow_redirects`) and `testprotocols.nmap_scanner:NmapScanner.nmap`
-  (`fast`) — gain keyword-only parameters with defaults. Callers need no change; an
-  implementer's declaration without them is reported by the static type checkers (mypy and
-  pyright), and a caller that passes one of them to such a driver fails with `TypeError`.
-  Migration: add the keyword-only parameters and build the tool's arguments from them;
-  passing both the old string and a typed parameter raises `ValueError`. Design `docs/architecture/precise-types-design.md` (Tool option strings); PR pending.
+- **parameters** `testprotocols.http_client:HttpClient.curl(..., *, no_proxy: bool = False,
+  insecure: bool = False, follow_redirects: bool = False)`, `HttpClient.http_get(..., *,
+  no_proxy: bool = False, insecure: bool = False, follow_redirects: bool = False)` and
+  `testprotocols.nmap_scanner:NmapScanner.nmap(..., *, fast: bool = False)` — new keyword-only
+  parameters with defaults on released members; they replace the deprecated free option
+  strings (`options`, `opts`). Every released call still type-checks. Cost: a released
+  implementer's declaration without them no longer conforms statically on upgrade, and a
+  caller that passes one of them to such a driver fails with `TypeError`; there is no
+  deprecation period for the declaration. Migration: add the keyword-only parameters to the
+  implementation's signature (with the protocol's defaults); a declaration without them is
+  reported by the checkers. The driver builds the tool's arguments from them; passing both the
+  old string and a typed parameter raises `ValueError`. Design
+  `docs/architecture/precise-types-design.md` (Tool option strings); PR pending.
 - **protocol members** `testprotocols.packet_filter:PacketFilter.get_rule_counter_values(chain, name) -> RuleCounters`
   and `testprotocols.nat:Nat.get_nat_rule_counter_values(name) -> RuleCounters`
   (so also `Firewall`, which inherits `PacketFilter`) — new mandatory members,
