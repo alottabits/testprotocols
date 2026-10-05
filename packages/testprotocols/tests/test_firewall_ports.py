@@ -107,6 +107,21 @@ def test_counter_values_member_takes_the_bare_chain() -> None:
     assert hints["chain"] is Chain  # a new member keeps no released text form
 
 
+def test_released_members_keep_the_text_form_of_chain() -> None:
+    for name in (
+        "add_rule",
+        "remove_rule",
+        "list_rules",
+        "get_rule",
+        "flush_chain",
+        "set_default_policy",
+        "get_default_policy",
+        "get_rule_counters",
+    ):
+        hints = typing.get_type_hints(getattr(PacketFilter, name))
+        assert hints["chain"] == Chain | str, name
+
+
 def test_rule_counters_accept_zero_and_large() -> None:
     assert RuleCounters(0, 0).packets == 0
     big = 2**63

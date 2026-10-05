@@ -39,7 +39,8 @@ class WifiRadio(Protocol):
 
         Every *band* parameter of this Protocol is a
         :class:`~testprotocols.models.wifi.WifiBand`; a plain ``str`` naming one
-        (``"5GHz"``) is deprecated; any other string raises ``ValueError``.
+        (``"5GHz"``) is deprecated, except for ``get_modes``, which takes the
+        bare enum; any other string raises ``ValueError``.
 
         Announced, not yet changed: the return narrows to ``list[WifiBand]`` in a
         later release (each element is a ``str`` equal to its ``WifiBand`` today).
