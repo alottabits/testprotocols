@@ -1,4 +1,4 @@
-"""WAN-edge models typed: link states (shape 3), AppFlow category (shape 3o), orphans deprecated."""
+"""WAN-edge models typed: link states (shape 3), the AppFlow category, orphans deprecated."""
 
 from __future__ import annotations
 
@@ -85,10 +85,10 @@ def test_link_health_assignment_converts() -> None:
     assert r.state is UplinkState.DOWN
 
 
-# --- AppFlow category (open) ---
+# --- AppFlow category (the product's own word) ---
 
 
-def _flow(category: ApplicationCategory | str, category_raw: str | None = None) -> AppFlow:
+def _flow(category: str) -> AppFlow:
     return AppFlow(
         application="x",
         category=category,
@@ -97,61 +97,27 @@ def _flow(category: ApplicationCategory | str, category_raw: str | None = None) 
         wan_interface="wan1",
         bytes_sent=1,
         bytes_received=2,
-        category_raw=category_raw,
     )
 
 
-def test_flow_member_is_silent_with_no_raw_word() -> None:
+def test_flow_category_is_stored_as_given() -> None:
     with warnings.catch_warnings():
         warnings.simplefilter("error")
-        f = _flow(ApplicationCategory.GAMING)
-    assert (f.category, f.category_raw) == (ApplicationCategory.GAMING, None)
-
-
-def test_flow_named_string_converts_with_a_warning() -> None:
-    with pytest.warns(DeprecationWarning, match=r"AppFlow.category: plain string"):
-        f = _flow("video_streaming")
-    assert f.category is ApplicationCategory.VIDEO_STREAMING
-    assert f.category_raw is None
-
-
-def test_flow_unknown_word_is_other_with_the_raw_word_and_no_warning() -> None:
-    with warnings.catch_warnings():
-        warnings.simplefilter("error")
-        f = _flow("Streaming Video/HD")
-    assert f.category is ApplicationCategory.OTHER
-    assert f.category_raw == "Streaming Video/HD"
-    assert _flow("").category_raw == ""
-
-
-def test_flow_replace_and_assignment_side_that_changed_wins() -> None:
+        for word in ("gaming", "Streaming Video/HD", "other", ""):
+            f = _flow(word)
+            assert f.category == word and type(f.category) is str
     f = _flow("odd-word")
-    g = dataclasses.replace(f, category=ApplicationCategory.EMAIL)
-    assert (g.category, g.category_raw) == (ApplicationCategory.EMAIL, None)
-    h = dataclasses.replace(f, category_raw="another")
-    assert (h.category, h.category_raw) == (ApplicationCategory.OTHER, "another")
-    f.category = "word-two"
-    assert (f.category, f.category_raw) == (ApplicationCategory.OTHER, "word-two")
-    f.category = ApplicationCategory.NEWS
-    assert f.category_raw is None
+    assert dataclasses.replace(f, category="word-two").category == "word-two"
+    f.category = "word-three"
+    assert f.category == "word-three"
 
 
-def test_flow_raw_word_beside_a_named_category_raises() -> None:
-    with pytest.raises(ValueError, match="category_raw"):
-        _flow(ApplicationCategory.EMAIL, category_raw="x")
-
-
-def test_flow_wrong_type_raises() -> None:
-    with pytest.raises(TypeError):
-        _flow(5)  # type: ignore[arg-type]
-
-
-def test_other_is_not_a_matchable_category() -> None:
+def test_other_is_not_a_category() -> None:
     from testprotocols.models import CategoryMatch, L7MatchType, traffic_match
 
-    assert ApplicationCategory.OTHER.value == "other"
-    with pytest.raises(ValueError, match="other"):
-        CategoryMatch(ApplicationCategory.OTHER)
+    assert "other" not in {m.value for m in ApplicationCategory}
+    with pytest.raises(ValueError):
+        CategoryMatch("other")  # type: ignore[arg-type]
     with pytest.raises(ValueError):
         traffic_match(L7MatchType.APPLICATION_CATEGORY, "other")
 

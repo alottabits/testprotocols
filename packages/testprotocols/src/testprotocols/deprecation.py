@@ -169,47 +169,6 @@ def coerce_enum[E: Enum](
     return member
 
 
-def coerce_open_enum[E: Enum](
-    enum_type: type[E],
-    value: E | str,
-    *,
-    what: str,
-    other: E,
-    skip_file_prefixes: tuple[str, ...] = (),
-) -> tuple[E, str | None]:
-    """Return *value* as ``(member, raw)`` for an open enum (shape 3o).
-
-    The set is open by contract: a device may report a word the enum does not
-    list, so an unknown word is data, not an error. *other* is the enum's
-    catch-all member (``OTHER``).
-
-    - A member is returned as is, with raw ``None``.
-    - A plain string naming a member's value converts, warns as :func:`coerce_enum`
-      does, and gives raw ``None``. The match is exact, including letter case.
-    - Any other string gives ``(other, value)`` and does not warn: the raw word
-      is kept so nothing is lost or guessed.
-    - Any other type raises ``TypeError``.
-
-    The warning frame works as in :func:`coerce_enum`.
-    """
-    given = cast(object, value)  # checked at run time too: callers are not all type-checked
-    if isinstance(given, enum_type):
-        return given, None
-    if not isinstance(given, str):
-        raise TypeError(f"{what}: takes a {enum_type.__name__} or str, not {given!r}")
-    text: str = given
-    for member in enum_type:
-        if member.value == text:
-            warn_at_caller(
-                f"{what}: plain string {text!r} is deprecated; "
-                f"pass {enum_type.__name__}.{member.name}",
-                skip_file_prefixes=skip_file_prefixes,
-                callers=0 if skip_file_prefixes else 1,
-            )
-            return member, None
-    return other, text
-
-
 _DECIMAL = re.compile(r"[+-]?[0-9]+")
 
 

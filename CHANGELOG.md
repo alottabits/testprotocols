@@ -68,7 +68,7 @@ their tags and PR history.
   `DeviceManagement.read_memory_utilization() -> MemoryUtilization`,
   `read_running_processes() -> list[ProcessInfo]` and
   `read_log_entries() -> list[EventLogEntry]`,
-  `DnsClient.resolve(domain_name, record_type: DnsRecordType) -> list[DnsRecord]`,
+  `DnsClient.resolve(domain_name, record_type: DnsRecordType | str) -> list[DnsRecord]`,
   `IperfClient.start_sender_session(host, traffic_port, *, ..., window_bytes) -> IperfProcess`,
   `IperfServer.start_receiver_session(traffic_port, *, ...) -> IperfProcess`,
   `IpRouting.ping_stats(ping_ip, ping_count, ping_interface, timeout) -> PingResult`,
@@ -87,7 +87,7 @@ their tags and PR history.
   `inject_event(transient_event(event, **kwargs), duration_ms)`. `read_event_logs` (whose
   output includes unparsable lines), `dns_lookup`, `ping(json_output=True)`, `nmap`,
   `get_arp_table` and `get_date` keep their released output (which the records cannot
-  rebuild) and warn. `resolve` and `dns_lookup` refuse `DnsRecordType.OTHER`. Design `docs/architecture/precise-types-design.md` (Host-tier records); PR pending.
+  rebuild) and warn. Design `docs/architecture/precise-types-design.md` (Host-tier records); PR pending.
 
 #### Added
 
@@ -166,28 +166,8 @@ their tags and PR history.
   Design `docs/architecture/precise-types-design.md`; PR pending.
 - **enums** `testprotocols.models:Chain` (`INPUT`, `OUTPUT`, `FORWARD`),
   `FirewallRuleAction` (`ALLOW`, `DENY`, `REJECT`, `LOG`), `NatMode` (`SNAT`,
-  `DNAT`, `ONE_TO_ONE`), `PortMappingProtocol` (`TCP`, `UDP`, `TCP_UDP`) and the
-  open `ConnState` (the nine TCP states, `UNREPLIED`, `ASSURED` and `OTHER`; its
-  values are the released upper-case words, so `conn.state == "ESTABLISHED"` is
-  true).
+  `DNAT`, `ONE_TO_ONE`) and `PortMappingProtocol` (`TCP`, `UDP`, `TCP_UDP`).
   Migration: none. Design `docs/architecture/precise-types-design.md` (firewall, NAT and conntrack vocabularies); PR pending.
-- **field** `testprotocols.models:Connection.state_raw` — the device's own state
-  word, held only while `state` is `ConnState.OTHER`; the pair agrees after
-  construction, `replace` and assignment, and the side that changed wins (a raw
-  word with a named state raises `ValueError`). Migration: none. Same design
-  section; PR pending.
-- **function** `testprotocols.deprecation:coerce_open_enum` — for an open enum:
-  a member is returned as is, a string naming a member converts with a
-  `DeprecationWarning`, and any other string gives `(other, word)` without a
-  warning (an exact match: `"close"` is not `"CLOSE"`). Migration: none.
-  Design `docs/architecture/precise-types-design.md` (shape 3o); PR pending.
-- **internal module** `testprotocols.models._open_enum:OpenEnumPair` — an
-  open-enum field and its raw-word companion as a `_sync` pair, driven by
-  `settle` (so it also serves a frozen record, through `__post_init__`) and
-  `assign`, with the same hidden provenance field. Not public API; listed because
-  later retypes build on it. Migration: none. Design
-  `docs/architecture/precise-types-design.md` (shape 3o); PR pending.
-
 - **model** `testprotocols.models:RuleCounters` (`packets`, `bytes`; frozen;
   a negative number raises `ValueError`, a non-int, bool included, `TypeError`) —
   what a rule has matched since it was added. Migration: none. Design `docs/architecture/precise-types-design.md` (firewall and NAT ports and counters); PR pending.
@@ -219,14 +199,8 @@ their tags and PR history.
   `__getattr__` that resolves a deprecated name with no successor, with a
   `DeprecationWarning` that gives the reason; the counterpart of
   `renamed_attribute`. Migration: none. Design `docs/architecture/precise-types-design.md` (WAN-edge models); PR pending.
-- **enum members** `testprotocols.models:UplinkState.UNKNOWN` (a state the
-  product could not determine, such as a link with no health data) and
-  `ApplicationCategory.OTHER` (the catch-all of an observed flow; `CategoryMatch`
-  refuses it, so no rule can match on it). Migration: none. Design `docs/architecture/precise-types-design.md` (WAN-edge models); PR pending.
-- **field** `testprotocols.models:AppFlow.category_raw` — the product's own
-  category word, held only while `category` is `ApplicationCategory.OTHER`; the
-  pair agrees after construction, `replace` and assignment (the rule of
-  `Connection.state`). Migration: none. Design `docs/architecture/precise-types-design.md` (WAN-edge models); PR pending.
+- **enum member** `testprotocols.models:UplinkState.UNKNOWN` (a state the
+  product could not determine, such as a link with no health data). Migration: none. Design `docs/architecture/precise-types-design.md` (WAN-edge models); PR pending.
 - **model** `testprotocols.models:QosClassifier` (`vlan`, `protocol`, `src_ports`,
   `dst_ports`; frozen; every field left out places no restriction; `vlan` is 1 to
   4094) — what a QoS rule selects. **field** `testprotocols.models:QosRule.classifier`
@@ -247,29 +221,17 @@ their tags and PR history.
   `WPA2_WPA3_PSK_MIXED`, `WPA2_WPA3_EAP_MIXED`), `MfpMode` (`OFF`, `OPTIONAL`,
   `REQUIRED`), `WifiAclMode` (`DISABLED`, `ALLOW`, `DENY`), `WifiPhyMode` (`A`, `B`,
   `G`, `N`, `AC`, `AX`, `BE`), `ChannelWidth` (an `IntEnum`: 20, 40, 80, 160, 320 MHz),
-  `MeshRole` (`CONTROLLER`, `AGENT`, `CONTROLLER_AND_AGENT`, `UNCOMMISSIONED`) and the
-  open `WifiCapability` (`HT`, `VHT`, `HE`, `EHT`, `MLO`) — the Wi-Fi vocabularies;
+  `MeshRole` (`CONTROLLER`, `AGENT`, `CONTROLLER_AND_AGENT`, `UNCOMMISSIONED`) — the Wi-Fi vocabularies;
   every value is the string the released contract used (`WifiBand.GHZ_5 == "5GHz"`).
   Migration: none. Design `docs/architecture/precise-types-design.md` (Wi-Fi vocabularies); PR pending.
-- **fields** `testprotocols.models:WifiStation.capabilities` (`tuple[WifiCapability, ...]`)
-  and `capability_flags_unknown` (`tuple[str, ...]`) — the device's capability words
-  split into the members and the words no member names, synced with the released
-  `capability_flags`: the side that changed wins. Migration: read `capabilities` and
-  `capability_flags_unknown`. Design `docs/architecture/precise-types-design.md` (Wi-Fi vocabularies); PR pending.
-- **internal module** `testprotocols.models._open_set` (`OpenSetPair`) — the
-  multi-valued counterpart of `_open_enum`: a `_sync` pair that splits a released
-  word list into known members and unknown words. Not public API. Migration: none. Design `docs/architecture/precise-types-design.md` (Wi-Fi vocabularies); PR pending.
 - **behaviour** `testprotocols.deprecation:coerce_enum` — for an `IntEnum`, a plain
   `int` naming a member returns it with no warning (a number that is no member, or
   text, raises `ValueError`; a `bool` or a `float` raises `TypeError`). Migration: none. Design `docs/architecture/precise-types-design.md` (Wi-Fi vocabularies); PR pending.
 - **enums** `testprotocols.models:PhoneState` (`IDLE`, `DIALING`, `INCALL_DIALING`,
   `RINGING`, `CONNECTED`, `INCALL_CONNECTED`, `HOLD`, `DIALTONE`, `INCALL_DIALTONE`,
   `CALL_ENDED`, `CODE_ENDED`, `CALL_WAITING`, `CONFERENCE`, `BUSY`, `NOT_ANSWERED`;
-  one per `is_*` call-state predicate of `SipPhone`; `HOLD == "hold"`),
-  `PresenceStatus` (`ONLINE`, `BUSY`, `AWAY`, `OFFLINE`, `OTHER`; open) and `SipMethod`
-  (`INVITE`, `ACK`, `BYE`, `CANCEL`, `OPTIONS`, `REGISTER`, `MESSAGE`, `NOTIFY`,
-  `PUBLISH`, `OTHER`; open) — the voice vocabularies; every value is the string the
-  released contract or its implementer used. Migration: none. Design `docs/architecture/precise-types-design.md` (Voice vocabularies); PR pending.
+  one per `is_*` call-state predicate of `SipPhone`; `HOLD == "hold"`) — the voice
+  vocabulary; every value is the string the released contract or its implementer used. Migration: none. Design `docs/architecture/precise-types-design.md` (Voice vocabularies); PR pending.
 - **records** `testprotocols.models:RtpStats` (`engaged`, `sessions`), `MwiStatus`
   (`waiting`, `new`, `old`) and `OfflineMessage` (`sender`, `body`, `stored_at`) —
   frozen records for what the SIP server's media relay, message-waiting and offline-message
@@ -287,41 +249,22 @@ their tags and PR history.
   `PortAdminState`, whose words are `enabled` / `disabled`), `QoeTool` (`BROWSER`,
   `HTTP_CLIENT`, `WEBRTC`, `TCP_PROBE`), `PageCompletion` (`LOAD`, `DOMCONTENTLOADED`,
   `NETWORKIDLE`, `COMMIT`), `QoeCompletion` (those four and `DURATION`, `RESPONSE`,
-  `CONNECT`), `QoeScenario` (`PAGE_LOAD`), the open `HttpVersion` (`H1 = "http/1.1"`,
-  `H2 = "h2"`, `H3 = "h3"`, `OTHER`), `TransportProtocol` (`TCP`, `UDP`), `ServiceStatus`
-  (`RUNNING`, `STOPPED`, `ERROR`), `StormControlUnit` (`PERCENT`, `PPS`), the open
-  `AcctStatusType` (RFC 2866 `Start`, `Stop`, `Interim-Update`, `Accounting-On`,
-  `Accounting-Off`, `Failed`; RFC 2867 `Tunnel-Start` ... `Tunnel-Link-Reject`; IANA
-  `Subsystem-On`, `Subsystem-Off`; `OTHER`; `.code` is the registered number),
-  the open pure `Enum` `AcctTerminateCause` (RFC 2866 causes 1 to 18, RFC 3580 causes 19 to 22,
-  IANA `Lost-Power` 23, `OTHER`; `.code` is the registered number; the registry's prose
-  spellings, such as `User Request` and `Port Reinitialized`, convert too) and `EapMethod` (`PEAP-MSCHAPv2` and `TTLS-PAP`,
-  the two words of the released docstring, plus `PEAP-GTC`, `TTLS-MSCHAPv2`, `EAP-TLS`,
-  `EAP-SIM`, `EAP-AKA`, named by analogy to them and not used by any local driver). Where the
-  released contract or an implementer used a word, the member equals it; the registry values
-  are spelled as the RADIUS attribute dictionary spells them. `QoeTool` and `QoeCompletion`
+  `CONNECT`), `QoeScenario` (`PAGE_LOAD`), `TransportProtocol` (`TCP`, `UDP`), `ServiceStatus`
+  (`RUNNING`, `STOPPED`, `ERROR`), `StormControlUnit` (`PERCENT`, `PPS`). Where the
+  released contract or an implementer used a word, the member equals it. `QoeTool` and `QoeCompletion`
   have `__repr__` returning the quoted text (`'load'`), because a released implementer embeds
   `repr(spec.completion)` in generated text. Migration: none. Design `docs/architecture/precise-types-design.md` (Host-tool and service vocabularies); PR pending.
 - **function** `testprotocols.models:parse_http_response(response) -> HTTPResult`.
   Migration: none. Design `docs/architecture/precise-types-design.md` (Host-tool and service vocabularies); PR pending.
-- **fields** `testprotocols.models:QoEResult.protocol_raw`, `RadiusAccountingRecord.record_type_raw`
-  and `terminate_cause_raw` (the device's own word, held only while the field is `OTHER`;
-  each pair agrees after construction, `replace` and assignment), `RadiusUser.eap_methods_known`
-  (`tuple[EapMethod, ...]`) and `eap_methods_unknown` (`tuple[str, ...]`; the methods that
-  name a member and the words that name none, synced with the released `eap_methods`;
-  the side that changed wins) and `StormControlConfig.unit` (`StormControlUnit | None`,
+- **field** `testprotocols.models:StormControlConfig.unit` (`StormControlUnit | None`,
   default `None`, meaning "as the driver reads it"; released drivers ignore it). Migration: none. Design `docs/architecture/precise-types-design.md` (Host-tool and service vocabularies); PR pending.
-- **option** `testprotocols.models._open_enum:OpenEnumPair(optional=True)` — the field may
-  also be `None` (no value reported), which carries no raw word; used by
-  `QoEResult.protocol`. Not public API. Migration: none. Design `docs/architecture/precise-types-design.md` (Host-tool and service vocabularies); PR pending.
-
 - **models** `testprotocols.models:UrlRules` (`allowed`, `blocked`; `as_tuple()`),
   `MemoryUtilization` (`total_bytes`, `used_bytes`, `free_bytes`, and `shared_bytes`,
   `cache_bytes`, `available_bytes` all given or all `None`; used and free at most total;
   `as_dict()`), `ProcessInfo` (`pid`, `tty`, `cpu_time:
   timedelta`, `command`; `as_dict()`), `EventLogEntry` (`timestamp` text, `hostname`, `tag`,
   `message`, `priority`; `severity`; `as_dict()`), `DnsRecord` (`name`, `record_type`, `ttl`,
-  `data`, `record_type_raw`), `IperfProcess` (`pid`, `log_file`; `as_tuple()`), `PingResult`
+  `data`; `record_type` is the resolver's own word), `IperfProcess` (`pid`, `log_file`; `as_tuple()`), `PingResult`
   (`destination`, `transmitted`, `received`, `packet_loss_percent`, `duplicates`, `rtt_*_ms`;
   received at most transmitted, the loss within one point of what they give),
   `NmapResult` (`up`, `addresses`, `ports`) and `NmapPort` (`port`, `protocol:
@@ -335,9 +278,7 @@ their tags and PR history.
   also holds `{"unparsable": line}` entries, which no record holds. Migration: none. Design `docs/architecture/precise-types-design.md` (Host-tier records); PR pending.
 - **enums** `testprotocols.models:SyslogSeverity` (`IntEnum`, RFC 5424 severities 0 to 7),
   `NmapPortState` (nmap's six port states: `open`, `closed`, `filtered`, `unfiltered`,
-  `open|filtered`, `closed|filtered`) and the member `DnsRecordType.OTHER` (a read-back value
-  for an answer record of a type the enum does not name; its name is in
-  `DnsRecord.record_type_raw`). Migration: none. Design `docs/architecture/precise-types-design.md` (Host-tier records); PR pending.
+  `open|filtered`, `closed|filtered`). Migration: none. Design `docs/architecture/precise-types-design.md` (Host-tier records); PR pending.
 - **models and functions** `testprotocols.models:Blackout`, `Brownout(latency_ms, jitter_ms,
   loss_percent)`, `LatencySpike(latency_ms, jitter_ms)`, `PacketStorm(loss_percent, latency_ms,
   jitter_ms, duplicate_percent)` (a burst of loss, as the released implementers apply it;
@@ -386,29 +327,22 @@ their tags and PR history.
 - **protocol members** `testprotocols.packet_filter:PacketFilter` (every `chain`
   parameter; `set_default_policy(policy)`), `testprotocols.nat:Nat.list_nat_rules(mode)`
   and `testprotocols.conntrack:Conntrack` (`protocol` on `list_connections`,
-  `count_connections`, `get_connection`, `drop_connection`; `state` on the two
-  filters) — now annotated `Chain | str`, `DefaultAction | str`,
-  `NatMode | str | None`, `RuleProtocol | str` and `ConnState | str | None`. A
-  driver coerces each once at its boundary with `coerce_enum(…, what=…)`; the
-  `state` filter uses `coerce_open_enum`, and a word that names no member
-  filters on `Connection.state_raw`. An unknown chain, policy, mode or
+  `count_connections`, `get_connection`, `drop_connection`) — now annotated `Chain | str`, `DefaultAction | str`,
+  `NatMode | str | None` and `RuleProtocol | str`. A
+  driver coerces each once at its boundary with `coerce_enum(…, what=…)`. The `state`
+  filters stay `str`, the device's own word. An unknown chain, policy, mode or
   protocol raises `ValueError`; a conntrack `protocol` of `any` is refused,
   because no flow has it. Migration: pass the members; a driver adds the
   annotations and the coercion. Design `docs/architecture/precise-types-design.md` (firewall, NAT and conntrack vocabularies); PR pending.
 - **models** `testprotocols.models:FirewallRule` (`action`, `protocol`),
   `NatRule` (`mode`, `protocol`), `PortMapping` (`protocol`) and `Connection`
-  (`protocol`, `state`) — each field is now `Enum | str` and always holds the
+  (`protocol`) — each field is now `Enum | str` and always holds the
   enum after construction, `replace` and assignment; the enums are
-  `FirewallRuleAction`, `RuleProtocol`, `NatMode`, `PortMappingProtocol` and
-  `ConnState`. `NatRule.protocol` defaults to `RuleProtocol.ANY`. An unknown
-  string raises `ValueError`, except `Connection.state`: the set is open, so an
-  unknown word becomes `ConnState.OTHER` plus `state_raw`, without a warning.
-  A value that is neither a member nor a string (`None`, a number, `bytes`)
-  raises `TypeError`. A
-  plain string naming a `ConnState` warns and converts. The `ConnState` values
-  are the released upper-case words (`"ESTABLISHED"`, `"SYN_SENT"`, …,
-  `"OTHER"`), so no reading idiom changes: `conn.state == "ESTABLISHED"` holds.
-  `Connection.protocol` refuses `RuleProtocol.ANY` with `ValueError`, as its
+  `FirewallRuleAction`, `RuleProtocol`, `NatMode` and `PortMappingProtocol`.
+  `NatRule.protocol` defaults to `RuleProtocol.ANY`. An unknown
+  string raises `ValueError`. A value that is neither a member nor a string
+  (`None`, a number, `bytes`) raises `TypeError`. `Connection.state` stays a
+  `str`, the device's own word. `Connection.protocol` refuses `RuleProtocol.ANY` with `ValueError`, as its
   docstring says (a flow has one transport). Migration: pass the members. Design `docs/architecture/precise-types-design.md` (firewall, NAT and conntrack vocabularies); PR pending.
 
 - **models** `testprotocols.models:FirewallRule.dst_port` — now defaults to
@@ -443,18 +377,14 @@ their tags and PR history.
   private provenance fields (`_ports_seen`, `_ts_seen`; not API) are keyword
   parameters; type the dict or pass the fields explicitly. Listed in the design
   doc's "Effective now". Design `docs/architecture/precise-types-design.md` (SD-WAN models); PR pending.
-- **models** `testprotocols.models:LinkStatus.state`, `LinkHealthReport.state` and
-  `AppFlow.category` — now `UplinkState | str` (both link states) and
-  `ApplicationCategory | str`, and always hold the enum after construction,
+- **models** `testprotocols.models:LinkStatus.state` and `LinkHealthReport.state` —
+  now `UplinkState | str`, and always hold the enum after construction,
   `replace` and assignment. A link state word that is not an `UplinkState` value
   (released: any string) now raises `ValueError`; the vocabulary is the existing
   `up`, `down`, `degraded` plus `unknown` (a probe with no data), so the words a
-  reference implementer returns still work. `AppFlow.category` never raises: an
-  unknown word becomes `ApplicationCategory.OTHER` plus `category_raw`, without a
-  warning. A plain string naming a member warns and converts. Migration: pass the
-  members. Static only: unpacking a loosely typed dict into `AppFlow` fails
-  type-checking (`category_raw` and the private `_category_seen` are parameters),
-  and `TrafficShapingRule.match` is `Mapping[str, object]` (was `dict[str, Any]`),
+  reference implementer returns still work. A plain string naming a member warns
+  and converts. Migration: pass the members. Static only:
+  `TrafficShapingRule.match` is `Mapping[str, object]` (was `dict[str, Any]`),
   so a reader gets `object` values. Listed in the design doc's "Effective now".
   Design `docs/architecture/precise-types-design.md` (WAN-edge models); PR pending.
 - **module attributes** `testprotocols.models:TrafficShapingRule` and
@@ -483,9 +413,7 @@ their tags and PR history.
   `WifiMeshNode.role` — now enums (`WifiBand`, `WifiSecurityMode`, `MfpMode`,
   `WifiAclMode`, `MeshRole`); a plain string naming a member warns and converts
   (also on assignment and `replace`), and a string that is no member raises
-  `ValueError` (released: any string). `WifiStation` gains `capabilities`,
-  `capability_flags_unknown` and the private `_caps_seen`, so unpacking a loosely typed
-  dict into `WifiStation` fails type-checking (static only). Listed in the design
+  `ValueError` (released: any string). Listed in the design
   doc's "Effective now". Design `docs/architecture/precise-types-design.md` (Wi-Fi vocabularies); PR pending.
 - **protocol members** `WifiBss.create_bss` / `set_security` (`band`, `security_mode`,
   `mfp`; the `mfp` default is `MfpMode.OPTIONAL`, equal to `"optional"`),
@@ -499,14 +427,12 @@ their tags and PR history.
   `since` is `datetime | None` (released: `Any`, documented as a timestamp or marker). A
   caller that passed a `datetime` or `None` is unaffected; a caller that passed a text
   marker was outside the typed contract and no longer type-checks (an implementer may
-  keep `since: Any`, which still conforms). `message_type` widens to
-  `SipMethod | str`: every released call, and every released implementer, still type-checks. Design `docs/architecture/precise-types-design.md` (Voice vocabularies); PR pending.
-- **protocol members** `SipPhone.wait_for_state(state)`, `SipPhone.set_presence(status)` and
-  `SipServer.notify_presence(user, status)` — annotations widen to `PhoneState | str` and
-  `PresenceStatus | str`, so every released call still type-checks. A presence word that
-  names no member is the provider's own word and passes to the device unchanged, with no
-  error and no warning; a `wait_for_state` word that names no state raises `ValueError`
-  (released implementer: the same). Design `docs/architecture/precise-types-design.md` (Voice vocabularies); PR pending.
+  keep `since: Any`, which still conforms). `message_type` stays `str`. Design `docs/architecture/precise-types-design.md` (Voice vocabularies); PR pending.
+- **protocol member** `SipPhone.wait_for_state(state)` — the annotation widens to
+  `PhoneState | str`, so every released call still type-checks. A `wait_for_state` word
+  that names no state raises `ValueError` (released implementer: the same). The presence
+  parameters and return (`set_presence`, `notify_presence`, `get_user_presence`) stay
+  `str`, the provider's own word. Design `docs/architecture/precise-types-design.md` (Voice vocabularies); PR pending.
 - **model** `testprotocols.models:HTTPResult` — now a frozen dataclass with `status: int`,
   `body: str` and `raw: str`. `HTTPResult(response)` takes the response text as before
   (keyword `response` too). *status* is `0` when the response has no numeric status code, or
@@ -515,16 +441,13 @@ their tags and PR history.
   record is frozen: assigning an attribute raises `FrozenInstanceError` (released: allowed),
   and `dataclasses.replace` does not apply (the constructor takes the text). Migration: read
   `status` and `body`. Design `docs/architecture/precise-types-design.md` (Host-tool and service vocabularies); PR pending.
-- **models** `MeasurementSpec.tool` and `completion`, `TrafficSpec.protocol`,
-  `RadiusAccountingRecord.record_type` and `terminate_cause`, and `QoEResult.protocol` — now
+- **models** `MeasurementSpec.tool` and `completion`, and `TrafficSpec.protocol` — now
   enums. A plain `str` naming a member warns and converts, also on assignment, so a reader
-  holds the member (it compares equal to its text, except `AcctTerminateCause`, a pure
-  `Enum`). The intended warnings include the browser's own words in `QoEResult.protocol`
-  (`"h2"`, `"h3"`, `"http/1.1"`): a driver builds the member with `coerce_open_enum` instead.
-  A word that names no member raises `ValueError` for `MeasurementSpec.tool` / `completion`
-  and `TrafficSpec.protocol` (released: free text; the example implementer treated an unknown
-  tool as the browser); for `QoEResult.protocol`, `record_type` and `terminate_cause` it
-  becomes `OTHER` plus the raw companion, with no error and no warning. `repr()` of a
+  holds the member (it compares equal to its text). A word that names no member raises
+  `ValueError` (released: free text; the example implementer treated an unknown
+  tool as the browser). `QoEResult.protocol`, `RadiusUser.eap_methods` and
+  `RadiusAccountingRecord.record_type` / `terminate_cause` stay `str`, the device's own
+  word. `repr()` of a
   `QoeTool` or `QoeCompletion` is the quoted text, so generated text is unchanged; every
   other new enum keeps the default `<Enum.MEMBER: 'x'>` repr (code that builds text with
   `repr(value)` or `{value!r}` must use `str(value)`). Design `docs/architecture/precise-types-design.md` (Host-tool and service vocabularies); PR pending.
@@ -578,13 +501,13 @@ their tags and PR history.
   `snmp_bulk_get`; no successor for any other command) — deprecated; a driver keeps them and warns until a later
   release removes them. Design `docs/architecture/precise-types-design.md` (Tool option strings); PR pending.
 - **parameters and fields** `PacketFilter` (`chain`, `set_default_policy(policy)`),
-  `Nat.list_nat_rules(mode)`, `Conntrack` (`protocol`, `state`), `FirewallRule.action` /
+  `Nat.list_nat_rules(mode)`, `Conntrack` (`protocol`), `FirewallRule.action` /
   `protocol`, `NatRule.mode` / `protocol`, `PortMapping.protocol` and
-  `Connection.protocol` / `state` — a plain `str` naming a member (`"FORWARD"`,
-  `"drop"`, `"snat"`, `"tcp"`, `"allow"`, `"tcp-udp"`, `"ESTABLISHED"`) is
+  `Connection.protocol` — a plain `str` naming a member (`"FORWARD"`,
+  `"drop"`, `"snat"`, `"tcp"`, `"allow"`, `"tcp-udp"`) is
   deprecated: it warns and is converted. The annotations narrow to the enums in
   a later release. Use `Chain`, `DefaultAction`, `NatMode`, `RuleProtocol`,
-  `FirewallRuleAction`, `PortMappingProtocol` and `ConnState`. Design `docs/architecture/precise-types-design.md` (firewall, NAT and conntrack vocabularies); PR pending.
+  `FirewallRuleAction` and `PortMappingProtocol`. Design `docs/architecture/precise-types-design.md` (firewall, NAT and conntrack vocabularies); PR pending.
 - **return type** `PacketFilter.get_default_policy` — announced only: it returns
   `str` today and narrows to `DefaultAction` in a later release (a
   `DefaultAction` is a `str`, so comparisons with the plain words keep working).
@@ -607,10 +530,9 @@ their tags and PR history.
   `NetworkAttachment.segment` (`""`) — announced only: they mean
   unconstrained or not reported today and become `str | None` (`None`) in a
   later release. Design `docs/architecture/precise-types-design.md` (SD-WAN models); PR pending.
-- **parameters and fields** `LinkStatus.state`, `LinkHealthReport.state` and
-  `AppFlow.category` — a plain `str` naming a member (`"up"`, `"degraded"`,
-  `"video_streaming"`) is deprecated: it warns and is converted. The annotations
-  narrow to `UplinkState` and `ApplicationCategory` in a later release. Design `docs/architecture/precise-types-design.md` (WAN-edge models); PR pending.
+- **parameters and fields** `LinkStatus.state` and `LinkHealthReport.state` — a plain
+  `str` naming a member (`"up"`, `"degraded"`) is deprecated: it warns and is
+  converted. The annotations narrow to `UplinkState` in a later release. Design `docs/architecture/precise-types-design.md` (WAN-edge models); PR pending.
 - **models** `testprotocols.models.wan_edge:VPNPeerStatus` and
   `TrafficShapingRule` (also reached as `testprotocols.models.VPNPeerStatus` and
   `TrafficShapingRule`) — deprecated with no successor: no capability uses them;
@@ -639,8 +561,6 @@ their tags and PR history.
   in a later release. Design `docs/architecture/precise-types-design.md` (Wi-Fi vocabularies); PR pending.
 - **fields** the Wi-Fi model fields listed under *Changed* — a plain `str` naming a member is deprecated (warns, converts). The
   annotations narrow to the enums in a later release. Design `docs/architecture/precise-types-design.md` (Wi-Fi vocabularies); PR pending.
-- **field** `WifiStation.capability_flags` — the released word list; giving or assigning
-  it warns. Use `capabilities` and `capability_flags_unknown`. Design `docs/architecture/precise-types-design.md` (Wi-Fi vocabularies); PR pending.
 - **protocol member** `WifiClient.iwlist_supported_channels` — deprecated name of
   `supported_channels` (see *Breaking for driver authors*); it keeps its released
   signature (`wifi_band: str`, `list[str]`). Design `docs/architecture/precise-types-design.md` (Wi-Fi vocabularies); PR pending.
@@ -655,14 +575,10 @@ their tags and PR history.
   returns until a later release removes them. Design `docs/architecture/precise-types-design.md` (Voice vocabularies); PR pending.
 - **parameters** `SipPhone.wait_for_state(state)`, `SipPhone.set_presence(status)`,
   `SipServer.notify_presence(user, status)` and `SipServer.verify_sip_message(message_type)`
-  — a plain `str` naming a member (`"idle"`, `"away"`, `"INVITE"`) is deprecated: the
-  driver converts it with `coerce_enum` or `coerce_open_enum` and warns. A presence or
-  method word that names no member is not deprecated (the sets are open). The annotations
-  narrow to `PhoneState`, and to `PresenceStatus` / `SipMethod` (and `int`, for a response code) with the raw word
-  carried separately, in a later release. Design `docs/architecture/precise-types-design.md` (Voice vocabularies); PR pending.
-- **return type** `SipServer.get_user_presence` — announced only: it returns `str`
-  today and narrows to `PresenceStatus` (with the device's own word beside it) in a later
-  release; members equal their strings. Design `docs/architecture/precise-types-design.md` (Voice vocabularies); PR pending.
+  — a plain `str` naming a `PhoneState` member (`"idle"`) is deprecated for
+  `wait_for_state`: the driver converts it with `coerce_enum` and warns. The presence
+  and message-type words are the provider's own and stay `str`. The `wait_for_state`
+  annotation narrows to `PhoneState` in a later release. Design `docs/architecture/precise-types-design.md` (Voice vocabularies); PR pending.
 - **properties** `HTTPResult.code` and `HTTPResult.beautified_text` — deprecated names of
   `status` (an `int`, not text) and `body`; they warn when read and are removed in a
   later release. Design `docs/architecture/precise-types-design.md` (Host-tool and service vocabularies); PR pending.
@@ -677,9 +593,7 @@ their tags and PR history.
   and keeps matching it; use `is_link_admin_up` for the administrative state. Design `docs/architecture/precise-types-design.md` (Host-tool and service vocabularies); PR pending.
 - **return type** `RadiusServer.get_status` — announced only: it returns `str` today and
   narrows to `ServiceStatus` (members equal the strings) in a later release. Design `docs/architecture/precise-types-design.md` (Host-tool and service vocabularies); PR pending.
-- **field** `RadiusUser.eap_methods` — deprecated word list: giving it warns; use
-  `eap_methods_known` and `eap_methods_unknown`. Design `docs/architecture/precise-types-design.md` (Host-tool and service vocabularies); PR pending.
-- **fields** `MeasurementSpec`, `TrafficSpec`, `RadiusAccountingRecord` as above: a plain
+- **fields** `MeasurementSpec` and `TrafficSpec` as above: a plain
   `str` for a typed field is deprecated; the annotations narrow to the enums later. Design `docs/architecture/precise-types-design.md` (Host-tool and service vocabularies); PR pending.
 - **protocol members** `ContentFiltering.get_url_rules`, `DeviceManagement.get_memory_utilization`,
   `get_running_processes` and `read_event_logs`, `DnsClient.dns_lookup`,

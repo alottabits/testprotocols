@@ -1,14 +1,9 @@
-"""Voice vocabularies and records: SIP phone states, presence, SIP methods and the
-SIP server's observation records.
+"""Voice vocabularies and records: SIP phone states and the SIP server's observation
+records.
 
-``PhoneState``, ``PresenceStatus`` and ``SipMethod`` are ``StrEnum`` whose members
-equal the strings the released contract and its implementers used. ``PresenceStatus``
-and ``SipMethod`` are open: a provider may report a word they do not list, which
-travels as ``OTHER`` with the raw word (shape 3o). A *parameter* typed
-``PresenceStatus | str`` or ``SipMethod | str`` is resolved by a driver with
-:func:`testprotocols.deprecation.coerce_open_enum`: a member passes, a plain string
-naming a member converts and warns, and any other string is the raw word, passed on
-unchanged with no error and no warning.
+``PhoneState`` is a ``StrEnum`` whose members equal the strings the released contract and
+its implementers used. Presence statuses and SIP methods are the provider's own words and
+travel as ``str``.
 
 ``RtpStats``, ``MwiStatus`` and ``OfflineMessage`` are the typed forms of what
 ``get_rtpengine_stats``, ``get_mwi_status`` and ``get_offline_messages`` returned as
@@ -49,41 +44,6 @@ class PhoneState(StrEnum):
     CONFERENCE = "conference"  # is_in_conference
     BUSY = "busy"  # is_line_busy
     NOT_ANSWERED = "not_answered"  # is_call_not_answered
-
-
-class PresenceStatus(StrEnum):
-    """A presence status. Open: a provider may report other words (``OTHER``).
-
-    Edge case of the shared helper: a raw device word equal to a member value
-    (``"other"``) names that member and is not kept as a raw word.
-    """
-
-    ONLINE = "online"
-    BUSY = "busy"
-    AWAY = "away"
-    OFFLINE = "offline"
-    OTHER = "other"
-
-
-class SipMethod(StrEnum):
-    """A SIP request method. Open: an extension method or a log marker is ``OTHER``.
-
-    The RFC 3261 methods plus the extension methods the contract's docstrings name
-    (``MESSAGE``, ``NOTIFY``, ``PUBLISH``). A raw device word equal to a member value
-    (``"OTHER"``) names that member and is not kept as a raw word (an edge case of the
-    shared helper).
-    """
-
-    INVITE = "INVITE"
-    ACK = "ACK"
-    BYE = "BYE"
-    CANCEL = "CANCEL"
-    OPTIONS = "OPTIONS"
-    REGISTER = "REGISTER"
-    MESSAGE = "MESSAGE"
-    NOTIFY = "NOTIFY"
-    PUBLISH = "PUBLISH"
-    OTHER = "OTHER"
 
 
 @dataclass(frozen=True)

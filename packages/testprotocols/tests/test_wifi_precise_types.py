@@ -1,4 +1,4 @@
-"""Wi-Fi vocabularies typed: enums, shape 1/3, the multi-valued open set."""
+"""Wi-Fi vocabularies typed: enums, shape 1/3."""
 
 from __future__ import annotations
 
@@ -18,7 +18,6 @@ from testprotocols.models.wifi import (
     WifiAclMode,
     WifiBand,
     WifiBssConfig,
-    WifiCapability,
     WifiCaptiveConfig,
     WifiChannelUtilization,
     WifiMeshLink,
@@ -70,11 +69,6 @@ from testprotocols.wifi_rf import WifiRf
         (MeshRole.AGENT, "agent"),
         (MeshRole.CONTROLLER_AND_AGENT, "controller-and-agent"),
         (MeshRole.UNCOMMISSIONED, "uncommissioned"),
-        (WifiCapability.HT, "HT"),
-        (WifiCapability.VHT, "VHT"),
-        (WifiCapability.HE, "HE"),
-        (WifiCapability.EHT, "EHT"),
-        (WifiCapability.MLO, "MLO"),
     ],
 )
 def test_members_equal_their_released_strings(member: object, word: str) -> None:
@@ -86,7 +80,6 @@ def test_members_equal_their_released_strings(member: object, word: str) -> None
 def test_enum_member_sets_are_the_released_ones() -> None:
     assert {m.value for m in WifiBand} == {"2.4GHz", "5GHz", "6GHz"}
     assert {m.value for m in MfpMode} == {"off", "optional", "required"}
-    assert {m.value for m in WifiCapability} == {"HT", "VHT", "HE", "EHT", "MLO"}
     assert {int(m) for m in ChannelWidth} == {20, 40, 80, 160, 320}
     assert issubclass(ChannelWidth, IntEnum)
     assert_str_value(WifiBand.GHZ_5, "5GHz")
@@ -221,17 +214,13 @@ def test_acl_and_mesh_roles() -> None:
         WifiMeshNode("aa:bb:cc:dd:ee:ff", "relay", None, 1)
 
 
-# --- the multi-valued open set ---
+# --- WifiStation ---
 
 _MAC = "aa:bb:cc:dd:ee:ff"
 
 
 def _station(
-    *,
-    band: WifiBand | str = WifiBand.GHZ_5,
-    flags: list[str] | None = None,
-    caps: tuple[WifiCapability, ...] = (),
-    unknown: tuple[str, ...] = (),
+    *, band: WifiBand | str = WifiBand.GHZ_5, flags: list[str] | None = None
 ) -> WifiStation:
     return WifiStation(
         mac=_MAC,
@@ -249,8 +238,6 @@ def _station(
         rx_packets=0,
         tx_retries=0,
         capability_flags=[] if flags is None else flags,
-        capabilities=caps,
-        capability_flags_unknown=unknown,
     )
 
 
@@ -262,127 +249,12 @@ def test_station_band_is_coerced() -> None:
         _station(band="60GHz")
 
 
-def test_station_defaults_are_empty() -> None:
-    s = _station()
-    assert s.capability_flags == []
-    assert s.capabilities == ()
-    assert s.capability_flags_unknown == ()
-
-
-def test_station_typed_side_fills_the_released_word_list() -> None:
+def test_station_capability_flags_are_the_device_words_stored_as_given() -> None:
+    assert _station().capability_flags == []
     with warnings.catch_warnings():
         warnings.simplefilter("error")
-        s = _station(caps=(WifiCapability.EHT, WifiCapability.MLO), unknown=("TWT",))
-    assert s.capability_flags == ["EHT", "MLO", "TWT"]
-
-
-def test_station_released_word_list_splits_and_warns() -> None:
-    with pytest.warns(DeprecationWarning, match="capability_flags is deprecated"):
-        s = _station(flags=["HT", "TWT", "VHT", "he", "HT"])
-    assert s.capabilities == (WifiCapability.HT, WifiCapability.VHT, WifiCapability.HT)
-    assert s.capability_flags_unknown == ("TWT", "he")  # exact match: "he" is not "HE"
-    assert s.capability_flags == [
-        "HT",
-        "TWT",
-        "VHT",
-        "he",
-        "HT",
-    ]  # as given
-
-
-def test_station_both_sides_must_agree() -> None:
-    with warnings.catch_warnings():
-        warnings.simplefilter("error")
-        s = _station(flags=["HT", "TWT"], caps=(WifiCapability.HT,), unknown=("TWT",))
-    assert s.capability_flags == ["HT", "TWT"]
-    with pytest.raises(ValueError, match="disagree"):
-        _station(flags=["HT"], caps=(WifiCapability.HE,))
-    with pytest.raises(ValueError, match="disagree"):
-        _station(flags=["HT"], caps=(WifiCapability.HT,), unknown=("TWT",))
-
-
-def test_station_validates_both_sides() -> None:
-    with pytest.raises(TypeError):
-        _station(caps="HT")  # type: ignore[arg-type]
-    with pytest.raises(TypeError):
-        _station(caps=("HT",))  # type: ignore[arg-type]
-    with pytest.raises(TypeError):
-        _station(unknown="TWT")  # type: ignore[arg-type]
-    with pytest.raises(TypeError):
-        _station(unknown=(5,))  # type: ignore[arg-type]
-    with pytest.raises(ValueError, match="names a WifiCapability"):
-        _station(unknown=("HT",))
-    with pytest.raises(TypeError):
-        _station(flags="HT")  # type: ignore[arg-type]
-    with pytest.raises(TypeError):
-        _station(flags=[5])  # type: ignore[list-item]
-
-
-def test_station_replace_the_side_that_changed_wins() -> None:
-    s = _station(caps=(WifiCapability.HT, WifiCapability.VHT), unknown=("TWT",))
-    with warnings.catch_warnings():
-        warnings.simplefilter("error")
-        t = dataclasses.replace(s, capabilities=(WifiCapability.HE,))
-    assert t.capability_flags == ["HE", "TWT"]
-    assert t.capability_flags_unknown == ("TWT",)
-    u = dataclasses.replace(s, capability_flags_unknown=())
-    assert u.capability_flags == ["HT", "VHT"]
-    with pytest.warns(DeprecationWarning):
-        w = dataclasses.replace(s, capability_flags=["EHT", "QOS"])
-    assert w.capabilities == (WifiCapability.EHT,)
-    assert w.capability_flags_unknown == ("QOS",)
-    # unchanged copy keeps the device's order and duplicates
-    with pytest.warns(DeprecationWarning):
-        d = _station(flags=["TWT", "HT"])
-    assert dataclasses.replace(d, mac="11:22:33:44:55:66").capability_flags == ["TWT", "HT"]
-
-
-def test_station_replace_both_changed_must_agree() -> None:
-    s = _station(caps=(WifiCapability.HT,))
-    with pytest.raises(ValueError, match="disagree"):
-        dataclasses.replace(s, capability_flags=["HE"], capabilities=(WifiCapability.EHT,))
-    ok = dataclasses.replace(s, capability_flags=["HE"], capabilities=(WifiCapability.HE,))
-    assert ok.capability_flags == ["HE"]
-
-
-def test_station_assignment_the_side_that_changed_wins() -> None:
-    s = _station(caps=(WifiCapability.HT,), unknown=("TWT",))
-    s.capabilities = (WifiCapability.VHT, WifiCapability.HE)
-    assert s.capability_flags == ["VHT", "HE", "TWT"]
-    s.capability_flags_unknown = ("QOS",)
-    assert s.capability_flags == ["VHT", "HE", "QOS"]
-    with pytest.warns(DeprecationWarning):
-        s.capability_flags = ["EHT", "MLO", "XYZ"]
-    assert s.capabilities == (WifiCapability.EHT, WifiCapability.MLO)
-    assert s.capability_flags_unknown == ("XYZ",)
-    s.capabilities = [WifiCapability.MLO, WifiCapability.EHT]  # type: ignore[assignment]
-    assert s.capabilities == (WifiCapability.MLO, WifiCapability.EHT)
-
-
-def test_station_refused_assignment_changes_nothing() -> None:
-    s = _station(caps=(WifiCapability.HT,), unknown=("TWT",))
-    with pytest.raises(TypeError):
-        s.capabilities = ("HT",)  # type: ignore[assignment]
-    with pytest.raises(ValueError):
-        s.capability_flags_unknown = ("HE",)
-    with pytest.raises(TypeError):
-        s.capability_flags = "HT"  # type: ignore[assignment]
-    assert s.capabilities == (WifiCapability.HT,)
-    assert s.capability_flags_unknown == ("TWT",)
-    assert s.capability_flags == ["HT", "TWT"]
-
-
-def test_station_assigning_the_same_value_keeps_the_device_order() -> None:
-    with pytest.warns(DeprecationWarning):
-        s = _station(flags=["TWT", "HT"])
-    s.capabilities = (WifiCapability.HT,)
-    assert s.capability_flags == ["TWT", "HT"]
-
-
-def test_station_provenance_field_is_last() -> None:
-    names = [f.name for f in dataclasses.fields(WifiStation)]
-    assert names[-1] == "_caps_seen"
-    assert names.index("capability_flags") < names.index("capabilities")
+        s = _station(flags=["HT", "he", "TWT"])
+    assert s.capability_flags == ["HT", "he", "TWT"]
 
 
 # --- Protocol signatures (shape 1, shape 1i, shape 5) ---

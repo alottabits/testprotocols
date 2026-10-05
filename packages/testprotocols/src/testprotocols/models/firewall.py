@@ -13,7 +13,6 @@ from enum import StrEnum
 from typing import cast, override
 
 from testprotocols.deprecation import MODEL_FRAMES, coerce_enum
-from testprotocols.models._open_enum import OpenEnumPair
 from testprotocols.models._sync import SyncedField, assign, settle
 from testprotocols.models.ports import (
     PortRange,
@@ -63,33 +62,6 @@ class PortMappingProtocol(StrEnum):
     TCP = "tcp"
     UDP = "udp"
     TCP_UDP = "tcp-udp"
-
-
-class ConnState(StrEnum):
-    """The state of a tracked connection. The set is open: ``OTHER`` stands for a
-    state this enum does not name, and the device's own word is kept in
-    ``Connection.state_raw``.
-
-    The values are the words the released contract listed, in upper case: the nine
-    TCP states and the two datagram states (``UNREPLIED``, ``ASSURED``), so a reader
-    comparing ``conn.state == "ESTABLISHED"`` is unchanged.
-    """
-
-    SYN_SENT = "SYN_SENT"
-    SYN_RECV = "SYN_RECV"
-    ESTABLISHED = "ESTABLISHED"
-    FIN_WAIT = "FIN_WAIT"
-    CLOSE_WAIT = "CLOSE_WAIT"
-    LAST_ACK = "LAST_ACK"
-    TIME_WAIT = "TIME_WAIT"
-    CLOSE = "CLOSE"
-    LISTEN = "LISTEN"
-    UNREPLIED = "UNREPLIED"
-    ASSURED = "ASSURED"
-    OTHER = "OTHER"
-
-
-_STATE_PAIRS = (OpenEnumPair(ConnState, ConnState.OTHER, "state", "state_raw"),)
 
 
 def _parse_nat_ports(text: str) -> tuple[PortRange, ...]:
@@ -334,26 +306,14 @@ class Connection:
     reverse path.
 
     *protocol* is a :class:`~testprotocols.models.RuleProtocol` (never ``ANY``:
-    a flow has one transport). *state* is a :class:`ConnState`, protocol-specific:
+    a flow has one transport) and follows the same deprecation rule as the other
+    firewall records. *state* is the device's own word and is stored as given. It is
+    protocol-specific, for example:
 
     - TCP: ``SYN_SENT``, ``SYN_RECV``, ``ESTABLISHED``, ``FIN_WAIT``,
       ``CLOSE_WAIT``, ``LAST_ACK``, ``TIME_WAIT``, ``CLOSE``, ``LISTEN``.
     - UDP / ICMP / other: ``UNREPLIED``, ``ASSURED``, or a driver-specific
-      state, which is ``OTHER`` with the device's own word in *state_raw*.
-
-    The set is open, so an unknown string is not an error: it becomes ``OTHER``
-    plus *state_raw*, kept verbatim (the empty string and ``"other"`` included)
-    and without a warning. A plain ``str`` naming a member (``"ESTABLISHED"``;
-    the match is exact, so ``"established"`` is an unknown word) is deprecated: it
-    warns and is converted; ``"OTHER"`` converts to ``OTHER`` with no raw word.
-    *state_raw* is ``None`` unless *state* is ``OTHER``. The pair agrees after
-    construction, ``replace`` and assignment, and the side that changed wins:
-    assigning a member clears the raw word, assigning an unknown string sets it,
-    assigning only *state_raw* keeps *state*. A raw word given with a named state,
-    or one that disagrees with the unknown word *state* was given, raises
-    ``ValueError`` and changes nothing. *protocol* may not be
-    ``RuleProtocol.ANY`` (``ValueError``) and follows the same deprecation rule
-    as the other firewall records.
+      state.
 
     *translated_src* / *translated_dst* are populated (non-None) when NAT
     is altering this flow. *src_port* / *dst_port* are ``None`` for ICMP.
@@ -364,7 +324,7 @@ class Connection:
     dst_ip: str
     src_port: int | None
     dst_port: int | None
-    state: ConnState | str
+    state: str
     timeout_seconds: int
     bytes_orig: int
     bytes_reply: int
@@ -374,19 +334,9 @@ class Connection:
     translated_dst: str | None = None
     mark: int | None = None
     zone: str | None = None
-    state_raw: str | None = None
-    _state_seen: tuple[tuple[ConnState, str | None], ...] | None = field(
-        default=None, kw_only=True, repr=False, compare=False
-    )
-
-    def __post_init__(self) -> None:
-        settle(self, _STATE_PAIRS, "_state_seen")
 
     @override
     def __setattr__(self, name: str, value: object) -> None:
-        if name in ("state", "state_raw", "_state_seen"):
-            assign(self, name, value, _STATE_PAIRS, "_state_seen")
-            return
         value = _coerce_field("Connection", name, value, _CONN_ENUMS)
         if value is RuleProtocol.ANY:
             raise ValueError("Connection.protocol: a flow has one transport, not 'any'")

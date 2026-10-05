@@ -255,9 +255,9 @@ keys; plugins map to vendor app-ids), grown on evidence; `L7Rule.value` for
 > conntrack vocabularies, `LinkStatus.state` / `LinkHealthReport.state` (now
 > `UplinkState`, the shared vocabulary, not a separate `LinkState`), the Wi-Fi
 > vocabularies (`WifiBand`, `WifiSecurityMode`, `MfpMode`, `WifiAclMode`,
-> `WifiPhyMode`, `MeshRole`, `WifiCapability`), `TrafficSpec.protocol`,
-> `MeasurementSpec.completion` and `RadiusAccountingRecord.record_type` are enums;
-> `Connection.state` is an open enum (`ConnState` with `OTHER`); `VPNPeerStatus` /
+> `WifiPhyMode`, `MeshRole`), `TrafficSpec.protocol` and
+> `MeasurementSpec.completion` are enums; `Connection.state` and
+> `RadiusAccountingRecord.record_type` stay `str`; `VPNPeerStatus` /
 > `TrafficShapingRule` are deprecated with no successor. Each retype is a deprecation
 > (widen, then narrow); see `docs/architecture/precise-types-design.md`. The notes below
 > are the original 2026-06-11 assessment, left as written: where they name `LinkState`,

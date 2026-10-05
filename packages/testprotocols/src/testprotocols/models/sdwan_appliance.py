@@ -202,10 +202,8 @@ class ApplicationCategory(StrEnum):
     identifiers — a far larger, more divergent catalog — are deliberately not
     seeded here; add an ``Application`` registry if/when a test needs one.)
 
-    ``OTHER`` is the catch-all for an observed flow whose category a product
-    reports but this set does not list (the product's own word travels in
-    ``AppFlow.category_raw``). It is not a category a rule can match on:
-    ``CategoryMatch`` refuses it.
+    ``AppFlow.category`` is the product's own word as text, so a flow whose
+    category this set does not list is still reported.
     """
 
     ADVERTISING = "advertising"
@@ -229,7 +227,6 @@ class ApplicationCategory(StrEnum):
     VOIP_AND_VIDEO_CONFERENCING = "voip_and_video_conferencing"
     VPN_AND_PROXY = "vpn_and_proxy"
     WEB_FILE_TRANSFER = "web_file_transfer"
-    OTHER = "other"
 
 
 # --- Traffic match (what an L7 or shaping rule selects) ---
@@ -255,10 +252,7 @@ class CategoryMatch:
     category: ApplicationCategory
 
     def __post_init__(self) -> None:
-        category = ApplicationCategory(self.category)
-        if category is ApplicationCategory.OTHER:
-            raise ValueError("a category match names a category; 'other' is not one")
-        object.__setattr__(self, "category", category)
+        object.__setattr__(self, "category", ApplicationCategory(self.category))
 
 
 @dataclass(frozen=True)

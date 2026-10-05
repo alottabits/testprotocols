@@ -4,14 +4,12 @@ from __future__ import annotations
 
 import math
 from collections.abc import Mapping
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import StrEnum
 from typing import TYPE_CHECKING, cast, override
 
 from testprotocols.deprecation import MODEL_FRAMES, coerce_enum, deprecated_attribute
-from testprotocols.models._open_enum import OpenEnumPair
-from testprotocols.models._sync import assign, settle
-from testprotocols.models.sdwan_appliance import ApplicationCategory, UplinkState
+from testprotocols.models.sdwan_appliance import UplinkState
 
 
 @dataclass
@@ -159,44 +157,21 @@ class LinkHealthReport:
         object.__setattr__(self, name, value)
 
 
-_FLOW_PAIRS = (
-    OpenEnumPair(ApplicationCategory, ApplicationCategory.OTHER, "category", "category_raw"),
-)
-
-
 @dataclass
 class AppFlow:
     """Holds per-application flow data observed on a WAN interface.
 
-    *category* is an :class:`~testprotocols.models.ApplicationCategory`. The set is
-    open: a product may classify traffic into a category the enum does not list, so
-    an unknown string is not an error, it becomes ``ApplicationCategory.OTHER`` with
-    the product's own word kept in *category_raw* (verbatim, with no warning). A
-    plain ``str`` naming a member is deprecated: it warns and is converted.
-    *category_raw* is ``None`` unless *category* is ``OTHER``; the pair agrees after
-    construction, ``replace`` and assignment, and the side that changed wins (the
-    rule of ``Connection.state``): a member clears the raw word, an unknown string
-    sets it, a raw word beside a named category raises ``ValueError``.
+    *category* is the product's own word, stored as given; the common ones are the
+    values of :class:`~testprotocols.models.ApplicationCategory`.
     """
 
     application: str
-    category: ApplicationCategory | str
+    category: str
     src_ip: str
     dst_ip: str
     wan_interface: str
     bytes_sent: int
     bytes_received: int
-    category_raw: str | None = None
-    _category_seen: tuple[tuple[ApplicationCategory, str | None], ...] | None = field(
-        default=None, kw_only=True, repr=False, compare=False
-    )
-
-    def __post_init__(self) -> None:
-        settle(self, _FLOW_PAIRS, "_category_seen")
-
-    @override
-    def __setattr__(self, name: str, value: object) -> None:
-        assign(self, name, value, _FLOW_PAIRS, "_category_seen")
 
 
 @dataclass

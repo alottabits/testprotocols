@@ -3,15 +3,13 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import IntEnum, StrEnum
 from ipaddress import IPv4Address, IPv6Address
 from typing import cast
 
 from testprotocols.deprecation import MODEL_FRAMES, coerce_enum, warn_at_caller
 from testprotocols.models import _checks
-from testprotocols.models._open_enum import OpenEnumPair
-from testprotocols.models._sync import settle
 from testprotocols.models.traffic import TransportProtocol
 
 
@@ -35,10 +33,8 @@ class IpFamily(IntEnum):
 class DnsRecordType(StrEnum):
     """A DNS resource-record type (RFC 1035 and the IANA registry). Grows on evidence.
 
-    The registry is open, and an answer can hold a type this enum does not name: a
-    :class:`DnsRecord` read back holds ``OTHER`` and the type's own name in
-    ``record_type_raw`` (shape 3o). ``OTHER`` is a read-back value only; a lookup for it is
-    refused (``ValueError``).
+    The registry is open: an answer can hold a type this enum does not name, and
+    :attr:`DnsRecord.record_type` carries the resolver's own word as text.
     """
 
     A = "A"
@@ -50,7 +46,6 @@ class DnsRecordType(StrEnum):
     SOA = "SOA"
     SRV = "SRV"
     TXT = "TXT"
-    OTHER = "other"
 
 
 class HttpScheme(StrEnum):
@@ -170,37 +165,25 @@ def _split_response(response: str) -> tuple[str, str, str]:
     return code, body, reason
 
 
-_DNS_PAIRS = (OpenEnumPair(DnsRecordType, DnsRecordType.OTHER, "record_type", "record_type_raw"),)
-
-
 @dataclass(frozen=True)
 class DnsRecord:
     """One resource record of a DNS answer: the owner *name* (as the resolver prints it,
     usually fully qualified with a trailing dot), its *record_type*, its *ttl* in seconds and
     its *data* (the record data as text: an address, a target name, ...).
 
-    *record_type* is open (shape 3o): a type :class:`DnsRecordType` does not name is
-    ``OTHER`` and its name is in *record_type_raw*, verbatim (``"CAA"``); *record_type_raw* is
-    ``None`` otherwise, and a raw name beside a named type raises ``ValueError``. A plain
-    string naming a member converts with a ``DeprecationWarning``; a driver reading device
-    text builds the member itself (``DnsRecordType(word)``, ``OTHER`` and the word when that
-    raises).
+    *record_type* is the resolver's own word, stored as given (``"A"``, ``"CAA"``); the common
+    ones are the values of :class:`DnsRecordType`.
     """
 
     name: str
-    record_type: DnsRecordType
+    record_type: str
     ttl: int
     data: str
-    record_type_raw: str | None = None
-    _record_type_seen: tuple[tuple[DnsRecordType | None, str | None], ...] | None = field(
-        default=None, kw_only=True, repr=False, compare=False
-    )
 
     def __post_init__(self) -> None:
         _checks.text("DnsRecord", "name", self.name)
         _checks.count("DnsRecord", "ttl", self.ttl)
         _checks.text("DnsRecord", "data", self.data)
-        settle(self, _DNS_PAIRS, "_record_type_seen")
 
 
 @dataclass(frozen=True)

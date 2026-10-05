@@ -12,9 +12,7 @@ from typing import Any, Protocol, runtime_checkable
 from testprotocols.models.voice import (
     MwiStatus,
     OfflineMessage,
-    PresenceStatus,
     RtpStats,
-    SipMethod,
 )
 
 
@@ -119,7 +117,7 @@ class SipServer(Protocol):
 
     def verify_sip_message(
         self,
-        message_type: SipMethod | str,
+        message_type: str,
         since: datetime | None = None,
         timeout: int = 5,
     ) -> bool:
@@ -135,11 +133,9 @@ class SipServer(Protocol):
         Parameters
         ----------
         message_type:
-            A :class:`~testprotocols.models.voice.SipMethod`, or a string. A
-            plain string naming a method is deprecated and warns (the driver uses
-            ``coerce_open_enum``); any other string (an extension method, a
-            response code as text such as ``"486"``, a log marker) is matched as
-            the raw word, with no error and no warning. An ``int`` response code
+            The SIP method (``INVITE``, ``MESSAGE``, ``NOTIFY``, an extension method), a
+            response code as text such as ``"486"``, or a log marker, matched as the word the
+            log carries. An ``int`` response code
             is announced, not yet accepted: it joins the annotation in a later
             release, once implementers have widened their own parameter.
         since:
@@ -202,11 +198,6 @@ class SipServer(Protocol):
 
         Typical values: ``"online"``, ``"busy"``, ``"away"``, ``"offline"``.
         Implementations may return provider-specific extensions.
-
-        Announced only: this returns ``str`` today and narrows to
-        :class:`~testprotocols.models.voice.PresenceStatus` (with the device's own
-        word beside it) in a later release. The members equal the strings, so
-        comparisons keep working.
         """
         ...
 
@@ -214,13 +205,11 @@ class SipServer(Protocol):
         """Create a presence subscription from *watcher* to *watched*."""
         ...
 
-    def notify_presence(self, user: str, status: PresenceStatus | str) -> None:
+    def notify_presence(self, user: str, status: str) -> None:
         """Publish presence *status* for *user* to all current subscribers.
 
-        The set is open: the driver resolves *status* with ``coerce_open_enum``. A
-        member passes; a plain string naming a member is deprecated and warns; any
-        other string is the provider's own word, published unchanged with no error
-        and no warning (``PresenceStatus.OTHER`` with that raw word).
+        *status* is the provider's own word (typically ``online``, ``busy``, ``away``,
+        ``offline``), published as given.
         """
         ...
 

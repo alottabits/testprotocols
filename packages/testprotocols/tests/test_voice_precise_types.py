@@ -4,18 +4,15 @@ from __future__ import annotations
 
 import dataclasses
 import inspect
-import warnings
 from datetime import datetime
 
 import pytest
-from testprotocols.deprecation import coerce_enum, coerce_open_enum
+from testprotocols.deprecation import coerce_enum
 from testprotocols.models import (
     MwiStatus,
     OfflineMessage,
     PhoneState,
-    PresenceStatus,
     RtpStats,
-    SipMethod,
 )
 from testprotocols.sip_phone import SipPhone
 from testprotocols.sip_server import SipServer
@@ -54,59 +51,15 @@ def test_phone_state_unknown_word_raises() -> None:
         coerce_enum(PhoneState, "spinning", what="wait_for_state(state)")
 
 
-def test_presence_members() -> None:
-    assert [m.value for m in PresenceStatus] == ["online", "busy", "away", "offline", "other"]
-
-
-def test_presence_unknown_word_is_other_and_keeps_raw() -> None:
-    with warnings.catch_warnings():
-        warnings.simplefilter("error")
-        member, raw = coerce_open_enum(
-            PresenceStatus, "available", what="set_presence(status)", other=PresenceStatus.OTHER
-        )
-    assert member is PresenceStatus.OTHER
-    assert raw == "available"  # the driver still receives the provider's word
-
-
-def test_presence_named_word_warns_and_member_is_silent() -> None:
-    with pytest.warns(DeprecationWarning, match="PresenceStatus.AWAY"):
-        member, raw = coerce_open_enum(
-            PresenceStatus, "away", what="set_presence(status)", other=PresenceStatus.OTHER
-        )
-    assert (member, raw) == (PresenceStatus.AWAY, None)
-    with warnings.catch_warnings():
-        warnings.simplefilter("error")
-        assert coerce_open_enum(
-            PresenceStatus,
-            PresenceStatus.ONLINE,
-            what="set_presence(status)",
-            other=PresenceStatus.OTHER,
-        ) == (PresenceStatus.ONLINE, None)
-
-
-def test_presence_parameters_keep_str() -> None:
+def test_presence_parameters_and_returns_are_str() -> None:
     for fn in (SipPhone.set_presence, SipServer.notify_presence):
-        ann = inspect.signature(fn).parameters["status"].annotation
-        assert ann == "PresenceStatus | str"
+        assert inspect.signature(fn).parameters["status"].annotation == "str"
     assert inspect.signature(SipServer.get_user_presence).return_annotation == "str"
-
-
-@pytest.mark.parametrize("word", ["INVITE", "MESSAGE", "NOTIFY", "PUBLISH", "REGISTER", "BYE"])
-def test_sip_method_members_equal_words(word: str) -> None:
-    assert SipMethod(word) == word
-
-
-def test_sip_method_extension_and_marker_are_other() -> None:
-    for word in ("[VOICEMAIL]", "SUBSCRIBE", "408"):
-        member, raw = coerce_open_enum(
-            SipMethod, word, what="verify_sip_message", other=SipMethod.OTHER
-        )
-        assert (member, raw) == (SipMethod.OTHER, word)
 
 
 def test_verify_sip_message_signature() -> None:
     params = inspect.signature(SipServer.verify_sip_message).parameters
-    assert params["message_type"].annotation == "SipMethod | str"
+    assert params["message_type"].annotation == "str"
     assert params["since"].annotation == "datetime | None"
     assert params["since"].default is None
 

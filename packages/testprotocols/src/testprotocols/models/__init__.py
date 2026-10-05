@@ -17,7 +17,6 @@ from testprotocols.models.emission import EmitResult, ReplayResult
 from testprotocols.models.firewall import (
     Chain,
     Connection,
-    ConnState,
     ConntrackStats,
     DefaultAction,
     FirewallRule,
@@ -74,7 +73,6 @@ from testprotocols.models.networking import (
 from testprotocols.models.packets import RIPv2PacketData
 from testprotocols.models.ports import PortRange, format_port_ranges, parse_port_ranges
 from testprotocols.models.qoe import (
-    HttpVersion,
     MeasurementSpec,
     PageCompletion,
     QoeCompletion,
@@ -83,9 +81,6 @@ from testprotocols.models.qoe import (
     QoeTool,
 )
 from testprotocols.models.radius import (
-    AcctStatusType,
-    AcctTerminateCause,
-    EapMethod,
     RadiusAccountingRecord,
     RadiusServerConfig,
     RadiusSession,
@@ -203,9 +198,7 @@ from testprotocols.models.voice import (
     MwiStatus,
     OfflineMessage,
     PhoneState,
-    PresenceStatus,
     RtpStats,
-    SipMethod,
 )
 from testprotocols.models.wan_edge import (
     AppFlow,
@@ -225,7 +218,6 @@ from testprotocols.models.wifi import (
     WifiAclMode,
     WifiBand,
     WifiBssConfig,
-    WifiCapability,
     WifiCaptiveConfig,
     WifiChannelUtilization,
     WifiDfsState,
@@ -245,8 +237,6 @@ __all__ = [
     # switch
     "AccessPolicy",
     "AccessPolicyType",
-    "AcctStatusType",
-    "AcctTerminateCause",
     "AclDirection",
     "AggregationMode",
     # wan_edge
@@ -266,7 +256,6 @@ __all__ = [
     "Chain",
     "ChannelWidth",
     # firewall
-    "ConnState",
     "Connection",
     "ConntrackStats",
     "ContentCategory",
@@ -286,7 +275,6 @@ __all__ = [
     "DnsRecord",
     "DnsRecordType",
     "Duplex",
-    "EapMethod",
     # emission
     "EmitResult",
     "EventLogEntry",
@@ -301,7 +289,6 @@ __all__ = [
     "HTTPResult",
     "HostMatch",
     "HttpScheme",
-    "HttpVersion",
     "ICMPPacketData",
     "IPAddresses",
     # impairment
@@ -371,7 +358,6 @@ __all__ = [
     "PortMode",
     "PortRange",
     "PortStatusEntry",
-    "PresenceStatus",
     "ProcessInfo",
     "QoEResult",
     "QoeCompletion",
@@ -404,7 +390,6 @@ __all__ = [
     "ServiceStatus",
     "ShapingPriority",
     "ShapingRule",
-    "SipMethod",
     "SiteToSiteVpnConfig",
     "StaticRoute",
     "SteeringScope",
@@ -444,7 +429,6 @@ __all__ = [
     "WifiAclMode",
     "WifiBand",
     "WifiBssConfig",
-    "WifiCapability",
     "WifiCaptiveConfig",
     "WifiChannelUtilization",
     "WifiDfsState",

@@ -59,8 +59,7 @@ class RadiusServer(Protocol):
 
         *eap_methods* lists the EAP methods this user may use (e.g.
         ``["PEAP-MSCHAPv2", "TTLS-PAP"]``); None means the server's default
-        method set; each is an :class:`~testprotocols.models.EapMethod` value (the set is
-        open: another word is passed on as given). *attributes* is a dict of RADIUS
+        method set; the words are the server's own. *attributes* is a dict of RADIUS
         attributes returned in the Access-Accept reply (e.g. ``{"Tunnel-Private-Group-Id": "42"}``
         for VLAN assignment, ``{"Session-Timeout": "3600"}``).
 

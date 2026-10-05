@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import Protocol, runtime_checkable
 
-from testprotocols.models.voice import PhoneState, PresenceStatus
+from testprotocols.models.voice import PhoneState
 
 
 @runtime_checkable
@@ -220,16 +220,12 @@ class SipPhone(Protocol):
         """Return True if the phone is currently in an away/unavailable presence state."""
         ...
 
-    def set_presence(self, status: PresenceStatus | str) -> None:
+    def set_presence(self, status: str) -> None:
         """Publish the local presence *status* for this phone.
 
-        Typical values: ``PresenceStatus.ONLINE``, ``BUSY``, ``AWAY``, ``OFFLINE``.
-        The set is open (a provider may use other words), so the driver resolves
-        *status* with ``coerce_open_enum``: a member passes; a plain string naming a
-        member is deprecated and warns; any other string is the provider's own word,
-        passed on to the device unchanged with no error and no warning (it is
-        ``PresenceStatus.OTHER`` with that raw word). Implementers emit a SIP PUBLISH
-        with a ``presence`` event package.
+        Typical values: ``online``, ``busy``, ``away``, ``offline``; a provider may use
+        other words, which are passed on to the device as given. Implementers emit a SIP
+        PUBLISH with a ``presence`` event package.
         """
         ...
 

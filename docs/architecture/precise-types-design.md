@@ -22,9 +22,10 @@ shapes below are the only ones used.
 - A value from a closed set (a mode, state, action, direction, protocol) is an
   `Enum` (`StrEnum` or `IntEnum`), never a free-form `str` and never a
   `Literal`. A set a registry closes is a pure enum.
-- A vocabulary a device may legitimately extend is an enum with an `OTHER`
-  member and a companion raw-text field (`<field>_raw: str | None`) holding the
-  device's own word, so nothing is lost or guessed (shape 3o).
+- A vocabulary a device may legitimately extend (connection states, DNS record
+  types, EAP methods, accounting types, presence words) stays `str`: the docstring
+  lists the common values in prose, and the driver reports its own word. Such a
+  vocabulary is not enumerated and has no companion field.
 - `str` stays only for open values: interface, object, route, server, zone,
   file, BSS and user names, and similar.
 - A grammar held as text (port lists, `(kind, value)` pairs) becomes a typed
@@ -44,9 +45,9 @@ shapes below are the only ones used.
 
 Each retype names one of these shapes. The building blocks are reused, never
 copied: `testprotocols.deprecation` (`coerce_enum`, `coerce_int`,
-`coerce_open_enum`, `warn_renamed`, `renamed_attribute`, `warn_at_caller`,
+`warn_renamed`, `renamed_attribute`, `warn_at_caller`,
 `MODEL_FRAMES`),
-`testprotocols.models._sync` and, for shape 3o, `testprotocols.models._open_enum`.
+and `testprotocols.models._sync`.
 
 - **Shape 1: a released `str` parameter becomes an enum.** The parameter is
   annotated `E | str`. A driver or operation coerces it once, at its boundary
@@ -68,31 +69,6 @@ copied: `testprotocols.deprecation` (`coerce_enum`, `coerce_int`,
   `dataclasses` and the dataclass-generated `__init__` and passes an explicit
   `stacklevel`: `warnings.warn(skip_file_prefixes=…)` alone does not skip the
   generated `__init__` on Python 3.12. A reader always holds the member.
-- **Shape 3o: an extensible enum field.** The field is annotated `E | str` (as
-  shape 3, so a caller may still pass a plain string) and always holds a member
-  after construction; `E` has a catch-all `OTHER`, and the device's own word is
-  held in `<field>_raw: str | None`, only while the field is `OTHER`. A plain
-  string naming a member converts with a warning (an exact match). Any other
-  string, the empty one included, becomes `OTHER` plus the raw word, kept
-  verbatim, with no error and no warning, because the set is open by contract.
-  The pair is an `OpenEnumPair` (`models/_open_enum.py`), a `_sync` pair with
-  the same hidden provenance field, so it agrees after construction,
-  `replace` and assignment, and **the side that changed wins**: a member clears
-  the raw word, an unknown string sets it, changing only the raw word keeps the
-  field. A raw word beside a named member, or one that disagrees with the unknown
-  word the field was given, raises `ValueError` and changes nothing. A frozen
-  record calls `settle` from `__post_init__` alone; a mutable one adds `assign`
-  in `__setattr__`. `coerce_open_enum` is the function-level form, for a driver
-  boundary: it returns `(member, raw)`.
-- **Shape 3o, many words: a multi-valued open set.** A record that holds several
-  device words of an open set (a station's capability flags) cannot use a per-word
-  `OTHER`: the typed field is `tuple[E, ...]` of the words that name a member and a
-  companion `<field>_unknown: tuple[str, ...]` holds the others, verbatim and in
-  order. The released `list[str]` stays and holds the device's full word list in its
-  own order; the three are an `OpenSetPair` (`models/_open_set.py`), a `_sync` pair
-  with the same hidden provenance field (the agreed text is the word list), and the
-  side that changed wins as in the other shapes. A word names a member exactly,
-  letter case included. A refused assignment changes nothing.
 - **Shape 4(ii): a released field holding a grammar becomes structured.** A
   new typed field is added beside the text field and the two are kept in
   agreement through `_sync` (below).
@@ -150,30 +126,21 @@ per pair and calls `settle` from `__post_init__` and `assign` from
 Each retype that has landed, with its shape. A capability's own design document,
 where one exists, also records its retype.
 
-- **Firewall, NAT and conntrack vocabularies** (shapes 1, 3, 3o and 6). Five
+- **Firewall, NAT and conntrack vocabularies** (shapes 1, 3 and 6). Four
   enums in `testprotocols.models`: `Chain` (`INPUT`, `OUTPUT`, `FORWARD`),
   `FirewallRuleAction` (`allow`, `deny`, `reject`, `log`), `NatMode` (`snat`,
-  `dnat`, `1to1`), `PortMappingProtocol` (`tcp`, `udp`, `tcp-udp`) and
-  `ConnState`. A rule's, NAT rule's and connection's transport is the existing
+  `dnat`, `1to1`) and `PortMappingProtocol` (`tcp`, `udp`, `tcp-udp`). A rule's,
+  NAT rule's and connection's transport is the existing
   `RuleProtocol`; a chain default policy is `DefaultAction`. The `chain`,
-  `policy`, `mode`, `protocol` and `state` parameters of `PacketFilter`, `Nat`
+  `policy`, `mode` and `protocol` parameters of `PacketFilter`, `Nat`
   and `Conntrack` are `E | str` and a driver coerces once at each member
   (shape 1). The four closed vocabularies on `FirewallRule`, `NatRule`,
   `PortMapping` and `Connection` are shape 3: the records are mutable, so the
   coercion is a `__setattr__`, and a plain string warns while an unknown one
-  raises `ValueError`. `ConnState` is open (shape 3o): the released contract
+  raises `ValueError`. A connection's `state` stays `str`: the released contract
   listed nine TCP states, `UNREPLIED` and `ASSURED`, "or driver-specific
-  values", so it has those members plus `OTHER`. Its values are exactly the
-  released upper-case words (`"ESTABLISHED"`), so `conn.state == "ESTABLISHED"`
-  still holds; every enum of this retype equals its released strings. The device's
-  own word is in `Connection.state_raw` while the state is `OTHER`. An unknown
-  word never raises and never warns; a named plain string warns. Edge words: the
-  match is exact, so `"established"` and `"other"` are unknown words (`OTHER` plus
-  that raw word), `""` is an unknown word kept as `""`, and `"OTHER"` names the
-  member (a warning, no raw word). The pair follows the shape 3o rule above:
-  the side that changed wins under `replace` and assignment; a raw word with a
-  named state raises `ValueError`. A `state` filter with an unknown word matches flows whose
-  `state_raw` equals it. A conntrack `protocol` filter of `any` is refused: a
+  values", so the device reports its own word and the docstring lists the common
+  ones. A conntrack `state` filter is the same word. A conntrack `protocol` filter of `any` is refused: a
   flow has one transport, and so is `Connection.protocol`, which raises
   `ValueError` for `RuleProtocol.ANY`. `get_default_policy` keeps returning `str`
   (shape 6, announced only).
@@ -212,17 +179,14 @@ where one exists, also records its retype.
   so omitting one still raises `TypeError` (the placeholder reads `<required>`). The `"any"` cidr placeholders
   of `L3Rule`, the `""` placeholders of `UplinkStatus` and `NetworkAttachment.segment`
   are announced only (shape 6).
-- **WAN-edge models** (shapes 3, 3o and the orphan deprecation). `LinkStatus.state`
+- **WAN-edge models** (shape 3 and the orphan deprecation). `LinkStatus.state`
   and `LinkHealthReport.state` are `UplinkState` (shape 3): the released words `up`,
   `down` and `degraded` are existing members, and `UplinkState` gains `UNKNOWN`
   because the reference implementer reports `"unknown"` for a link with no health
   data (a value the released contract did not forbid, so it must keep working); an
   `UplinkState` is not the appliance's state of record, only the shared vocabulary.
-  `AppFlow.category` is `ApplicationCategory` with `category_raw` (shape 3o, an
-  `OpenEnumPair`, the rule of `Connection.state`); `ApplicationCategory` gains
-  `OTHER`, which `CategoryMatch` refuses, so no L7 or shaping rule can match on it.
-  A record holds either `SyncedField` pairs or one `OpenEnumPair` under its single
-  provenance field; `AppFlow` has only the latter. `VPNPeerStatus` and
+  `AppFlow.category` stays `str`: the product's own word, whose common values are
+  the `ApplicationCategory` values. `VPNPeerStatus` and
   `TrafficShapingRule` have no capability using them and no successor: both are deprecated by a
   module `__getattr__` (`deprecated_attribute`, the no-successor counterpart of
   `renamed_attribute`) in `wan_edge` and in `testprotocols.models`, removed from
@@ -277,12 +241,11 @@ where one exists, also records its retype.
   `unknown rule scope 'vlan' (expected 'host' or 'subnet')`; it now reads
   `scope: 'vlan' is not one of ['host', 'subnet']` (same exception type, still names
   `scope`).
-- **Wi-Fi vocabularies** (shapes 1, 1i, 3, 3o many words, 5 and 6). Seven closed
-  enums and one open set in `testprotocols.models`, all equal to their released
+- **Wi-Fi vocabularies** (shapes 1, 1i, 3, 5 and 6). Seven closed
+  enums in `testprotocols.models`, all equal to their released
   strings: `WifiBand` (`2.4GHz`, `5GHz`, `6GHz`), `WifiSecurityMode` (the eight words
   of the `create_bss` docstring, `WPA2-WPA3-PSK-Mixed` included), `MfpMode`,
-  `WifiAclMode`, `WifiPhyMode`, `ChannelWidth` (an `IntEnum`) and `MeshRole`, and
-  `WifiCapability`. The `band`, `security_mode`, `mfp`, `mode`, `bandwidth_mhz` and
+  `WifiAclMode`, `WifiPhyMode`, `ChannelWidth` (an `IntEnum`) and `MeshRole`. The `band`, `security_mode`, `mfp`, `mode`, `bandwidth_mhz` and
   `set_acl_mode` parameters are `E | str` (`ChannelWidth | int`), coerced by the
   driver once; `coerce_enum` now returns an `IntEnum` member for a plain `int`
   with no warning (the number is the value, not a deprecated spelling), and refuses
@@ -299,13 +262,9 @@ where one exists, also records its retype.
   values; `WifiRadio.set_mode` documents that a compound mode (`"n/ac/ax"`, which the
   released contract allowed at a driver's discretion) names no member and is the
   driver's own `str`, and `get_mode` stays `str` for the same reason (announced,
-  shape 6, like `list_radios` and `get_bandwidth`). `WifiCapability` is open but has
-  no `OTHER`: `WifiStation.capabilities` holds the members and
-  `capability_flags_unknown` the other words (the multi-valued variant of shape 3o
-  above), synced with the released `capability_flags`. The typed side is named
-  `capabilities` because `capability_flags` is the released word list. One record
-  carries one provenance field: `WifiStation` has the one `OpenSetPair` (its `band` is a
-  plain shape 3 coercion), so no shared provenance was needed.
+  shape 6, like `list_radios` and `get_bandwidth`). `WifiStation.capability_flags`
+  stays `list[str]`: the device's own words (`HT`, `VHT`, `HE`, `EHT`, `MLO` and
+  whatever else the driver reports), listed in the docstring.
   `WifiClient.iwlist_supported_channels -> list[str]` is shape 5: the new mandatory
   member `supported_channels(band: WifiBand) -> list[int]` replaces it (breaking for
   driver authors; a driver delegates with `warn_renamed`); `testoperations` does not
@@ -313,22 +272,16 @@ where one exists, also records its retype.
   None`: no local source lists the EasyMesh message names (the repository mentions
   two examples in a docstring and no vocabulary), and an enum from memory would
   guess; it is revisited when a reference driver and the specification supply them.
-- **Voice vocabularies** (shapes 1, 3o parameters, 5 and 6). `PhoneState`, `PresenceStatus`
-  and `SipMethod` in `testprotocols.models`, every member equal to a released or used
-  string: `PhoneState` has one member per `is_*` predicate of `SipPhone` and the
+- **Voice vocabularies** (shapes 1, 5 and 6). `PhoneState` in `testprotocols.models`,
+  every member equal to a released or used
+  string: it has one member per `is_*` predicate of `SipPhone` and the
   `wait_for_state` words the example implementer accepts (note `HOLD == "hold"`, not
-  `on_hold`); `SipMethod` is the RFC 3261 methods plus `MESSAGE`, `NOTIFY` and `PUBLISH`,
-  which the docstrings name. `PresenceStatus` and `SipMethod` are open. Design of the open
-  *parameters*: a parameter is `PresenceStatus | str` (`SipMethod | str`) and the
-  driver resolves it once with `coerce_open_enum`, which returns `(member, raw)`: a
-  member is silent; a plain string naming a member warns and converts; any other string
-  gives `(OTHER, word)` with no error and no warning, and the driver sends the **raw word**
-  to the device (so `notify_presence(user, "available")` publishes `available`). The
-  parameter stays `str`-typed rather than becoming an `OpenEnumPair` because there is no
-  record to carry a companion field. `get_user_presence -> str` is shape 6, announced
-  only: the example implementer already returns `"unknown"`, which names no member.
+  `on_hold`). Presence statuses and SIP methods are the provider's own words and stay
+  `str`: `set_presence(status)`, `notify_presence(user, status)`, `get_user_presence`
+  and `verify_sip_message(message_type)` take or return `str`, and their docstrings
+  list the common words (`online`, `busy`, `away`, `offline`; `INVITE`, `MESSAGE`, ...).
   `wait_for_state` is closed: an unknown word raises `ValueError`, as the released
-  implementer did. `verify_sip_message(message_type)` is `SipMethod | str`. An `int`
+  implementer did. An `int`
   for a response code was considered and is deferred: the example implementer declares
   `message_type: str`, so adding `int` to the protocol parameter makes it fail
   static conformance (a parameter widening breaks an implementer declared narrower),
@@ -349,9 +302,9 @@ where one exists, also records its retype.
   database returns; naive stays naive, aware keeps its offset), and the deprecated reader may
   instead keep returning the driver's original text unchanged
   (the implementer returns the database's text unparsed, so it must parse it). No
-  `OTHER` or synced field was needed, so the records are plain frozen dataclasses with
+  synced field was needed, so the records are plain frozen dataclasses with
   `__post_init__` type checks. `testoperations` calls none of the three readers.
-- **Host-tool and service vocabularies** (shapes 1, 3, 3o, 3o many words, 4p, 5 and 6).
+- **Host-tool and service vocabularies** (shapes 1, 3, 4p, 5 and 6).
   Evidence for every set, from the released docstrings, the `testoperations` callers, the
   example implementers and the released reference implementers of the host templates
   (a Linux host device and the boardfarm LAN device):
@@ -383,8 +336,9 @@ where one exists, also records its retype.
     differs from the default. A Linux host reads the `UP` flag of `ip link show`.
   - UPnP port mapping reuses `PortMappingProtocol` (`tcp`, `udp`, `tcp-udp`); `tcp-udp` is not a UPnP
     protocol and a driver refuses it. The plain `str` stays legal.
-  - `DnsRecordType` and `QoeScenario` (`page_load`, the only released word) and
-    `PageCompletion` (the four Playwright load events) are `E | str` parameters.
+  - `DnsRecordType` (for `dns_lookup` and `resolve`), `QoeScenario` (`page_load`, the only
+    released word) and `PageCompletion` (the four Playwright load events) are `E | str`
+    parameters.
     `ServiceStatus` is shape 6, announced only (`get_status -> str`).
   - `MeasurementSpec.tool` / `completion` are shape 3 (closed): `QoeTool` is the four
     tools the example implementer dispatches on (`browser`, `http_client`, `webrtc`,
@@ -395,32 +349,15 @@ where one exists, also records its retype.
     silently. `QoeTool` and `QoeCompletion` have `__repr__` returning `repr(self.value)`:
     the example browser measurement embeds `repr(spec.completion)` in a generated script,
     and the default enum repr would break it. Every other enum keeps the default repr.
-  - `QoEResult.protocol` is shape 3o with `None` allowed (`OpenEnumPair(optional=True)`):
-    `HttpVersion.H1 = "http/1.1"`, `H2 = "h2"`, `H3 = "h3"` are the words a browser
-    reports as the next-hop protocol, and the example's unit tests pass `"h2"`, `"h3"` and
-    `"http/1.1"` (so they warn: the intended warnings; a driver uses `coerce_open_enum`); any
-    other word (`http/1.0`, `h2c`) is `OTHER` plus `protocol_raw`.
+  - `QoEResult.protocol` stays `str | None`: the HTTP version as the device reports it
+    (`h2`, `h3`, `http/1.1`, `http/1.0`, ...), listed in the docstring.
   - `TransportProtocol` (`tcp`, `udp`): the released docstring of `saturate_link` lists
     exactly those two; `saturate_link` coerces at its boundary.
-  - `AcctStatusType` and `AcctTerminateCause` are shape 3o (`OpenEnumPair` with a raw
-    companion on `RadiusAccountingRecord`, two pairs sharing one provenance field), because
-    the IANA registries have an open assignment policy. They carry every registered value
-    cited from RFC 2866 (status 1 to 3, 7, 8 and `Failed` 15; causes 1 to 18), RFC 2867 (status
-    9 to 14: the tunnel values), RFC 3580 (causes 19 to 22) and the IANA RADIUS registry
-    (status `Subsystem-On` 18 and `Subsystem-Off` 19; cause `Lost-Power` 23), spelled as the attribute
-    dictionary spells them; `Start`, `Interim-Update` and `Stop` are the released words, and
-    the released docstring spells no cause. `AcctTerminateCause` is a pure `Enum` with an
-    explicit code table (`.code`, `None` for `OTHER`, also on `AcctStatusType`) and also
-    converts the registry's prose spellings (`User Request`, `Port Reinitialized`, `Port
-    Administratively Disabled`, `Lost Power`); the conversion warns quoting the word the
-    caller passed. A pure `Enum` does not equal a `str`.
-  - `RadiusUser.eap_methods: list[str]` is a multi-valued open set (shape 3o, many
-    words, `OpenSetPair`): `eap_methods_known` and `eap_methods_unknown` sync with the
-    released list. `EapMethod` has the two words of the released docstring and five more
-    (`PEAP-GTC`, `TTLS-MSCHAPv2`, `EAP-TLS`, `EAP-SIM`, `EAP-AKA`) named by analogy to
-    them; no local driver uses those five. There is no single-valued EAP field, so no
-    `OpenEnumPair` is used for it. `add_user(eap_methods: list[str] | None)` keeps its type
-    (an implementer declares `list[str]`; `Sequence` would not conform).
+  - `RadiusAccountingRecord.record_type` and `terminate_cause` stay `str` and
+    `RadiusUser.eap_methods` stays `list[str]`: the server's own words (the accounting
+    types `Start`, `Interim-Update`, `Stop`; EAP methods such as `PEAP-MSCHAPv2`), whose
+    registries have an open assignment policy. `add_user(eap_methods: list[str] | None)`
+    keeps its type.
   - `StormControlConfig.unit: StormControlUnit | None = None` is an addition.
   - `HTTPResult` is a frozen dataclass `(status, body, raw)` whose constructor still
     takes the response text (`init=False`, parameter `response`), so the released
@@ -455,9 +392,9 @@ where one exists, also records its retype.
     (one letter from `read_event_logs`) and `scan_ports` (`WifiRf.scan` exists).
   - `EventLogEntry.timestamp` stays the device's text: the BSD syslog date has no year, and a
     `datetime` would invent one. `severity` is derived from `priority` (`SyslogSeverity`, RFC
-    5424, closed). `DnsRecord.record_type` is open (shape 3o, `record_type_raw`): an answer can
-    hold a type the enum does not name, so `DnsRecordType` gains `OTHER` (read-back only;
-    `resolve` refuses it). `NmapPortState` is nmap's six documented states. Named
+    5424, closed). `DnsRecord.record_type` is `str`, the resolver's own word: an answer can
+    hold a type `DnsRecordType` does not name, and `resolve` takes `DnsRecordType | str`.
+    `NmapPortState` is nmap's six documented states. Named
     `record_type`, not `type`, to match the `dns_lookup` parameter and not shadow the builtin.
   - New iperf names: one class implements both `IperfClient` and `IperfServer` in the
     released implementers, so the two new members need two names (`start_sender_session`,
@@ -684,8 +621,7 @@ the matching CHANGELOG entry sits under *Changed*.
 - **Conntrack and coercion** (vocabularies). `Connection.protocol` refuses
   `RuleProtocol.ANY` with `ValueError`, as the released docstring said. An unknown
   string on `FirewallRule`, `NatRule`, `PortMapping` or `Connection` (protocol, mode,
-  action) raises `ValueError`; a `Connection.state` unknown word never raises: it
-  becomes `ConnState.OTHER` plus `state_raw`. A conntrack `protocol` filter of `any`
+  action) raises `ValueError`; `Connection.state` stays `str`. A conntrack `protocol` filter of `any`
   is refused. `NatRule.protocol` defaults to `RuleProtocol.ANY`.
 - **Firewall and NAT ports** (ports). `FirewallRule.dst_port` now defaults to
   `"any"`. `NatRule` port text reads `""` for no port (`"any"` is accepted and reads
@@ -718,12 +654,9 @@ the matching CHANGELOG entry sits under *Changed*.
   `TypeError` still does).
 - **WAN-edge models** (WAN-edge). A `LinkStatus.state` or
   `LinkHealthReport.state` word that is not an `UplinkState` value raises
-  `ValueError` (released: any string). `AppFlow.category` never raises; an unknown
-  word becomes `OTHER` plus `category_raw`. `testprotocols.models.TrafficShapingRule`
+  `ValueError` (released: any string). `testprotocols.models.TrafficShapingRule`
   and `VPNPeerStatus` are not star-exported any more (they warn on access). Static
-  only: unpacking a loosely typed dict into `AppFlow` fails type-checking (the
-  keyword parameters `category_raw` and the private `_category_seen`);
-  `TrafficShapingRule.match` reads as `Mapping[str, object]` (was `dict[str, Any]`).
+  only: `TrafficShapingRule.match` reads as `Mapping[str, object]` (was `dict[str, Any]`).
 - **Switch QoS classifier** (switch QoS). `QosRule.match` raises `ValueError`
   for a term given twice; free text stays legal (no classifier, text unchanged).
   `match` is now optional (`""`, every frame). A non-text `match` raises
@@ -740,37 +673,26 @@ the matching CHANGELOG entry sits under *Changed*.
 - **Wi-Fi vocabularies** (Wi-Fi). A `band`, `security_mode`, `mfp`, ACL `mode` or
   mesh `role` string on a Wi-Fi model that is not a member raises `ValueError`
   (released: any string); `WifiNeighbor.security_mode` is unchanged. A model reader
-  now always holds the enum (`StrEnum` members compare equal to the old strings). A
-  `WifiStation` built or assigned from `capability_flags` warns and also fills
-  `capabilities` and `capability_flags_unknown`; a word matches a member exactly
-  (`"he"` is an unknown word). Mutating the `capability_flags` list in place is not
-  seen until the next `replace`; assign a list instead. Static only: unpacking a
-  loosely typed dict into `WifiStation` fails type-checking (`capabilities`,
-  `capability_flags_unknown` and the private `_caps_seen` are keyword parameters), and
-  an implementer must provide `WifiClient.supported_channels` (breaking for driver
-  authors).
+  now always holds the enum (`StrEnum` members compare equal to the old strings).
+  Static only: an implementer must provide `WifiClient.supported_channels` (breaking
+  for driver authors).
 - **Voice vocabularies** (voice). `SipServer.verify_sip_message(since)` is
   `datetime | None` (released `Any`): a caller passing a `datetime` or `None` is
   unaffected; one passing a text marker no longer type-checks (an implementer may keep
   `Any`). An implementer must provide `SipServer.read_rtpengine_stats`, `read_mwi_status`
   and `read_offline_messages` (breaking for driver authors). Every other voice
-  annotation only widens (`PhoneState | str`, `PresenceStatus | str`,
-  `SipMethod | str`).
+  annotation is unchanged, and `wait_for_state` only widens (`PhoneState | str`).
 - **Host-tool and service vocabularies** (host tools). `HTTPResult` is frozen (assigning
   an attribute raises `FrozenInstanceError`), compares by value (released: identity) and
   `code` / `beautified_text` warn when read; `status` is `0` outside 100 to 599.
   `MeasurementSpec.tool` / `completion` and `TrafficSpec.protocol` raise `ValueError` for a
   word that names no member (released: any text was stored; the example implementer treated an
   unknown tool as the browser); a plain string naming a member warns and the field holds the
-  member. `QoEResult.protocol`, `RadiusAccountingRecord.record_type` and `terminate_cause` hold
-  an enum (or `None`): an unknown word becomes `OTHER` plus the raw companion, no error. The
-  browser's `"h2"` / `"h3"` / `"http/1.1"` assigned as plain strings are the intended warnings.
-  `repr()`: `QoeTool` and `QoeCompletion` repr as their quoted text, so text built with
+  member. `QoEResult.protocol`, `RadiusAccountingRecord.record_type` and `terminate_cause`,
+  and `RadiusUser.eap_methods` stay `str` and store the device's word as given. `repr()`: `QoeTool` and `QoeCompletion` repr as their quoted text, so text built with
   `repr(spec.completion)` is unchanged; every other new enum (`IpVersion`, `PageCompletion`,
-  `HttpVersion`, `TransportProtocol`, ...) keeps the default `<Enum.MEMBER: 'x'>` repr, and
+  `TransportProtocol`, ...) keeps the default `<Enum.MEMBER: 'x'>` repr, and
   code that builds text with `repr(value)` or `{value!r}` must use `str(value)`.
-  `AcctTerminateCause` members do not equal text. `RadiusUser` built or assigned from
-  `eap_methods` warns and also fills `eap_methods_known` / `eap_methods_unknown`.
   `StormControlConfig.unit` is ignored by released drivers (they read and write their own
   unit): a writer that sets it gets no error from them. The `testoperations`
   `start_http_server` default `ip_version` is now `"4"` (was `"ipv4"`, which rendered an
@@ -786,7 +708,7 @@ the matching CHANGELOG entry sits under *Changed*.
   `dict[str, dict[str, object]]`, so a caller's loosely typed dict variable (`dict[str, int]`,
   a `TypedDict`) no longer type-checks; `DHCPTraceData.dhcp_packet` and
   `DHCPV6TraceData.dhcpv6_packet` read as `Mapping[str, object]`, so a reader narrows nested
-  values. `DnsRecordType` has an `OTHER` member, refused as a query type. Through
+  values. `resolve` takes `DnsRecordType | str`. Through
   `testoperations`, with a driver that implements `inject_event`:
   `inject_latency_spike(latency_ms)` takes effect (the released drivers read
   `spike_latency_ms` and ignored it); `inject_packet_storm` asks for duplication only when the
@@ -837,7 +759,7 @@ Each lands in a later release with its own breaking changelog entry:
 
 - Enum-only parameters and fields: the firewall, NAT and conntrack parameters
   and fields (`Chain`, `DefaultAction`, `NatMode`, `RuleProtocol`,
-  `FirewallRuleAction`, `PortMappingProtocol`, `ConnState`) narrow from
+  `FirewallRuleAction`, `PortMappingProtocol`) narrow from
   `E | str` to `E`; `get_default_policy` narrows to `DefaultAction`.
 - The `NatRule` cidr and translated-address `""` placeholders become `str | None`;
   the port text fields `FirewallRule.dst_port`, `NatRule.dst_port` and
@@ -847,8 +769,7 @@ Each lands in a later release with its own breaking changelog entry:
   placeholders and `NetworkAttachment.segment` `""` become `str | None`; the
   `L3Rule` port text fields and `SecurityEvent.ts` are removed.
 - `LinkStatus.state`, `LinkHealthReport.state` narrow from `UplinkState | str` to
-  `UplinkState` and `AppFlow.category` from `ApplicationCategory | str` to
-  `ApplicationCategory`; `LinkStatus.ip_address` `""` becomes `str | None`;
+  `UplinkState`; `LinkStatus.ip_address` `""` becomes `str | None`;
   `VPNPeerStatus` and `TrafficShapingRule` are removed.
 - `QosRule.match` is removed.
 - `Router.get_telemetry` and `SdwanPolicyManager.apply_policy` are removed.
@@ -862,10 +783,7 @@ Each lands in a later release with its own breaking changelog entry:
   and (once compound modes are settled) `get_mode` narrow to `list[WifiBand]`,
   `ChannelWidth` and `WifiPhyMode`; `set_wlan_scan_channel` narrows to `int`;
   `WifiStation.capability_flags` and `WifiClient.iwlist_supported_channels` are removed.
-- Voice: `wait_for_state` narrows to `PhoneState`; `set_presence` and `notify_presence`
-  take `PresenceStatus` with the raw word carried beside it; `verify_sip_message`
-  narrows to `SipMethod` (and gains `int` for a response code) likewise; `get_user_presence` returns `PresenceStatus`;
-  `get_rtpengine_stats`, `get_mwi_status` and `get_offline_messages` are removed.
+- Voice: `wait_for_state` narrows to `PhoneState`; `get_rtpengine_stats`, `get_mwi_status` and `get_offline_messages` are removed.
 - Host tools: the `E | str` parameters narrow to the enums (`DnsRecordType`, `HttpScheme`,
   `IpVersion`, `LinkAdminState`, `QoeScenario`, `PageCompletion`, `PortMappingProtocol`);
   the iperf `ip_version` narrows to `IpFamily | None`; the numeric-text parameters narrow

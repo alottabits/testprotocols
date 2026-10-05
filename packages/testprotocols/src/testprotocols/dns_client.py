@@ -28,11 +28,9 @@ class DnsClient(Protocol):
         ``warn_renamed("dns_lookup", "resolve")``): the responses carry more than the answer
         records :meth:`resolve` returns, so they cannot be rebuilt from them.
 
-        *record_type* is a :class:`~testprotocols.models.DnsRecordType`. A plain ``str``
-        naming a member (``"A"``) is deprecated: the driver converts it and warns. The
-        annotation stays ``DnsRecordType | str`` until the removal step, as a record type the
-        enum does not name yet (``"CAA"``) is still passed as text. ``DnsRecordType.OTHER``
-        names no record type and is refused (``ValueError``).
+        *record_type* is a :class:`~testprotocols.models.DnsRecordType` or its text (``"A"``);
+        a record type the enum does not name yet (``"CAA"``) is passed as text. The annotation
+        narrows to ``DnsRecordType`` at removal.
 
         *opts* (extra resolver options) is deprecated with no typed replacement: no caller
         was seen to pass a particular option, and :meth:`resolve` takes none. A driver warns
@@ -40,8 +38,10 @@ class DnsClient(Protocol):
         """
         ...
 
-    def resolve(self, domain_name: str, record_type: DnsRecordType) -> list[DnsRecord]:
+    def resolve(self, domain_name: str, record_type: DnsRecordType | str) -> list[DnsRecord]:
         """Look up *domain_name* for *record_type* and return the answer records, in answer
         order (a ``CNAME`` chain included); ``[]`` when the answer is empty.
-        ``DnsRecordType.OTHER`` is refused (``ValueError``)."""
+
+        *record_type* is a :class:`~testprotocols.models.DnsRecordType` or its text; a record
+        type the enum does not name yet (``"CAA"``) is passed as text."""
         ...

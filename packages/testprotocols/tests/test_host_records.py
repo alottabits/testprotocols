@@ -20,7 +20,6 @@ import pytest
 from _helpers import protocol_attrs
 from testprotocols.arp_client import ArpClient
 from testprotocols.content_filtering import ContentFiltering
-from testprotocols.deprecation import coerce_open_enum
 from testprotocols.device_management import DeviceManagement
 from testprotocols.devices import non_capability_members
 from testprotocols.dhcp_server import DhcpServer
@@ -36,7 +35,6 @@ from testprotocols.models import (
     DHCPTraceData,
     DHCPV6TraceData,
     DnsRecord,
-    DnsRecordType,
     EventLogEntry,
     GroupRecord,
     ImpairmentProfile,
@@ -413,42 +411,26 @@ def test_event_log_refuses_bad_values(kwargs: dict[str, object], error: type[Exc
 
 
 def _record_from_answer(entry: Mapping[str, object]) -> DnsRecord:
-    word = entry["type"]
-    assert isinstance(word, str)
-    try:
-        record_type, raw = DnsRecordType(word), None
-    except ValueError:
-        record_type, raw = DnsRecordType.OTHER, word
     return DnsRecord(
         name=entry["name"],  # type: ignore[arg-type]
-        record_type=record_type,
+        record_type=entry["type"],  # type: ignore[arg-type]
         ttl=entry["ttl"],  # type: ignore[arg-type]
         data=entry["data"],  # type: ignore[arg-type]
-        record_type_raw=raw,
     )
 
 
 def test_dns_records_from_a_real_answer_section() -> None:
     records = [_record_from_answer(e) for e in DIG_ANSWER]
-    assert [r.record_type for r in records] == [DnsRecordType.CNAME, DnsRecordType.A]
+    assert [r.record_type for r in records] == ["CNAME", "A"]
     assert records[1].data == "192.0.2.4" and records[1].ttl == 3
     assert records[0].name == "www.example.com."
 
 
-def test_dns_record_type_outside_the_enum_is_other_with_the_raw_word() -> None:
+def test_dns_record_type_outside_the_enum_is_stored_as_given() -> None:
     record = _record_from_answer(
         {"name": "example.com.", "class": "IN", "type": "CAA", "ttl": 60, "data": '0 issue "ca"'}
     )
-    assert record.record_type is DnsRecordType.OTHER
-    assert record.record_type_raw == "CAA"
-    with pytest.raises(ValueError):
-        DnsRecord("a.", DnsRecordType.A, 1, "192.0.2.1", record_type_raw="A6")
-
-
-def test_dns_record_plain_word_naming_a_member_warns() -> None:
-    with pytest.warns(DeprecationWarning, match="DnsRecordType.A"):
-        record = DnsRecord("a.", "A", 1, "192.0.2.1")  # type: ignore[arg-type]
-    assert record.record_type is DnsRecordType.A
+    assert record.record_type == "CAA"
 
 
 @pytest.mark.parametrize(
@@ -463,7 +445,7 @@ def test_dns_record_plain_word_naming_a_member_warns() -> None:
 def test_dns_record_refuses_bad_values(kwargs: dict[str, object], error: type[Exception]) -> None:
     base: dict[str, object] = {
         "name": "a.",
-        "record_type": DnsRecordType.A,
+        "record_type": "A",
         "ttl": 1,
         "data": "192.0.2.1",
     }
@@ -471,22 +453,10 @@ def test_dns_record_refuses_bad_values(kwargs: dict[str, object], error: type[Ex
         DnsRecord(**(base | kwargs))  # type: ignore[arg-type]
 
 
-def test_dns_record_type_other_is_open_set_helper_compatible() -> None:
-    assert coerce_open_enum(DnsRecordType, "CAA", what="x", other=DnsRecordType.OTHER) == (
-        DnsRecordType.OTHER,
-        "CAA",
-    )
-
-
-def test_other_is_refused_as_a_query_type() -> None:
+def test_record_type_parameters_take_the_enum_or_its_text() -> None:
     for member in (DnsClient.dns_lookup, DnsClient.resolve):
-        doc = inspect.getdoc(member) or ""
-        assert "DnsRecordType.OTHER" in doc and "refused" in doc
-
-
-def test_resolve_takes_the_enum() -> None:
-    params = inspect.signature(DnsClient.resolve).parameters
-    assert params["record_type"].annotation == "DnsRecordType"
+        params = inspect.signature(member).parameters
+        assert params["record_type"].annotation == "DnsRecordType | str"
 
 
 # --------------------------------------------------------------------------------------

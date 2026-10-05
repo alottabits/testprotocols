@@ -5,8 +5,8 @@ The closed vocabularies are enums (``WifiBand``, ``WifiSecurityMode``, ``MfpMode
 the string the released contract used (``WifiBand.GHZ_5 == "5GHz"``). A model field
 that holds one is typed ``E | str``: a plain string naming a member is deprecated (it
 warns and is converted, also on assignment, so a reader always holds the member) and
-any other string raises ``ValueError``. ``WifiStation.capability_flags`` is the one
-open set: see :class:`WifiStation`.
+any other string raises ``ValueError``. ``WifiStation.capability_flags`` stays
+``list[str]``, the device's own words.
 """
 
 from __future__ import annotations
@@ -17,8 +17,6 @@ from enum import Enum, IntEnum, StrEnum
 from typing import ClassVar, cast, override
 
 from testprotocols.deprecation import MODEL_FRAMES, coerce_enum
-from testprotocols.models._open_set import OpenSetPair
-from testprotocols.models._sync import assign, settle
 
 
 class WifiBand(StrEnum):
@@ -87,21 +85,6 @@ class MeshRole(StrEnum):
     AGENT = "agent"
     CONTROLLER_AND_AGENT = "controller-and-agent"
     UNCOMMISSIONED = "uncommissioned"  # about to be onboarded as an agent
-
-
-class WifiCapability(StrEnum):
-    """A station capability generation or feature the AP reports for an association.
-
-    The set is open: a device may report a word not listed here. Such a word is not
-    a member; ``WifiStation.capability_flags_unknown`` holds it, so there is no
-    catch-all member.
-    """
-
-    HT = "HT"  # 802.11n
-    VHT = "VHT"  # 802.11ac
-    HE = "HE"  # 802.11ax
-    EHT = "EHT"  # 802.11be
-    MLO = "MLO"  # multi-link operation
 
 
 class _EnumFields:
@@ -184,11 +167,6 @@ class WifiBssConfig(_EnumFields):
     captive_portal: WifiCaptiveConfig
 
 
-_CAPABILITY_PAIRS = (
-    OpenSetPair(WifiCapability, "capability_flags", "capabilities", "capability_flags_unknown"),
-)
-
-
 @dataclass
 class WifiStation:
     """An associated station's identity, capabilities, and current stats.
@@ -199,19 +177,8 @@ class WifiStation:
     *band* is a :class:`WifiBand`; a plain string naming one is deprecated (it warns
     and is converted) and any other string raises ``ValueError``.
 
-    The capabilities are an open set. *capabilities* holds the words that name a
-    :class:`WifiCapability` and *capability_flags_unknown* the device's other words,
-    verbatim and in order; there is no catch-all member. The released
-    *capability_flags* (``["HT", "VHT", "HE"]``, or ``["EHT", "MLO"]`` for Wi-Fi 7)
-    keeps the device's full word list in its own order, and is deprecated: giving it
-    warns. The three agree after construction, ``replace`` and assignment, and the
-    side that changed wins: changing *capabilities* or *capability_flags_unknown*
-    rewrites the word list silently, changing *capability_flags* re-splits the other
-    two and warns. A word names a member exactly, letter case included (``"he"`` is an
-    unknown word). Both sides given and not agreeing raise ``ValueError``; a bare
-    ``str`` for a tuple or list, or a non-member in *capabilities*, raises ``TypeError``;
-    an unknown word that names a member raises ``ValueError``. A refused assignment
-    changes nothing.
+    *capability_flags* are the device's own words, stored as given and in order (for
+    example ``["HT", "VHT", "HE"]``, or ``["EHT", "MLO"]`` for Wi-Fi 7).
     """
 
     mac: str  # canonical: lowercase colon-separated
@@ -229,14 +196,6 @@ class WifiStation:
     rx_packets: int
     tx_retries: int
     capability_flags: list[str] = field(default_factory=list[str])
-    capabilities: tuple[WifiCapability, ...] = ()
-    capability_flags_unknown: tuple[str, ...] = ()
-    _caps_seen: tuple[tuple[str, ...], ...] | None = field(
-        default=None, kw_only=True, repr=False, compare=False
-    )
-
-    def __post_init__(self) -> None:
-        settle(self, _CAPABILITY_PAIRS, "_caps_seen")
 
     @override
     def __setattr__(self, name: str, value: object) -> None:
@@ -247,9 +206,6 @@ class WifiStation:
                 what="WifiStation.band",
                 skip_file_prefixes=MODEL_FRAMES,
             )
-        elif name == "_caps_seen" or _CAPABILITY_PAIRS[0].owns(name):
-            assign(self, name, value, _CAPABILITY_PAIRS, "_caps_seen")
-            return
         object.__setattr__(self, name, value)
 
 

@@ -21,7 +21,7 @@ from __future__ import annotations
 
 from typing import Protocol, runtime_checkable
 
-from testprotocols.models.firewall import Connection, ConnState, ConntrackStats
+from testprotocols.models.firewall import Connection, ConntrackStats
 from testprotocols.models.sdwan_appliance import RuleProtocol
 
 
@@ -44,7 +44,7 @@ class Conntrack(Protocol):
         src_ip: str | None = None,
         dst_ip: str | None = None,
         dst_port: int | None = None,
-        state: ConnState | str | None = None,
+        state: str | None = None,
     ) -> list[Connection]:
         """Return tracked flows, optionally filtered.
 
@@ -53,10 +53,9 @@ class Conntrack(Protocol):
         tracks (``tcp``, ``udp``, ``icmp``; ``icmp6`` where tracked) — raises
         ValueError otherwise, and for ``any``, which is no flow's transport. A
         plain ``str`` is deprecated: a driver coerces it with ``coerce_enum``
-        (it warns). *state*, when set, is a :class:`~testprotocols.models.ConnState`;
-        the set is open, so a driver coerces it with ``coerce_open_enum`` and a
-        word that names no member (``OTHER`` plus the raw word) matches flows whose
-        ``state_raw`` equals that word. Empty list when no flow matches.
+        (it warns). *state*, when set, is the device's own state word (for example
+        ``ESTABLISHED``, ``TIME_WAIT``) and matches flows whose ``state`` equals it.
+        Empty list when no flow matches.
         """
         ...
 
@@ -64,7 +63,7 @@ class Conntrack(Protocol):
         self,
         *,
         protocol: RuleProtocol | str | None = None,
-        state: ConnState | str | None = None,
+        state: str | None = None,
     ) -> int:
         """Return the number of tracked flows matching the optional filters.
 
