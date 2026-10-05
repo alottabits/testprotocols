@@ -64,6 +64,7 @@ DECISION_FILE_GLOBS = (
     "packages/testprotocols/GAPS.md",
     "packages/testprotocols/SPLITS.md",
     "packages/testprotocols/LEVELS.md",
+    "packages/testprotocols/DEPRECATIONS.md",
 )
 CHANGELOG = "CHANGELOG.md"
 SKIP_CHANGELOG_LABEL = "skip-changelog"
@@ -150,7 +151,16 @@ PROPOSAL_DIR = "docs/proposals/"
 GAPS = "packages/testprotocols/GAPS.md"
 SPLITS = "packages/testprotocols/SPLITS.md"
 LEVELS = "packages/testprotocols/LEVELS.md"
-ARCHETYPE_COMPANION_GLOBS = (SOURCE_GLOB, "packages/*/tests/*", CHANGELOG, GAPS, SPLITS, LEVELS)
+DEPRECATIONS = "packages/testprotocols/DEPRECATIONS.md"
+ARCHETYPE_COMPANION_GLOBS = (
+    SOURCE_GLOB,
+    "packages/*/tests/*",
+    CHANGELOG,
+    GAPS,
+    SPLITS,
+    LEVELS,
+    DEPRECATIONS,
+)
 HEADER_ROWS = ("Date", "Use case", "Round", "Status")
 
 _PROPOSAL_NAME = re.compile(r"^\d{4}-\d{2}-\d{2}-[a-z0-9]+(?:-[a-z0-9]+)*\.md$")

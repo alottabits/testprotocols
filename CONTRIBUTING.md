@@ -131,9 +131,10 @@ directly: `approve with conditions` sets `review` to failure, so
 conditions are fixed before the release merges.
 
 **Decision files override the prefix.** `docs/architecture/*.md`,
-`packages/testprotocols/GAPS.md`, `SPLITS.md` and `LEVELS.md` are the
-recorded decisions reviews are answered against. A PR that touches any of
-them takes the proposal reviewer whatever its prefix, and `hygiene` does
+`packages/testprotocols/GAPS.md`, `SPLITS.md`, `LEVELS.md` and
+`DEPRECATIONS.md` are the recorded decisions reviews are answered
+against. A PR that touches any of them takes the proposal reviewer
+whatever its prefix, and `hygiene` does
 not set the `review` status for it; the exception is a `charter:` or
 `archetype:` PR, whose design document and tracking-file entries the
 archetype reviewer reads instead. A `feat:` PR that also adds a SPLITS
@@ -195,8 +196,8 @@ maintainer change with `no proposal` and its rationale.
   `## 1. Charter` as its only numbered section, and touches nothing else;
 - an `archetype:` PR modifies that document (already on `main`) and changes
   nothing but existing `docs/architecture/*.md` documents it updates,
-  package source, package tests, `CHANGELOG.md`, `GAPS.md`, `SPLITS.md` and
-  `LEVELS.md`; the Status is one of `chartered`, `accepted for
+  package source, package tests, `CHANGELOG.md`, `GAPS.md`, `SPLITS.md`,
+  `LEVELS.md` and `DEPRECATIONS.md`; the Status is one of `chartered`, `accepted for
   verification`, `verified` and never moves backwards; package source needs
   `accepted for verification` or later and a `## 12. Landing manifest`; at
   `verified`, a document with `tier-staged` manifest rows is named in

@@ -276,12 +276,16 @@ keys; plugins map to vendor app-ids), grown on evidence; `L7Rule.value` for
 > `ZonePolicy.action` (the closed set `accept` / `drop` / `reject`, the words of
 > `DefaultAction`, which `PacketFilter.set_default_policy` already takes);
 > `FirewallRule.application_category` (`str | None`, whose common values are those of
-> `ApplicationCategory`); and `TrafficShapingRule.priority` / `match`, which go with the
-> deprecated class at its removal and are not retyped. The trigger above still applies to
-> the first three: retype them (shape 3, `DefaultAction | str`; `ApplicationCategory | str`)
-> when `firewall_zones` or the firewall models are next touched. The design note "one
-> capability per change" was departed from once, for the precise-types change, because
-> each of its family items is separable and separately mechanised.
+> `ApplicationCategory`); `FlowMatch.src_port` / `dst_port` (`str = "any"`, port text
+> that `PortRange` could type, as `L3Rule`'s typed `src_ports` / `dst_ports` now do); and
+> `TrafficShapingRule.priority` / `match`, which go with the deprecated class at its
+> removal and are not retyped. The trigger above still applies to the first three:
+> retype them (shape 3, `DefaultAction | str`; `ApplicationCategory | str`) when
+> `firewall_zones` or the firewall models are next touched. `FlowMatch`'s ports are
+> retyped (a typed `tuple[PortRange, ...]` beside the released text, as `L3Rule` has)
+> when the steering models (`FlowMatch`, `UplinkSelectionRule`) are next touched. The
+> design note "one capability per change" was departed from once, for the precise-types
+> change, because each of its family items is separable and separately mechanised.
 
 **Signal:** The SD-WAN appliance models (`models/sdwan_appliance.py`) express their
 normalized value vocabularies as `StrEnum`s (static + runtime checking). The

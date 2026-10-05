@@ -79,6 +79,13 @@ caller spelled it. The host part is the address the instrument answers on
 (the reachability target a consumer probes); the prefix length is the network
 the instrument holds.
 
+The string form of `hold(address)` is not the final word: the precise-types
+change (PR #73) announces its narrowing to `IPv4Interface | IPv6Interface`,
+with a row in `packages/testprotocols/DEPRECATIONS.md`. Until that release the
+parameter stays `str`, because released implementers declare `str`; a caller
+holding an interface passes `str(interface)`, which is the same
+`host/prefixlen` text. See `precise-types-design.md`.
+
 ## 6. Neutrality (vendor-isolation) guarantee
 
 No substrate or product name appears in the package source — not in

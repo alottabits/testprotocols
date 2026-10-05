@@ -86,6 +86,12 @@ Decisions recorded:
   only; application-based steering grows on evidence (the `L7MatchType`
   vocabulary exists if it comes). `FlowMatch` is its own dataclass — a
   match has no action/log semantics, so reusing `L3Rule` would be wrong.
+  Since the precise-types change (PR #73), "mirror `L3Rule`'s match half"
+  covers the released text form only: `L3Rule` gained typed port tuples
+  (`src_ports` / `dst_ports`, of `PortRange`) beside its text ports, and
+  `FlowMatch.src_port` / `dst_port` stay text. Their retype is recorded in
+  `GAPS.md` 2026-06-11 (migrate legacy bare-`str` value fields), to be
+  done when the steering models are next touched.
 - **No `FailoverCriterion` enum.** Both evidenced cases are covered by
   `performance_class` present/absent; grow on evidence.
 

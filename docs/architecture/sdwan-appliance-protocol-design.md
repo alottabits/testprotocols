@@ -380,6 +380,13 @@ states — previously collapsed into `UP`); and `get_dhcp_leases` is now
 documented as a best-effort read (only one reviewed family publishes a
 true lease table).
 
+`UplinkState` later gained `UNKNOWN` (the precise-types change, PR #73):
+`LinkStatus.state` and `LinkHealthReport.state` now take this vocabulary,
+and the reference implementer reports `"unknown"` for a link with no
+health data yet — a value the released string contract did not forbid, so
+it must keep working, and one distinct from `DOWN` (a link known to be
+down). See `precise-types-design.md` (WAN-edge models).
+
 ### Data-model neutrality — vocabulary in commons, mappings in the plugin
 
 `testprotocols` is **completely vendor-agnostic — a model must not name, encode,
@@ -397,7 +404,7 @@ Concretely:
 - **Every value vocabulary is a normalized `StrEnum` in `testprotocols`** —
   e.g. `RuleAction{ALLOW,DENY}`, `IntrusionMode{DISABLED,DETECTION,PREVENTION}`,
   `IntrusionSensitivity{LOW,MEDIUM,HIGH}`,
-  `UplinkState{UP,DOWN,STANDBY,NOT_CONNECTED}`,
+  `UplinkState{UP,DEGRADED,DOWN,STANDBY,NOT_CONNECTED,UNKNOWN}`,
   `DhcpMode{SERVER,RELAY,DISABLED}`, `ShapingPriority{LOW,NORMAL,HIGH}`,
   `L7MatchType{APPLICATION,APPLICATION_CATEGORY,HOST,PORT,IP_RANGE,URL_PATTERN}`,
   `SecurityAction{ALLOWED,BLOCKED,DETECTED}`, `ThreatCategory{…}`,
