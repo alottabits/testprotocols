@@ -372,9 +372,9 @@ specification table or a maintainer decision), not more code.
   `WifiMeshWhiteBox.get_raw_easymesh_tlvs(message_type)` waits for the EasyMesh message
   names from a specification.
 - **`QosRule.match` text that does not parse stays untyped.** The released contract
-  defined no grammar. `QosRule.classifier` is `None` for text it cannot parse, with the
-  text kept as given, and a classifier holds at most one source and one destination
-  port range. Widening needs a producer that writes more.
+  defined no grammar. The `testoperations` reader gives no classifier (`None`) for text
+  it cannot parse, and `match` keeps the text as given; a classifier holds at most one
+  source and one destination port range. Widening needs a producer that writes more.
 - **"Packet storm" meaning.** The released implementers apply a loss burst; the name could
   also mean packet duplication. `PacketStorm` keeps the released meaning (`duplicate_percent`
   is optional, `None` means not requested). The contract's meaning awaits a maintainer decision.
@@ -390,8 +390,8 @@ specification table or a maintainer decision), not more code.
 package, so the width question arises only for a model that carries an integer content
 type.
 
-**Cross-references:** `docs/architecture/precise-types-design.md` ("Retypes", "Pending
-narrow steps"), `models/wifi.py`, `models/switch.py`.
+**Cross-references:** `docs/architecture/precise-types-design.md` ("Retypes",
+"Deprecations"), `models/wifi.py`, `models/switch.py`.
 
 ---
 

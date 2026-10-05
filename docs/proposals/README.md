@@ -98,10 +98,11 @@ operations of one concern into one capability, never one capability per verb.
   one-line stub raising `NotSupportedError`. A MINOR release; the changelog
   entry is under *Breaking for driver authors* with the stub as its
   migration line.
-- **Rename.** A capability or model class keeps its old name as a module
-  alias that emits a `DeprecationWarning`; tests and drivers keep working
-  unchanged. A model field rename declares both names for the
-  deprecation period, the new one defaulted from the old. A **protocol
+- **Rename.** A capability or model class keeps its old name for the
+  deprecation period, marked `@deprecated` (type checkers report each use;
+  nothing warns at run time); tests and drivers keep working unchanged. A
+  model field rename declares both names for the deprecation period: a
+  driver fills either, and `testoperations` reads whichever is filled. A **protocol
   method rename** declares both names too, and implementers add the new
   one and let the old one delegate to it; but a structural protocol is
   satisfied only by an implementer that has every member, so the new name
@@ -111,9 +112,11 @@ operations of one concern into one capability, never one capability per verb.
   old name is removed after the period (`remove`).
 - **Retype**, keeping the name:
   - *values going in* (parameters, constructor fields) — **widen, then
-    narrow**: accept the old and the new type for the deprecation period,
-    normalise the old form with a shared helper that emits a
-    `DeprecationWarning`, then narrow to the new type;
+    narrow**: accept the old and the new type for the deprecation period
+    (`E | str`; a record field holding a grammar as text keeps its released
+    field, widened to `… | None`, beside an optional typed field), then
+    narrow to the new type. The protocol carries no conversion code: a
+    driver converts at its boundary, and `testoperations` reads either form;
   - *values coming out* (return types, fields tests read) — an **opt-in
     selector**: `form="legacy"` stays the default for the period while
     callers opt into `form="current"`, the default then flips, and the
@@ -122,9 +125,12 @@ operations of one concern into one capability, never one capability per verb.
     carries the new type, the old name is removed after the period and
     reintroduced with the new type, and the temporary name is deprecated in
     turn.
-- **The deprecation period** is at least one MINOR release and at least six
-  months, whichever is later, announced by a *Deprecated* changelog entry and
-  a runtime `DeprecationWarning`.
+- **The deprecation period** lasts until the first release 6 months after
+  the release that deprecates it. It is announced by a *Deprecated* changelog
+  entry and a row in the Deprecations table of
+  `docs/architecture/precise-types-design.md`, and a deprecated member or
+  class carries the `@deprecated` marker (passed `category=None`: type
+  checkers report each use, nothing warns at run time).
 - **Operations honour the period.** A published `testoperations` operation
   that calls a renamed or retyped member keeps working with a driver that has
   only the old form, for the whole period: it uses the new form when the

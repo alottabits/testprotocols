@@ -4,8 +4,49 @@
 | ------- | --------------------------------------------------------------------- |
 | Status  | Implemented, unreleased                                               |
 | Author  | rjvisser                                                              |
-| Date    | 2026-10-04                                                            |
+| Date    | 2026-10-05                                                            |
 | Related | `docs/proposals/README.md` (question 9, precise types), `CONTRIBUTING.md` (Versioning), `testprotocols._compat`, `testoperations._compat`, `packages/testprotocols/tests/test_typing_ratchet.py` |
+
+## The contract model
+
+The capability protocols define the contract. A contract change may deprecate the old
+form; the deprecation is stated, and the transition belongs to the drivers and to
+`testoperations`. Six rules apply.
+
+- **C1. No runtime transition code in `testprotocols`.** No `DeprecationWarning`, no
+  conversion, no sync and no field validation in a record or a protocol module.
+- **C2. A deprecated protocol member or class** keeps its declaration and gets a docstring
+  paragraph, "Deprecated: use `<new>`. Removal not before the first release 6 months after
+  the release that deprecates it.", and `@deprecated("<the same sentence>", category=None)`,
+  imported from `testprotocols._compat` (`warnings.deprecated` on Python 3.13 and later,
+  `typing_extensions.deprecated` before). Type checkers report each use; nothing warns at run
+  time. The docstring does not tell a driver how to transition.
+- **C3. A released record field that holds a grammar as text** (ports, timestamps, the QoS
+  classifier) keeps its name and position during the deprecation, its type widened to
+  `<released type> | None`. A field that was required stays required; a field that had a
+  default now defaults to `None`, and the released default's meaning moves into the
+  `testoperations` reader. The typed form is an optional keyword-only field defaulting to
+  `None`. A driver fills either form, or both, describing the same value; for a field that
+  was required, at least one is filled. At removal the text field goes and the typed field
+  becomes required. The record holds no sync, parsing or check: the `testoperations` readers
+  apply the rule at use time. A reader that reads the text field directly sees `… | None`.
+- **C4. A released `str` field or parameter whose values form a closed vocabulary** is
+  annotated `E | str` during the deprecation, `E` a `StrEnum` (or `IntEnum`) whose values
+  are the released spellings; the docstring announces the narrowing to `E`. Nothing converts
+  at run time: a plain string is stored as given, and a member compares equal to its
+  string. A new field or parameter, with no released form, is annotated `E`.
+- **C5. A record new in this release** is a plain frozen dataclass with precise annotations:
+  no `__post_init__` checks and no `__setattr__`. A constraint on a field is stated in its
+  docstring.
+- **C6. `testoperations` owns the transition:** the `_renamed.py` accessors (the new member
+  when the driver has it, else the old one); `_released.py` (`ReleasedMapping`); the readers
+  of a text/typed pair (the typed field when filled, else the text parsed, else the released
+  default's meaning, or a `ValueError` naming the record and field when the released field
+  was required); the parsers and formatters of the released text forms; and the conversion
+  of its own released string parameters, with a `DeprecationWarning` at its caller.
+
+Each deprecation is a row of the Deprecations table at the end of this document, with its
+earliest removal: the first release 6 months after the release that deprecates it.
 
 ## Purpose
 
@@ -35,11 +76,11 @@ shapes below are the only ones used.
 - An absent value is `X | None`, never an empty-string or zero sentinel.
 - No explicit `Any` in a signature or field. mypy enforces it
   (`disallow_any_explicit` for `testprotocols.*` and `testoperations.*`); the
-  one exception is a released signature kept for the deprecation period (see
+  exceptions are released signatures, marked line by line (see
   "Exemption policy for explicit `Any`" below). `tests/test_typing_ratchet.py`
   is the second line of defence, because pyright has no such rule: it counts
-  the non-exempt `Any` (ceiling 0) and pins the exempted lines per class (20
-  deprecation-period lines and 2 compatibility lines).
+  the non-exempt `Any` (ceiling 0) and pins the exempted lines per class (8
+  deprecation-period lines and 14 compatibility lines).
 
 ## Deprecation shapes
 
@@ -119,7 +160,11 @@ The record holds no code for the pair: no sync, no parsing and no check.
   record and field when the released field was required. Where the typed field
   holds `None` as a value (`SecurityEvent.timestamp`: no time reported;
   `QosRule.classifier`: every frame), a record with neither form filled reads
-  as that `None`. The parsers and formatters of the text forms live there too.
+  as that `None`, because the typed `None` is a real value; only
+  `FirewallRule.dst_port` raises. The parsers and formatters of the text forms live
+  there too.
+- At removal, a pair whose text field had a released default (`NatRule` and `L3Rule`
+  ports) may instead give the typed field a `()` default; that is decided at removal.
 - A reader that reads the text field directly sees `… | None`; this is listed
   under *Breaking for driver authors*.
 
@@ -206,7 +251,7 @@ where one exists, also records its retype.
   `mem_used_percent`, all floats, and omits a CPU key when it cannot read one; so
   `Telemetry` has exactly those three fields, the last two optional, and no other
   field (a temperature or load average would be a guess). Each value is a finite,
-  non-negative number (`nan` and `inf` raise `ValueError`). `testoperations` does not
+  non-negative number, stated in the docstring (the record does not check it). `testoperations` does not
   call `get_telemetry`, so there is no accessor in `_renamed.py`.
   `SdwanPolicyManager.apply_policy` is deprecated with no successor (the typed
   steering and SLA members cover it) and keeps its name and place; `Any` becomes
@@ -554,224 +599,134 @@ output equals that of the commit before it).
 
 `disallow_any_explicit = true` applies to every module of `testprotocols` and
 `testoperations` (a mypy per-module override in `pyproject.toml`). The only exemptions
-are released signatures, marked on the `def` line, in two classes: 20 deprecation-period
-exemptions and 2 compatibility exemptions. `tests/test_typing_ratchet.py` pins the number
+are released signatures, marked on the `def` line, in two classes: 8 deprecation-period
+exemptions and 14 compatibility exemptions. `tests/test_typing_ratchet.py` pins the number
 of each, so a new exemption needs a reviewed change.
 
-**(a) Deprecation period, 20 lines.** Marker `# type: ignore[explicit-any]  # released
-signature kept until removal`. These are members already deprecated in this release; the
-line is deleted with the member at the removal release, and the pinned count drops with it.
-- the deprecated readers whose released `dict[str, Any]` / `list[Any]` returns or
-  parameters stay readable (`ip_routing.ping`, `dns_client.dns_lookup`, `nmap_scanner.nmap`,
-  `device_management.get_running_processes` and `read_event_logs`,
-  `sip_server.get_rtpengine_stats`, `get_mwi_status` and `get_offline_messages`: 8 lines);
-- the released TR-069 RPCs (`GPV`, `SPV`, `GPA`, `SPA`, `FactoryReset`, `Reboot`,
-  `AddObject`, `DelObject`, `GPN`, `ScheduleInform`, `GetRPCMethods`, `Download`: 12 lines),
-  whose released `dict` annotations are invariant against the implementers' narrower ones.
-  TR-069 RPCs keep their released signatures; vendors extend the parameter model, so the contract does not enumerate it.
+**(a) Deprecation period, 8 lines.** Marker `# type: ignore[explicit-any]  # released
+signature kept until removal`. These are members, or a deprecated form of a member, whose
+released `dict[str, Any]` / `list[Any]` returns stay readable until removal: `ip_routing.ping`
+(`json_output=True`), `dns_client.dns_lookup`, `nmap_scanner.nmap`,
+`device_management.get_running_processes` and `read_event_logs`,
+`sip_server.get_rtpengine_stats`, `get_mwi_status` and `get_offline_messages`. The line is
+deleted with the member (or form) at the removal release, and the pinned count drops with it.
 
-**(b) Compatibility, 2 lines.** Marker `# type: ignore[explicit-any]  # released parameter
-kept: implementers declare their own types`. These members are live, not deprecated, and
-the exemption is not tied to a removal. Implementers declare framework or dict types,
-parameters are contravariant and `dict` is invariant, so no precise type accepts those
-declarations.
-- `hw_console.flash_via_bootloader` (two framework-object parameters);
-- `pcap_capture.start_tcpdump` (`filters: dict[str, Any]`; `testoperations.tcpdump` calls
-  it). If `start_tcpdump` is later deprecated in favour of a renamed member, its
-  exemption moves to class (a) and goes with the member.
+**(b) Compatibility, 14 lines.** These members are live, not deprecated, and the exemption
+is not tied to a removal.
+- Marker `# type: ignore[explicit-any]  # released parameter kept: implementers declare
+  their own types` (2 lines). Implementers declare framework or dict types, parameters are
+  contravariant and `dict` is invariant, so no precise type accepts those declarations:
+  `hw_console.flash_via_bootloader` (two framework-object parameters) and
+  `pcap_capture.start_tcpdump` (`filters: dict[str, Any]`; `testoperations.tcpdump` calls
+  it). If `start_tcpdump` is later deprecated in favour of a renamed member, its exemption
+  moves to class (a) and goes with the member.
+- Marker `# type: ignore[explicit-any]  # released signature kept: vendors extend the
+  parameter model` (12 lines): the released TR-069 RPCs of `Tr069Server` (`GPV`, `SPV`,
+  `GPA`, `SPA`, `FactoryReset`, `Reboot`, `AddObject`, `DelObject`, `GPN`,
+  `ScheduleInform`, `GetRPCMethods`, `Download`). TR-069 RPCs keep their released
+  signatures; vendors extend the parameter model, so the contract does not enumerate it.
 
-## Effective now
+## Deprecations
 
-Changes that take effect in this release for code written against the released
-contract, whether or not it uses the deprecated spelling. Each retype is listed here;
-the matching CHANGELOG entry sits under *Changed*.
+One row per deprecated item, in `testprotocols` and in `testoperations`. The CHANGELOG
+*Deprecated* sections list exactly these rows. On an unreleased branch "deprecated in"
+reads `next release` and "earliest removal" `next release + 6 months`; the release that
+ships a row fills in its version and date. Before tagging a release, every row whose
+earliest removal has passed is removed (the item goes, or narrows as its replacement says)
+or carried forward. For a text/typed pair (C3) or an `E | str` annotation (C4) the
+replacement names the removal step: the text field goes and the typed field becomes
+required, or `E | str` becomes `E`.
 
-- **Conntrack** (vocabularies). The firewall record fields (protocol, mode,
-  action) are `E | str`, stored as given; `Connection.state` stays `str`. A conntrack
-  `protocol` filter of `any` is refused. `NatRule.protocol` defaults to `RuleProtocol.ANY`.
-- **Firewall and NAT ports** (ports). `FirewallRule.dst_port` is `str | None` (still
-  required) and `NatRule.dst_port` / `translated_port` are `str | None` defaulting to
-  `None`; a reader of the text field sees `… | None`. An implementer must provide `PacketFilter.get_rule_counter_values` (so also
-  `Firewall`) and `Nat.get_nat_rule_counter_values`, which return `RuleCounters`; the old
-  counter names delegate to them.
-- **Static-only: unpacking a loose dict** (no runtime change). Unpacking
-  a loosely typed dict, for example `FirewallRule(**dict[str, str])`, into a retyped
-  released record fails type-checking, because the typed fields (`dst_ports`) are
-  keyword parameters and a type checker matches the dict's value type against each.
-  The caller types the dict or passes the fields explicitly.
-- **SD-WAN models** (SD-WAN). `L3Rule.src_port` / `dst_port` are `str | None`
-  defaulting to `None`, and `SecurityEvent.ts` is `str | None` (still required); a
-  reader of the text field sees `… | None`. Static only: unpacking a loosely typed
-  dict into `L3Rule` or `SecurityEvent` fails type-checking, as for `FirewallRule`.
-- **WAN-edge models** (WAN-edge). `LinkStatus.state` and `LinkHealthReport.state`
-  are `UplinkState | str`, stored as given. `testprotocols.models.TrafficShapingRule`
-  and `VPNPeerStatus` stay exported as released and carry the `@deprecated` marker (a
-  type checker reports a use; nothing warns at run time). Static
-  only: `TrafficShapingRule.match` reads as `Mapping[str, object]` (was `dict[str, Any]`).
-- **Switch QoS classifier** (switch QoS). `QosRule.match` is `str | None` (still
-  required); a reader of the text field sees `str | None`. Static only: unpacking a
-  loosely typed dict into `QosRule` fails type-checking (`classifier`).
-- **Telemetry and policy** (router). Static only, no runtime change:
-  `Router.get_telemetry` returns `Mapping[str, float]` (was `dict[str, Any]`), so a
-  reader gets `float` values and cannot assume a `dict`, and an implementer whose
-  declared return is not `float`-valued no longer conforms; `apply_policy` takes
-  `dict[str, object]` (was `dict[str, Any]`), so a caller's `dict[str, str]` variable
-  no longer type-checks. A driver must implement `Router.read_telemetry` (breaking for
-  driver authors).
-- **Wi-Fi vocabularies** (Wi-Fi). A `band`, `security_mode`, `mfp`, ACL `mode` or
-  mesh `role` field on a Wi-Fi model is `E | str`, stored as given, so a reader sees
-  `E | str` (`StrEnum` members compare equal to the old strings);
-  `WifiNeighbor.security_mode` is unchanged. Static only: an implementer must provide `WifiClient.supported_channels` (breaking
-  for driver authors).
-- **Voice vocabularies** (voice). `SipServer.verify_sip_message(since)` is
-  `datetime | None` (released `Any`): a caller passing a `datetime` or `None` is
-  unaffected; one passing a text marker no longer type-checks (an implementer may keep
-  `Any`). An implementer must provide `SipServer.read_rtpengine_stats`, `read_mwi_status`
-  and `read_offline_messages` (breaking for driver authors). Every other voice
-  annotation is unchanged, and `wait_for_state` only widens (`PhoneState | str`).
-- **Host-tool and service vocabularies** (host tools). `HTTPResult` is frozen (assigning
-  an attribute raises `FrozenInstanceError`), compares by value (released: identity) and
-  `code` / `beautified_text` carry the `@deprecated` marker (nothing warns at run time);
-  `status` is `0` outside 100 to 599.
-  `MeasurementSpec.tool` / `completion` and `TrafficSpec.protocol` are `E | str`, stored as
-  given, so a reader sees `E | str`. `QoEResult.protocol`, `RadiusAccountingRecord.record_type` and `terminate_cause`,
-  and `RadiusUser.eap_methods` stay `str` and store the device's word as given. `repr()`: the defaults of `MeasurementSpec` stay the released words, so text built
-  with `repr(spec.completion)` from a default spec is unchanged; every new enum (`QoeTool`,
-  `QoeCompletion`, `IpVersion`, `PageCompletion`, `TransportProtocol`, ...) keeps the
-  default `<Enum.MEMBER: 'x'>` repr, and code that builds text with `repr(value)` or
-  `{value!r}` from a member must use `str(value)`.
-  `StormControlConfig.unit` is ignored by released drivers (they read and write their own
-  unit): a writer that sets it gets no error from them. The `testoperations`
-  `start_http_server` default `ip_version` is now `"4"` (was `"ipv4"`, which rendered an
-  invalid server option). Static only: an implementer must provide
-  `IpInterface.is_link_admin_up` (breaking for driver authors).
+**testprotocols**
 
-- **Host-tier records** (host-tier records). An implementer must provide `read_url_rules`,
-  `read_memory_utilization`, `read_running_processes`, `read_log_entries`, `resolve`,
-  `start_sender_session`, `start_receiver_session`, `ping_stats`, `scan_ports`, `read_arp_table`,
-  `read_date` and `inject_event` (breaking for driver authors). Static only, no runtime
-  change: `set_impairment_profile` / `set_interface_profile` take
-  `ImpairmentProfile | dict[str, object]` (was `dict[str, Any]`) and `provision_cpe` takes
-  `dict[str, dict[str, object]]`, so a caller's loosely typed dict variable (`dict[str, int]`,
-  a `TypedDict`) no longer type-checks; `DHCPTraceData.dhcp_packet` and
-  `DHCPV6TraceData.dhcpv6_packet` read as `Mapping[str, object]`, so a reader narrows nested
-  values. `resolve` takes `DnsRecordType | str`. Through
-  `testoperations`, with a driver that implements `inject_event`:
-  `inject_latency_spike(latency_ms)` takes effect (the released drivers read
-  `spike_latency_ms` and ignored it); `inject_packet_storm` asks for duplication only when the
-  caller passes `duplicate_percent` (released: `100.0` was always sent and ignored), so a
-  packet storm stays a loss burst. An old-name driver receives the released calls unchanged.
-  With a driver that implements `start_sender_session`, a flow's `window` text that is not an
-  iperf size raises `ValueError` before anything starts (released: passed to the tool).
-  Not followed: the boardfarm CPE implementer's `get_memory_utilization` returns `free -m`
-  figures (MiB), while the released docstring says bytes; `MemoryUtilization` is in
-  bytes, so that implementer diverges (a pre-existing implementer bug).
+| item | replacement | kind | deprecated in | earliest removal |
+| --- | --- | --- | --- | --- |
+| `testprotocols.packet_filter:PacketFilter.get_rule_counters` (so also `Firewall`) | `get_rule_counter_values` | member | next release | next release + 6 months |
+| `testprotocols.nat:Nat.get_nat_rule_counters` | `get_nat_rule_counter_values` | member | next release | next release + 6 months |
+| `testprotocols.router:Router.get_telemetry` | `read_telemetry` | member | next release | next release + 6 months |
+| `testprotocols.sdwan_policy_manager:SdwanPolicyManager.apply_policy` | none: the typed steering and SLA members (`configure_sla_policy`, `set_uplink_selection`, `set_default_uplink`, `set_active_active_vpn`) | member | next release | next release + 6 months |
+| `testprotocols.wifi_client:WifiClient.iwlist_supported_channels` | `supported_channels` | member | next release | next release + 6 months |
+| `testprotocols.sip_server:SipServer.get_rtpengine_stats` | `read_rtpengine_stats` | member | next release | next release + 6 months |
+| `testprotocols.sip_server:SipServer.get_mwi_status` | `read_mwi_status` | member | next release | next release + 6 months |
+| `testprotocols.sip_server:SipServer.get_offline_messages` | `read_offline_messages` | member | next release | next release + 6 months |
+| `testprotocols.content_filtering:ContentFiltering.get_url_rules` | `read_url_rules` | member | next release | next release + 6 months |
+| `testprotocols.device_management:DeviceManagement.get_memory_utilization` | `read_memory_utilization` | member | next release | next release + 6 months |
+| `testprotocols.device_management:DeviceManagement.get_running_processes` (with `ps_options`) | `read_running_processes`; a `ps_options` other than `"-A"` has no successor | member | next release | next release + 6 months |
+| `testprotocols.device_management:DeviceManagement.read_event_logs` | `read_log_entries` | member | next release | next release + 6 months |
+| `testprotocols.dns_client:DnsClient.dns_lookup` (with `opts`) | `resolve`; `opts` has no successor | member | next release | next release + 6 months |
+| `testprotocols.iperf_client:IperfClient.start_traffic_sender` | `start_sender_session` | member | next release | next release + 6 months |
+| `testprotocols.iperf_server:IperfServer.start_traffic_receiver` | `start_receiver_session` | member | next release | next release + 6 months |
+| `testprotocols.nmap_scanner:NmapScanner.nmap` (with `opts`) | `scan_ports`; `fast` replaces `opts="-F"`, any other `opts` has no successor | member | next release | next release + 6 months |
+| `testprotocols.arp_client:ArpClient.get_arp_table` | `read_arp_table` | member | next release | next release + 6 months |
+| `testprotocols.ntp_client:NtpClient.get_date` | `read_date` | member | next release | next release + 6 months |
+| `testprotocols.ntp_client:NtpClient.set_date` | `set_date_time` | member | next release | next release + 6 months |
+| `testprotocols.netem_controller:NetemController.inject_transient` | `inject_event` | member | next release | next release + 6 months |
+| `testprotocols.snmp_client:SnmpClient.execute_snmp_command` | `snmp_get`, `snmp_walk`, `snmp_set` or `snmp_bulk_get`; any other command has no successor | member | next release | next release + 6 months |
+| `testprotocols.models:HTTPResult.code` (property) | `status` (an `int`) | member | next release | next release + 6 months |
+| `testprotocols.models:HTTPResult.beautified_text` (property) | `body` | member | next release | next release + 6 months |
+| `testprotocols.models:VPNPeerStatus` | none (`VpnPeerStatus` for site-to-site peers) | class | next release | next release + 6 months |
+| `testprotocols.models:TrafficShapingRule` | none (`ShapingRule` where a capability needs one) | class | next release | next release + 6 months |
+| `testprotocols.ip_routing:IpRouting.ping(json_output=True)` | `ping_stats`; at removal `ping` returns `bool` | parameter | next release | next release + 6 months |
+| `IpRouting.ping` and `traceroute` `options` | none | parameter | next release | next release + 6 months |
+| `testprotocols.http_client:HttpClient.curl` and `http_get` `options` | keyword-only `no_proxy`, `insecure`, `follow_redirects` | parameter | next release | next release + 6 months |
+| `PacketFilter` `chain` (every member) and `set_default_policy(policy)`: `Chain \| str`, `DefaultAction \| str` | `Chain`, `DefaultAction` (narrows to the enum) | parameter | next release | next release + 6 months |
+| `Nat.list_nat_rules(mode)`: `NatMode \| str \| None` | `NatMode \| None` (narrows to the enum) | parameter | next release | next release + 6 months |
+| `Conntrack` `protocol` (`list_connections`, `count_connections`, `get_connection`, `drop_connection`): `RuleProtocol \| str` | `RuleProtocol` (narrows to the enum) | parameter | next release | next release + 6 months |
+| Wi-Fi `band` (`WifiBss.create_bss`, every `WifiRadio` and `WifiRf` member, `WifiRadioWhiteBox.inject_radar_event`, `WifiMesh.set_backhaul_band`): `WifiBand \| str` | `WifiBand` (narrows to the enum) | parameter | next release | next release + 6 months |
+| `WifiBss.create_bss(security_mode, mfp)` and `set_security(mode, mfp)`: `WifiSecurityMode \| str`, `MfpMode \| str` | `WifiSecurityMode`, `MfpMode` (narrows to the enum) | parameter | next release | next release + 6 months |
+| `WifiBss.set_acl_mode(mode)`: `WifiAclMode \| str` | `WifiAclMode` (narrows to the enum) | parameter | next release | next release + 6 months |
+| `WifiRadio.set_mode(mode)`: `WifiPhyMode \| str` | `WifiPhyMode` (narrows to the enum; a compound mode names no member) | parameter | next release | next release + 6 months |
+| `WifiClient.set_wlan_scan_channel(channel)`: `int \| str` | `int` | parameter | next release | next release + 6 months |
+| `SipPhone.wait_for_state(state)`: `PhoneState \| str` | `PhoneState` (narrows to the enum) | parameter | next release | next release + 6 months |
+| `HttpClient.curl(protocol)`: `HttpScheme \| str` | `HttpScheme` (narrows to the enum) | parameter | next release | next release + 6 months |
+| `IpInterface.set_link_state(state)`: `LinkAdminState \| str` | `LinkAdminState` (narrows to the enum) | parameter | next release | next release + 6 months |
+| `UpnpClient.create_upnp_rule(protocol)` and `delete_upnp_rule(protocol)`: `PortMappingProtocol \| str` | `PortMappingProtocol` (narrows to the enum) | parameter | next release | next release + 6 months |
+| `QoeBrowser.measure_productivity(scenario, wait_until)`: `QoeScenario \| str`, `PageCompletion \| str` | `QoeScenario`, `PageCompletion` (narrows to the enum) | parameter | next release | next release + 6 months |
+| `HttpServer.start_http_service` / `stop_http_service(port)` and `start_http_service(ip_version)`: `str` | `int`, `IpFamily` (announced narrowing) | parameter | next release | next release + 6 months |
+| `UpnpClient` `int_port`, `ext_port` and `VlanClient` `vlan_id`: `str` | `int` (announced narrowing) | parameter | next release | next release + 6 months |
+| `IpRouting.traceroute(version)`: `str` (`""` or `"6"`) | `IpFamily \| None` (announced narrowing) | parameter | next release | next release + 6 months |
+| `IpInterface.is_link_up(pattern)` | `is_link_admin_up` for the administrative state; at removal `pattern` goes | parameter | next release | next release + 6 months |
+| `NetemController.set_impairment_profile` / `set_interface_profile(profile)` as a `dict` | `ImpairmentProfile` (narrows to it) | parameter | next release | next release + 6 months |
+| `MulticastClient.send_mldv2_report` records as plain tuples | `GroupRecord` (narrows to `Sequence[GroupRecord]`) | parameter | next release | next release + 6 months |
+| `HeldPrefixes.hold(address)`: `str` | `IPv4Interface \| IPv6Interface` (announced narrowing) | parameter | next release | next release + 6 months |
+| `PacketFilter.get_default_policy` return `str` | `DefaultAction` (announced narrowing) | member | next release | next release + 6 months |
+| `WifiRadio.list_radios`, `get_bandwidth` and `get_mode` returns (`list[str]`, `int`, `str`) | `list[WifiBand]`, `ChannelWidth`, `WifiPhyMode` (announced; `get_mode` once compound modes are settled) | member | next release | next release + 6 months |
+| `RadiusServer.get_status` return `str` | `ServiceStatus` (announced narrowing) | member | next release | next release + 6 months |
+| `FirewallRule.dst_port` (port text, required) | `dst_ports`; at removal the text field goes and `dst_ports` becomes required | field | next release | next release + 6 months |
+| `NatRule.dst_port` and `translated_port` (port text, released default `""`) | `dst_ports`, `translated_ports`; at removal the text fields go and the typed field becomes required, or defaults to `()` (decide at removal) | field | next release | next release + 6 months |
+| `L3Rule.src_port` and `dst_port` (port text, released default `"any"`) | `src_ports`, `dst_ports`; at removal the text fields go and the typed field becomes required, or defaults to `()` (decide at removal) | field | next release | next release + 6 months |
+| `SecurityEvent.ts` (ISO-8601 text, required) | `timestamp`; at removal `ts` goes and `timestamp` becomes required (`None`: no time reported) | field | next release | next release + 6 months |
+| `QosRule.match` (classifier text, required) | `classifier`; at removal `match` goes and `classifier` becomes required (`None`: every frame) | field | next release | next release + 6 months |
+| `FirewallRule.action` / `protocol`: `FirewallRuleAction \| str`, `RuleProtocol \| str` | the enums (narrows from `E \| str` to `E`) | field | next release | next release + 6 months |
+| `NatRule.mode` / `protocol`: `NatMode \| str`, `RuleProtocol \| str` | the enums (narrows from `E \| str` to `E`) | field | next release | next release + 6 months |
+| `PortMapping.protocol`, `Connection.protocol`: `PortMappingProtocol \| str`, `RuleProtocol \| str` | the enums (narrows from `E \| str` to `E`) | field | next release | next release + 6 months |
+| `LinkStatus.state`, `LinkHealthReport.state`: `UplinkState \| str` | `UplinkState` (narrows from `E \| str` to `E`) | field | next release | next release + 6 months |
+| Wi-Fi fields: `band` of `WifiBssConfig`, `WifiStation`, `WifiNeighbor`, `WifiChannelUtilization`, `WifiRadioStats`, `WifiMeshLink`; `WifiBssConfig.security_mode` / `mfp`; `WifiAcl.mode`; `role` of `WifiMeshStatus`, `WifiMeshNode` | `WifiBand`, `WifiSecurityMode`, `MfpMode`, `WifiAclMode`, `MeshRole` (narrows from `E \| str` to `E`) | field | next release | next release + 6 months |
+| `MeasurementSpec.tool` / `completion`, `TrafficSpec.protocol` | `QoeTool`, `QoeCompletion \| PageCompletion`, `TransportProtocol` (narrows from `E \| str` to `E`) | field | next release | next release + 6 months |
+| `NatRule.src_cidr`, `dst_cidr`, `translated_src`, `translated_dst` (`""`: absent) | `str \| None`, `None` absent (announced) | field | next release | next release + 6 months |
+| `L3Rule.src_cidr`, `dst_cidr` (`"any"`), `UplinkStatus.ip`, `gateway`, `public_ip`, `primary_dns` and `NetworkAttachment.segment` (`""`) | `str \| None`, `None` unconstrained or not reported (announced) | field | next release | next release + 6 months |
+| `LinkStatus.ip_address` (`""`: no address) | `str \| None` (announced) | field | next release | next release + 6 months |
+| `HTTPResult.status` `0` (no numeric status code) | `int \| None`, `None` (announced) | field | next release | next release + 6 months |
 
-- **Tool option strings.** Nothing changes at run time for a driver or a caller that passes
-  only the released arguments. Static only: an implementer's declaration of `curl`, `http_get`
-  or `nmap` without the new keyword-only parameters is reported by the static type checkers
-  (mypy and pyright), and an implementer must provide `snmp_get`, `snmp_walk`, `snmp_set`,
-  `snmp_bulk_get` and `set_date_time` (breaking for driver authors); a driver value no longer
-  passes `isinstance` against `SnmpClient` or `NtpClient` until it has them.
+**testoperations**
 
-- **HwConsole** (hw console). Static only, no runtime change: `get_console` returns
-  `Console` and `get_interactive_consoles` returns `Mapping[str, Console]` (were `Any` and
-  `dict[str, Any]`), so a reader sees only `execute_command`, `sendline`, `before` and
-  `start_interactive_session`; a caller that uses `expect`, `expect_exact` or other pexpect
-  members keeps the concrete console type or narrows, and one that mutates the mapping
-  (`popitem`) takes `dict(...)` first. An implementer whose console lacks one of the four
-  no longer conforms. `flash_via_bootloader` is unchanged.
+| item | replacement | kind | deprecated in | earliest removal |
+| --- | --- | --- | --- | --- |
+| `testoperations.segmentation:build_deny_rule(scope, proto)` as a plain `str` | `DenyScope`, `RuleProtocol` (narrows to the enum) | parameter | next release | next release + 6 months |
+| `testoperations.netem_controller:apply_preset(preset_name)` as a plain `str` | `NetemPreset` (narrows to the enum) | parameter | next release | next release + 6 months |
+| `testoperations.throughput:NonCompletion(which_side, what)` as a plain `str` | `NonCompletionSide`, `NonCompletionKind` (narrows to the enum) | parameter | next release | next release + 6 months |
+| `testoperations.iperf_generator:saturate_link(protocol)` as a plain `str` | `TransportProtocol` (narrows to the enum) | parameter | next release | next release + 6 months |
+| reading `IperfSession`, `HomeVerification` or `FlowPair` as the released dict (indexing, `get`, `in`, `len`, `keys`, `items`, `values`, iteration, `==` a dict, `as_dict()`) | the record's fields; the mapping access is removed | member | next release | next release + 6 months |
 
-- **`testoperations` records.** `start_iperf` requires the keyword-only `host`, takes only the
-  numbers 4 and 6 as `ip_version` (any other value raises `ValueError`; released: passed
-  through) and returns an `IperfSession`; `verify_home` and `saturate_link` return records.
-  The released dict reads through each with a `DeprecationWarning`; a caller that tests the
-  result with `isinstance(result, dict)` or serialises it with `json.dumps` must call
-  `as_dict()` or read the fields. `apply_preset` raises the `coerce_enum` `ValueError` for an
-  unknown name (message changed); `NonCompletion` raises `ValueError` for an unknown
-  `which_side` or `what` word (released: any string) and its attributes are enum members equal
-  to the released text. `iter_json_docs` reads as `list[object]`. `tcpdump` makes the
-  protocol's `start_tcpdump` / `stop_tcpdump` calls. Static only: the `measure_flow` parameter of
-  `measure_external_path_until` is a call protocol whose flow parameter is positional-only
-  (`(flow, /, *, duration_s, result_timeout_s, poll_interval_s) -> FlowThroughput`), so a stand-in
-  taking the flow by another name still conforms, and one with other keyword names no longer does.
-  `build_deny_rule` and `saturate_link` take `DenyScope | str` / `RuleProtocol | str` and
-  `TransportProtocol | str`: a plain string the caller passes naming a member warns (the
-  released defaults, `saturate_link`'s `"udp"` and `start_iperf`'s `ip_version=4`, do not),
-  and an unknown word raises
-  the `coerce_enum` `ValueError` (the message text for an unknown `scope` changed).
-  `sender_life_record` takes `IperfClient` (was `Any`).
+Notes:
 
-## Pending narrow steps (announced, not yet taken)
-
-Each lands in a later release with its own breaking changelog entry:
-
-- Enum-only parameters and fields: the firewall, NAT and conntrack parameters
-  and fields (`Chain`, `DefaultAction`, `NatMode`, `RuleProtocol`,
-  `FirewallRuleAction`, `PortMappingProtocol`) narrow from
-  `E | str` to `E`; `get_default_policy` narrows to `DefaultAction`.
-- The `NatRule` cidr and translated-address `""` placeholders become `str | None`;
-  the port text fields `FirewallRule.dst_port`, `NatRule.dst_port` and
-  `NatRule.translated_port` are removed, and so are the old counter names
-  `PacketFilter.get_rule_counters` and `Nat.get_nat_rule_counters`.
-- The `L3Rule` cidr `"any"` placeholders, the `UplinkStatus` address `""`
-  placeholders and `NetworkAttachment.segment` `""` become `str | None`; the
-  `L3Rule` port text fields and `SecurityEvent.ts` are removed.
-- `LinkStatus.state`, `LinkHealthReport.state` narrow from `UplinkState | str` to
-  `UplinkState`; `LinkStatus.ip_address` `""` becomes `str | None`;
-  `VPNPeerStatus` and `TrafficShapingRule` are removed.
-- `QosRule.match` is removed.
-- `Router.get_telemetry` and `SdwanPolicyManager.apply_policy` are removed.
-- `build_deny_rule(scope, proto)` narrows from `DenyScope | str` and
-  `RuleProtocol | str` to the enums; `apply_preset(preset_name)` and `NonCompletion(which_side,
-  what)` narrow from `E | str` to the enums; the mapping access of `IperfSession`,
-  `HomeVerification` and `FlowPair` (and `as_dict()`) is removed.
-- Wi-Fi: the model fields and parameters narrow from `E | str` to `E` (`WifiBand`,
-  `WifiSecurityMode`, `MfpMode`, `WifiAclMode`, `WifiPhyMode`, `MeshRole`;
-  `ChannelWidth | int` stays, an `int` being its value); `list_radios`, `get_bandwidth`
-  and (once compound modes are settled) `get_mode` narrow to `list[WifiBand]`,
-  `ChannelWidth` and `WifiPhyMode`; `set_wlan_scan_channel` narrows to `int`;
-  `WifiStation.capability_flags` and `WifiClient.iwlist_supported_channels` are removed.
-- Voice: `wait_for_state` narrows to `PhoneState`; `get_rtpengine_stats`, `get_mwi_status` and `get_offline_messages` are removed.
-- Host tools: the `E | str` parameters narrow to the enums (`DnsRecordType`, `HttpScheme`,
-  `IpVersion`, `LinkAdminState`, `QoeScenario`, `PageCompletion`, `PortMappingProtocol`);
-  the iperf `ip_version` narrows to `IpFamily | None`; the numeric-text parameters narrow
-  (`port`, `int_port`, `ext_port`, `vlan_id` to `int`; `start_http_service(ip_version)` to
-  `IpFamily`; `traceroute(version)` to `IpFamily | None`); `is_link_up(pattern)` loses
-  `pattern`; `get_status` returns `ServiceStatus`; `MeasurementSpec` and `TrafficSpec` fields
-  narrow from `E | str` to `E`, and `RadiusAccountingRecord` fields likewise; `HTTPResult.code`
-  / `beautified_text` and `RadiusUser.eap_methods` are removed and `HTTPResult.status` `0`
-  becomes `None`.
-- Host-tier records: `get_url_rules`, `get_memory_utilization`, `get_running_processes`,
-  `read_event_logs`, `dns_lookup`, `start_traffic_sender`, `start_traffic_receiver`, `nmap`,
-  `get_arp_table`, `get_date` and `inject_transient` are removed, and `ping` loses
-  `json_output` (returning `bool`); the netem `profile` narrows to `ImpairmentProfile`;
-  `send_mldv2_report` takes `Sequence[GroupRecord]`; `HeldPrefixes.hold` / `release` take
-  `IPv4Interface | IPv6Interface`.
-- The option strings (`ping`, `traceroute`, `curl`, `http_get` `options`; `nmap`, `dns_lookup`
-  `opts`; `get_running_processes` `ps_options`), `NtpClient.set_date` and
-  `SnmpClient.execute_snmp_command` are removed.
-- `testoperations`: `saturate_link(protocol)` narrows from `TransportProtocol | str` to
-  `TransportProtocol`; `start_iperf(ip_version)` narrows from `IpFamily | int` to `IpFamily`;
-  the deprecated `testoperations` call paths to the released member names (the typed fallback
-  accessors) are removed with those members.
-- Held back until evidence or a maintainer decision supplies a vocabulary (see `GAPS.md`, "precise types:
-  gaps left open"):
-  - `WifiClient.wifi_client_connect(security_mode)` stays `str | None` until a client
-    key-management vocabulary (`NONE`, `WPA-PSK`, `WPA-EAP` and more) has a second
-    implementer or a specification table; `WifiNeighbor.security_mode`, `WifiRadio.get_mode`
-    (compound modes) and `WifiMeshWhiteBox.get_raw_easymesh_tlvs(message_type)` stay text.
-  - `dns_lookup(opts)`, an `nmap(opts)` other than `-F` (which `fast` replaces), a
-    non-default `get_running_processes(ps_options)` and the `ping` and `traceroute` `options`
-    have no typed successor: before they are removed, either
-    typed options are derived from callers or a maintainer decides to drop them.
-  - `QosRule.classifier` is `None` for match text that does not parse (the text stays
-    as given), and holds one source and one destination port range; widening needs a producer.
-  - A "packet storm" is a loss burst, as the released implementers apply it; whether the term
-    means loss or duplication is open, and `PacketStorm.duplicate_percent` stays optional until
-    it is settled.
-  - `HwConsole.flash_via_bootloader` and `start_tcpdump(filters)` keep `Any` (compatibility
-    exemptions); `Console` omits `expect` / `expect_exact`. Closing either needs implementers
-    to change their declarations, which is a maintainer decision.
-  - `MemoryUtilization` stays in bytes as released; an implementer that reports MiB is the
-    one to change.
+- Text/typed pairs (C3): with neither form filled, `testoperations` reads
+  `SecurityEvent.ts` / `timestamp` and `QosRule.match` / `classifier` as `None` (no time
+  reported; every frame), because the typed `None` is a real value; only
+  `FirewallRule.dst_port` raises (`ValueError` naming the record and field). An unfilled
+  `NatRule` pair reads as no port, an unfilled `L3Rule` pair as any port.
+- Released-defaulted pairs (`NatRule`, `L3Rule`): at removal the typed field becomes
+  required, or defaults to `()`; that is decided at removal.
+- The gaps left open on purpose (option strings with no typed successor, vocabularies
+  awaiting evidence, the compatibility exemptions) are in `packages/testprotocols/GAPS.md`,
+  "precise types: gaps left open".

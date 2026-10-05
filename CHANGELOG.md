@@ -25,9 +25,9 @@ their tags and PR history.
   value_type, *, timeout_s=10, retries=3, command_timeout=30) -> str`, `snmp_bulk_get(host, oid,
   community, *, non_repeaters=0, max_repetitions=10, timeout_s=100, retries=3,
   command_timeout=30) -> str`, and `testprotocols.ntp_client:NtpClient.set_date_time(value:
-  datetime) -> bool` — new mandatory members. Migration: implement them (`snmp_get` runs
+  datetime) -> bool` — new mandatory members. Migration: implement them (the first runs
   `snmpget -v 2c -On -c <community> -t <timeout_s> -r <retries> <host> <oid>`, the others the
-  matching `snmpwalk`, `snmpset` and `snmpbulkget` command; `set_date_time` formats `value` for
+  matching `snmpwalk`, `snmpset` and `snmpbulkget` command; the NTP member formats `value` for
   the device's `date`); keep `set_date` and `execute_snmp_command` until their removal. Design
   `docs/architecture/precise-types-design.md` (Tool option strings); PR pending.
 - **protocol members** `testprotocols.http_client:HttpClient.curl` and `http_get`
@@ -44,7 +44,7 @@ their tags and PR history.
   and keep `get_rule_counters` / `get_nat_rule_counters` until their removal. Design `docs/architecture/precise-types-design.md` (firewall and NAT ports and counters); PR pending.
 - **protocol member** `testprotocols.router:Router.read_telemetry() -> Telemetry` —
   new mandatory member. Migration: implement it, and keep `get_telemetry`, which
-  returns the reported fields of `read_telemetry()` as the released mapping. Design `docs/architecture/precise-types-design.md` (telemetry and policy); PR pending.
+  returns the reported fields of the new member as the released mapping. Design `docs/architecture/precise-types-design.md` (telemetry and policy); PR pending.
 - **protocol member** `testprotocols.wifi_client:WifiClient.supported_channels(band: WifiBand) -> list[int]` —
   new mandatory member, replacing `iwlist_supported_channels` (which returned the
   channel numbers as text). Migration: implement it;
@@ -73,14 +73,21 @@ their tags and PR history.
   `NtpClient.read_date() -> datetime | None` and `NetemController.inject_event(event:
   TransientEvent, duration_ms)` — new mandatory members. The iperf pair has two names because
   one class implements both protocols; the window is `window_bytes` (bytes) on the new member
-  only; `scan_ports(fast=True)` scans fewer ports than the default set (an explicit `ports`
+  only; with `fast=True` the scan covers fewer ports than the default set (an explicit `ports`
   wins). The new members take no free tool-option string. Migration: implement them; keep the old names until their removal:
   `get_url_rules`, `get_memory_utilization`, `start_traffic_sender` /
   `start_traffic_receiver` return the record's fields in the released shape (one dict per process for `get_running_processes` with the
-  default `"-A"` on a procps host), and `inject_transient` applies the event `inject_event` would. `read_event_logs` (whose
+  default `"-A"` on a procps host), and `inject_transient` applies the event the new member would. `read_event_logs` (whose
   output includes unparsable lines), `dns_lookup`, `ping(json_output=True)`, `nmap`,
   `get_arp_table` and `get_date` keep their released output (which the records cannot
   rebuild). Design `docs/architecture/precise-types-design.md` (Host-tier records); PR pending.
+- **return types** `testprotocols.router:Router.get_telemetry` now returns `Mapping[str, float]`
+  (was `dict[str, Any]`), `testprotocols.hw_console:HwConsole.get_console` returns `Console` (was
+  `Any`) and `get_interactive_consoles` returns `Mapping[str, Console]` (was `dict[str, Any]`).
+  An implementer whose declared `get_telemetry` return is not `float`-valued, or whose console
+  lacks one of the `Console` members, no longer conforms; a reader gets `float` values and the
+  `Console` members only. Migration: narrow the declarations. Design
+  `docs/architecture/precise-types-design.md` (telemetry and policy; HwConsole); PR pending.
 - **field** `testprotocols.models:FirewallRule.dst_port` — now `str | None`, still required
   and in its released position; `None` when the driver fills only `dst_ports`. A reader of
   the field sees `str | None` (read the ports through testoperations, which accepts either
@@ -110,19 +117,20 @@ their tags and PR history.
 
 - **type checking** mypy now runs `disallow_any_explicit` on `testprotocols.*` and
   `testoperations.*` (internal; the contract is unchanged). The only
-  exemptions are released signatures, in two classes: 20 deprecation-period
+  exemptions are released signatures, in two classes: 8 deprecation-period
   exemptions, marked `# type: ignore[explicit-any]  # released signature kept
-  until removal` and removed with their members; and 2 compatibility
-  exemptions (`flash_via_bootloader`, `start_tcpdump`), marked
-  `# released parameter kept: implementers declare their own types`, live
-  members whose implementers declare their own types. `tests/test_typing_ratchet.py`
+  until removal` and removed with their members; and 14 compatibility
+  exemptions on live members: `flash_via_bootloader` and `start_tcpdump`, marked
+  `# released parameter kept: implementers declare their own types`, and the 12
+  TR-069 RPCs of `Tr069Server`, marked `# released signature kept: vendors extend the
+  parameter model`. `tests/test_typing_ratchet.py`
   counts the non-exempt `Any` (ceiling 0) and pins each class. Migration: none. Design `docs/architecture/precise-types-design.md`; no
   proposal (contract infrastructure); PR pending.
 - **model** `testprotocols.models:PortRange` (`first`, `last`, inclusive,
   `1 <= first <= last <= 65535`; frozen; `PortRange.single(port)`) — the typed L4
   port range. A typed port field is a tuple of `PortRange`.
   Migration: none. Design `docs/architecture/precise-types-design.md`
-  (shape 4(ii)); PR pending.
+  (Text and typed fields: either form); PR pending.
 - **enum** `testprotocols.models:DefaultAction` (`ACCEPT`, `DROP`, `REJECT`) —
   what a chain, zone or zone pair does with traffic no rule decides.
   Migration: none. Design `docs/architecture/precise-types-design.md`;
@@ -228,7 +236,7 @@ their tags and PR history.
   release that deprecates it." It is passed `category=None`: the deprecation is stated for the
   type checkers and in the docstring, and nothing warns at run time. mypy (error code
   `deprecated`) and pyright (`reportDeprecated`) report each use, which consumers see when their
-  checker enables the check. New dependency on Python 3.12: `typing_extensions>=4.5`.
+  checker enables the check. New dependency on Python 3.12: `typing_extensions>=4.6` (the first release that imports on 3.12).
   Migration: none. Design `docs/architecture/precise-types-design.md`; PR pending.
 
 - **protocol** `testprotocols.hw_console:Console` (also `testprotocols.Console`) — the
@@ -265,23 +273,17 @@ their tags and PR history.
   vocabulary is the existing `up`, `down`, `degraded` plus `unknown` (a probe with no
   data). Migration: pass the members. Static only:
   `TrafficShapingRule.match` is `Mapping[str, object]` (was `dict[str, Any]`),
-  so a reader gets `object` values. Listed in the design doc's "Effective now".
+  so a reader gets `object` values.
   Design `docs/architecture/precise-types-design.md` (WAN-edge models); PR pending.
-- **protocol members** `testprotocols.router:Router.get_telemetry` and
-  `testprotocols.sdwan_policy_manager:SdwanPolicyManager.apply_policy` — static
-  only, no runtime change: `get_telemetry` returns `Mapping[str, float]` (was
-  `dict[str, Any]`), so a reader gets `float` values and no longer a `dict`; and
-  `apply_policy` takes `dict[str, object]` (was `dict[str, Any]`), so a caller's
-  `dict[str, str]` variable no longer type-checks (an implementer's `dict`
-  parameter still conforms). An implementer whose declared `get_telemetry` return
-  is not `float`-valued (for example `dict[str, object]`) no longer conforms and
-  must narrow it. Listed in the design doc's "Effective now". Design `docs/architecture/precise-types-design.md` (telemetry and policy); PR pending.
+- **protocol member** `testprotocols.sdwan_policy_manager:SdwanPolicyManager.apply_policy` —
+  static only, no runtime change: it takes `dict[str, object]` (was `dict[str, Any]`), so a
+  caller's `dict[str, str]` variable no longer type-checks (an implementer's `dict` parameter
+  still conforms). Design `docs/architecture/precise-types-design.md` (telemetry and policy); PR pending.
 - **models** `testprotocols.models` `WifiBssConfig` (`band`, `security_mode`, `mfp`),
   `WifiStation.band`, `WifiNeighbor.band`, `WifiChannelUtilization.band`,
   `WifiRadioStats.band`, `WifiMeshLink.band`, `WifiAcl.mode`, `WifiMeshStatus.role` and
   `WifiMeshNode.role` — now `E | str` (`WifiBand`, `WifiSecurityMode`, `MfpMode`,
-  `WifiAclMode`, `MeshRole`): a member or the released word, stored as given. Listed in
-  the design doc's "Effective now". Design `docs/architecture/precise-types-design.md` (Wi-Fi vocabularies); PR pending.
+  `WifiAclMode`, `MeshRole`): a member or the released word, stored as given. Design `docs/architecture/precise-types-design.md` (Wi-Fi vocabularies); PR pending.
 - **protocol members** `WifiBss.create_bss` / `set_security` (`band`, `security_mode`,
   `mfp`; the `mfp` default stays `"optional"`),
   `WifiBss.set_acl_mode`, every `band` of `WifiRadio` and `WifiRf`,
@@ -336,135 +338,265 @@ their tags and PR history.
   `Mapping[str, object]` (was `dict[str, Any]`): a decoder's nested bag with no fixed typed
   shape; static only, a reader narrows each value it uses. Design `docs/architecture/precise-types-design.md` (Host-tier records); PR pending.
 
-- **protocol members** `testprotocols.hw_console:HwConsole.get_console(console_name) ->
-  Console` (was `Any`) and `get_interactive_consoles() -> Mapping[str, Console]` (was `dict[str,
-  Any]`) — no `Any`. Static only. A reader of a returned console sees only the `Console`
-  members (`execute_command`, `sendline`, `before`, `start_interactive_session`): a caller that
-  uses `expect`, `expect_exact` or other pexpect members keeps the concrete console type or
-  narrows; an implementer whose console lacks one of the four no longer conforms, and one that
-  returns a `dict` still does. A caller that mutates the returned mapping (for example
-  `popitem`) must take `dict(...)` first. `flash_via_bootloader` keeps its released
-  `dict[str, Any]` and `Any` parameters. Design `docs/architecture/precise-types-design.md`
-  (HwConsole); PR pending.
+- **protocol members** `testprotocols.hw_console:HwConsole.get_console` and
+  `get_interactive_consoles` — callers (see *Breaking for driver authors* for the narrowed
+  returns): a caller that uses `expect`, `expect_exact` or other pexpect members on a returned
+  console keeps the concrete console type or narrows, and one that mutates the returned mapping
+  (for example `popitem`) takes `dict(...)` first. An implementer that returns a `dict` still
+  conforms. `flash_via_bootloader` keeps its released `dict[str, Any]` and `Any` parameters.
+  Design `docs/architecture/precise-types-design.md` (HwConsole); PR pending.
 
 #### Deprecated
 
-- **parameters** `HttpClient.curl` and `http_get` `options` and `NmapScanner.nmap` `opts` —
-  the free option string is deprecated in favour of the typed keyword-only parameters (see
-  *Breaking for driver authors*; on `nmap`, `fast` replaces `-F` and any other `opts` has no
-  typed successor); giving both forms raises `ValueError`. `IpRouting.ping` and `traceroute` `options`, `DnsClient.dns_lookup`
-  `opts` and a `DeviceManagement.get_running_processes` `ps_options` other than `"-A"` are
-  deprecated with no typed replacement (no caller was seen to pass one through these members).
-  All keep their released types and positions until a
-  later release removes them. Design `docs/architecture/precise-types-design.md` (Tool option strings); PR pending.
-- **protocol members** `NtpClient.set_date` (use `set_date_time`) and
-  `SnmpClient.execute_snmp_command` (use `snmp_get`, `snmp_walk`, `snmp_set` or
-  `snmp_bulk_get`; no successor for any other command) — deprecated; they stay until a later release removes them. Design `docs/architecture/precise-types-design.md` (Tool option strings); PR pending.
-- **parameters and fields** `PacketFilter` (`chain`, `set_default_policy(policy)`),
-  `Nat.list_nat_rules(mode)`, `Conntrack` (`protocol`), `FirewallRule.action` /
-  `protocol`, `NatRule.mode` / `protocol`, `PortMapping.protocol` and
-  `Connection.protocol` — a plain `str` naming a member (`"FORWARD"`,
-  `"drop"`, `"snat"`, `"tcp"`, `"allow"`, `"tcp-udp"`) is
-  deprecated; a field stores it as given.
-  The annotations narrow to the enums in
-  a later release. Use `Chain`, `DefaultAction`, `NatMode`, `RuleProtocol`,
-  `FirewallRuleAction` and `PortMappingProtocol`. Design `docs/architecture/precise-types-design.md` (firewall, NAT and conntrack vocabularies); PR pending.
-- **return type** `PacketFilter.get_default_policy` — announced only: it returns
-  `str` today and narrows to `DefaultAction` in a later release (a
-  `DefaultAction` is a `str`, so comparisons with the plain words keep working).
-  Design `docs/architecture/precise-types-design.md` (firewall, NAT and conntrack vocabularies); PR pending.
-- **fields** `FirewallRule.dst_port`, `NatRule.dst_port` and
-  `NatRule.translated_port` — the port text. A driver fills `dst_ports` /
-  `translated_ports`, or both forms; at removal the text fields go and the typed
-  fields become required. Design `docs/architecture/precise-types-design.md` (firewall and NAT ports and counters); PR pending.
-- **protocol members** `PacketFilter.get_rule_counters` and
-  `Nat.get_nat_rule_counters` — deprecated names of `get_rule_counter_values` and
-  `get_nat_rule_counter_values`; they return `RuleCounters` from the new names.
-  Design `docs/architecture/precise-types-design.md` (firewall and NAT ports and counters); PR pending.
-- **placeholders** `NatRule.src_cidr`, `dst_cidr`, `translated_src` and
-  `translated_dst` — announced only: `""` means absent today and becomes `None`
-  in a later release. Design `docs/architecture/precise-types-design.md` (firewall and NAT ports and counters); PR pending.
-- **fields** `L3Rule.src_port` and `dst_port`, `SecurityEvent.ts` — the port and
-  timestamp text. A driver fills `src_ports` / `dst_ports` and `timestamp`, or both
-  forms; at removal the text fields go and the typed fields become required. Design `docs/architecture/precise-types-design.md` (SD-WAN models); PR pending.
-- **placeholders** `L3Rule.src_cidr` and `dst_cidr` (`"any"`),
-  `UplinkStatus.ip`, `gateway`, `public_ip` and `primary_dns` (`""`), and
-  `NetworkAttachment.segment` (`""`) — announced only: they mean
-  unconstrained or not reported today and become `str | None` (`None`) in a
-  later release. Design `docs/architecture/precise-types-design.md` (SD-WAN models); PR pending.
-- **parameters and fields** `LinkStatus.state` and `LinkHealthReport.state` — a plain
-  `str` naming a member (`"up"`, `"degraded"`) is deprecated; it is stored as given.
-  The annotations narrow to `UplinkState` in a later release. Design `docs/architecture/precise-types-design.md` (WAN-edge models); PR pending.
-- **models** `testprotocols.models.wan_edge:VPNPeerStatus` and
-  `TrafficShapingRule` (also reached as `testprotocols.models.VPNPeerStatus` and
-  `TrafficShapingRule`) — deprecated with no successor: no capability uses them;
-  they carry the `@deprecated` marker and are removed in a later release. Use
-  `VpnPeerStatus` for site-to-site peers and `ShapingRule` for shaping where a
-  capability needs one. Design `docs/architecture/precise-types-design.md` (WAN-edge models); PR pending.
-- **placeholder** `LinkStatus.ip_address` — announced only: `""` means no
-  address today and becomes `str | None` in a later release. Design `docs/architecture/precise-types-design.md` (WAN-edge models); PR pending.
-- **field** `QosRule.match` — the classifier text. A driver fills `classifier`, or
-  both forms; at removal the text field goes and `classifier` becomes required. Design `docs/architecture/precise-types-design.md` (switch QoS classifier); PR pending.
-- **protocol members** `Router.get_telemetry` — deprecated name of
-  `Router.read_telemetry`.
-  `SdwanPolicyManager.apply_policy` — deprecated with no successor: the typed
-  members (`configure_sla_policy`, `set_uplink_selection`, `set_default_uplink`,
-  `set_active_active_vpn`) cover what a policy expresses; the member stays,
-  unchanged, until a later release removes it. Design `docs/architecture/precise-types-design.md` (telemetry and policy); PR pending.
-- **parameters** `WifiBss` (`band`, `security_mode`, `mfp`, `set_acl_mode(mode)`),
-  `WifiRadio` (`band`, `set_mode(mode)`), `WifiRf` (`band`) and
-  `WifiMesh.set_backhaul_band` — a plain `str` naming a member (`"5GHz"`,
-  `"WPA2-PSK"`, `"required"`, `"deny"`, `"ax"`) is deprecated. The annotations narrow to the enums in a later release. A compound PHY
-  mode (`"n/ac/ax"`), which the released `set_mode` allowed at a driver's discretion,
-  names no member. Design `docs/architecture/precise-types-design.md` (Wi-Fi vocabularies); PR pending.
-- **parameter** `WifiClient.set_wlan_scan_channel(channel)` — a numeric `str` is
-  deprecated. Narrows to `int`
-  in a later release. Design `docs/architecture/precise-types-design.md` (Wi-Fi vocabularies); PR pending.
-- **fields** the Wi-Fi model fields listed under *Changed* — a plain `str` naming a member is deprecated; it is stored as given. The
-  annotations narrow to the enums in a later release. Design `docs/architecture/precise-types-design.md` (Wi-Fi vocabularies); PR pending.
-- **protocol member** `WifiClient.iwlist_supported_channels` — deprecated name of
-  `supported_channels` (see *Breaking for driver authors*); it keeps its released
-  signature (`wifi_band: str`, `list[str]`). Design `docs/architecture/precise-types-design.md` (Wi-Fi vocabularies); PR pending.
-- **return types** `WifiRadio.list_radios`, `get_mode` and `get_bandwidth` — announced
-  only: they return `list[str]`, `str` and `int` today and narrow to
-  `list[WifiBand]`, `WifiPhyMode` and `ChannelWidth` in a later release (members equal
-  their strings and numbers, so comparisons keep working; `get_mode` stays `str`
-  until the compound-mode question is settled). Design `docs/architecture/precise-types-design.md` (Wi-Fi vocabularies); PR pending.
-- **protocol members** `SipServer.get_rtpengine_stats`, `get_mwi_status` and
-  `get_offline_messages` — deprecated names of `read_rtpengine_stats`, `read_mwi_status`
-  and `read_offline_messages` (see *Breaking for driver authors*); they keep their dict
-  returns until a later release removes them. Design `docs/architecture/precise-types-design.md` (Voice vocabularies); PR pending.
-- **parameters** `SipPhone.wait_for_state(state)`, `SipPhone.set_presence(status)`,
-  `SipServer.notify_presence(user, status)` and `SipServer.verify_sip_message(message_type)`
-  — a plain `str` naming a `PhoneState` member (`"idle"`) is deprecated for `wait_for_state`. The presence
-  and message-type words are the provider's own and stay `str`. The `wait_for_state`
-  annotation narrows to `PhoneState` in a later release. Design `docs/architecture/precise-types-design.md` (Voice vocabularies); PR pending.
-- **properties** `HTTPResult.code` and `HTTPResult.beautified_text` — deprecated names of
-  `status` (an `int`, not text) and `body`; they carry the `@deprecated` marker and are removed in a later release. Design `docs/architecture/precise-types-design.md` (Host-tool and service vocabularies); PR pending.
-- **parameters** the `E | str` parameters listed under *Changed*: a plain `str` naming a
-  member is deprecated; the annotations narrow to the enums
-  in a later release. `ip_version` of the iperf members narrows to `IpFamily | None`. The
-  `str` parameters that stay `str` narrow later too: `port`, `int_port`, `ext_port` and
-  `vlan_id` to `int`, `start_http_service(ip_version)` to `IpFamily` (`"4"` / `"6"`), and
-  `traceroute(version)` (the command suffix `""` or `"6"`) to `IpFamily | None`. Design `docs/architecture/precise-types-design.md` (Host-tool and service vocabularies); PR pending.
-- **parameter** `IpInterface.is_link_up(pattern)` — the free-text `ip link` flag list is
-  deprecated: a driver keeps matching it; use `is_link_admin_up` for the administrative state. Design `docs/architecture/precise-types-design.md` (Host-tool and service vocabularies); PR pending.
-- **return type** `RadiusServer.get_status` — announced only: it returns `str` today and
-  narrows to `ServiceStatus` (members equal the strings) in a later release. Design `docs/architecture/precise-types-design.md` (Host-tool and service vocabularies); PR pending.
-- **fields** `MeasurementSpec` and `TrafficSpec` as above: a plain
-  `str` for a typed field is deprecated; the annotations narrow to the enums later. Design `docs/architecture/precise-types-design.md` (Host-tool and service vocabularies); PR pending.
-- **protocol members** `ContentFiltering.get_url_rules`, `DeviceManagement.get_memory_utilization`,
-  `get_running_processes` and `read_event_logs`, `DnsClient.dns_lookup`,
-  `IperfClient.start_traffic_sender`, `IperfServer.start_traffic_receiver`,
-  `NmapScanner.nmap`, `ArpClient.get_arp_table`, `NtpClient.get_date` and
-  `NetemController.inject_transient` — deprecated names of the new members (see *Breaking for
-  driver authors*); they keep their released signatures and returns until a later release
-  removes them. `IpRouting.ping(json_output=True)` is deprecated: use `ping_stats`. Design `docs/architecture/precise-types-design.md` (Host-tier records); PR pending.
-- **parameters** the netem `profile` as a `dict` (use `ImpairmentProfile`) and a plain tuple in `send_mldv2_report`'s
-  records (use `GroupRecord`). The
-  `profile` annotation narrows to `ImpairmentProfile` and the records to
-  `Sequence[GroupRecord]` in a later release; `HeldPrefixes.hold` / `release` narrow to
-  `IPv4Interface | IPv6Interface` (announced only). Design `docs/architecture/precise-types-design.md` (Host-tier records); PR pending.
+- **member** `testprotocols.packet_filter:PacketFilter.get_rule_counters` (so also `Firewall`) —
+  deprecated. Replacement: `get_rule_counter_values`. Earliest removal: the first release 6 months
+  after the release that deprecates it. Design `docs/architecture/precise-types-design.md`
+  (Deprecations); PR pending.
+- **member** `testprotocols.nat:Nat.get_nat_rule_counters` — deprecated. Replacement:
+  `get_nat_rule_counter_values`. Earliest removal: the first release 6 months after the release that
+  deprecates it. Design `docs/architecture/precise-types-design.md` (Deprecations); PR pending.
+- **member** `testprotocols.router:Router.get_telemetry` — deprecated. Replacement:
+  `read_telemetry`. Earliest removal: the first release 6 months after the release that deprecates
+  it. Design `docs/architecture/precise-types-design.md` (Deprecations); PR pending.
+- **member** `testprotocols.sdwan_policy_manager:SdwanPolicyManager.apply_policy` — deprecated.
+  Replacement: none: the typed steering and SLA members (`configure_sla_policy`,
+  `set_uplink_selection`, `set_default_uplink`, `set_active_active_vpn`). Earliest removal: the
+  first release 6 months after the release that deprecates it. Design
+  `docs/architecture/precise-types-design.md` (Deprecations); PR pending.
+- **member** `testprotocols.wifi_client:WifiClient.iwlist_supported_channels` — deprecated.
+  Replacement: `supported_channels`. Earliest removal: the first release 6 months after the release
+  that deprecates it. Design `docs/architecture/precise-types-design.md` (Deprecations); PR pending.
+- **member** `testprotocols.sip_server:SipServer.get_rtpengine_stats` — deprecated. Replacement:
+  `read_rtpengine_stats`. Earliest removal: the first release 6 months after the release that
+  deprecates it. Design `docs/architecture/precise-types-design.md` (Deprecations); PR pending.
+- **member** `testprotocols.sip_server:SipServer.get_mwi_status` — deprecated. Replacement:
+  `read_mwi_status`. Earliest removal: the first release 6 months after the release that deprecates
+  it. Design `docs/architecture/precise-types-design.md` (Deprecations); PR pending.
+- **member** `testprotocols.sip_server:SipServer.get_offline_messages` — deprecated. Replacement:
+  `read_offline_messages`. Earliest removal: the first release 6 months after the release that
+  deprecates it. Design `docs/architecture/precise-types-design.md` (Deprecations); PR pending.
+- **member** `testprotocols.content_filtering:ContentFiltering.get_url_rules` — deprecated.
+  Replacement: `read_url_rules`. Earliest removal: the first release 6 months after the release that
+  deprecates it. Design `docs/architecture/precise-types-design.md` (Deprecations); PR pending.
+- **member** `testprotocols.device_management:DeviceManagement.get_memory_utilization` — deprecated.
+  Replacement: `read_memory_utilization`. Earliest removal: the first release 6 months after the
+  release that deprecates it. Design `docs/architecture/precise-types-design.md` (Deprecations); PR
+  pending.
+- **member** `testprotocols.device_management:DeviceManagement.get_running_processes` (with
+  `ps_options`) — deprecated. Replacement: `read_running_processes`; a `ps_options` other than
+  `"-A"` has no successor. Earliest removal: the first release 6 months after the release that
+  deprecates it. Design `docs/architecture/precise-types-design.md` (Deprecations); PR pending.
+- **member** `testprotocols.device_management:DeviceManagement.read_event_logs` — deprecated.
+  Replacement: `read_log_entries`. Earliest removal: the first release 6 months after the release
+  that deprecates it. Design `docs/architecture/precise-types-design.md` (Deprecations); PR pending.
+- **member** `testprotocols.dns_client:DnsClient.dns_lookup` (with `opts`) — deprecated.
+  Replacement: `resolve`; `opts` has no successor. Earliest removal: the first release 6 months
+  after the release that deprecates it. Design `docs/architecture/precise-types-design.md`
+  (Deprecations); PR pending.
+- **member** `testprotocols.iperf_client:IperfClient.start_traffic_sender` — deprecated.
+  Replacement: `start_sender_session`. Earliest removal: the first release 6 months after the
+  release that deprecates it. Design `docs/architecture/precise-types-design.md` (Deprecations); PR
+  pending.
+- **member** `testprotocols.iperf_server:IperfServer.start_traffic_receiver` — deprecated.
+  Replacement: `start_receiver_session`. Earliest removal: the first release 6 months after the
+  release that deprecates it. Design `docs/architecture/precise-types-design.md` (Deprecations); PR
+  pending.
+- **member** `testprotocols.nmap_scanner:NmapScanner.nmap` (with `opts`) — deprecated. Replacement:
+  `scan_ports`; `fast` replaces `opts="-F"`, any other `opts` has no successor. Earliest removal:
+  the first release 6 months after the release that deprecates it. Design
+  `docs/architecture/precise-types-design.md` (Deprecations); PR pending.
+- **member** `testprotocols.arp_client:ArpClient.get_arp_table` — deprecated. Replacement:
+  `read_arp_table`. Earliest removal: the first release 6 months after the release that deprecates
+  it. Design `docs/architecture/precise-types-design.md` (Deprecations); PR pending.
+- **member** `testprotocols.ntp_client:NtpClient.get_date` — deprecated. Replacement: `read_date`.
+  Earliest removal: the first release 6 months after the release that deprecates it. Design
+  `docs/architecture/precise-types-design.md` (Deprecations); PR pending.
+- **member** `testprotocols.ntp_client:NtpClient.set_date` — deprecated. Replacement:
+  `set_date_time`. Earliest removal: the first release 6 months after the release that deprecates
+  it. Design `docs/architecture/precise-types-design.md` (Deprecations); PR pending.
+- **member** `testprotocols.netem_controller:NetemController.inject_transient` — deprecated.
+  Replacement: `inject_event`. Earliest removal: the first release 6 months after the release that
+  deprecates it. Design `docs/architecture/precise-types-design.md` (Deprecations); PR pending.
+- **member** `testprotocols.snmp_client:SnmpClient.execute_snmp_command` — deprecated. Replacement:
+  `snmp_get`, `snmp_walk`, `snmp_set` or `snmp_bulk_get`; any other command has no successor.
+  Earliest removal: the first release 6 months after the release that deprecates it. Design
+  `docs/architecture/precise-types-design.md` (Deprecations); PR pending.
+- **member** `testprotocols.models:HTTPResult.code` (property) — deprecated. Replacement: `status`
+  (an `int`). Earliest removal: the first release 6 months after the release that deprecates it.
+  Design `docs/architecture/precise-types-design.md` (Deprecations); PR pending.
+- **member** `testprotocols.models:HTTPResult.beautified_text` (property) — deprecated. Replacement:
+  `body`. Earliest removal: the first release 6 months after the release that deprecates it. Design
+  `docs/architecture/precise-types-design.md` (Deprecations); PR pending.
+- **class** `testprotocols.models:VPNPeerStatus` — deprecated. Replacement: none (`VpnPeerStatus`
+  for site-to-site peers). Earliest removal: the first release 6 months after the release that
+  deprecates it. Design `docs/architecture/precise-types-design.md` (Deprecations); PR pending.
+- **class** `testprotocols.models:TrafficShapingRule` — deprecated. Replacement: none (`ShapingRule`
+  where a capability needs one). Earliest removal: the first release 6 months after the release that
+  deprecates it. Design `docs/architecture/precise-types-design.md` (Deprecations); PR pending.
+- **parameter** `testprotocols.ip_routing:IpRouting.ping(json_output=True)` — deprecated.
+  Replacement: `ping_stats`; at removal `ping` returns `bool`. Earliest removal: the first release 6
+  months after the release that deprecates it. Design `docs/architecture/precise-types-design.md`
+  (Deprecations); PR pending.
+- **parameter** `IpRouting.ping` and `traceroute` `options` — deprecated. Replacement: none.
+  Earliest removal: the first release 6 months after the release that deprecates it. Design
+  `docs/architecture/precise-types-design.md` (Deprecations); PR pending.
+- **parameter** `testprotocols.http_client:HttpClient.curl` and `http_get` `options` — deprecated.
+  Replacement: keyword-only `no_proxy`, `insecure`, `follow_redirects`. Earliest removal: the first
+  release 6 months after the release that deprecates it. Design
+  `docs/architecture/precise-types-design.md` (Deprecations); PR pending.
+- **parameter** `PacketFilter` `chain` (every member) and `set_default_policy(policy)`: `Chain |
+  str`, `DefaultAction | str` — deprecated. Replacement: `Chain`, `DefaultAction` (narrows to the
+  enum). Earliest removal: the first release 6 months after the release that deprecates it. Design
+  `docs/architecture/precise-types-design.md` (Deprecations); PR pending.
+- **parameter** `Nat.list_nat_rules(mode)`: `NatMode | str | None` — deprecated. Replacement:
+  `NatMode | None` (narrows to the enum). Earliest removal: the first release 6 months after the
+  release that deprecates it. Design `docs/architecture/precise-types-design.md` (Deprecations); PR
+  pending.
+- **parameter** `Conntrack` `protocol` (`list_connections`, `count_connections`, `get_connection`,
+  `drop_connection`): `RuleProtocol | str` — deprecated. Replacement: `RuleProtocol` (narrows to the
+  enum). Earliest removal: the first release 6 months after the release that deprecates it. Design
+  `docs/architecture/precise-types-design.md` (Deprecations); PR pending.
+- **parameter** Wi-Fi `band` (`WifiBss.create_bss`, every `WifiRadio` and `WifiRf` member,
+  `WifiRadioWhiteBox.inject_radar_event`, `WifiMesh.set_backhaul_band`): `WifiBand | str` —
+  deprecated. Replacement: `WifiBand` (narrows to the enum). Earliest removal: the first release 6
+  months after the release that deprecates it. Design `docs/architecture/precise-types-design.md`
+  (Deprecations); PR pending.
+- **parameter** `WifiBss.create_bss(security_mode, mfp)` and `set_security(mode, mfp)`:
+  `WifiSecurityMode | str`, `MfpMode | str` — deprecated. Replacement: `WifiSecurityMode`, `MfpMode`
+  (narrows to the enum). Earliest removal: the first release 6 months after the release that
+  deprecates it. Design `docs/architecture/precise-types-design.md` (Deprecations); PR pending.
+- **parameter** `WifiBss.set_acl_mode(mode)`: `WifiAclMode | str` — deprecated. Replacement:
+  `WifiAclMode` (narrows to the enum). Earliest removal: the first release 6 months after the
+  release that deprecates it. Design `docs/architecture/precise-types-design.md` (Deprecations); PR
+  pending.
+- **parameter** `WifiRadio.set_mode(mode)`: `WifiPhyMode | str` — deprecated. Replacement:
+  `WifiPhyMode` (narrows to the enum; a compound mode names no member). Earliest removal: the first
+  release 6 months after the release that deprecates it. Design
+  `docs/architecture/precise-types-design.md` (Deprecations); PR pending.
+- **parameter** `WifiClient.set_wlan_scan_channel(channel)`: `int | str` — deprecated. Replacement:
+  `int`. Earliest removal: the first release 6 months after the release that deprecates it. Design
+  `docs/architecture/precise-types-design.md` (Deprecations); PR pending.
+- **parameter** `SipPhone.wait_for_state(state)`: `PhoneState | str` — deprecated. Replacement:
+  `PhoneState` (narrows to the enum). Earliest removal: the first release 6 months after the release
+  that deprecates it. Design `docs/architecture/precise-types-design.md` (Deprecations); PR pending.
+- **parameter** `HttpClient.curl(protocol)`: `HttpScheme | str` — deprecated. Replacement:
+  `HttpScheme` (narrows to the enum). Earliest removal: the first release 6 months after the release
+  that deprecates it. Design `docs/architecture/precise-types-design.md` (Deprecations); PR pending.
+- **parameter** `IpInterface.set_link_state(state)`: `LinkAdminState | str` — deprecated.
+  Replacement: `LinkAdminState` (narrows to the enum). Earliest removal: the first release 6 months
+  after the release that deprecates it. Design `docs/architecture/precise-types-design.md`
+  (Deprecations); PR pending.
+- **parameter** `UpnpClient.create_upnp_rule(protocol)` and `delete_upnp_rule(protocol)`:
+  `PortMappingProtocol | str` — deprecated. Replacement: `PortMappingProtocol` (narrows to the
+  enum). Earliest removal: the first release 6 months after the release that deprecates it. Design
+  `docs/architecture/precise-types-design.md` (Deprecations); PR pending.
+- **parameter** `QoeBrowser.measure_productivity(scenario, wait_until)`: `QoeScenario | str`,
+  `PageCompletion | str` — deprecated. Replacement: `QoeScenario`, `PageCompletion` (narrows to the
+  enum). Earliest removal: the first release 6 months after the release that deprecates it. Design
+  `docs/architecture/precise-types-design.md` (Deprecations); PR pending.
+- **parameter** `HttpServer.start_http_service` / `stop_http_service(port)` and
+  `start_http_service(ip_version)`: `str` — deprecated. Replacement: `int`, `IpFamily` (announced
+  narrowing). Earliest removal: the first release 6 months after the release that deprecates it.
+  Design `docs/architecture/precise-types-design.md` (Deprecations); PR pending.
+- **parameter** `UpnpClient` `int_port`, `ext_port` and `VlanClient` `vlan_id`: `str` — deprecated.
+  Replacement: `int` (announced narrowing). Earliest removal: the first release 6 months after the
+  release that deprecates it. Design `docs/architecture/precise-types-design.md` (Deprecations); PR
+  pending.
+- **parameter** `IpRouting.traceroute(version)`: `str` (`""` or `"6"`) — deprecated. Replacement:
+  `IpFamily | None` (announced narrowing). Earliest removal: the first release 6 months after the
+  release that deprecates it. Design `docs/architecture/precise-types-design.md` (Deprecations); PR
+  pending.
+- **parameter** `IpInterface.is_link_up(pattern)` — deprecated. Replacement: `is_link_admin_up` for
+  the administrative state; at removal `pattern` goes. Earliest removal: the first release 6 months
+  after the release that deprecates it. Design `docs/architecture/precise-types-design.md`
+  (Deprecations); PR pending.
+- **parameter** `NetemController.set_impairment_profile` / `set_interface_profile(profile)` as a
+  `dict` — deprecated. Replacement: `ImpairmentProfile` (narrows to it). Earliest removal: the first
+  release 6 months after the release that deprecates it. Design
+  `docs/architecture/precise-types-design.md` (Deprecations); PR pending.
+- **parameter** `MulticastClient.send_mldv2_report` records as plain tuples — deprecated.
+  Replacement: `GroupRecord` (narrows to `Sequence[GroupRecord]`). Earliest removal: the first
+  release 6 months after the release that deprecates it. Design
+  `docs/architecture/precise-types-design.md` (Deprecations); PR pending.
+- **parameter** `HeldPrefixes.hold(address)`: `str` — deprecated. Replacement: `IPv4Interface |
+  IPv6Interface` (announced narrowing). Earliest removal: the first release 6 months after the
+  release that deprecates it. Design `docs/architecture/precise-types-design.md` (Deprecations); PR
+  pending.
+- **member** `PacketFilter.get_default_policy` return `str` — deprecated. Replacement:
+  `DefaultAction` (announced narrowing). Earliest removal: the first release 6 months after the
+  release that deprecates it. Design `docs/architecture/precise-types-design.md` (Deprecations); PR
+  pending.
+- **member** `WifiRadio.list_radios`, `get_bandwidth` and `get_mode` returns (`list[str]`, `int`,
+  `str`) — deprecated. Replacement: `list[WifiBand]`, `ChannelWidth`, `WifiPhyMode` (announced;
+  `get_mode` once compound modes are settled). Earliest removal: the first release 6 months after
+  the release that deprecates it. Design `docs/architecture/precise-types-design.md` (Deprecations);
+  PR pending.
+- **member** `RadiusServer.get_status` return `str` — deprecated. Replacement: `ServiceStatus`
+  (announced narrowing). Earliest removal: the first release 6 months after the release that
+  deprecates it. Design `docs/architecture/precise-types-design.md` (Deprecations); PR pending.
+- **field** `FirewallRule.dst_port` (port text, required) — deprecated. Replacement: `dst_ports`; at
+  removal the text field goes and `dst_ports` becomes required. Earliest removal: the first release
+  6 months after the release that deprecates it. Design `docs/architecture/precise-types-design.md`
+  (Deprecations); PR pending.
+- **field** `NatRule.dst_port` and `translated_port` (port text, released default `""`) —
+  deprecated. Replacement: `dst_ports`, `translated_ports`; at removal the text fields go and the
+  typed field becomes required, or defaults to `()` (decide at removal). Earliest removal: the first
+  release 6 months after the release that deprecates it. Design
+  `docs/architecture/precise-types-design.md` (Deprecations); PR pending.
+- **field** `L3Rule.src_port` and `dst_port` (port text, released default `"any"`) — deprecated.
+  Replacement: `src_ports`, `dst_ports`; at removal the text fields go and the typed field becomes
+  required, or defaults to `()` (decide at removal). Earliest removal: the first release 6 months
+  after the release that deprecates it. Design `docs/architecture/precise-types-design.md`
+  (Deprecations); PR pending.
+- **field** `SecurityEvent.ts` (ISO-8601 text, required) — deprecated. Replacement: `timestamp`; at
+  removal `ts` goes and `timestamp` becomes required (`None`: no time reported). Earliest removal:
+  the first release 6 months after the release that deprecates it. Design
+  `docs/architecture/precise-types-design.md` (Deprecations); PR pending.
+- **field** `QosRule.match` (classifier text, required) — deprecated. Replacement: `classifier`; at
+  removal `match` goes and `classifier` becomes required (`None`: every frame). Earliest removal:
+  the first release 6 months after the release that deprecates it. Design
+  `docs/architecture/precise-types-design.md` (Deprecations); PR pending.
+- **field** `FirewallRule.action` / `protocol`: `FirewallRuleAction | str`, `RuleProtocol | str` —
+  deprecated. Replacement: the enums (narrows from `E | str` to `E`). Earliest removal: the first
+  release 6 months after the release that deprecates it. Design
+  `docs/architecture/precise-types-design.md` (Deprecations); PR pending.
+- **field** `NatRule.mode` / `protocol`: `NatMode | str`, `RuleProtocol | str` — deprecated.
+  Replacement: the enums (narrows from `E | str` to `E`). Earliest removal: the first release 6
+  months after the release that deprecates it. Design `docs/architecture/precise-types-design.md`
+  (Deprecations); PR pending.
+- **field** `PortMapping.protocol`, `Connection.protocol`: `PortMappingProtocol | str`,
+  `RuleProtocol | str` — deprecated. Replacement: the enums (narrows from `E | str` to `E`).
+  Earliest removal: the first release 6 months after the release that deprecates it. Design
+  `docs/architecture/precise-types-design.md` (Deprecations); PR pending.
+- **field** `LinkStatus.state`, `LinkHealthReport.state`: `UplinkState | str` — deprecated.
+  Replacement: `UplinkState` (narrows from `E | str` to `E`). Earliest removal: the first release 6
+  months after the release that deprecates it. Design `docs/architecture/precise-types-design.md`
+  (Deprecations); PR pending.
+- **field** Wi-Fi fields: `band` of `WifiBssConfig`, `WifiStation`, `WifiNeighbor`,
+  `WifiChannelUtilization`, `WifiRadioStats`, `WifiMeshLink`; `WifiBssConfig.security_mode` / `mfp`;
+  `WifiAcl.mode`; `role` of `WifiMeshStatus`, `WifiMeshNode` — deprecated. Replacement: `WifiBand`,
+  `WifiSecurityMode`, `MfpMode`, `WifiAclMode`, `MeshRole` (narrows from `E | str` to `E`). Earliest
+  removal: the first release 6 months after the release that deprecates it. Design
+  `docs/architecture/precise-types-design.md` (Deprecations); PR pending.
+- **field** `MeasurementSpec.tool` / `completion`, `TrafficSpec.protocol` — deprecated. Replacement:
+  `QoeTool`, `QoeCompletion | PageCompletion`, `TransportProtocol` (narrows from `E | str` to `E`).
+  Earliest removal: the first release 6 months after the release that deprecates it. Design
+  `docs/architecture/precise-types-design.md` (Deprecations); PR pending.
+- **field** `NatRule.src_cidr`, `dst_cidr`, `translated_src`, `translated_dst` (`""`: absent) —
+  deprecated. Replacement: `str | None`, `None` absent (announced). Earliest removal: the first
+  release 6 months after the release that deprecates it. Design
+  `docs/architecture/precise-types-design.md` (Deprecations); PR pending.
+- **field** `L3Rule.src_cidr`, `dst_cidr` (`"any"`), `UplinkStatus.ip`, `gateway`, `public_ip`,
+  `primary_dns` and `NetworkAttachment.segment` (`""`) — deprecated. Replacement: `str | None`,
+  `None` unconstrained or not reported (announced). Earliest removal: the first release 6 months
+  after the release that deprecates it. Design `docs/architecture/precise-types-design.md`
+  (Deprecations); PR pending.
+- **field** `LinkStatus.ip_address` (`""`: no address) — deprecated. Replacement: `str | None`
+  (announced). Earliest removal: the first release 6 months after the release that deprecates it.
+  Design `docs/architecture/precise-types-design.md` (Deprecations); PR pending.
+- **field** `HTTPResult.status` `0` (no numeric status code) — deprecated. Replacement: `int |
+  None`, `None` (announced). Earliest removal: the first release 6 months after the release that
+  deprecates it. Design `docs/architecture/precise-types-design.md` (Deprecations); PR pending.
 
 ### testoperations
 
@@ -572,20 +704,27 @@ their tags and PR history.
 
 #### Deprecated
 
-- **parameters** `build_deny_rule(scope, proto)` — a plain `str` naming a member
-  (`"host"`, `"icmp"`) is deprecated: it warns and is converted. The annotations
-  narrow to `DenyScope` and `RuleProtocol` in a later release. Design `docs/architecture/precise-types-design.md` (Segmentation deny scope); PR pending.
-- **access** reading `IperfSession`, `HomeVerification` or `FlowPair` as the released dict —
-  `result["sender_pid"]`, `result["vlan_defined"]`, `result["a_to_b"]`, `.get`, `in`, `len`,
-  `keys`, `items`, `values`, iteration, `dict(result)`, `**result` (a conversion warns once for `keys()` and once per key read), `==` against the released dict, and `as_dict()` — warns
-  (`DeprecationWarning`) and returns the released values (for `verify_home`, `details` is the
-  released nested dict with the peer states as text). Truthiness (`if result:`) does not warn:
-  a record is always true, as the released dict with its keys was. Static types narrow: the records are not a
-  `Mapping` and `[]` / `get` return `object`, so a typed caller needs the fields or `as_dict()`. The mapping access is removed in a later
-  release; read the fields. Design `docs/architecture/precise-types-design.md` (testoperations: typed records); PR pending.
-- **parameters** `apply_preset(preset_name)` and `NonCompletion(which_side, what)` — a plain
-  `str` naming a member is deprecated: it warns and is converted; the annotations narrow to the
-  enums in a later release. Design `docs/architecture/precise-types-design.md` (testoperations: typed records); PR pending.
+- **parameter** `testoperations.segmentation:build_deny_rule(scope, proto)` as a plain `str` —
+  deprecated. Replacement: `DenyScope`, `RuleProtocol` (narrows to the enum). Earliest removal: the
+  first release 6 months after the release that deprecates it. Design
+  `docs/architecture/precise-types-design.md` (Deprecations); PR pending.
+- **parameter** `testoperations.netem_controller:apply_preset(preset_name)` as a plain `str` —
+  deprecated. Replacement: `NetemPreset` (narrows to the enum). Earliest removal: the first release
+  6 months after the release that deprecates it. Design `docs/architecture/precise-types-design.md`
+  (Deprecations); PR pending.
+- **parameter** `testoperations.throughput:NonCompletion(which_side, what)` as a plain `str` —
+  deprecated. Replacement: `NonCompletionSide`, `NonCompletionKind` (narrows to the enum). Earliest
+  removal: the first release 6 months after the release that deprecates it. Design
+  `docs/architecture/precise-types-design.md` (Deprecations); PR pending.
+- **parameter** `testoperations.iperf_generator:saturate_link(protocol)` as a plain `str` —
+  deprecated. Replacement: `TransportProtocol` (narrows to the enum). Earliest removal: the first
+  release 6 months after the release that deprecates it. Design
+  `docs/architecture/precise-types-design.md` (Deprecations); PR pending.
+- **member** reading `IperfSession`, `HomeVerification` or `FlowPair` as the released dict
+  (indexing, `get`, `in`, `len`, `keys`, `items`, `values`, iteration, `==` a dict, `as_dict()`) —
+  deprecated. Replacement: the record's fields; the mapping access is removed. Earliest removal: the
+  first release 6 months after the release that deprecates it. Design
+  `docs/architecture/precise-types-design.md` (Deprecations); PR pending.
 
 #### Fixed
 

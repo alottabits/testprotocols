@@ -266,6 +266,14 @@ driver that type-checks today. `testoperations` pins `testprotocols` the
 same way from its first release under this process. The MAJOR digit stays
 0 until the contracts are declared stable, by a proposal of its own.
 
+A contract change may deprecate the old form. The deprecation model:
+
+- protocols state a deprecation (docstring, `@deprecated` marker, CHANGELOG) and carry no transition code;
+- a record keeps a released field during a deprecation, widened to `… | None` next to an optional typed twin, so a driver fills either form;
+- drivers decide how they transition;
+- `testoperations` supports both forms until removal;
+- removal happens in the first release after 6 months, tracked in the Deprecations table of `docs/architecture/precise-types-design.md`.
+
 ## The changelog
 
 `CHANGELOG.md`, Keep-a-Changelog layout, one `[Unreleased]` section.
@@ -302,6 +310,8 @@ breaking entry has waited long enough. Never per merged PR, never with an
 empty `[Unreleased]`. A merged PR is in the next release without
 exception; a change that must wait stays unmerged.
 
+Before tagging, remove or carry forward every row of the Deprecations table whose earliest removal has passed.
+
 1. Branch `release/X.Y.Z` from `main`; bump both version fields and the
    `testoperations` pin on `testprotocols`; rename `## [Unreleased]` to
    `## [X.Y.Z] — YYYY-MM-DD`, replace a package's `- no entries yet` with
@@ -320,9 +330,10 @@ followed by a PATCH; the yank is noted in the changelog section. Fixes
 land on `main` first; there are no stable branches at 0.x, and a consumer
 that cannot take the next release carries the fix as a `Backport` patch.
 A removal, rename or retype is preceded by a deprecation period where the
-two forms can coexist: a *Deprecated* changelog entry and a runtime
-`DeprecationWarning`, for at least one MINOR release and at least six
-months, whichever is later. The period covers the published
+two forms can coexist: a *Deprecated* changelog entry, a row in the
+Deprecations table, and for a member or class the `@deprecated` marker that
+type checkers report (nothing warns at run time), until the first release
+6 months after the release that deprecates it. The period covers the published
 `testoperations` operations too: an operation that calls a renamed or
 retyped member accepts a driver with only the old form until the old form
 is removed. How a rename or a retype keeps both forms alive is in
