@@ -251,13 +251,19 @@ keys; plugins map to vendor app-ids), grown on evidence; `L7Rule.value` for
 
 ## 2026-06-11 — migrate legacy bare-`str` value fields to typed vocabularies [priority: low]
 
-> **Status (precise-types work):** partly done. `LinkStatus.state` and
-> `LinkHealthReport.state` are now `UplinkState` (the shared vocabulary, not a
-> separate `LinkState`), the firewall, NAT and conntrack vocabularies are enums, and
-> `VPNPeerStatus` / `TrafficShapingRule` are deprecated with no successor; see
-> `docs/architecture/precise-types-design.md`. The notes below are the original
-> 2026-06-11 assessment and are left as written; where they name `LinkState` or
-> `TrafficShapingRule.priority` they are superseded.
+> **Status (precise-types work): done for the surveyed fields.** The firewall, NAT and
+> conntrack vocabularies, `LinkStatus.state` / `LinkHealthReport.state` (now
+> `UplinkState`, the shared vocabulary, not a separate `LinkState`), the Wi-Fi
+> vocabularies (`WifiBand`, `WifiSecurityMode`, `MfpMode`, `WifiAclMode`,
+> `WifiPhyMode`, `MeshRole`, `WifiCapability`), `TrafficSpec.protocol`,
+> `MeasurementSpec.completion` and `RadiusAccountingRecord.record_type` are enums;
+> `Connection.state` is an open enum (`ConnState` with `OTHER`); `VPNPeerStatus` /
+> `TrafficShapingRule` are deprecated with no successor. Each retype is a deprecation
+> (widen, then narrow); see `docs/architecture/precise-types-design.md`. The notes below
+> are the original 2026-06-11 assessment, left as written: where they name `LinkState`,
+> `TrafficShapingRule.priority`, or say `Connection.state` or
+> `MeasurementSpec.completion` stay `str`, they are superseded. The gaps the retype left
+> open are in the next entry.
 
 **Signal:** The SD-WAN appliance models (`models/sdwan_appliance.py`) express their
 normalized value vocabularies as `StrEnum`s (static + runtime checking). The
@@ -339,6 +345,52 @@ incrementally, on evidence.
 follow), `packet_filter.py` (`chain` / `policy` strings). Consumer blast-radius:
 `vitro-bdd` examples `cpe-gateway` + `sdwan-digital-twin` (firewall steps, uci /
 linux_firewall / frr_router impls, unit tests).
+
+---
+
+## 2026-10-05 — precise types: gaps left open [priority: low]
+
+**Signal:** The precise-types retype (`docs/architecture/precise-types-design.md`) typed
+every field and parameter that evidence supported and left the following open on
+purpose, rather than guess a vocabulary. Each needs evidence (a second implementer, a
+specification table or an owner ruling), not more code.
+
+- **Tool option strings without a typed successor.** `dns_lookup(opts)`, `nmap(opts)`
+  and a non-default `get_running_processes(ps_options)` are deprecated, and the typed
+  readers (`resolve`, `scan_ports`, `read_running_processes`) take no option. A caller
+  that forwards options to `dig` (for example `+short` or `@server`) or to `ps` has no
+  typed form. Needed before removal: typed `dns_lookup` options derived from callers, or
+  a decision to drop them. `ping` and `traceroute` `options` are in the same position
+  (no caller evidence for typed numeric parameters).
+- **`WifiClient.wifi_client_connect(security_mode)` stays `str | None`.** The
+  implementer passes a client key-management word (`NONE`, `WPA-PSK`, `WPA-EAP`), not an
+  access-point `WifiSecurityMode`. A key-management vocabulary (probably its own enum,
+  open) needs a second implementer or a supplicant specification table.
+  `WifiClient.iwlist_supported_channels(wifi_band)` is deprecated; `WifiNeighbor.security_mode`
+  and `WifiRadio.get_mode` (compound modes such as `"n/ac/ax"`) stay text.
+  `WifiMeshWhiteBox.get_raw_easymesh_tlvs(message_type)` waits for the EasyMesh message
+  names from a specification.
+- **`QosRule.match` text that does not parse stays untyped.** The released contract
+  defined no grammar. `QosRule.classifier` is `None` for text it cannot parse, with the
+  text kept as given, and a classifier holds at most one source and one destination
+  port range. Widening needs a producer that writes more.
+- **"Packet storm" meaning.** The released implementers apply a loss burst; the name could
+  also mean packet duplication. `PacketStorm` keeps the released meaning (`duplicate_percent`
+  is optional, `None` means not requested). The contract's meaning is awaiting the owner.
+- **Compatibility exemptions.** `flash_via_bootloader` and `start_tcpdump(filters)` keep
+  `Any` because implementers declare framework or dict types the contract cannot accept
+  (parameter contravariance, `dict` invariance). Closing them needs the owner to decide
+  whether implementers change their declarations.
+- **`Console` has no `expect` / `expect_exact`.** A console that satisfies the protocol
+  statically cannot carry pexpect's own pattern type without the package depending on
+  pexpect. Callers that match patterns keep the concrete console type.
+
+**Not a gap here:** DHCP integer option width per code. `DhcpOption.value` is text in this
+package, so the width question arises only for a model that carries an integer content
+type (a managed-router concern).
+
+**Cross-references:** `docs/architecture/precise-types-design.md` ("Retypes", "Pending
+narrow steps"), `tool_options.py`, `models/wifi.py`, `models/switch.py`.
 
 ---
 

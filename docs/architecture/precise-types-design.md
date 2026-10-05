@@ -2,7 +2,7 @@
 
 | Field   | Value                                                                 |
 | ------- | --------------------------------------------------------------------- |
-| Status  | In progress                                                           |
+| Status  | Implemented, unreleased                                               |
 | Author  | rjvisser                                                              |
 | Date    | 2026-10-04                                                            |
 | Related | `docs/proposals/README.md` (question 9, precise types), `CONTRIBUTING.md` (Versioning), `testprotocols.deprecation`, `testprotocols.models._sync`, `packages/testprotocols/tests/test_typing_ratchet.py` |
@@ -37,7 +37,8 @@ shapes below are the only ones used.
   one exception is a released signature kept for the deprecation period (see
   "Exemption policy for explicit `Any`" below). `tests/test_typing_ratchet.py`
   is the second line of defence, because pyright has no such rule: it counts
-  the non-exempt `Any` (ceiling 0) and pins the number of exempted lines.
+  the non-exempt `Any` (ceiling 0) and pins the exempted lines per class (20
+  deprecation-period lines and 2 compatibility lines).
 
 ## Deprecation shapes
 
@@ -320,14 +321,14 @@ where one exists, also records its retype.
   record to carry a companion field. `get_user_presence -> str` is shape 6, announced
   only: the example implementer already returns `"unknown"`, which names no member.
   `wait_for_state` is closed: an unknown word raises `ValueError`, as the released
-  implementer did. `verify_sip_message(message_type)` is `SipMethod | str`. The plan also had an `int`
-  for a response code; it is deferred: the example implementer declares
+  implementer did. `verify_sip_message(message_type)` is `SipMethod | str`. An `int`
+  for a response code was considered and is deferred: the example implementer declares
   `message_type: str`, so adding `int` to the protocol parameter makes it fail
   static conformance (a parameter widening breaks an implementer declared narrower),
   which is neither a missing member nor a retyped record. A response code stays its
   released text (`"486"`), a raw word. The example's callers also pass a log marker (`"[VOICEMAIL]"`) and a numeric string
-  (`"408"`), which are raw words and still work. `since: Any` is `datetime | None`
-  (O40): the example's step definitions pass a `datetime`; its unit test passes a text marker
+  (`"408"`), which are raw words and still work. `since: Any` is `datetime | None`:
+  the example's step definitions pass a `datetime`; its unit test passes a text marker
   straight to the implementer, which may keep `Any`. The three dict readers are shape 5:
   new mandatory `read_rtpengine_stats`, `read_mwi_status` and `read_offline_messages`
   return frozen `RtpStats`, `MwiStatus` and `OfflineMessage`; the old names are deprecated
@@ -347,36 +348,36 @@ where one exists, also records its retype.
   Evidence for every set, from the released docstrings, the `testoperations` callers, the
   example implementers and the released reference implementers of the host templates
   (a Linux host device and the boardfarm LAN device):
-  - O17 `start_http_service(ip_version)` is `"4"` / `"6"`: both implementers run the server
+  - `start_http_service(ip_version)` is `"4"` / `"6"`: both implementers run the server
     as `-{ip_version}`. It stays `str` (implementers declare `str`) and its narrowing to
     `IpFamily` is announced. The `testoperations` default `"ipv4"` was a pre-existing bug
     (it rendered `-ipv4`); it is corrected to `"4"` and recorded under *Fixed*.
-  - O25 `traceroute(version)` is a command suffix, `""` or `"6"` (`traceroute{version}`). It
+  - `traceroute(version)` is a command suffix, `""` or `"6"` (`traceroute{version}`). It
     stays `str = ""`; narrowing to `IpFamily | None` is announced. `IpVersion` (`ipv4`,
-    `ipv6`) is therefore used only for `nmap(ip_type)` (O30), where the reference
+    `ipv6`) is therefore used only for `nmap(ip_type)`, where the reference
     implementer raises `ValueError` for any other word.
-  - O15 `curl(protocol)` is the URL scheme, not an IP version: the docstring says "using
+  - `curl(protocol)` is the URL scheme, not an IP version: the docstring says "using
     *protocol*", the example implementer folds it into the target as `<protocol>://<url>`
     and its test calls `curl(host, protocol="http")`. `HttpScheme` (`http`, `https`).
-  - O16 numbers stay `str` wherever a released implementer declares `str`: `HttpServer`
+  - Numbers stay `str` wherever a released implementer declares `str`: `HttpServer`
     `port`, `UpnpClient` `int_port` / `ext_port`, `VlanClient` `vlan_id` (the Linux host
     device and the boardfarm LAN device declare `str`; `curl` and `nmap` already take
     `str | int`). Widening to `int | str` would fail static conformance for them, which is
     outside the accepted classes. Their narrowing to `int` is announced.
-  - O19 `ip_version` of the iperf members is `IpFamily | int | None`, with `IpFamily` an
+  - `ip_version` of the iperf members is `IpFamily | int | None`, with `IpFamily` an
     `IntEnum` (`V4 = 4`, `V6 = 6`): an implementer that declares `int | None` still
     conforms, and a driver that formats it as `-{ip_version}` still emits `4` / `6`. A driver
     may convert with `coerce_enum` (an `int` is silent for an `IntEnum`).
-  - O22 `LinkAdminState` (`up`, `down`) is new and is not `PortAdminState` (`enabled` /
+  - `LinkAdminState` (`up`, `down`) is new and is not `PortAdminState` (`enabled` /
     `disabled`): every implementer passes `up` or `down` to `ip link set`. `set_link_state(state)`
     is `LinkAdminState | str`.
-  - O23 (shape 4p): `is_link_admin_up(interface) -> bool` is a new mandatory member; the
+  - (shape 4p) `is_link_admin_up(interface) -> bool` is a new mandatory member; the
     `pattern` parameter of `is_link_up` is documented deprecated and a driver warns when it
     differs from the default. A Linux host reads the `UP` flag of `ip link show`.
-  - O47 reuses `PortMappingProtocol` (`tcp`, `udp`, `tcp-udp`); `tcp-udp` is not a UPnP
+  - UPnP port mapping reuses `PortMappingProtocol` (`tcp`, `udp`, `tcp-udp`); `tcp-udp` is not a UPnP
     protocol and a driver refuses it. The plain `str` stays legal.
-  - O14 `DnsRecordType` and O33 `QoeScenario` (`page_load`, the only released word) and
-    `PageCompletion` (the four Playwright load events) are `E | str` parameters. O34
+  - `DnsRecordType` and `QoeScenario` (`page_load`, the only released word) and
+    `PageCompletion` (the four Playwright load events) are `E | str` parameters.
     `ServiceStatus` is shape 6, announced only (`get_status -> str`).
   - M21 `MeasurementSpec.tool` / `completion` are shape 3 (closed): `QoeTool` is the four
     tools the example implementer dispatches on (`browser`, `http_client`, `webrtc`,
@@ -487,7 +488,7 @@ where one exists, also records its retype.
     driver gets exactly the released call. `inject_packet_storm` gains `loss_percent`, and its
     `duplicate_percent` reaches a new-name driver only when the caller passes it.
 
-- **Tool option strings** (shape 4p, O26 and O10 `ps_options`). A tool member whose callers
+- **Tool option strings** (shape 4p, tool command lines and `ps_options`). A tool member whose callers
   were seen to pass options gets the typed keyword-only parameters for exactly those options.
   A member no caller passes anything to through that member gets none: nothing is invented.
   The string keeps its position and its released type (`options: str`, `opts: str | None`), is
@@ -535,7 +536,7 @@ where one exists, also records its retype.
   - `NtpClient.set_date(opt, date_string)`: the one `opt` seen is `-s`. `set_date_time(value:
     datetime) -> bool` is a new mandatory member and `set_date` is deprecated.
 
-- **HwConsole** (hw-console task, O18; no deprecation shape: a return narrows from `Any`,
+- **HwConsole** (no deprecation shape: a return narrows from `Any`,
   a parameter is retyped). `HwConsole` returned `Any` consoles and took `dict[str, Any]` /
   `Any` for the flash arguments. Evidence (callers and implementers of `get_console`,
   `get_interactive_consoles` and `flash_via_bootloader`, read-only, in boardfarm, the vitro-bdd
@@ -552,8 +553,7 @@ where one exists, also records its retype.
     `sendline`/`expect` exchange: `cpe_sw`, `prplos_cpe`, `rpiprplos_cpe`);
     `start_interactive_session()` (the interactive shell over `get_interactive_consoles()`);
     and `expect`, `expect_exact` (boardfarm's networking helpers, typed there by a structural
-    protocol). The first plan's sketch had `sendline`, `expect`, `before`; an earlier draft of
-    this evidence wrongly left `before` out.
+    protocol). `before` is a member: the callers read it after `sendline` and `expect`.
   - Ruling: `Console` holds only members a stubbed `pexpect.spawn` subclass can satisfy
     without this package depending on pexpect, so `expect` and `expect_exact` are NOT
     members. With real `types-pexpect` stubs, `sendline` returns `int` (the protocol says
@@ -580,7 +580,7 @@ where one exists, also records its retype.
     `flash_via_bootloader` line is exempted from `disallow_any_explicit` (see "Exemption
     policy"). Cost if wrong: two `Any` parameters remain in the contract.
 
-- **TR-069 RPCs** (O44–O46; shape 5 per RPC, shape 6 for the `""` defaults). `Tr069Server`
+- **TR-069 RPCs** (shape 5 per RPC, shape 6 for the `""` defaults). `Tr069Server`
   took and returned `dict[str, Any]` / `list[dict[str, Any]]` for twelve CWMP RPCs. Evidence
   (read-only):
   - Implementers of the server protocol: the vitro-bdd cpe-gateway example ACS
@@ -641,7 +641,7 @@ where one exists, also records its retype.
   - Names: the RPC names in snake case, except FactoryReset, which is `factory_reset_cpe`
     because `DeviceLifecycle.factory_reset(method) -> bool` exists (a device that composes
     both would conflict). No other new name collides with a member of another protocol.
-    `cpe_id` and the options are keyword-only; an option left `None` is not sent (O46).
+    `cpe_id` and the options are keyword-only; an option left `None` is not sent.
     `GPA` took one name; `get_parameter_attributes` takes a sequence, as CWMP does.
     `set_parameter_attributes` keeps the released shared flags as `change_notification` and
     `change_access_list`.
@@ -671,7 +671,7 @@ CHANGELOG under *Changed*).
 Evidence: a search of vitro-bdd, boardfarm and the corpus found no caller of
 `start_iperf`, `verify_home`, `saturate_link`, `iter_json_docs`, `NonCompletion*` or the
 `_capture` helpers; `apply_preset` is named in prose only (the example's testbed document, whose
-presets are strings from configuration). The consumer gate is unchanged by this task (the
+presets are strings from configuration). The consumer gate is unchanged by this change (the
 output equals that of the commit before it).
 
 - **Released dict returns (shape 5, kept readable).** `start_iperf` returns `IperfSession`,
@@ -711,7 +711,7 @@ output equals that of the commit before it).
   `start_tcpdump(fname, interface, ...)` and `stop_tcpdump(fname)`, which does not match the
   protocol (`interface` first, the file as `output_file`, the stop by the returned process id);
   it now makes the protocol's calls. This is a fix, recorded under *Fixed*.
-- **`start_http_server`** is as the HTTP-service task left it: `port` stays `str` and
+- **`start_http_server`** is as the HTTP-service change left it: `port` stays `str` and
   `ip_version` is the text `"4"` / `"6"`.
 
 ## Exemption policy for explicit `Any`
@@ -740,36 +740,36 @@ parameters are contravariant and `dict` is invariant, so no precise type accepts
 declarations.
 - `hw_console.flash_via_bootloader` (two framework-object parameters);
 - `pcap_capture.start_tcpdump` (`filters: dict[str, Any]`; `testoperations.tcpdump` calls
-  it). On the managed-router branch `start_tcpdump` is deprecated (renamed
-  `start_capture`), so it moves to class (a) once that branch is rebased.
+  it). If `start_tcpdump` is later deprecated in favour of a renamed member, its
+  exemption moves to class (a) and goes with the member.
 
 ## Effective now
 
 Changes that take effect in this release for code written against the released
-contract, whether or not it uses the deprecated spelling. Each task appends here;
+contract, whether or not it uses the deprecated spelling. Each retype appends here;
 the matching CHANGELOG entry sits under *Changed*.
 
-- **Conntrack and coercion** (vocabularies task). `Connection.protocol` refuses
+- **Conntrack and coercion** (vocabularies). `Connection.protocol` refuses
   `RuleProtocol.ANY` with `ValueError`, as the released docstring said. An unknown
   string on `FirewallRule`, `NatRule`, `PortMapping` or `Connection` (protocol, mode,
   action) raises `ValueError`; a `Connection.state` unknown word never raises: it
   becomes `ConnState.OTHER` plus `state_raw`. A conntrack `protocol` filter of `any`
   is refused. `NatRule.protocol` defaults to `RuleProtocol.ANY`.
-- **Firewall and NAT ports** (ports task). `FirewallRule.dst_port` now defaults to
+- **Firewall and NAT ports** (ports). `FirewallRule.dst_port` now defaults to
   `"any"`. `NatRule` port text reads `""` for no port (`"any"` is accepted and reads
   back `""`). Port text accepts only `"any"` (or `""` on `NatRule`), numbers, `a-b`
   ranges and comma lists with no trailing comma; colon or slash forms (`"80:90"`,
   `"tcp/80"`) and a trailing comma raise `ValueError`, so a driver that reads them
   back must convert them. A non-text port text or a non-`PortRange` item raises
   `TypeError`.
-- **Static-only: unpacking a loose dict** (ports task; no runtime change). Unpacking
+- **Static-only: unpacking a loose dict** (no runtime change). Unpacking
   a loosely typed dict, for example `FirewallRule(**dict[str, str])`, into a retyped
   released record fails type-checking, because the synced typed fields (`dst_ports`)
   and the hidden provenance field are keyword parameters and a type checker matches
   the dict's value type against each. The caller types the dict or passes the fields
   explicitly. The private `_ports_seen` also appears in `__init__` signatures and in
   static error text; it is not API.
-- **SD-WAN models** (SD-WAN task). `L3Rule.src_port` / `dst_port` follow the
+- **SD-WAN models** (SD-WAN). `L3Rule.src_port` / `dst_port` follow the
   `FirewallRule` port rule: only `"any"`, numbers, `a-b` ranges and comma lists are
   text that parses (`""`, `"http"`, `"80:90"` and a trailing comma raise
   `ValueError`; a non-text value raises `TypeError`), and text reads back
@@ -782,7 +782,7 @@ the matching CHANGELOG entry sits under *Changed*.
   `protocol`, `action` and `category` carry a `<required>` placeholder default and
   a type checker no longer flags an event built without them (a runtime
   `TypeError` still does).
-- **WAN-edge models** (WAN-edge task). A `LinkStatus.state` or
+- **WAN-edge models** (WAN-edge). A `LinkStatus.state` or
   `LinkHealthReport.state` word that is not an `UplinkState` value raises
   `ValueError` (released: any string). `AppFlow.category` never raises; an unknown
   word becomes `OTHER` plus `category_raw`. `testprotocols.models.TrafficShapingRule`
@@ -790,20 +790,20 @@ the matching CHANGELOG entry sits under *Changed*.
   only: unpacking a loosely typed dict into `AppFlow` fails type-checking (the
   keyword parameters `category_raw` and the private `_category_seen`);
   `TrafficShapingRule.match` reads as `Mapping[str, object]` (was `dict[str, Any]`).
-- **Switch QoS classifier** (switch QoS task). `QosRule.match` raises `ValueError`
+- **Switch QoS classifier** (switch QoS). `QosRule.match` raises `ValueError`
   for a term given twice; free text stays legal (no classifier, text unchanged).
   `match` is now optional (`""`, every frame). A non-text `match` raises
   `TypeError`. Static only: unpacking a
   loosely typed dict into `QosRule` fails type-checking (`classifier` and the private
   `_match_seen`).
-- **Telemetry and policy** (router task). Static only, no runtime change:
+- **Telemetry and policy** (router). Static only, no runtime change:
   `Router.get_telemetry` returns `Mapping[str, float]` (was `dict[str, Any]`), so a
   reader gets `float` values and cannot assume a `dict`, and an implementer whose
   declared return is not `float`-valued no longer conforms; `apply_policy` takes
   `dict[str, object]` (was `dict[str, Any]`), so a caller's `dict[str, str]` variable
   no longer type-checks. A driver must implement `Router.read_telemetry` (breaking for
   driver authors).
-- **Wi-Fi vocabularies** (Wi-Fi task). A `band`, `security_mode`, `mfp`, ACL `mode` or
+- **Wi-Fi vocabularies** (Wi-Fi). A `band`, `security_mode`, `mfp`, ACL `mode` or
   mesh `role` string on a Wi-Fi model that is not a member raises `ValueError`
   (released: any string); `WifiNeighbor.security_mode` is unchanged. A model reader
   now always holds the enum (`StrEnum` members compare equal to the old strings). A
@@ -815,14 +815,14 @@ the matching CHANGELOG entry sits under *Changed*.
   `capability_flags_unknown` and the private `_caps_seen` are keyword parameters), and
   an implementer must provide `WifiClient.supported_channels` (breaking for driver
   authors).
-- **Voice vocabularies** (Voice task). `SipServer.verify_sip_message(since)` is
+- **Voice vocabularies** (voice). `SipServer.verify_sip_message(since)` is
   `datetime | None` (released `Any`): a caller passing a `datetime` or `None` is
   unaffected; one passing a text marker no longer type-checks (an implementer may keep
   `Any`). An implementer must provide `SipServer.read_rtpengine_stats`, `read_mwi_status`
   and `read_offline_messages` (breaking for driver authors). Every other voice
   annotation only widens (`PhoneState | str`, `PresenceStatus | str`,
   `SipMethod | str`).
-- **Host-tool and service vocabularies** (host-tool task). `HTTPResult` is frozen (assigning
+- **Host-tool and service vocabularies** (host tools). `HTTPResult` is frozen (assigning
   an attribute raises `FrozenInstanceError`), compares by value (released: identity) and
   `code` / `beautified_text` warn when read; `status` is `0` outside 100 to 599.
   `MeasurementSpec.tool` / `completion` and `TrafficSpec.protocol` raise `ValueError` for a
@@ -843,7 +843,7 @@ the matching CHANGELOG entry sits under *Changed*.
   invalid server option). Static only: an implementer must provide
   `IpInterface.is_link_admin_up` (breaking for driver authors).
 
-- **Host-tier records** (host-records task). An implementer must provide `read_url_rules`,
+- **Host-tier records** (host-tier records). An implementer must provide `read_url_rules`,
   `read_memory_utilization`, `read_running_processes`, `read_log_entries`, `resolve`,
   `start_sender_session`, `start_receiver_session`, `ping_stats`, `scan_ports`, `read_arp_table`,
   `read_date` and `inject_event` (breaking for driver authors). Static only, no runtime
@@ -871,7 +871,7 @@ the matching CHANGELOG entry sits under *Changed*.
   `snmp_bulk_get` and `set_date_time` (breaking for driver authors); a driver value no longer
   passes `isinstance` against `SnmpClient` or `NtpClient` until it has them.
 
-- **HwConsole** (hw-console task). Static only, no runtime change: `get_console` returns
+- **HwConsole** (hw console). Static only, no runtime change: `get_console` returns
   `Console` and `get_interactive_consoles` returns `Mapping[str, Console]` (were `Any` and
   `dict[str, Any]`), so a reader sees only `execute_command`, `sendline`, `before` and
   `start_interactive_session`; a caller that uses `expect`, `expect_exact` or other pexpect
@@ -894,7 +894,14 @@ the matching CHANGELOG entry sits under *Changed*.
   unknown name (message changed); `NonCompletion` raises `ValueError` for an unknown
   `which_side` or `what` word (released: any string) and its attributes are enum members equal
   to the released text. `iter_json_docs` reads as `list[object]`. `tcpdump` makes the
-  protocol's `start_tcpdump` / `stop_tcpdump` calls.
+  protocol's `start_tcpdump` / `stop_tcpdump` calls. Static only: the `measure_flow` parameter of
+  `measure_external_path_until` is a call protocol whose flow parameter is positional-only
+  (`(flow, /, *, duration_s, result_timeout_s, poll_interval_s) -> FlowThroughput`), so a stand-in
+  taking the flow by another name still conforms, and one with other keyword names no longer does.
+  `build_deny_rule` and `saturate_link` take `DenyScope | str` / `RuleProtocol | str` and
+  `TransportProtocol | str`: a plain string naming a member warns, and an unknown word raises
+  the `coerce_enum` `ValueError` (the message text for an unknown `scope` changed).
+  `sender_life_record` takes `IperfClient` (was `Any`).
 
 ## Pending narrow steps (announced, not yet taken)
 
@@ -950,3 +957,26 @@ Each lands in a later release with its own breaking changelog entry:
 - TR-069: `GPV`, `SPV`, `GPA`, `SPA`, `FactoryReset`, `Reboot`, `AddObject`, `DelObject`,
   `GPN`, `ScheduleInform`, `GetRPCMethods` and `Download` are removed (with them the `""`
   defaults and the last `Any` of `Tr069Server`).
+- `testoperations`: `saturate_link(protocol)` narrows from `TransportProtocol | str` to
+  `TransportProtocol`; `start_iperf(ip_version)` narrows from `IpFamily | int` to `IpFamily`;
+  the deprecated `testoperations` call paths to the released member names (the typed fallback
+  accessors) are removed with those members.
+- Held back until evidence or a ruling supplies a vocabulary (see `GAPS.md`, "precise types:
+  gaps left open"):
+  - `WifiClient.wifi_client_connect(security_mode)` stays `str | None` until a client
+    key-management vocabulary (`NONE`, `WPA-PSK`, `WPA-EAP` and more) has a second
+    implementer or a specification table; `WifiNeighbor.security_mode`, `WifiRadio.get_mode`
+    (compound modes) and `WifiMeshWhiteBox.get_raw_easymesh_tlvs(message_type)` stay text.
+  - `dns_lookup(opts)`, `nmap(opts)`, a non-default `get_running_processes(ps_options)` and the
+    `ping` and `traceroute` `options` have no typed successor: before they are removed, either
+    typed options are derived from callers or the owner decides to drop them.
+  - `QosRule.classifier` is `None` for match text that does not parse (the text stays
+    as given), and holds one source and one destination port range; widening needs a producer.
+  - A "packet storm" is a loss burst, as the released implementers apply it; whether the term
+    means loss or duplication is open, and `PacketStorm.duplicate_percent` stays optional until
+    it is settled.
+  - `HwConsole.flash_via_bootloader` and `start_tcpdump(filters)` keep `Any` (compatibility
+    exemptions); `Console` omits `expect` / `expect_exact`. Closing either needs implementers
+    to change their declarations, which is an owner decision.
+  - `MemoryUtilization` stays in bytes as released; an implementer that reports MiB is the
+    one to change.
