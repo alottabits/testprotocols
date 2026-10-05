@@ -25,8 +25,8 @@ class NtpClient(Protocol):
         """Return the current date/time string from the device, in the device's own format
         (``None`` when it cannot be read).
 
-        Deprecated: use :meth:`read_date`, which returns a ``datetime``. Removal not before the
-        first release 6 months after the release that deprecates it.
+        Deprecated: use :meth:`read_date`. Removal not before the first release 6 months after
+        the release that deprecates it.
         """
         ...
 

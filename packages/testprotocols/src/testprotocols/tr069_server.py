@@ -20,7 +20,7 @@ from testprotocols.models.tr069 import CpeConnectionStatus
 class Tr069Server(Protocol):
     """Abstract contract for TR-069 ACS operations."""
 
-    def GPV(  # type: ignore[explicit-any]  # released signature kept until removal
+    def GPV(  # type: ignore[explicit-any]  # released signature kept: vendors extend the parameter model
         self,
         param: str | list[str],
         timeout: int | None = None,
@@ -29,7 +29,7 @@ class Tr069Server(Protocol):
         """GetParameterValues RPC."""
         ...
 
-    def SPV(  # type: ignore[explicit-any]  # released signature kept until removal
+    def SPV(  # type: ignore[explicit-any]  # released signature kept: vendors extend the parameter model
         self,
         param_value: dict[str, Any] | list[dict[str, Any]],
         timeout: int | None = None,
@@ -38,7 +38,7 @@ class Tr069Server(Protocol):
         """SetParameterValues RPC."""
         ...
 
-    def GPA(  # type: ignore[explicit-any]  # released signature kept until removal
+    def GPA(  # type: ignore[explicit-any]  # released signature kept: vendors extend the parameter model
         self,
         param: str,
         cpe_id: str | None = None,
@@ -46,7 +46,7 @@ class Tr069Server(Protocol):
         """GetParameterAttributes RPC."""
         ...
 
-    def SPA(  # type: ignore[explicit-any]  # released signature kept until removal
+    def SPA(  # type: ignore[explicit-any]  # released signature kept: vendors extend the parameter model
         self,
         param: list[dict[str, Any]] | dict[str, Any],
         notification_param: bool = True,
@@ -57,13 +57,13 @@ class Tr069Server(Protocol):
         """SetParameterAttributes RPC."""
         ...
 
-    def FactoryReset(  # type: ignore[explicit-any]  # released signature kept until removal
+    def FactoryReset(  # type: ignore[explicit-any]  # released signature kept: vendors extend the parameter model
         self, cpe_id: str | None = None
     ) -> list[dict[str, Any]]:
         """FactoryReset RPC."""
         ...
 
-    def Reboot(  # type: ignore[explicit-any]  # released signature kept until removal
+    def Reboot(  # type: ignore[explicit-any]  # released signature kept: vendors extend the parameter model
         self,
         CommandKey: str = "reboot",
         cpe_id: str | None = None,
@@ -71,7 +71,7 @@ class Tr069Server(Protocol):
         """Reboot RPC."""
         ...
 
-    def AddObject(  # type: ignore[explicit-any]  # released signature kept until removal
+    def AddObject(  # type: ignore[explicit-any]  # released signature kept: vendors extend the parameter model
         self,
         param: str,
         param_key: str = "",
@@ -80,7 +80,7 @@ class Tr069Server(Protocol):
         """AddObject RPC."""
         ...
 
-    def DelObject(  # type: ignore[explicit-any]  # released signature kept until removal
+    def DelObject(  # type: ignore[explicit-any]  # released signature kept: vendors extend the parameter model
         self,
         param: str,
         param_key: str = "",
@@ -89,7 +89,7 @@ class Tr069Server(Protocol):
         """DeleteObject RPC."""
         ...
 
-    def GPN(  # type: ignore[explicit-any]  # released signature kept until removal
+    def GPN(  # type: ignore[explicit-any]  # released signature kept: vendors extend the parameter model
         self,
         param: str,
         next_level: bool,
@@ -99,7 +99,7 @@ class Tr069Server(Protocol):
         """GetParameterNames RPC."""
         ...
 
-    def ScheduleInform(  # type: ignore[explicit-any]  # released signature kept until removal
+    def ScheduleInform(  # type: ignore[explicit-any]  # released signature kept: vendors extend the parameter model
         self,
         CommandKey: str = "Test",
         DelaySeconds: int = 20,
@@ -108,13 +108,13 @@ class Tr069Server(Protocol):
         """ScheduleInform RPC."""
         ...
 
-    def GetRPCMethods(  # type: ignore[explicit-any]  # released signature kept until removal
+    def GetRPCMethods(  # type: ignore[explicit-any]  # released signature kept: vendors extend the parameter model
         self, cpe_id: str | None = None
     ) -> list[dict[str, Any]]:
         """GetRPCMethods RPC."""
         ...
 
-    def Download(  # type: ignore[explicit-any]  # released signature kept until removal
+    def Download(  # type: ignore[explicit-any]  # released signature kept: vendors extend the parameter model
         self,
         url: str,
         filetype: str = "1 Firmware Upgrade Image",

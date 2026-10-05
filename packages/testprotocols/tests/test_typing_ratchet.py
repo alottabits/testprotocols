@@ -1,11 +1,13 @@
 """Second line of defence behind mypy's ``disallow_any_explicit`` (pyright has no such rule).
 
-The only exempt ``Any`` is a released signature kept for the deprecation period; its
-line carries ``EXEMPT_MARKER``. Non-exempt ``Any`` has a ceiling of 0 in both packages,
-and the number of exempted lines is pinned per class, so a new exemption cannot be added
-silently: it needs a reviewed change to a constant. Class (a), ``DEPRECATED_MARKER``, is a
-deprecated member and goes to 0 at the removal release; class (b), ``COMPATIBILITY_MARKER``,
-is a live released parameter that implementers declare with their own types.
+The only exempt ``Any`` is on a released signature whose line carries one of the
+``EXEMPT_MARKERS``. Non-exempt ``Any`` has a ceiling of 0 in both packages, and the number
+of exempted lines is pinned per class, so a new exemption cannot be added silently: it
+needs a reviewed change to a constant. Class (a), ``DEPRECATED_MARKER``, is a deprecated
+member and goes to 0 at the removal release; class (b), ``COMPATIBILITY_MARKERS``, is a
+live released signature that is not deprecated: implementers declare their own types
+(``COMPATIBILITY_MARKER``), or vendors extend the parameter model, so the contract does not
+enumerate it (``VENDOR_MODEL_MARKER``, the TR-069 RPCs).
 
 Counts, by AST, every use of ``Any`` as a name (including a name imported under an
 alias, ``from typing import Any as A``) or as an attribute of the ``typing`` /
@@ -33,9 +35,14 @@ DEPRECATED_MARKER = "# type: ignore[explicit-any]  # released signature kept unt
 COMPATIBILITY_MARKER = (
     "# type: ignore[explicit-any]  # released parameter kept: implementers declare their own types"
 )
-EXEMPT_MARKERS = (DEPRECATED_MARKER, COMPATIBILITY_MARKER)
-TESTPROTOCOLS_DEPRECATED_EXEMPT_LINES = 20
-TESTPROTOCOLS_COMPATIBILITY_EXEMPT_LINES = 2
+#     A live released signature over a parameter model that vendors extend (TR-069).
+VENDOR_MODEL_MARKER = (
+    "# type: ignore[explicit-any]  # released signature kept: vendors extend the parameter model"
+)
+COMPATIBILITY_MARKERS = (COMPATIBILITY_MARKER, VENDOR_MODEL_MARKER)
+EXEMPT_MARKERS = (DEPRECATED_MARKER, *COMPATIBILITY_MARKERS)
+TESTPROTOCOLS_DEPRECATED_EXEMPT_LINES = 8
+TESTPROTOCOLS_COMPATIBILITY_EXEMPT_LINES = 14
 
 _ROOT = Path(__file__).resolve().parents[2]
 _ANY_WORD = re.compile(r"\bAny\b")
@@ -249,6 +256,6 @@ def test_the_exempted_lines_are_pinned_per_class() -> None:
         _exempt_lines("testprotocols", DEPRECATED_MARKER) == TESTPROTOCOLS_DEPRECATED_EXEMPT_LINES
     )
     assert (
-        _exempt_lines("testprotocols", COMPATIBILITY_MARKER)
+        sum(_exempt_lines("testprotocols", m) for m in COMPATIBILITY_MARKERS)
         == TESTPROTOCOLS_COMPATIBILITY_EXEMPT_LINES
     )

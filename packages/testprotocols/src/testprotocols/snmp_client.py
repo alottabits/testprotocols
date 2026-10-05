@@ -15,8 +15,8 @@ class SnmpClient(Protocol):
     """Abstract contract for SNMP client operations."""
 
     @deprecated(
-        "Deprecated: use snmp_get or snmp_walk. Removal not before the first release "
-        "6 months after the release that deprecates it.",
+        "Deprecated: use snmp_get, snmp_walk, snmp_set or snmp_bulk_get. Removal not before "
+        "the first release 6 months after the release that deprecates it.",
         category=None,
     )
     def execute_snmp_command(self, snmp_command: str, timeout: int = 30) -> str:
@@ -26,8 +26,9 @@ class SnmpClient(Protocol):
         ``snmpwalk``, ``snmpset``, ``snmpbulkget``); any other command has no successor,
         because a whole command line stops being part of the contract.
 
-        Deprecated: use :meth:`snmp_get` or :meth:`snmp_walk`. Removal not before the first release
-        6 months after the release that deprecates it.
+        Deprecated: use :meth:`snmp_get`, :meth:`snmp_walk`, :meth:`snmp_set` or
+        :meth:`snmp_bulk_get`. Removal not before the first release 6 months after the release
+        that deprecates it.
         """
         ...
 
