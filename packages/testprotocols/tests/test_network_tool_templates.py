@@ -50,7 +50,7 @@ PROTOCOLS = [
     (
         "NtpClient",
         "testprotocols.ntp_client",
-        {"get_date", "read_date", "set_date", "execute_time_sync"},
+        {"get_date", "read_date", "set_date", "set_date_time", "execute_time_sync"},
     ),
     (
         "UpnpClient",

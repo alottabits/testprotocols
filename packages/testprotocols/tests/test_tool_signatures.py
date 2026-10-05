@@ -5,6 +5,7 @@ from __future__ import annotations
 import inspect
 import shlex
 import warnings
+from datetime import datetime
 
 import pytest
 from testprotocols.device_management import DeviceManagement
@@ -223,6 +224,32 @@ def test_set_date_time_is_declared_and_set_date_is_deprecated() -> None:
     assert _sig(NtpClient, "set_date_time").parameters["value"].annotation == "datetime"
     assert [p for p in _sig(NtpClient, "set_date").parameters] == ["self", "opt", "date_string"]
     assert "Deprecated" in (NtpClient.set_date.__doc__ or "")  # type: ignore[deprecated]
+
+
+class _NtpWithoutSetDateTime:
+    """Every NtpClient member but ``set_date_time``: the released setter only."""
+
+    def get_date(self) -> str | None:
+        return None
+
+    def read_date(self) -> datetime | None:
+        return None
+
+    def set_date(self, opt: str, date_string: str) -> bool:
+        return True
+
+    def execute_time_sync(self, time_server: str) -> str:
+        return ""
+
+
+class _NtpWithSetDateTime(_NtpWithoutSetDateTime):
+    def set_date_time(self, value: datetime) -> bool:
+        return True
+
+
+def test_a_driver_with_only_set_date_is_not_an_ntp_client() -> None:
+    assert not isinstance(_NtpWithoutSetDateTime(), NtpClient)
+    assert isinstance(_NtpWithSetDateTime(), NtpClient)
 
 
 class ReleasedHost:

@@ -193,8 +193,8 @@ from testprotocols.models.wan_edge import (  # type: ignore[deprecated]  # re-ex
     RouteOrigin,
     SLAPolicy,
     Telemetry,
-    TrafficShapingRule,  # pyright: ignore[reportDeprecated]
-    VPNPeerStatus,  # pyright: ignore[reportDeprecated]
+    TrafficShapingRule,  # pyright: ignore[reportDeprecated]  # re-exported as released
+    VPNPeerStatus,  # pyright: ignore[reportDeprecated]  # re-exported as released
 )
 from testprotocols.models.wifi import (
     ChannelWidth,

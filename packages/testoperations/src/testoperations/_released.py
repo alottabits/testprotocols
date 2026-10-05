@@ -94,11 +94,11 @@ class ReleasedMapping:
     def __eq__(self, other: object) -> bool:
         if isinstance(other, Mapping):
             self._warn("comparison with a dict")
-            return self._released() == dict(other)  # pyright: ignore[reportUnknownArgumentType]
+            return self._released() == dict(other)  # pyright: ignore[reportUnknownArgumentType]  # `other` is any Mapping: its key and value types are unknown by design
         if type(other) is not type(self):
             return NotImplemented
-        return all(getattr(self, f.name) == getattr(other, f.name) for f in fields(self))  # type: ignore[arg-type]
+        return all(getattr(self, f.name) == getattr(other, f.name) for f in fields(self))  # type: ignore[arg-type]  # the mixin is not itself a dataclass; every subclass is one
 
     @override
     def __hash__(self) -> int:
-        return hash(tuple(getattr(self, f.name) for f in fields(self)))  # type: ignore[arg-type]
+        return hash(tuple(getattr(self, f.name) for f in fields(self)))  # type: ignore[arg-type]  # the mixin is not itself a dataclass; every subclass is one
