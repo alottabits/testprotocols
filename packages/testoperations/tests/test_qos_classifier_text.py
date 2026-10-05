@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import pytest
-from testoperations._compat import (
+from testoperations.pairs import (
     parse_qos_classifier,
     qos_rule_classifier,
 )

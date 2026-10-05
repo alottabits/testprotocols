@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 import pytest
-from testoperations._compat import parse_nat_port_ranges, parse_port_ranges, parse_window_size
+from testoperations._compat import parse_window_size
+from testoperations.pairs import parse_nat_port_ranges, parse_port_ranges
 from testprotocols.models import PortRange
 
 

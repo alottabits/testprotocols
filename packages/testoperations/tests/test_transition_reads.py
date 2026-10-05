@@ -7,7 +7,7 @@ from collections.abc import Callable
 from datetime import UTC, datetime
 
 import pytest
-from testoperations._compat import (
+from testoperations.pairs import (
     firewall_rule_dst_ports,
     l3_rule_dst_ports,
     l3_rule_src_ports,
@@ -213,3 +213,31 @@ def test_a_naive_timestamp_text_stays_naive() -> None:
     when = security_event_timestamp(_event("2026-10-04T12:30:05", None))
     assert when is not None
     assert when.tzinfo is None
+
+
+def test_the_pair_readers_are_public_api() -> None:
+    """``testoperations.pairs`` is public: every reader and parser is exported, states its
+    read rule and its removal with the text fields."""
+    import testoperations.pairs as pairs
+
+    readers = {
+        "firewall_rule_dst_ports",
+        "nat_rule_dst_ports",
+        "nat_rule_translated_ports",
+        "l3_rule_src_ports",
+        "l3_rule_dst_ports",
+        "security_event_timestamp",
+        "qos_rule_classifier",
+    }
+    parsers = {
+        "parse_port_ranges",
+        "parse_nat_port_ranges",
+        "parse_timestamp",
+        "parse_qos_classifier",
+    }
+    assert set(pairs.__all__) == readers | parsers
+    for name in pairs.__all__:
+        doc = getattr(pairs, name).__doc__ or ""
+        assert "Removed in the release that removes" in doc, name
+    for name in readers:
+        assert "Read rule:" in (getattr(pairs, name).__doc__ or ""), name
