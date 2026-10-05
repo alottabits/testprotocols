@@ -40,16 +40,18 @@ class ReleasedMapping:
             stacklevel=3,
         )
 
-    def as_dict(self) -> dict[str, object]:
+    def as_dict(self) -> dict[str, object]:  # object: deprecated form kept until removal
         """Deprecated: the released dict, with the released keys. Read the fields instead."""
         self._warn("as_dict()")
         return self._released()
 
-    def __getitem__(self, key: str) -> object:
+    def __getitem__(self, key: str) -> object:  # object: deprecated form kept until removal
         self._warn("indexing")
         return self._released()[key]
 
-    def get(self, key: str, default: object = None) -> object:
+    def get(  # object: deprecated form kept until removal
+        self, key: str, default: object = None
+    ) -> object:
         """Deprecated: the released dict's ``get``."""
         self._warn("get()")
         return self._released().get(key, default)
@@ -61,12 +63,12 @@ class ReleasedMapping:
         self._warn("keys()")
         return list(self._released())
 
-    def items(self) -> list[tuple[str, object]]:
+    def items(self) -> list[tuple[str, object]]:  # object: deprecated form kept until removal
         """Deprecated: the released dict's items."""
         self._warn("items()")
         return list(self._released().items())
 
-    def values(self) -> list[object]:
+    def values(self) -> list[object]:  # object: deprecated form kept until removal
         """Deprecated: the released dict's values."""
         self._warn("values()")
         return list(self._released().values())

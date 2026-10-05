@@ -55,12 +55,16 @@ class RouteOrigin(StrEnum):
 class Telemetry:
     """A device's resource telemetry: uptime, CPU load and memory use.
 
-    *uptime_seconds* is the time since the device started. *cpu_load_percent*
-    and *mem_used_percent* are ``None`` when the device does not report them. Each
-    is finite and not negative. Returned by ``Router.read_telemetry``.
+    *uptime_seconds* is the time since the device started, or ``None`` when the device
+    reports no uptime (a cloud-managed appliance's management API may not; see
+    ``GAPS.md``, 2026-06-11, "appliance health / online capability", whose recorded shape
+    for an uptime read is ``float | None``). It is required: a driver states ``None``
+    rather than leaving it out. *cpu_load_percent* and *mem_used_percent* are ``None``
+    when the device does not report them. Each value given is finite and not negative.
+    Returned by ``Router.read_telemetry``.
     """
 
-    uptime_seconds: float
+    uptime_seconds: float | None
     cpu_load_percent: float | None = None
     mem_used_percent: float | None = None
 
@@ -169,7 +173,7 @@ class TrafficShapingRule:
     """
 
     name: str
-    match: Mapping[str, object]
+    match: Mapping[str, object]  # object: deprecated form kept until removal
     dscp_tag: int | None = None
     bandwidth_limit_kbps: int | None = None
     priority: str | None = None

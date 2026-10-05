@@ -19,7 +19,6 @@ from testprotocols.device_management import DeviceManagement
 from testprotocols.dns_client import DnsClient
 from testprotocols.iperf_client import IperfClient
 from testprotocols.iperf_server import IperfServer
-from testprotocols.models import HTTPResult
 from testprotocols.nat import Nat
 from testprotocols.netem_controller import NetemController
 from testprotocols.nmap_scanner import NmapScanner
@@ -40,7 +39,6 @@ def uses(
     dns: DnsClient,
     iperf_client: IperfClient,
     iperf_server: IperfServer,
-    http: HTTPResult,
     nat: Nat,
     netem: NetemController,
     nmap: NmapScanner,
@@ -64,8 +62,6 @@ def uses(
         dns.dns_lookup,  # type: ignore[deprecated]
         iperf_client.start_traffic_sender,  # type: ignore[deprecated]
         iperf_server.start_traffic_receiver,  # type: ignore[deprecated]
-        http.code,  # type: ignore[deprecated]
-        http.beautified_text,  # type: ignore[deprecated]
         nat.get_nat_rule_counters,  # type: ignore[deprecated]
         netem.inject_transient,  # type: ignore[deprecated]
         nmap.nmap,  # type: ignore[deprecated]

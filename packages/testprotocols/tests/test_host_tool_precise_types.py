@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import dataclasses
 import inspect
+import typing
 import warnings
 
 import pytest
@@ -178,53 +179,73 @@ def test_radius_get_status_stays_str_and_is_announced() -> None:
 _RESPONSE = "HTTP/1.1 200 OK\r\nContent-Length: 5\r\n\r\nhello"
 
 
-def test_http_result_released_constructor_and_typed_attributes() -> None:
+def test_http_result_is_the_released_class() -> None:
+    """Not a dataclass; the released attributes are plain and assignable; identity equality."""
     result = HTTPResult(_RESPONSE)
-    assert (result.status, result.body, result.raw) == (200, "hello", _RESPONSE)
-    assert HTTPResult(response=_RESPONSE) == result
-    assert dataclasses.is_dataclass(result)
-    with pytest.raises(dataclasses.FrozenInstanceError):
+    assert not dataclasses.is_dataclass(result)
+    assert (result.raw, result.code, result.beautified_text) == (_RESPONSE, "200", "hello")
+    assert HTTPResult(response=_RESPONSE) is not result
+    assert HTTPResult(_RESPONSE) != result
+    result.code = "404"
+    result.beautified_text = "gone"
+    assert (result.code, result.beautified_text) == ("404", "gone")
+
+
+def test_http_result_typed_reads() -> None:
+    result = HTTPResult(_RESPONSE)
+    assert (result.status, result.body) == (200, "hello")
+    status = inspect.getattr_static(HTTPResult, "status")
+    assert isinstance(status, property)
+    assert typing.get_type_hints(status.fget)["return"] == int | None
+
+
+def test_http_result_typed_reads_follow_the_released_attributes() -> None:
+    result = HTTPResult(_RESPONSE)
+    result.code = "503"
+    result.beautified_text = "busy"
+    assert (result.status, result.body) == (503, "busy")
+
+
+def test_http_result_typed_reads_are_read_only() -> None:
+    result = HTTPResult(_RESPONSE)
+    with pytest.raises(AttributeError):
         result.status = 404  # type: ignore[misc]
+    with pytest.raises(AttributeError):
+        result.body = "x"  # type: ignore[misc]
 
 
-def test_http_result_released_attributes_work_silently() -> None:
-    result = HTTPResult(_RESPONSE)
-    with warnings.catch_warnings():
-        warnings.simplefilter("error")
-        assert result.code == "200"  # type: ignore[deprecated]
-        assert result.beautified_text == "hello"  # type: ignore[deprecated]
-    assert result.raw == _RESPONSE  # released attribute, not deprecated
-
-
-def test_http_result_typed_attributes_do_not_warn() -> None:
+def test_http_result_reads_do_not_warn() -> None:
     with warnings.catch_warnings():
         warnings.simplefilter("error")
         result = HTTPResult("HTTP/1.1 404 Not Found\n\nmissing")
-        assert (result.status, result.body) == (404, "missing")
+        assert (result.status, result.body, result.code) == (404, "missing", "404")
 
 
 @pytest.mark.parametrize("text", ["", "garbage", "HTTP/1.1", "HTTP/1.1 abc Weird\n\nx"])
 def test_http_result_without_a_numeric_status(text: str) -> None:
     result = HTTPResult(text)  # the released parser never raised
-    assert result.status == 0
+    assert result.status is None
     assert result.raw == text
 
 
-@pytest.mark.parametrize("code", ["99", "600", "0", "1000"])
-def test_http_result_status_outside_100_to_599_is_no_status(code: str) -> None:
+@pytest.mark.parametrize("code", ["99", "600", "0", "1000", "\uff12\uff10\uff10"])
+def test_http_result_status_outside_100_to_599_is_none(code: str) -> None:
     result = HTTPResult(f"HTTP/1.1 {code} Odd\n\nx")
-    assert result.status == 0
-    assert result.code == code  # type: ignore[deprecated]  # the released text is unchanged
-
-
-def test_http_result_equality_is_by_value() -> None:
-    assert HTTPResult(_RESPONSE) == HTTPResult(_RESPONSE)
-    assert HTTPResult(_RESPONSE) != HTTPResult("HTTP/1.1 500 Err\n\nx")
-    assert len({HTTPResult(_RESPONSE), HTTPResult(_RESPONSE)}) == 1
+    assert result.status is None
+    assert result.code == code  # the released text is unchanged
 
 
 def test_http_result_non_numeric_code_text_is_kept_in_the_released_attribute() -> None:
-    assert HTTPResult("HTTP/1.1 abc Weird\n\nx").code == "abc"  # type: ignore[deprecated]
+    assert HTTPResult("HTTP/1.1 abc Weird\n\nx").code == "abc"
+
+
+def test_http_result_subclass_assigning_attributes_still_works() -> None:
+    class Patched(HTTPResult):
+        def __init__(self, response: str) -> None:
+            super().__init__(response)
+            self.code = "200"
+
+    assert Patched("garbage").status == 200
 
 
 # --- QoEResult.protocol --------------------------------------------------------------

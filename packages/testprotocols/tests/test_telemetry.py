@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import dataclasses
 import typing
-from collections.abc import Mapping
 
 import pytest
 from testprotocols.models import (
@@ -30,6 +29,18 @@ def test_telemetry_fields_and_defaults() -> None:
     ]
 
 
+def test_uptime_is_required_and_may_be_unreported() -> None:
+    """``None``: the device reports no uptime (GAPS 2026-06-11, appliance health)."""
+    assert typing.get_type_hints(Telemetry)["uptime_seconds"] == float | None
+    assert dataclasses.fields(Telemetry)[0].default is dataclasses.MISSING
+    assert Telemetry(None).uptime_seconds is None
+
+
+def test_get_telemetry_keeps_its_released_return() -> None:
+    hints = typing.get_type_hints(Router.get_telemetry)  # type: ignore[deprecated]
+    assert hints["return"] == dict[str, typing.Any]
+
+
 def test_telemetry_is_frozen() -> None:
     t = Telemetry(1.0)
     with pytest.raises(dataclasses.FrozenInstanceError):
@@ -41,8 +52,9 @@ def test_telemetry_accepts_ints() -> None:
 
 
 def _released(telemetry: Telemetry) -> dict[str, float]:
-    """The released ``get_telemetry`` mapping: the reported values, by field name."""
-    return {k: v for k, v in dataclasses.asdict(telemetry).items() if v is not None}
+    """The released ``get_telemetry`` dict: the reported values, by field name."""
+    values: dict[str, float | None] = dataclasses.asdict(telemetry)
+    return {k: v for k, v in values.items() if v is not None}
 
 
 class _Router:
@@ -54,7 +66,7 @@ class _Router:
     def read_telemetry(self) -> Telemetry:
         return self._telemetry
 
-    def get_telemetry(self) -> Mapping[str, float]:
+    def get_telemetry(self) -> dict[str, float]:
         return _released(self.read_telemetry())
 
     def get_active_wan_interface(self, flow_dst: str | None = None) -> str | None:
@@ -74,7 +86,8 @@ class _Router:
 
 
 @pytest.mark.parametrize(
-    "telemetry", [Telemetry(10.0), Telemetry(10.0, 5.5, 40.0), Telemetry(0.0, 0.0, 0.0)]
+    "telemetry",
+    [Telemetry(10.0), Telemetry(10.0, 5.5, 40.0), Telemetry(0.0, 0.0, 0.0), Telemetry(None)],
 )
 def test_old_member_equals_the_new_record_as_a_dict(telemetry: Telemetry) -> None:
     router = _Router(telemetry)

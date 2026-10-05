@@ -135,7 +135,10 @@ class MeasureFn(Protocol):
     ) -> list[FlowThroughput]: ...
 
 
-JsonObj = Mapping[str, object]
+type JsonValue = None | bool | int | float | str | list[JsonValue] | dict[str, JsonValue]
+"""A parsed JSON value, as ``json.loads`` returns it."""
+
+JsonObj = Mapping[str, JsonValue]
 
 # iperf3's --json log is untrusted input: a document may be truncated, or a
 # field may be absent or of an unexpected shape. These three narrowers turn any
@@ -160,16 +163,16 @@ def _num(value: object) -> float | None:
     return float(value)
 
 
-def iter_json_docs(text: str) -> list[object]:
+def iter_json_docs(text: str) -> list[dict[str, JsonValue]]:
     """Parse the top-level JSON documents concatenated in *text*, in order.
 
     iperf3 appends one pretty-printed JSON document per session to its
     ``--logfile``; a restarted server appends to the same per-port file, so a
     log may hold several documents (and a trailing, still-open one while a
     session is running). Documents are extracted with a string-aware brace
-    scanner; only complete, parseable documents are returned.
+    scanner; only complete, parseable documents are returned, each a JSON object.
     """
-    docs: list[object] = []
+    docs: list[dict[str, JsonValue]] = []
     depth = 0
     start = -1
     in_string = False

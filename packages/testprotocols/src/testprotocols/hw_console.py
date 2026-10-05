@@ -6,7 +6,6 @@ power cycling, and bootloader-level flashing of a device under test.
 
 from __future__ import annotations
 
-from collections.abc import Mapping
 from typing import Any, Protocol, runtime_checkable
 
 
@@ -29,8 +28,9 @@ class Console(Protocol):
         """
         ...
 
-    def sendline(self, text: str = "", /) -> object:
-        """Send *text* followed by a line end; the return value is not part of the contract."""
+    def sendline(self, text: str = "", /) -> int:
+        """Send *text* followed by a line end and return the number of bytes written (as
+        ``pexpect.spawn.sendline`` does)."""
         ...
 
     @property
@@ -55,12 +55,24 @@ class HwConsole(Protocol):
         """Disconnect from all hardware consoles."""
         ...
 
-    def get_console(self, console_name: str) -> Console:
-        """Return the console object identified by *console_name*."""
+    def get_console(self, console_name: str) -> Any:  # type: ignore[explicit-any]  # released return kept: implementers return their own types
+        """Return the console object identified by *console_name*.
+
+        The returned object satisfies :class:`Console`. The released return annotation
+        (``Any``) is kept: implementers declare their own console types. Its narrowing to
+        ``Console`` is announced (see ``docs/architecture/precise-types-design.md``,
+        "Deprecations").
+        """
         ...
 
-    def get_interactive_consoles(self) -> Mapping[str, Console]:
-        """Return a mapping of console names to interactive console objects."""
+    def get_interactive_consoles(self) -> dict[str, Any]:  # type: ignore[explicit-any]  # released return kept: implementers return their own types
+        """Return a mapping of console names to interactive console objects.
+
+        Each console satisfies :class:`Console`. The released return annotation
+        (``dict[str, Any]``) is kept: implementers declare their own console types. Its
+        narrowing to ``Mapping[str, Console]`` is announced (see
+        ``docs/architecture/precise-types-design.md``, "Deprecations").
+        """
         ...
 
     def power_cycle(self) -> None:

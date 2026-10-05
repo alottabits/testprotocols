@@ -13,7 +13,7 @@ from typing import Protocol, runtime_checkable
 class DhcpServer(Protocol):
     """Abstract contract for DHCP server operations."""
 
-    def provision_cpe(
+    def provision_cpe(  # object: open value: the contract does not enumerate it
         self,
         cpe_mac: str,
         dhcpv4_options: dict[str, dict[str, object]],

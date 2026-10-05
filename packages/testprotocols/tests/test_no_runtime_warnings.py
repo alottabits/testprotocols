@@ -100,8 +100,6 @@ def _namedtuple_required(cls: type) -> list[str]:
 def _build(cls: type) -> object:
     """An instance of *cls* with every required field given a minimal value."""
     hints = typing.get_type_hints(cls)
-    if cls is models.HTTPResult:
-        return cls("HTTP/1.1 200 OK\r\n\r\nbody")
     if _is_namedtuple(cls):
         return cls(**{f: _value(hints[f]) for f in _namedtuple_required(cls)})
     kwargs: dict[str, object] = {}

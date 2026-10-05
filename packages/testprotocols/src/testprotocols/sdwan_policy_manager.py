@@ -42,7 +42,9 @@ class SdwanPolicyManager(Protocol):
         "after the release that deprecates it.",
         category=None,
     )
-    def apply_policy(self, policy: dict[str, object]) -> None:
+    def apply_policy(  # object: deprecated form kept until removal
+        self, policy: dict[str, object]
+    ) -> None:
         """Apply a generic SD-WAN policy specified as a dict.
 
         The typed members of this capability (``configure_sla_policy``,

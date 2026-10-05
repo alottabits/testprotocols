@@ -34,9 +34,10 @@ class GroupRecord(_GroupRecordFields):
     """One IGMPv3 / MLDv2 group record: the *sources* (addresses as text, empty for none),
     the multicast *group* address and the *record_type*.
 
-    A named tuple: it is the released ``(sources, group, record_type)`` tuple, so it fits the
-    released :data:`MulticastGroupRecord` parameter type and a driver that unpacks the
-    released tuple keeps working.
+    A named tuple: it is the released ``(sources, group, record_type)`` tuple, so a driver
+    that unpacks the released tuple keeps working, and a ``list[GroupRecord]`` is accepted by
+    ``MulticastClient.send_mldv2_report``, whose parameter is a ``Sequence`` of that tuple. (It
+    is not a :data:`MulticastGroupRecord`: ``list`` is invariant.)
     """
 
     __slots__ = ()

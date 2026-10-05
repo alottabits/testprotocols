@@ -16,7 +16,9 @@ from testprotocols.models.impairment import ImpairmentProfile, TransientEvent
 class NetemController(Protocol):
     """Abstract contract for netem-based network impairment control."""
 
-    def set_impairment_profile(self, profile: ImpairmentProfile | dict[str, object]) -> None:
+    def set_impairment_profile(  # object: deprecated form kept until removal
+        self, profile: ImpairmentProfile | dict[str, object]
+    ) -> None:
         """Apply *profile* as the default impairment on all managed interfaces.
 
         A ``dict`` of the profile's field names is deprecated. The annotation narrows to
@@ -24,7 +26,7 @@ class NetemController(Protocol):
         """
         ...
 
-    def set_interface_profile(
+    def set_interface_profile(  # object: deprecated form kept until removal
         self, interface: str, profile: ImpairmentProfile | dict[str, object]
     ) -> None:
         """Apply *profile* as the impairment on a specific *interface*.
@@ -66,5 +68,11 @@ class NetemController(Protocol):
         """Apply *event* to every managed interface for *duration_ms* milliseconds, then
         restore each interface's previous profile; returns at once (the restore is
         scheduled). An event field left ``None`` takes the driver's default; a field the
-        driver cannot apply raises ``ValueError`` before anything changes."""
+        driver cannot apply raises ``ValueError`` before anything changes.
+
+        A lever: a transient impairment leaves no state to read back once it is restored.
+        Its confirming observation is the impairment seen on the path by the measurement
+        around it (the loss, latency or outage a ``testoperations`` measurement records
+        during the event window), as for the released ``inject_transient``.
+        """
         ...

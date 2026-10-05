@@ -6,7 +6,6 @@ from dataclasses import dataclass
 from enum import IntEnum, StrEnum
 from ipaddress import IPv4Address, IPv6Address
 
-from testprotocols._compat import deprecated
 from testprotocols.models.traffic import TransportProtocol
 
 
@@ -106,85 +105,58 @@ class ICMPPacketData:
     destination: IPAddresses
 
 
-@dataclass(frozen=True, init=False)
 class HTTPResult:
-    """An HTTP response parsed from its text: the status code, the body and the raw text.
+    """Parses and holds an HTTP response string, exposing the status code and body.
 
-    ``HTTPResult(response)`` takes the raw response text, as it always has (the parameter is named
-    ``response``). *status* is the numeric status code, ``0`` when the response has none (an empty
-    response, a status line without a numeric code, or a number outside 100 to 599); it will become
-    ``int | None``. *body* is the text after the headers and *raw* the response as given.
+    The released class, unchanged: ``HTTPResult(response)`` parses the response text into
+    the plain attributes *raw* (the response as given), *code* (the status code as text,
+    ``""`` when the response has no status line) and *beautified_text* (the text after the
+    headers). They stay plain, assignable attributes, and two results compare by identity.
 
-    Equality is by value (*status*, *body* and *raw*); the released class compared by
-    identity. The record is frozen. The released attributes still read: *code* is the status
-    code as text (``""`` when absent) and *beautified_text* is *body*; each is deprecated.
+    *status* and *body* are the typed reads, read-only properties over the released
+    attributes (so they follow an assignment to *code* or *beautified_text*): *status* is
+    the status code as an ``int``, or ``None`` when *code* is not a number from 100 to 599
+    (no status line was parsed, or its code is not numeric); *body* is *beautified_text*.
+
+    *code* is deprecated: use *status*. *beautified_text* is deprecated: use *body*.
+    Removal not before the first release 6 months after the release that deprecates it.
     """
 
-    status: int
-    body: str
-    raw: str
-
     def __init__(self, response: str) -> None:
-        code, body, _ = _split_response(response)
-        object.__setattr__(self, "status", _status(code))
-        object.__setattr__(self, "body", body)
-        object.__setattr__(self, "raw", response)
+        self.raw = response
+        self.code, self.beautified_text, _ = self._parse_response(response)
 
     @property
-    @deprecated(
-        "Deprecated: use status. Removal not before the first release 6 months after the "
-        "release that deprecates it.",
-        category=None,
-    )
-    def code(self) -> str:
-        """The status code as text (``""`` when absent).
-
-        Deprecated: use *status*. Removal not before the first release 6 months after the
-        release that deprecates it.
-        """
-        return _split_response(self.raw)[0]
+    def status(self) -> int | None:
+        """The status code, or ``None`` when *code* is not a number from 100 to 599."""
+        code = self.code
+        if not (code.isascii() and code.isdigit()):
+            return None
+        number = int(code)
+        return number if 100 <= number <= 599 else None
 
     @property
-    @deprecated(
-        "Deprecated: use body. Removal not before the first release 6 months after the "
-        "release that deprecates it.",
-        category=None,
-    )
-    def beautified_text(self) -> str:
-        """The body.
-
-        Deprecated: use *body*. Removal not before the first release 6 months after the
-        release that deprecates it.
-        """
-        return self.body
+    def body(self) -> str:
+        """The response body: the text after the headers (*beautified_text*)."""
+        return self.beautified_text
 
     @staticmethod
     def _parse_response(response: str) -> tuple[str, str, str]:
-        """The released (code, body, reason) split."""
-        return _split_response(response)
-
-
-def _status(code: str) -> int:
-    number = int(code) if code.isascii() and code.isdigit() else 0
-    return number if 100 <= number <= 599 else 0
-
-
-def _split_response(response: str) -> tuple[str, str, str]:
-    lines = response.split("\r\n", 1) if "\r\n" in response else response.split("\n", 1)
-    status_line = lines[0] if lines else ""
-    parts = status_line.split(" ", 2)
-    code = parts[1] if len(parts) > 1 else ""
-    reason = parts[2] if len(parts) > 2 else ""
-    body = lines[1] if len(lines) > 1 else ""
-    if "\r\n\r\n" in body:
-        body = body.split("\r\n\r\n", 1)[1]
-    elif "\n\n" in body:
-        body = body.split("\n\n", 1)[1]
-    elif body.startswith("\r\n"):
-        body = body[2:]
-    elif body.startswith("\n"):
-        body = body[1:]
-    return code, body, reason
+        lines = response.split("\r\n", 1) if "\r\n" in response else response.split("\n", 1)
+        status_line = lines[0] if lines else ""
+        parts = status_line.split(" ", 2)
+        code = parts[1] if len(parts) > 1 else ""
+        reason = parts[2] if len(parts) > 2 else ""
+        body = lines[1] if len(lines) > 1 else ""
+        if "\r\n\r\n" in body:
+            body = body.split("\r\n\r\n", 1)[1]
+        elif "\n\n" in body:
+            body = body.split("\n\n", 1)[1]
+        elif body.startswith("\r\n"):
+            body = body[2:]
+        elif body.startswith("\n"):
+            body = body[1:]
+        return code, body, reason
 
 
 @dataclass(frozen=True)

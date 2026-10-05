@@ -11,7 +11,7 @@ from __future__ import annotations
 import dataclasses
 import inspect
 import re
-from collections.abc import Iterable, Mapping
+from collections.abc import Iterable, Mapping, Sequence
 from datetime import timedelta
 from ipaddress import IPv4Address
 from typing import get_type_hints
@@ -40,6 +40,7 @@ from testprotocols.models import (
     IperfProcess,
     LatencySpike,
     MemoryUtilization,
+    MulticastGroupRecord,
     MulticastGroupRecordType,
     NmapPort,
     NmapPortState,
@@ -558,7 +559,7 @@ def test_netem_profile_parameter_has_no_any() -> None:
 def _released_mld_args(
     records: Iterable[tuple[list[str], str, MulticastGroupRecordType]],
 ) -> str:
-    """The released implementers' rendering (``_send_multicast_report``, as boardfarm has it)."""
+    """The released implementers' rendering (their ``_send_multicast_report``)."""
     args = ""
     for sources, group, rtype in records:
         src = ",".join(sources)
@@ -575,10 +576,36 @@ def test_group_record_renders_as_the_released_tuple() -> None:
     assert (record.sources, record.group, record.record_type) == released
 
 
-def test_group_record_fits_the_released_parameter_type() -> None:
+class _MldClient:
+    """A driver declaring the widened parameter."""
+
+    def __init__(self) -> None:
+        self.sent: list[str] = []
+
+    def send_mldv2_report(
+        self,
+        mcast_group_record: Sequence[tuple[list[str], str, MulticastGroupRecordType]],
+        count: int,
+    ) -> None:
+        self.sent.append(_released_mld_args(mcast_group_record) * count)
+
+
+def test_send_mldv2_report_takes_a_sequence_of_the_released_tuple() -> None:
     hints = get_type_hints(MulticastClient.send_mldv2_report)
-    assert "list[tuple[list[str], str, " in str(hints["mcast_group_record"])
+    assert hints["mcast_group_record"] == Sequence[tuple[list[str], str, MulticastGroupRecordType]]
     assert issubclass(GroupRecord, tuple)
+
+
+def test_both_record_forms_are_passable() -> None:
+    """Checked statically too: the gate's mypy and pyright accept both calls."""
+    rtype = MulticastGroupRecordType.MODE_IS_INCLUDE
+    released: MulticastGroupRecord = [(["2001:db8::1"], "ff3e::1234", rtype)]
+    typed: list[GroupRecord] = [GroupRecord(["2001:db8::1"], "ff3e::1234", rtype)]
+    client: MulticastClient = _MldClient()
+    client.send_mldv2_report(released, 1)
+    client.send_mldv2_report(typed, 1)
+    assert isinstance(client, _MldClient)
+    assert client.sent[0] == client.sent[1]
 
 
 # --------------------------------------------------------------------------------------

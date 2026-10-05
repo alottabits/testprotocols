@@ -10,8 +10,7 @@ no link administration. Forced link-down lives on ``wan_link_admin``
 
 from __future__ import annotations
 
-from collections.abc import Mapping
-from typing import Protocol, runtime_checkable
+from typing import Any, Protocol, runtime_checkable
 
 from testprotocols._compat import deprecated
 from testprotocols.models.wan_edge import (
@@ -57,11 +56,10 @@ class Router(Protocol):
         "months after the release that deprecates it.",
         category=None,
     )
-    def get_telemetry(self) -> Mapping[str, float]:
-        """Return a mapping of current device telemetry data: the keys
-        ``uptime_seconds``, ``cpu_load_percent`` and ``mem_used_percent`` (a key
-        is absent when the device does not report it), each a number: the reported
-        fields of ``read_telemetry()``.
+    def get_telemetry(self) -> dict[str, Any]:  # type: ignore[explicit-any]  # released signature kept until removal
+        """Return a dict of current device telemetry data: the keys ``uptime_seconds``,
+        ``cpu_load_percent`` and ``mem_used_percent`` (a key is absent when the device
+        does not report it), the reported fields of ``read_telemetry()``.
 
         Deprecated: use :meth:`read_telemetry`. Removal not before the first release 6 months after
         the release that deprecates it.

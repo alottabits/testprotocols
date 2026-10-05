@@ -55,7 +55,7 @@ class DHCPTraceData:
 
     source: IPAddresses
     destination: IPAddresses
-    dhcp_packet: Mapping[str, object]
+    dhcp_packet: Mapping[str, object]  # object: open value: the contract does not enumerate it
     dhcp_message_type: int
 
 
@@ -69,5 +69,5 @@ class DHCPV6TraceData:
 
     source: IPAddresses
     destination: IPAddresses
-    dhcpv6_packet: Mapping[str, object]
+    dhcpv6_packet: Mapping[str, object]  # object: open value: the contract does not enumerate it
     dhcpv6_message_type: int

@@ -1,4 +1,5 @@
-"""HwConsole returns a Console protocol and takes no ``Any`` ."""
+"""HwConsole's consoles satisfy the Console protocol; the released ``Any`` returns are kept
+(compatibility class), their narrowing to Console announced."""
 
 from __future__ import annotations
 
@@ -51,7 +52,7 @@ class FakeHw:
             raise ValueError(console_name)
         return self._console
 
-    def get_interactive_consoles(self) -> Mapping[str, Console]:
+    def get_interactive_consoles(self) -> dict[str, Console]:
         return {"console": self._console}
 
     def power_cycle(self) -> None: ...
@@ -94,22 +95,25 @@ def test_console_missing_a_member_does_not_conform() -> None:
 
 
 def test_fake_hw_conforms_and_consoles_conform() -> None:
-    hw = FakeHw()
+    hw: HwConsole = FakeHw()  # a driver returning Console-typed consoles conforms statically
     assert isinstance(hw, HwConsole)
     assert isinstance(hw.get_console("console"), Console)
     assert all(isinstance(c, Console) for c in hw.get_interactive_consoles().values())
     assert hw.get_console("console").execute_command("ls", timeout=5) == "ran ls (5)"
 
 
-def test_hw_console_annotations_are_precise() -> None:
-    hints = typing.get_type_hints(HwConsole.get_console)
-    assert hints["return"] is Console
+def test_hw_console_keeps_its_released_annotations() -> None:
+    assert typing.get_type_hints(HwConsole.get_console)["return"] is typing.Any
     assert (
-        typing.get_type_hints(HwConsole.get_interactive_consoles)["return"] == Mapping[str, Console]
+        typing.get_type_hints(HwConsole.get_interactive_consoles)["return"] == dict[str, typing.Any]
     )
     flash = typing.get_type_hints(HwConsole.flash_via_bootloader)
     assert flash["tftp_devices"] == dict[str, typing.Any]
     assert flash["termination_sys"] is typing.Any
+
+
+def test_console_sendline_returns_the_bytes_written() -> None:
+    assert typing.get_type_hints(Console.sendline)["return"] is int
 
 
 def test_console_exported_at_top_level() -> None:
@@ -123,21 +127,26 @@ def test_released_flash_call_still_binds() -> None:
     hw.flash_via_bootloader("img.bin", {}, None, "tftp")
 
 
-def test_hw_console_any_is_only_the_two_flash_parameters() -> None:
+def test_hw_console_any_is_only_the_released_signatures() -> None:
     source = Path(hw_console_module.__file__).read_text()
     lines = source.splitlines()
     tree = ast.parse(source)
     any_lines = sorted(
         {n.lineno for n in ast.walk(tree) if isinstance(n, ast.Name) and n.id == "Any"}
     )
-    flash = next(
-        n
-        for n in ast.walk(tree)
-        if isinstance(n, ast.FunctionDef) and n.name == "flash_via_bootloader"
-    )
-    assert len(any_lines) == 2
-    assert all(flash.lineno < line < flash.body[0].lineno for line in any_lines)
+    defs = {n.name: n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef)}
+    flash = defs["flash_via_bootloader"]
+    returns = [defs["get_console"].lineno, defs["get_interactive_consoles"].lineno]
+    flash_lines = [line for line in any_lines if line not in returns]
+    assert set(returns) <= set(any_lines)
+    assert len(flash_lines) == 2
+    assert all(flash.lineno < line < flash.body[0].lineno for line in flash_lines)
     assert lines[flash.lineno - 1].endswith(
         "# type: ignore[explicit-any]  "
         "# released parameter kept: implementers declare their own types"
     )
+    for line in returns:
+        assert lines[line - 1].endswith(
+            "# type: ignore[explicit-any]  "
+            "# released return kept: implementers return their own types"
+        )

@@ -14,7 +14,7 @@ if TYPE_CHECKING:
     from testprotocols.hw_console import Console
 
     class _PexpectConsole(pexpect.spawn):  # type: ignore[type-arg]
-        """What a boardfarm- or vitro-style console is: spawn plus two methods."""
+        """What a released implementer's console is: spawn plus two methods."""
 
         def execute_command(self, command: str, timeout: int = -1) -> str: ...
 

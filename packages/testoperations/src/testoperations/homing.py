@@ -48,7 +48,7 @@ class HomeDetails:
     defined_gateway: str | None
     peer_states: Mapping[str, VpnPeerState]
 
-    def released_form(self) -> dict[str, object]:
+    def released_form(self) -> dict[str, object]:  # object: deprecated form kept until removal
         """The released ``details`` dict."""
         return {
             "defined_subnet": self.defined_subnet,
