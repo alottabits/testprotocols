@@ -88,25 +88,6 @@ their tags and PR history.
   output includes unparsable lines), `dns_lookup`, `ping(json_output=True)`, `nmap`,
   `get_arp_table` and `get_date` keep their released output (which the records cannot
   rebuild) and warn. `resolve` and `dns_lookup` refuse `DnsRecordType.OTHER`. Design `docs/architecture/precise-types-design.md` (Host-tier records); PR pending.
-- **protocol members** `testprotocols.tr069_server:Tr069Server.get_parameter_values(names, *,
-  timeout=None, cpe_id=None) -> list[ParameterValue]`, `set_parameter_values(values, *,
-  parameter_key=None, timeout=None, cpe_id=None) -> CwmpStatus`,
-  `get_parameter_attributes(names, *, cpe_id=None) -> list[ParameterAttribute]`,
-  `set_parameter_attributes(attributes, *, change_notification=True, change_access_list=False,
-  cpe_id=None) -> None`, `factory_reset_cpe(*, cpe_id=None) -> None`, `reboot(command_key=None,
-  *, cpe_id=None) -> None`, `add_object(object_name, *, parameter_key=None, cpe_id=None) ->
-  AddObjectResult`, `delete_object(object_name, *, parameter_key=None, cpe_id=None) ->
-  CwmpStatus`, `get_parameter_names(path, next_level, *, timeout=None, cpe_id=None) ->
-  list[ParameterInfo]`, `schedule_inform(delay_seconds=20, *, command_key=None, cpe_id=None) ->
-  None`, `get_rpc_methods(*, cpe_id=None) -> list[str]` and `download(url,
-  file_type=CwmpFileType.FIRMWARE_UPGRADE_IMAGE, *, target_file_name=None, file_size=None,
-  username=None, password=None, command_key=None, delay_seconds=10, success_url=None,
-  failure_url=None, cpe_id=None) -> DownloadResult` — new mandatory members, one per CWMP RPC;
-  an argument left `None` is not sent. A driver value no longer passes `isinstance` against
-  `Tr069Server` until it has them. Migration: implement them over the ACS (build each
-  `ParameterValue` from the ACS's value and type, `ParameterValue.from_text` for text), and
-  make each released RPC member warn with `warn_renamed(old, new)` while keeping its released
-  output. Design `docs/architecture/precise-types-design.md` (TR-069 RPCs); PR pending.
 
 #### Added
 
@@ -399,21 +380,6 @@ their tags and PR history.
   matches patterns keeps the concrete console type. `sendline` is positional-only, so a
   `Console` cannot be passed to a helper protocol that takes `string` as a named parameter.
   Migration: none. Design `docs/architecture/precise-types-design.md` (HwConsole); PR pending.
-- **models** `testprotocols.models:CwmpType` (the TR-106 Amendment 9 built-in data types as
-  `xsi:type` names: `xsd:string`, `xsd:int`, `xsd:unsignedInt`, `xsd:long`,
-  `xsd:unsignedLong`, `xsd:boolean`, `xsd:dateTime`, `xsd:base64` (also read as
-  `xsd:base64Binary` and `soapenc:base64`), `xsd:hexBinary`, `xsd:decimal`; plus `OTHER`: the
-  set is open), `CwmpValue`, `ParameterValue(name, value, type, type_raw=None)` (frozen; the
-  value must match the type: an `int` in the type's range, a `bool`, a `datetime`, `bytes`, a
-  finite `Decimal` or a `str`, else `TypeError` / `ValueError`; a type word naming no member
-  is `OTHER` with the word in `type_raw`, a missing type is `OTHER` with `type_raw=None`, and
-  an `OTHER` value is text; `from_text(name, text, type_word_or_member_or_None)` and `text`
-  convert the XML Schema lexical form), `CwmpNotification` (`IntEnum`,
-  0 to 6), `ParameterAttribute(name, notification, access_list=())`,
-  `ParameterInfo(name, writable)`, `CwmpStatus` (`APPLIED = 0`, `NOT_YET_APPLIED = 1`),
-  `AddObjectResult(instance_number, status)`, `DownloadResult(status, start_time=None,
-  complete_time=None)` and `CwmpFileType` (the six standard Download file types) — the CWMP
-  structures of the typed TR-069 RPCs. Migration: none. Design `docs/architecture/precise-types-design.md` (TR-069 RPCs); PR pending.
 
 #### Changed
 
@@ -728,14 +694,6 @@ their tags and PR history.
   `profile` annotation narrows to `ImpairmentProfile` and the records to
   `Sequence[GroupRecord]` in a later release; `HeldPrefixes.hold` / `release` narrow to
   `IPv4Interface | IPv6Interface` (announced only). Design `docs/architecture/precise-types-design.md` (Host-tier records); PR pending.
-- **protocol members** `Tr069Server.GPV`, `SPV`, `GPA`, `SPA`, `FactoryReset`, `Reboot`,
-  `AddObject`, `DelObject`, `GPN`, `ScheduleInform`, `GetRPCMethods` and `Download` —
-  deprecated names of the typed members (see *Breaking for driver authors*); they keep their
-  released signatures (`dict[str, Any]` parameters, `list[dict[str, Any]]` returns) and each
-  driver's released output until a later release removes them. The released `""` defaults
-  (`param_key`, `targetfilename`, `username`, `password`, `commandkey`, `successurl`,
-  `failureurl`) are announced only: they mean "not given", which the typed members spell
-  `None`. Design `docs/architecture/precise-types-design.md` (TR-069 RPCs); PR pending.
 
 ### testoperations
 
@@ -797,9 +755,6 @@ their tags and PR history.
   through `testoperations._renamed`, falling back to the released names; a driver with only
   the released names receives exactly the released call. With a new-name driver, a flow
   `window` that is not an iperf size raises `ValueError` before anything starts. Design `docs/architecture/precise-types-design.md` (Host-tier records); PR pending.
-- **operation** `testoperations.tr069_server:is_cpe_online` — calls
-  `get_parameter_values([name], cpe_id=...)` through `testoperations._renamed` when the driver
-  has it, else exactly the released `GPV(name, cpe_id=...)`. Design `docs/architecture/precise-types-design.md` (TR-069 RPCs); PR pending.
 - **operation** `testoperations.iperf_client:start_iperf` — breaking for callers: gains the
   required keyword-only `host` (the address the sender connects to), returns an `IperfSession`
   (was `dict[str, Any]`), and takes `iperf_client: IperfClient` and `iperf_server: IperfServer`

@@ -6,18 +6,6 @@ from typing import TYPE_CHECKING
 
 from testprotocols.deprecation import deprecated_attribute
 from testprotocols.models import wan_edge as _wan_edge
-from testprotocols.models.cwmp import (
-    AddObjectResult,
-    CwmpFileType,
-    CwmpNotification,
-    CwmpStatus,
-    CwmpType,
-    CwmpValue,
-    DownloadResult,
-    ParameterAttribute,
-    ParameterInfo,
-    ParameterValue,
-)
 from testprotocols.models.device_management import (
     EventLogEntry,
     MemoryUtilization,
@@ -260,8 +248,6 @@ __all__ = [
     "AcctStatusType",
     "AcctTerminateCause",
     "AclDirection",
-    # cwmp
-    "AddObjectResult",
     "AggregationMode",
     # wan_edge
     "AppFlow",
@@ -287,11 +273,6 @@ __all__ = [
     # tr069
     "CpeConnectionStatus",
     # dhcp
-    "CwmpFileType",
-    "CwmpNotification",
-    "CwmpStatus",
-    "CwmpType",
-    "CwmpValue",
     "DHCPTraceData",
     "DHCPV6TraceData",
     "DefaultAction",
@@ -304,7 +285,6 @@ __all__ = [
     "DiscoveryProtocol",
     "DnsRecord",
     "DnsRecordType",
-    "DownloadResult",
     "Duplex",
     "EapMethod",
     # emission
@@ -377,9 +357,6 @@ __all__ = [
     "OspfVersion",
     "PacketStorm",
     "PageCompletion",
-    "ParameterAttribute",
-    "ParameterInfo",
-    "ParameterValue",
     "PathMetrics",
     "PhoneState",
     "PingResult",

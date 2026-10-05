@@ -588,83 +588,6 @@ where one exists, also records its retype.
     `flash_via_bootloader` line is exempted from `disallow_any_explicit` (see "Exemption
     policy"). Cost if wrong: two `Any` parameters remain in the contract.
 
-- **TR-069 RPCs** (shape 5 per RPC, shape 6 for the `""` defaults). `Tr069Server`
-  took and returned `dict[str, Any]` / `list[dict[str, Any]]` for twelve CWMP RPCs. Evidence
-  (read-only):
-  - Implementers of the server protocol: the vitro-bdd cpe-gateway example ACS
-    (`GenieacsTr069Server`, over the GenieACS NBI), boardfarm's ACS template (`ACSNBI`,
-    typing `GpvStruct = dict[str, str | int | bool]`) and its GenieACS and Axiros ACS drivers.
-    No other implementer was found. Callers: `testoperations.is_cpe_online` (GPV, result not
-    read), boardfarm's ACS and CPE use cases (GPV reading `value`, SPV with `timeout`
-    positional, Reboot, ScheduleInform) and the example's unit tests.
-  - The released outputs disagree. For GPV the example returns the ACS's JSON value with an
-    `xsd:`-prefixed `type`; boardfarm's GenieACS driver returns every value and type as text;
-    the Axiros driver adds a `type` derived from the Python value (`int`, `string`, `boolean`,
-    `date`, a date being a six-element list). The write RPCs return each ACS's own task
-    documents. So no conversion from a typed result reproduces each released output: a
-    migrated driver's deprecated member keeps its released output (it warns, it does not
-    delegate). The example's recorded GenieACS leaf (`{"_value": "SN42", "_type":
-    "xsd:string"}`) maps onto `ParameterValue` exactly (tested).
-  - CWMP structures (Broadband Forum CWMP schema `cwmp-1-2.xsd`, `cwmp-1-4.xsd`):
-    `ParameterValueStruct` (Name, Value typed by `xsi:type`), `ParameterAttributeStruct` and
-    `SetParameterAttributesStruct` (Notification, NotificationChange, AccessList,
-    AccessListChange; `Subscriber` is the one standard access-list entity),
-    `ParameterInfoStruct` (Name, Writable), the `Status` 0/1 of the SetParameterValues,
-    AddObject, DeleteObject and Download responses, AddObject's InstanceNumber (1 or more),
-    Download's StartTime and CompleteTime, ParameterKey and CommandKey (string(32)), the
-    Download FileType (`1 Firmware Upgrade Image` to `5 Ringer File`, plus vendor forms
-    `X <OUI> <name>`), and Notification values 0 to 6 (cwmp-1-4 adds the lightweight
-    notifications 3 to 6). The built-in parameter data types are those of TR-106 Amendment 9
-    (data model schema `cwmp-datamodel-1-8.xsd`, `AllBuiltinDataTypes`): base64, boolean,
-    dateTime, decimal, hexBinary, int, long, string, unsignedInt, unsignedLong (`decimal`
-    arrived with `cwmp-datamodel-1-7.xsd`). `6 Stored Firmware Image` is a Download FileType
-    of TR-069 Amendment 6 (and in boardfarm's documented list). The base64 type is spelled
-    `soapenc:base64` in `cwmp-1-2.xsd` (line 1296), `base64Binary` in XML Schema, and
-    `xsd:base64` by ACSs.
-  - Decisions. `CwmpType` has the ten built-in types, not only six:
-    the TR-181 statistics counters are `unsignedLong`, so a six-member set could not hold
-    values a GPV returns. The set is open (shape 3o): an `OTHER` member with the companion
-    `ParameterValue.type_raw` (an `OpenEnumPair`, settled in `__post_init__` of the frozen
-    record), because implementers meet values with a type word outside the set or with no
-    type at all (the vitro-bdd example reads `leaf.get("_type", "")`). A type word naming no
-    member is `OTHER` with the word kept verbatim; a missing type is `OTHER` with
-    `type_raw = None`; an `OTHER` value is carried as text, so nothing is lost or guessed.
-    `BASE64` is spelled `xsd:base64`; `xsd:base64Binary` and `soapenc:base64` are accepted
-    as its aliases (`CwmpType(word)`, `from_text`, the constructor), and the alias is not
-    kept. `from_text` takes the device's type word (or `None`) and never warns; the
-    constructor follows shape 3o (a plain `str` naming a member warns and converts).
-    `decimal` values are `Decimal` (finite; written without an exponent). A dateTime offset
-    must be whole minutes, at most 14:00, so `text` never writes a form `from_text` refuses.
-    `CwmpNotification` is an `IntEnum` 0 to 6 (an earlier draft had `int` 0 to 2). `CwmpFileType`
-    has the five `cwmp-1-2` types and `6 Stored Firmware Image` (TR-069 Amendment 6); vendor
-    file types (`X <OUI> <name>`) had no caller or implementer and are
-    not modelled (a gap: `download` cannot ask for one; the deprecated `Download` can until it
-    is removed). `ParameterValue` refuses a value of the wrong Python type with `TypeError`
-    and a value outside its type's range with `ValueError`; `from_text` reads the XML
-    Schema lexical forms and `text` writes a lexical form that `from_text` reads back.
-    `get_parameter_values` and `get_parameter_attributes` take a sequence of names: a
-    driver raises `TypeError` for a bare `str`, and `testoperations` passes a list. Status
-    results are
-    `CwmpStatus`; the RPCs whose CWMP response is empty return `None`.
-  - Names: the RPC names in snake case, except FactoryReset, which is `factory_reset_cpe`
-    because `DeviceLifecycle.factory_reset(method) -> bool` exists (a device that composes
-    both would conflict). No other new name collides with a member of another protocol.
-    `cpe_id` and the options are keyword-only; an option left `None` is not sent.
-    `GPA` took one name; `get_parameter_attributes` takes a sequence, as CWMP does.
-    `set_parameter_attributes` keeps the released shared flags as `change_notification` and
-    `change_access_list`.
-  - The released members keep their signatures, exempted from `disallow_any_explicit` on
-    their `def` lines (12 lines, class (a); see "Exemption policy"). A narrower annotation would
-    break boardfarm's `dict[str, str | int | bool]` declarations (`dict` is invariant), and the
-    returns cannot narrow without breaking callers that index them. The ratchet does not move
-    for this module: the new members and records add no `Any`.
-  - `testoperations`: only `is_cpe_online` calls an RPC. It goes through
-    `_renamed.get_parameter_value`: `get_parameter_values([name])` when the driver has it,
-    else exactly the released `GPV(name, cpe_id=...)`. `provision_cpe_via_tr069` still names
-    the released RPC members in its entries.
-  - Consumer gate: the example ACS's capability attributes are typed `Any` in the example, so
-    no static check compares it with `Tr069Server`; the gate shows no difference.
-
 ### testoperations: typed records
 
 The last explicit `Any` of `testoperations` goes (ratchet `TESTOPERATIONS_CEILING` 7 to 0; no
@@ -740,6 +663,7 @@ line is deleted with the member at the removal release, and the pinned count dro
 - the released TR-069 RPCs (`GPV`, `SPV`, `GPA`, `SPA`, `FactoryReset`, `Reboot`,
   `AddObject`, `DelObject`, `GPN`, `ScheduleInform`, `GetRPCMethods`, `Download`: 12 lines),
   whose released `dict` annotations are invariant against the implementers' narrower ones.
+  TR-069 RPCs keep their released signatures; vendors extend the parameter model, so the contract does not enumerate it.
 
 **(b) Compatibility, 2 lines.** Marker `# type: ignore[explicit-any]  # released parameter
 kept: implementers declare their own types`. These members are live, not deprecated, and
@@ -889,12 +813,6 @@ the matching CHANGELOG entry sits under *Changed*.
   (`popitem`) takes `dict(...)` first. An implementer whose console lacks one of the four
   no longer conforms. `flash_via_bootloader` is unchanged.
 
-- **TR-069 RPCs.** Nothing changes at run time for a driver or a caller that uses the
-  released members: their signatures and outputs stay. A driver value no longer passes
-  `isinstance` against `Tr069Server` until it implements the twelve typed members (breaking
-  for driver authors). `testoperations.is_cpe_online` calls `get_parameter_values` on a driver
-  that has it (a `MagicMock` without a `spec` has every name, so it takes that path).
-
 - **`testoperations` records.** `start_iperf` requires the keyword-only `host`, takes only the
   numbers 4 and 6 as `ip_version` (any other value raises `ValueError`; released: passed
   through) and returns an `IperfSession`; `verify_home` and `saturate_link` return records.
@@ -966,9 +884,6 @@ Each lands in a later release with its own breaking changelog entry:
 - The option strings (`ping`, `traceroute`, `curl`, `http_get` `options`; `nmap`, `dns_lookup`
   `opts`; `get_running_processes` `ps_options`), `NtpClient.set_date` and
   `SnmpClient.execute_snmp_command` are removed.
-- TR-069: `GPV`, `SPV`, `GPA`, `SPA`, `FactoryReset`, `Reboot`, `AddObject`, `DelObject`,
-  `GPN`, `ScheduleInform`, `GetRPCMethods` and `Download` are removed (with them the `""`
-  defaults and the last `Any` of `Tr069Server`).
 - `testoperations`: `saturate_link(protocol)` narrows from `TransportProtocol | str` to
   `TransportProtocol`; `start_iperf(ip_version)` narrows from `IpFamily | int` to `IpFamily`;
   the deprecated `testoperations` call paths to the released member names (the typed fallback
