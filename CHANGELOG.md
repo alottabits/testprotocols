@@ -41,10 +41,12 @@ their tags and PR history.
   and `testprotocols.nat:Nat.get_nat_rule_counter_values(name) -> RuleCounters`
   (so also `Firewall`, which inherits `PacketFilter`) — new mandatory members,
   taking the parameters of the old counter members. Migration: implement them
-  and keep `get_rule_counters` / `get_nat_rule_counters` until their removal. Design `docs/architecture/precise-types-design.md` (firewall and NAT ports and counters); PR pending.
+  (a driver without per-rule counters adds a one-line stub raising `NotSupportedError`) and
+  keep `get_rule_counters` / `get_nat_rule_counters`, with their released
+  `NotImplementedError` text, until their removal. Design `docs/architecture/precise-types-design.md` (firewall and NAT ports and counters); PR pending.
 - **protocol member** `testprotocols.router:Router.read_telemetry() -> Telemetry` —
-  new mandatory member. Migration: implement it, and keep `get_telemetry`, which
-  returns the reported fields of the new member as the released mapping. Design `docs/architecture/precise-types-design.md` (telemetry and policy); PR pending.
+  new mandatory member. Migration: implement it, and keep `get_telemetry`, which keeps its
+  released `dict[str, Any]` return and returns the reported fields of the new member. Design `docs/architecture/precise-types-design.md` (telemetry and policy); PR pending.
 - **protocol member** `testprotocols.wifi_client:WifiClient.supported_channels(band: WifiBand) -> list[int]` —
   new mandatory member, replacing `iwlist_supported_channels` (which returned the
   channel numbers as text). Migration: implement it;
@@ -87,13 +89,6 @@ their tags and PR history.
   output includes unparsable lines), `dns_lookup`, `ping(json_output=True)`, `nmap`,
   `get_arp_table` and `get_date` keep their released output (which the records cannot
   rebuild). Design `docs/architecture/precise-types-design.md` (Host-tier records); PR pending.
-- **return types** `testprotocols.router:Router.get_telemetry` now returns `Mapping[str, float]`
-  (was `dict[str, Any]`), `testprotocols.hw_console:HwConsole.get_console` returns `Console` (was
-  `Any`) and `get_interactive_consoles` returns `Mapping[str, Console]` (was `dict[str, Any]`).
-  An implementer whose declared `get_telemetry` return is not `float`-valued, or whose console
-  lacks one of the `Console` members, no longer conforms; a reader gets `float` values and the
-  `Console` members only. Migration: narrow the declarations. Design
-  `docs/architecture/precise-types-design.md` (telemetry and policy; HwConsole); PR pending.
 - **field** `testprotocols.models:FirewallRule.dst_port` — now `str | None`, still required
   and in its released position; `None` when the producer fills only `dst_ports`. A reader of
   the field sees `str | None`. Read the pair as: `dst_ports` when filled, else `dst_port`
@@ -140,15 +135,20 @@ their tags and PR history.
   `int | None` (released: `int`), still required and in their released positions; `None` when
   the device reports no per-radio count (TR-181 and Wi-Fi Data Elements define none, and not
   every access-point API reports one), never `0` as a stand-in. A reader now sees `int | None`
-  and handles `None`. A type change of a released field, with no deprecation period. Migration:
-  readers check for `None`; a driver whose device reports no per-radio count fills `None`.
-  Design `docs/architecture/precise-types-design.md` (Wi-Fi vocabularies); PR pending.
-- **model** `testprotocols.models:HTTPResult` — now a frozen dataclass (released: a plain
-  class). Its attributes are read-only, so assigning one raises `FrozenInstanceError`, and
-  equality is by value (released: by identity). A driver that assigns attributes of a result,
-  in a subclass or after construction, now fails at run time; a subclass declared as a
-  non-frozen dataclass fails at import. Migration: build the result from its text and do not
-  assign attributes afterwards. Design `docs/architecture/precise-types-design.md` (Host-tool and service vocabularies); PR pending.
+  and handles `None`. A type change of a released field with no deprecation period, under the
+  stated no-period exception (no form of the released field can be kept: an `int` cannot say
+  "not reported"). Migration: readers check for `None`; a driver whose device reports no
+  per-radio count fills `None`. Design `docs/architecture/precise-types-design.md` (The
+  contract model, "The no-period exception"; Wi-Fi vocabularies); PR pending.
+- **parameter** `testprotocols.multicast_client:MulticastClient.send_mldv2_report(mcast_group_record)`
+  — now `Sequence[tuple[list[McastSource], McastGroup, MulticastGroupRecordType]]` (released:
+  `MulticastGroupRecord`, an invariant `list` of that tuple), so a caller's `list[GroupRecord]`
+  type-checks as well as the released list of tuples. Every released call still type-checks.
+  Cost: an implementer declaring the parameter as `list[...]` (or `MulticastGroupRecord`) no
+  longer conforms statically, because a protocol parameter wider than the implementer's is a
+  conformance error; nothing changes at run time. Migration: widen the declaration to
+  `Sequence[...]`. Design `docs/architecture/precise-types-design.md` (Host-tier records); PR
+  pending.
 
 #### Added
 
@@ -158,14 +158,20 @@ their tags and PR history.
   own type code. Counter types are left out (a counter only increments, RFC 2578).
 - **type checking** mypy now runs `disallow_any_explicit` on `testprotocols.*` and
   `testoperations.*` (internal; the contract is unchanged). The only
-  exemptions are released signatures, in two classes: 8 deprecation-period
+  exemptions are released signatures, in two classes: 9 deprecation-period
   exemptions, marked `# type: ignore[explicit-any]  # released signature kept
-  until removal` and removed with their members; and 14 compatibility
+  until removal` and removed with their members; and 16 compatibility
   exemptions on live members: `flash_via_bootloader` and `start_tcpdump`, marked
-  `# released parameter kept: implementers declare their own types`, and the 12
+  `# released parameter kept: implementers declare their own types`, the 12
   TR-069 RPCs of `Tr069Server`, marked `# released signature kept: vendors extend the
-  parameter model`. `tests/test_typing_ratchet.py`
-  counts the non-exempt `Any` (ceiling 0) and pins each class. Migration: none. Design `docs/architecture/precise-types-design.md`; no
+  parameter model`, and the `HwConsole.get_console` / `get_interactive_consoles` returns,
+  marked `# released return kept: implementers return their own types`.
+  `tests/test_typing_ratchet.py` counts the non-exempt `Any` (ceiling 0) and pins each class.
+  It counts `object` used as a type in a public parameter, return, field or type alias the
+  same way (ceiling 0): 4 lines in `testprotocols` and 6 in `testoperations` are a deprecated
+  form, marked `# object: deprecated form kept until removal`, and 3 in `testprotocols` are a
+  live open value, marked `# object: open value: the contract does not enumerate it`.
+  Migration: none. Design `docs/architecture/precise-types-design.md` (Exemption policy); no
   proposal (contract infrastructure); PR pending.
 - **model** `testprotocols.models:PortRange` (`first`, `last`, inclusive,
   `1 <= first <= last <= 65535`; frozen; `PortRange.single(port)`) — the typed L4
@@ -211,9 +217,11 @@ their tags and PR history.
   destination port range. Migration: pass `classifier`.
   Design `docs/architecture/precise-types-design.md` (switch QoS classifier); PR pending.
 - **model** `testprotocols.models:Telemetry` (`uptime_seconds`, `cpu_load_percent`,
-  `mem_used_percent`; frozen; the last two are `None` when the device does not
-  report them; each finite and not negative) — a device's
-  resource telemetry. Migration: none. Design `docs/architecture/precise-types-design.md` (telemetry and policy); PR pending.
+  `mem_used_percent`; frozen; each is `None` when the device does not report it, and
+  `uptime_seconds` is required, so a driver states `None` rather than leaving it out; each
+  value given is finite and not negative) — a device's resource telemetry. The absent uptime
+  follows the shape recorded in `GAPS.md` 2026-06-11 "appliance health / online capability"
+  (`float | None`), because a cloud-managed appliance composes `Router`. Migration: none. Design `docs/architecture/precise-types-design.md` (telemetry and policy); PR pending.
 - **enums** `testprotocols.models:WifiBand` (`GHZ_2_4`, `GHZ_5`, `GHZ_6`),
   `WifiSecurityMode` (`OPEN`, `OWE`, `WPA2_PSK`, `WPA2_EAP`, `WPA3_SAE`, `WPA3_EAP`,
   `WPA2_WPA3_PSK_MIXED`, `WPA2_WPA3_EAP_MIXED`), `MfpMode` (`OFF`, `OPTIONAL`,
@@ -232,9 +240,11 @@ their tags and PR history.
   one per `is_*` call-state predicate of `SipPhone`; `HOLD == "hold"`) — the voice
   vocabulary; every value is the string the released contract or its implementer used. Migration: none. Design `docs/architecture/precise-types-design.md` (Voice vocabularies); PR pending.
 - **records** `testprotocols.models:RtpStats` (`engaged`, `sessions`), `MwiStatus`
-  (`waiting`, `new`, `old`) and `OfflineMessage` (`sender`, `body`, `stored_at`) —
+  (`waiting`, `new`, `old`) and `OfflineMessage` (`sender`, `body`, `stored_at: datetime |
+  None`, `None` when the store reports no time) —
   frozen records for what the SIP server's media relay, message-waiting and offline-message
-  readers returned as dicts (counts not negative). A driver parses its stored text into a
+  readers returned as dicts (counts not negative). A driver parses its stored text (ISO 8601,
+  as `datetime.fromisoformat` reads it, `T` or space separated) into a
   `datetime` for `read_offline_messages`; its deprecated `get_offline_messages` may keep
   returning that original text unchanged. Migration: read the new records. Design `docs/architecture/precise-types-design.md` (Voice vocabularies); PR pending.
 - **enums** `testprotocols.models:IpVersion` (`IPV4 = "ipv4"`, `IPV6 = "ipv6"`; the
@@ -273,33 +283,52 @@ their tags and PR history.
   optional: `None` is the driver's default; `event_name` gives the released `inject_transient`
   word, whose keyword for a spike's latency is `spike_latency_ms`). Migration: none. Design `docs/architecture/precise-types-design.md` (Host-tier records); PR pending.
 - **model** `testprotocols.models:GroupRecord(sources, group, record_type)` — a `NamedTuple`,
-  so it is the released `(sources, group, record_type)` tuple and fits the released
-  `MulticastGroupRecord` parameter type. Migration: none.
+  so it is the released `(sources, group, record_type)` tuple; a `list[GroupRecord]` is
+  accepted by the widened `send_mldv2_report` parameter (see *Breaking for driver
+  authors*). Migration: none.
   Design `docs/architecture/precise-types-design.md` (Host-tier records); PR pending.
-- **marker** `@deprecated` on every deprecated protocol member, model and property (the
-  standard marker: `warnings.deprecated` on Python 3.13 and later, `typing_extensions.deprecated`
-  before, re-exported by the internal `testprotocols._compat`), with the same sentence as the
-  docstring: "Deprecated: use `<new>`. Removal not before the first release 6 months after the
-  release that deprecates it." It is passed `category=None`: the deprecation is stated for the
-  type checkers and in the docstring, and nothing warns at run time. pyright in strict mode
+- **marker** `@deprecated` on every deprecated protocol member and model class (the
+  standard marker, re-exported by the internal `testprotocols._compat`), with the same
+  sentence as the docstring: "Deprecated: use `<new>`. Removal not before the first release 6
+  months after the release that deprecates it." It is passed `category=None`: the deprecation
+  is stated for the type checkers and in the docstring, and nothing warns at run time. Type
+  checkers read `typing_extensions.deprecated` from their bundled stubs; at run time Python
+  3.13 and later supply `warnings.deprecated`, and Python 3.12 an identity marker that returns
+  the object unchanged, so `testprotocols` keeps no runtime dependency. pyright in strict mode
   reports `reportDeprecated` as an error by default, so a consumer on pyright strict gets an
-  error at every use of a deprecated member on upgrade; mypy reports a use only when the
-  `deprecated` error code is enabled. New dependency on Python 3.12: `typing_extensions>=4.6` (the first release that imports on 3.12).
-  Migration: none. Design `docs/architecture/precise-types-design.md`; PR pending.
+  error at every use of a deprecated member on upgrade; mypy reports a use only with
+  `enable_error_code = deprecated`, as this workspace configures it. Migration: none. Design `docs/architecture/precise-types-design.md`; PR pending.
 
 - **protocol** `testprotocols.hw_console:Console` (also `testprotocols.Console`) — the
   interactive text console `HwConsole` hands out: `execute_command(command, /, timeout=-1) ->
-  str`, `sendline(text="", /) -> object`, a read-only `before: str | bytes | None` and
+  str`, `sendline(text="", /) -> int` (the bytes written, as pexpect's), a read-only `before: str | bytes | None` and
   `start_interactive_session()`: the members callers of the returned consoles were seen to use
   that a `pexpect.spawn` subclass can satisfy (checked against `types-pexpect`, a dev
   dependency only). `runtime_checkable`. `expect` and `expect_exact` are not members: a
   console's own pattern types cannot be matched by one contract type, so a caller that
   matches patterns keeps the concrete console type. `sendline` is positional-only, so a
   `Console` cannot be passed to a helper protocol that takes `string` as a named parameter.
-  Migration: none. Design `docs/architecture/precise-types-design.md` (HwConsole); PR pending.
+  A returned-object contract, not a capability: `HwConsole` keeps its released `Any` returns,
+  and the consoles it returns satisfy `Console`. Migration: none. Design `docs/architecture/precise-types-design.md` (HwConsole); PR pending.
+
+- **properties** `testprotocols.models:HTTPResult.status` (`int | None`: the status code, `None`
+  when the response has no status line with a code from 100 to 599) and `body` (`str`, the text
+  after the headers) — read-only typed reads over the released attributes, so they follow an
+  assignment to `code` or `beautified_text`. The class is otherwise the released one: the
+  released constructor and parser, plain assignable `raw`, `code` and `beautified_text`, and
+  identity equality. Migration: read `status` and `body`. Design
+  `docs/architecture/precise-types-design.md` (Host-tool and service vocabularies); PR pending.
 
 #### Changed
 
+- **protocol member** `testprotocols.wifi_bss:WifiBss.create_bss` / `set_security` — the
+  management-frame protection read-back changes: the WPA3-only modes (`WPA3_SAE`, `WPA3_EAP`,
+  `WPA3_EAP_192`), `OWE` and any BSS on 6 GHz require protection, so a driver applies
+  `REQUIRED` whatever `mfp` says and `get_bss_config` reports `mfp` as `REQUIRED` (released: the
+  `mfp` passed, by default `"optional"`). Migration: a driver that today reports `optional` for
+  such a BSS reports `REQUIRED`; a test that compared the read-back with the `mfp` it passed
+  expects `REQUIRED` for these modes. Design `docs/architecture/precise-types-design.md`
+  (Wi-Fi vocabularies); PR pending.
 - **protocol members** `testprotocols.packet_filter:PacketFilter` (every `chain`
   parameter; `set_default_policy(policy)`), `testprotocols.nat:Nat.list_nat_rules(mode)`
   and `testprotocols.conntrack:Conntrack` (`protocol` on `list_connections`,
@@ -349,13 +378,6 @@ their tags and PR history.
   that names no state raises `ValueError` (released implementer: the same). The presence
   parameters and return (`set_presence`, `notify_presence`, `get_user_presence`) stay
   `str`, the provider's own word. Design `docs/architecture/precise-types-design.md` (Voice vocabularies); PR pending.
-- **model** `testprotocols.models:HTTPResult` — now a frozen dataclass with `status: int`,
-  `body: str` and `raw: str`. `HTTPResult(response)` takes the response text as before
-  (keyword `response` too). *status* is `0` when the response has no numeric status code, or
-  one outside 100 to 599 (it will become `None`); the released `code` (text) and `beautified_text` still read (deprecated). Equality is now by value (released: by identity). The
-  record is frozen: assigning an attribute raises `FrozenInstanceError` (released: allowed),
-  and `dataclasses.replace` does not apply (the constructor takes the text). Migration: read
-  `status` and `body`. Design `docs/architecture/precise-types-design.md` (Host-tool and service vocabularies); PR pending.
 - **models** `MeasurementSpec.tool` and `completion`, and `TrafficSpec.protocol` — now
   `E | str`: a member or the released word, stored as given (a member compares equal to
   its text). `QoEResult.protocol`, `RadiusUser.eap_methods` and
@@ -385,14 +407,6 @@ their tags and PR history.
 - **models** `DHCPTraceData.dhcp_packet` and `DHCPV6TraceData.dhcpv6_packet` —
   `Mapping[str, object]` (was `dict[str, Any]`): a decoder's nested bag with no fixed typed
   shape; static only, a reader narrows each value it uses. Design `docs/architecture/precise-types-design.md` (Host-tier records); PR pending.
-
-- **protocol members** `testprotocols.hw_console:HwConsole.get_console` and
-  `get_interactive_consoles` — callers (see *Breaking for driver authors* for the narrowed
-  returns): a caller that uses `expect`, `expect_exact` or other pexpect members on a returned
-  console keeps the concrete console type or narrows, and one that mutates the returned mapping
-  (for example `popitem`) takes `dict(...)` first. An implementer that returns a `dict` still
-  conforms. `flash_via_bootloader` keeps its released `dict[str, Any]` and `Any` parameters.
-  Design `docs/architecture/precise-types-design.md` (HwConsole); PR pending.
 
 #### Deprecated
 
@@ -472,11 +486,11 @@ their tags and PR history.
   `snmp_get`, `snmp_walk`, `snmp_set` or `snmp_bulk_get`; any other command has no successor.
   Earliest removal: the first release 6 months after the release that deprecates it. Design
   `docs/architecture/precise-types-design.md` (Deprecations); PR pending.
-- **member** `testprotocols.models:HTTPResult.code` (property) — deprecated. Replacement: `status`
-  (an `int`). Earliest removal: the first release 6 months after the release that deprecates it.
+- **attribute** `testprotocols.models:HTTPResult.code` — deprecated (docstring and this entry; a
+  plain attribute carries no marker). Replacement: `status` (`int | None`). Earliest removal: the first release 6 months after the release that deprecates it.
   Design `docs/architecture/precise-types-design.md` (Deprecations); PR pending.
-- **member** `testprotocols.models:HTTPResult.beautified_text` (property) — deprecated. Replacement:
-  `body`. Earliest removal: the first release 6 months after the release that deprecates it. Design
+- **attribute** `testprotocols.models:HTTPResult.beautified_text` — deprecated (docstring and this
+  entry; a plain attribute carries no marker). Replacement: `body`. Earliest removal: the first release 6 months after the release that deprecates it. Design
   `docs/architecture/precise-types-design.md` (Deprecations); PR pending.
 - **class** `testprotocols.models:VPNPeerStatus` — deprecated. Replacement: none (`VpnPeerStatus`
   for site-to-site peers). Earliest removal: the first release 6 months after the release that
@@ -646,25 +660,35 @@ their tags and PR history.
 - **field** `LinkStatus.ip_address` (`""`: no address) — deprecated. Replacement: `str | None`
   (announced). Earliest removal: the first release 6 months after the release that deprecates it.
   Design `docs/architecture/precise-types-design.md` (Deprecations); PR pending.
-- **field** `HTTPResult.status` `0` (no numeric status code) — deprecated. Replacement: `int |
-  None`, `None` (announced). Earliest removal: the first release 6 months after the release that
-  deprecates it. Design `docs/architecture/precise-types-design.md` (Deprecations); PR pending.
+- **member** `testprotocols.hw_console:HwConsole.get_console` and `get_interactive_consoles`
+  returns `Any`, `dict[str, Any]` — deprecated. Replacement: `Console`, `Mapping[str, Console]`
+  (announced narrowing; a console lacking a `Console` member stops conforming then). Earliest
+  removal: the first release 6 months after the release that deprecates it. Design
+  `docs/architecture/precise-types-design.md` (Deprecations); PR pending.
 
 ### testoperations
 
 #### Added
 
-- **behaviour** the operations read a record field that has a released text form and a
-  typed form (`FirewallRule`, `NatRule` and `L3Rule` ports, `SecurityEvent` time, `QosRule`
-  classifier) the same way whichever form the driver filled, and convert their own released
-  `str` parameters to enums (a plain string naming a member warns at the operation's
-  caller). The readers and parsers are internal, not public API. Anyone reading such a pair
-  directly applies the same rule: the typed field when filled, else the text parsed, else the
-  released default's meaning (`"any"` for `L3Rule` ports, `""`, no port, for `NatRule`
-  ports), or `ValueError` when the released field was required and the typed field cannot
-  hold `None` as a value (`FirewallRule.dst_port`). `SecurityEvent.ts` and `QosRule.match`
-  are the exception: their typed fields hold `None` as a value (no time reported; every
-  frame), so a record with both fields `None` reads as `None`. Migration: none. Design
+- **module** `testoperations.pairs` — the public readers of a record field that has a
+  released text form and a typed form: `firewall_rule_dst_ports(rule)`,
+  `nat_rule_dst_ports(rule)`, `nat_rule_translated_ports(rule)`, `l3_rule_src_ports(rule)`,
+  `l3_rule_dst_ports(rule)` (each `-> tuple[PortRange, ...]`),
+  `security_event_timestamp(event) -> datetime | None` and `qos_rule_classifier(rule) ->
+  QosClassifier | None`, and the parsers of the released text forms (`parse_port_ranges`,
+  `parse_nat_port_ranges`, `parse_timestamp`, `parse_qos_classifier`). A consumer that reads
+  such a pair uses them and gets one answer whichever form the driver filled. The read rule:
+  the typed field when filled, else the text parsed, else the released default's meaning
+  (`"any"` for `L3Rule` ports, `""`, no port, for `NatRule` ports), or `ValueError` when the
+  released field was required and the typed field cannot hold `None` as a value
+  (`FirewallRule.dst_port`). `SecurityEvent.ts` and `QosRule.match` are the exception: their
+  typed fields hold `None` as a value (no time reported; every frame), so a record with both
+  fields `None` reads as `None`. Each reader and parser is removed in the release that
+  removes the text fields it reads. Migration: none. Design
+  `docs/architecture/precise-types-design.md` (Text and typed fields: either form); PR
+  pending.
+- **behaviour** the operations convert their own released `str` parameters to enums (a plain
+  string naming a member warns at the operation's caller). Migration: none. Design
   `docs/architecture/precise-types-design.md`; PR pending.
 - **enum** `testoperations.segmentation:DenyScope` (`HOST`, `SUBNET`) — how wide
   a deny rule built by `build_deny_rule` matches. Migration: pass the member. Design `docs/architecture/precise-types-design.md` (Segmentation deny scope); PR pending.
@@ -728,8 +752,8 @@ their tags and PR history.
   required keyword-only `host` (the address the sender connects to), returns an `IperfSession`
   (was `dict[str, Any]`), and takes `iperf_client: IperfClient` and `iperf_server: IperfServer`
   (were `Any`). The released operation called `start_sender` / `start_receiver`, which no
-  capability protocol declares and no driver in the consumer examples, the corpus or boardfarm
-  implements, and it could not name the receiver's address; it now calls `start_receiver_session`
+  capability protocol declares and no released implementer implements, and it could not name
+  the receiver's address; it now calls `start_receiver_session`
   / `start_sender_session` (or the released `start_traffic_receiver` / `start_traffic_sender` on
   a driver that has only those). `ip_version` is `IpFamily | int` (default `4`, as released): `4` and
   `6` are accepted as numbers, any other value is a `ValueError` (released: passed through).
@@ -751,8 +775,10 @@ their tags and PR history.
   member warns and converts, any other word is a `ValueError`; the attributes are the enum
   members (equal to the released text). The message text is unchanged. Migration: pass the
   members. Design `docs/architecture/precise-types-design.md` (testoperations: typed records); PR pending.
-- **function** `testoperations.throughput:iter_json_docs` — returns `list[object]` (was
-  `list[Any]`); a caller indexing a document narrows it first. Design `docs/architecture/precise-types-design.md` (testoperations: typed records); PR pending.
+- **function** `testoperations.throughput:iter_json_docs` — returns
+  `list[dict[str, JsonValue]]` (was `list[Any]`): each document is a JSON object, and
+  `JsonValue` (new, in the same module) is the recursive type of a parsed JSON value. A caller
+  indexing into a document narrows each nested value first. Design `docs/architecture/precise-types-design.md` (testoperations: typed records); PR pending.
 
 #### Deprecated
 
@@ -794,6 +820,14 @@ their tags and PR history.
   stopping the capture with the process id the start returned. The released operation called
   `start_tcpdump(fname, interface, ...)` (the file name as the interface) and
   `stop_tcpdump(fname)`, which does not match the protocol's signature. Design `docs/architecture/precise-types-design.md` (testoperations: typed records); PR pending.
+
+#### Consumer action
+
+- **operation** `testoperations.iperf_client:start_iperf` — every caller passes the new required
+  keyword-only `host=` (the address the sender connects to: the receiver's address); a call
+  without it raises `TypeError`. Read the returned `IperfSession`'s fields rather than the
+  released dict keys. Migration: `start_iperf(client, server, port, host="<receiver address>")`.
+  Design `docs/architecture/precise-types-design.md` (testoperations: typed records); PR pending.
 
 ## [0.12.1] — 2026-09-09
 

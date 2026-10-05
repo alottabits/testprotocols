@@ -273,7 +273,7 @@ A contract change may deprecate the old form. The deprecation model:
 - reading such a pair: the typed field when filled, else the text, else the released default's meaning (or `ValueError` where the released field was required and the typed field cannot hold `None`; a typed field that holds `None` as a value reads it as that value);
 - writing such a pair: a caller building a record for a write member fills both forms until removal, because a driver not yet updated reads only the text; a driver implementing a write member reads the typed form when filled, else the text. A caller that fills only the typed form leaves the text at its released default, and a driver not yet updated acts on that default;
 - drivers decide how they transition;
-- `testoperations` supports both forms until removal;
+- `testoperations` supports both forms until removal, and its public `testoperations.pairs` module reads a text/typed pair by the rule above (each reader goes with the text fields it reads);
 - removal happens in the first release after 6 months, tracked in the Deprecations table of `docs/architecture/precise-types-design.md`.
 
 ## The changelog
@@ -334,7 +334,9 @@ that cannot take the next release carries the fix as a `Backport` patch.
 A removal, rename or retype is preceded by a deprecation period where the
 two forms can coexist: a *Deprecated* changelog entry, a row in the
 Deprecations table, and for a member or class the `@deprecated` marker that
-type checkers report (nothing warns at run time), until the first release
+type checkers report (pyright in strict mode; mypy with
+`enable_error_code = deprecated`, as this workspace configures it; nothing
+warns at run time, and the marker adds no runtime dependency), until the first release
 6 months after the release that deprecates it. The period covers the published
 `testoperations` operations too: an operation that calls a renamed or
 retyped member accepts a driver with only the old form until the old form

@@ -264,6 +264,18 @@ keys; plugins map to vendor app-ids), grown on evidence; `L7Rule.value` for
 > `TrafficShapingRule.priority`, or say `Connection.state` or
 > `MeasurementSpec.completion` stay `str`, they are superseded. The gaps the retype left
 > open are in the next entry.
+>
+> **Update (2026-10-05, the precise-types change):** the fields of this entry that remain
+> bare `str` afterwards: `Zone.default_input`, `default_forward` and `default_output` and
+> `ZonePolicy.action` (the closed set `accept` / `drop` / `reject`, the words of
+> `DefaultAction`, which `PacketFilter.set_default_policy` already takes);
+> `FirewallRule.application_category` (`str | None`, whose common values are those of
+> `ApplicationCategory`); and `TrafficShapingRule.priority` / `match`, which go with the
+> deprecated class at its removal and are not retyped. The trigger above still applies to
+> the first three: retype them (shape 3, `DefaultAction | str`; `ApplicationCategory | str`)
+> when `firewall_zones` or the firewall models are next touched. The design note "one
+> capability per change" was departed from once, for the precise-types change, because
+> each of its family items is separable and separately mechanised.
 
 **Signal:** The SD-WAN appliance models (`models/sdwan_appliance.py`) express their
 normalized value vocabularies as `StrEnum`s (static + runtime checking). The
@@ -380,8 +392,12 @@ specification table or a maintainer decision), not more code.
   is optional, `None` means not requested). The contract's meaning awaits a maintainer decision.
 - **Compatibility exemptions.** `flash_via_bootloader` and `start_tcpdump(filters)` keep
   `Any` because implementers declare framework or dict types the contract cannot accept
-  (parameter contravariance, `dict` invariance). Closing them needs a maintainer to decide
-  whether implementers change their declarations.
+  (parameter contravariance, `dict` invariance); `HwConsole.get_console` and
+  `get_interactive_consoles` keep their released `Any` returns, their narrowing to
+  `Console` announced. The open values `DhcpServer.provision_cpe` options and the DHCP
+  trace packets keep `object`, counted by the typing ratchet. Closing them needs a
+  maintainer to decide whether implementers change their declarations, or a typed shape
+  with a second implementer's evidence.
 - **`Console` has no `expect` / `expect_exact`.** A console that satisfies the protocol
   statically cannot carry pexpect's own pattern type without the package depending on
   pexpect. Callers that match patterns keep the concrete console type.
@@ -392,6 +408,69 @@ type.
 
 **Cross-references:** `docs/architecture/precise-types-design.md` ("Retypes",
 "Deprecations"), `models/wifi.py`, `models/switch.py`.
+
+---
+
+## 2026-10-05 — Wi-Fi: concepts the reviewed families have and the contract cannot express [priority: low]
+
+**Signal:** Comparing the Wi-Fi contract with its reviewed families
+(`docs/architecture/precise-types-families.md`, "Wi-Fi"; the reference is Wi-Fi Data
+Elements v3.0, Wi-Fi EasyMesh v6.1 and TR-181 Device:2.21) found concepts that a family
+reports or configures and no member or vocabulary value holds. A driver raises
+`NotSupportedError` for a write, or keeps the plain `str` form of a read while the field
+accepts it.
+
+- **A radio per 5 GHz sub-band.** `WifiRadio` holds one radio per band; a dual-5 GHz
+  device (Data Elements reports the UNII sub-bands) has no form.
+- **Channel widths.** 80+80 MHz reads back as 160; the two 320 MHz channelisations
+  (TR-181 `320MHz-1` / `320MHz-2`) collapse into one; an automatic width (TR-181 `Auto`,
+  a cloud-managed family's `auto`) can be neither set nor read, like automatic channel.
+- **Security modes with no member.** The WPA2/WPA3-Enterprise transition on a driver that
+  speaks only TR-181 (which has no such value), per-client PSKs, DPP key management
+  (`dpp`, `dpp+sae`), TR-181 `WPA3-Personal-Compatibility`, legacy WPA and WEP.
+- **Wired mesh backhaul.** An EasyMesh backhaul may be Ethernet, MoCA or G.hn (Data
+  Elements `LinkType`); `WifiMeshLink` holds a Wi-Fi link only, and `backhaul_link=None`
+  reads as "no uplink".
+- **The mesh root on a cloud- or virtually-managed family.** Its root node (a gateway, a
+  mesh portal) has no `MeshRole` member; hop count 0 still identifies it.
+- **The Wi-Fi share of channel utilisation.** A family that reports only total and
+  non-Wi-Fi shares fills `busy_pct` and `interference_pct`; the Wi-Fi share has no field.
+- **MAC ACL mode.** `DENY` has no standard TR-181 form, and on a cloud-managed family with
+  no per-SSID MAC list `ALLOW` is unsupported and `DENY` is network-wide.
+
+**Trigger to act:** A test that needs one of these concepts on a family that has it.
+
+**Out of scope right now because:** Each needs a member or a vocabulary value that no test
+asks for yet; the precise-types change typed what the released contract already carried.
+
+**Design notes (when picked up):** take the standard data model's form first (Data
+Elements, TR-181), as the precise-types Wi-Fi vocabularies did; a value a family lacks
+stays a `NotSupportedError` cell.
+
+**Cross-references:** `docs/architecture/precise-types-families.md` ("Wi-Fi"),
+`docs/architecture/precise-types-design.md` ("Wi-Fi vocabularies"), `wifi_radio.py`,
+`wifi_bss.py`, `wifi_mesh.py`, `models/wifi.py`.
+
+---
+
+## 2026-10-05 — `SnmpClient` typed varbind return [priority: low]
+
+**Signal:** The typed SNMP members (`snmp_get`, `snmp_walk`, `snmp_set`,
+`snmp_bulk_get`) take typed parameters but return the tool's output text, as the released
+`execute_snmp_command` did. A test parses the varbinds itself.
+
+**Trigger to act:** A second SNMP client implementer whose output parse can be compared
+with the first, or a test that asserts on a varbind's type or value.
+
+**Out of scope right now because:** One client family's output text is the only evidence;
+a varbind record built from it would fix that tool's rendering into the contract.
+
+**Design notes (when picked up):** a frozen `SnmpVarbind(oid, value_type, value)` record
+whose `value_type` is the RFC 2578 SMI type (`SnmpValueType` plus the counter types a
+read can return), returned by new members beside the text ones (shape 5).
+
+**Cross-references:** `snmp_client.py`, `models/networking.py` (`SnmpValueType`),
+`docs/architecture/precise-types-families.md` ("SNMP and NTP").
 
 ---
 
@@ -406,6 +485,11 @@ reshape removed (conntrack / pcap / ip_interface / nat), so it was **left off**.
 
 **Trigger to act:** First test that needs to assert an appliance is reachable /
 report uptime / reboot it through the typed contract.
+
+**Update (2026-10-05):** `Router.read_telemetry() -> Telemetry` (the precise-types change)
+reaches `SdwanApplianceDevice` through `routing: Router`. Its `Telemetry.uptime_seconds`
+is `float | None`, the shape this entry's design note gives, so a cloud-managed appliance
+that reports no uptime fills `None`; the rest of this entry stands.
 
 **Out of scope right now because:** No current test needs it; `ApplianceUplinks`
 status already implies reachability, and provisioning/health checks can use a

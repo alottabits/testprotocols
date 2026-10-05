@@ -130,7 +130,10 @@ operations of one concern into one capability, never one capability per verb.
   entry and a row in the Deprecations table of
   `docs/architecture/precise-types-design.md`, and a deprecated member or
   class carries the `@deprecated` marker (passed `category=None`: type
-  checkers report each use, nothing warns at run time).
+  checkers report each use, pyright in strict mode and mypy with
+  `enable_error_code = deprecated`, as this workspace configures it;
+  nothing warns at run time). A consumer reads a text/typed field pair
+  through the public `testoperations.pairs` readers.
 - **Operations honour the period.** A published `testoperations` operation
   that calls a renamed or retyped member keeps working with a driver that has
   only the old form, for the whole period: it uses the new form when the
