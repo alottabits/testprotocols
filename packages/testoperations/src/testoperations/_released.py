@@ -4,7 +4,9 @@ An operation that returned a ``dict`` and now returns a frozen dataclass gives i
 deprecation period: indexing, ``get``, ``in``, ``len``, ``keys``, ``items``, ``values``,
 iteration, ``dict(result)`` and ``**result`` (one warning per ``[]`` read), ``==`` against the
 released dict and :meth:`as_dict` all still work, each with a ``DeprecationWarning``; reading
-the record's fields never warns. The removal step deletes the mixin from the record.
+the record's fields never warns, and neither does truthiness (``if result:``): the record is
+always true, as the released dict with its keys was. The removal step deletes the mixin from
+the record.
 """
 
 from __future__ import annotations
@@ -72,6 +74,11 @@ class ReleasedMapping:
     def __len__(self) -> int:
         self._warn("len()")
         return len(self._released())
+
+    def __bool__(self) -> bool:
+        """Always true, without a warning: a released dict always had keys, so it was truthy
+        with no call to ``len()`` (``if result:``, ``assert verify_home(...)``)."""
+        return True
 
     def __iter__(self) -> Iterator[str]:
         self._warn("iteration")

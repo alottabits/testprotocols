@@ -99,3 +99,15 @@ class TestFullDictSurface:
             warnings.simplefilter("error")
             r = make()
             assert r == make()
+
+
+@pytest.mark.parametrize(("make", "size"), RECORDS)
+def test_truthiness_is_true_without_a_warning(
+    make: Callable[[], ReleasedMapping], size: int
+) -> None:
+    record = make()
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        assert record  # a released dict with keys was truthy with no call to len()
+        assert bool(record) is True
+    assert size > 0

@@ -792,7 +792,8 @@ their tags and PR history.
   `result["sender_pid"]`, `result["vlan_defined"]`, `result["a_to_b"]`, `.get`, `in`, `len`,
   `keys`, `items`, `values`, iteration, `dict(result)`, `**result` (a conversion warns once for `keys()` and once per key read), `==` against the released dict, and `as_dict()` — warns
   (`DeprecationWarning`) and returns the released values (for `verify_home`, `details` is the
-  released nested dict with the peer states as text). Static types narrow: the records are not a
+  released nested dict with the peer states as text). Truthiness (`if result:`) does not warn:
+  a record is always true, as the released dict with its keys was. Static types narrow: the records are not a
   `Mapping` and `[]` / `get` return `object`, so a typed caller needs the fields or `as_dict()`. The mapping access is removed in a later
   release; read the fields. Design `docs/architecture/precise-types-design.md` (testoperations: typed records); PR pending.
 - **parameters** `apply_preset(preset_name)` and `NonCompletion(which_side, what)` — a plain
