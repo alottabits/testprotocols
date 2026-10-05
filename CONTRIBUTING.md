@@ -98,6 +98,10 @@ implicitly-`Any` ("unknown") types that mypy accepts, which is what keeps the
 test fakes and the JSON-parsing helpers honestly typed. Both are pinned by
 `uv.lock`; bump them deliberately in their own pull request rather than letting
 a release change what CI enforces.
+mypy runs with `enable_error_code = ["explicit-override", "exhaustive-match",
+"deprecated"]` and `disallow_any_explicit` for both packages, so the dev group
+requires `mypy>=1.17`: `deprecated` came in mypy 1.14 and `exhaustive-match` in
+1.17, and an older mypy fails outright on an unknown code.
 
 ## Roles
 

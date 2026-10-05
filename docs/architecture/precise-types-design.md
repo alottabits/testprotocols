@@ -130,6 +130,11 @@ shapes below are the only ones used.
 - No `object` as a type in a public signature or field either: it is as imprecise as
   `Any`, and no checker flags it, so the ratchet is the only defence. It counts `object`
   the same way (ceiling 0) and pins the exempted lines per class and package.
+- The checker configuration (`pyproject.toml`): pyright in strict mode with
+  `reportDeprecated = "error"`; mypy in strict mode with `enable_error_code =
+  ["explicit-override", "exhaustive-match", "deprecated"]` and `disallow_any_explicit`
+  for both packages. The dev group requires `mypy>=1.17`: `deprecated` came in mypy 1.14
+  and `exhaustive-match` in 1.17, and an unknown code in `enable_error_code` fails the run.
 
 ## Deprecation shapes
 
