@@ -718,6 +718,10 @@ their tags and PR history.
   the private `_probe_flow`) (the flows and the three keyword-only timings), replacing
   `Callable[..., list[FlowThroughput]]`. Migration: none; a stand-in that takes those keywords
   fits. Design `docs/architecture/precise-types-design.md` (testoperations: typed records); PR pending.
+- **type alias** `testoperations.throughput:JsonValue` (`None | bool | int | float | str |
+  list[JsonValue] | dict[str, JsonValue]`) — the recursive type of a parsed JSON value, as
+  `json.loads` returns it; the element type of `iter_json_docs`. Migration: none. Design
+  `docs/architecture/precise-types-design.md` (testoperations: typed records); PR pending.
 
 #### Changed
 
