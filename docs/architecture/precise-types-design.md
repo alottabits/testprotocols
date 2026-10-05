@@ -769,7 +769,9 @@ the matching CHANGELOG entry sits under *Changed*.
   ranges and comma lists with no trailing comma; colon or slash forms (`"80:90"`,
   `"tcp/80"`) and a trailing comma raise `ValueError`, so a driver that reads them
   back must convert them. A non-text port text or a non-`PortRange` item raises
-  `TypeError`.
+  `TypeError`. An implementer must provide `PacketFilter.get_rule_counter_values` (so also
+  `Firewall`) and `Nat.get_nat_rule_counter_values`, which return `RuleCounters`; the old
+  counter names delegate to them.
 - **Static-only: unpacking a loose dict** (no runtime change). Unpacking
   a loosely typed dict, for example `FirewallRule(**dict[str, str])`, into a retyped
   released record fails type-checking, because the synced typed fields (`dst_ports`)
@@ -920,7 +922,9 @@ Each lands in a later release with its own breaking changelog entry:
   `FirewallRuleAction`, `PortMappingProtocol`, `ConnState`) narrow from
   `E | str` to `E`; `get_default_policy` narrows to `DefaultAction`.
 - The `NatRule` cidr and translated-address `""` placeholders become `str | None`;
-  the port text fields and the old counter names are removed.
+  the port text fields `FirewallRule.dst_port`, `NatRule.dst_port` and
+  `NatRule.translated_port` are removed, and so are the old counter names
+  `PacketFilter.get_rule_counters` and `Nat.get_nat_rule_counters`.
 - The `L3Rule` cidr `"any"` placeholders, the `UplinkStatus` address `""`
   placeholders and `NetworkAttachment.segment` `""` become `str | None`; the
   `L3Rule` port text fields and `SecurityEvent.ts` are removed.

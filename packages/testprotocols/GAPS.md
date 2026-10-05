@@ -355,8 +355,9 @@ every field and parameter that evidence supported and left the following open on
 purpose, rather than guess a vocabulary. Each needs evidence (a second implementer, a
 specification table or a maintainer decision), not more code.
 
-- **Tool option strings without a typed successor.** `dns_lookup(opts)`, `nmap(opts)`
-  and a non-default `get_running_processes(ps_options)` are deprecated, and the typed
+- **Tool option strings without a typed successor.** `dns_lookup(opts)`, an `nmap(opts)`
+  other than `-F` (which `fast` replaces) and a non-default
+  `get_running_processes(ps_options)` are deprecated, and the typed
   readers (`resolve`, `scan_ports`, `read_running_processes`) take no option. A caller
   that forwards options to `dig` (for example `+short` or `@server`) or to `ps` has no
   typed form. Needed before removal: typed `dns_lookup` options derived from callers, or

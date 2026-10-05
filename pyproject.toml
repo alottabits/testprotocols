@@ -38,8 +38,9 @@ warn_unreachable = true
 mypy_path = "scripts"
 
 [[tool.mypy.overrides]]
-# Every remaining explicit `Any` is a released signature kept for the deprecation
-# period and exempted line by line; see docs/architecture/precise-types-design.md.
+# Every remaining explicit `Any` is a released signature, exempted line by line in
+# two classes (deprecation period, compatibility); see
+# docs/architecture/precise-types-design.md.
 module = ["testprotocols.*", "testoperations.*"]
 disallow_any_explicit = true
 
