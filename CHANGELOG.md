@@ -58,9 +58,15 @@ their tags and PR history.
   channel numbers as text). Migration: implement it;
   `iwlist_supported_channels` returns the same channels as text until its removal.
   Design `docs/architecture/precise-types-design.md` (Wi-Fi vocabularies); PR pending.
-- **protocol members** `testprotocols.sip_server:SipServer.read_rtpengine_stats() -> RtpStats`,
-  `read_mwi_status(user) -> MwiStatus` and `read_offline_messages(user) -> list[OfflineMessage]` —
-  new mandatory members, replacing `get_rtpengine_stats`, `get_mwi_status` and
+- **protocol member** `testprotocols.sip_server:SipServer.read_rtp_relay_stats() -> RtpStats` —
+  new mandatory member, replacing `get_rtpengine_stats` (which returns a dict). Migration:
+  implement it, and keep `get_rtpengine_stats`, returning the record's fields as the released
+  dict. Proposal `docs/proposals/2026-10-05-precise-types.md` P7 (Design delta 2026-10-05);
+  design `docs/architecture/precise-types-design.md` (Voice vocabularies); PR pending;
+  *proposed as* `testprotocols.sip_server:SipServer.read_rtpengine_stats`.
+- **protocol members** `testprotocols.sip_server:SipServer.read_mwi_status(user) -> MwiStatus` and
+  `read_offline_messages(user) -> list[OfflineMessage]` —
+  new mandatory members, replacing `get_mwi_status` and
   `get_offline_messages` (which return dicts). Migration: implement them, and keep each old name,
   returning the record's fields as the released dict (one dict per offline message). Design `docs/architecture/precise-types-design.md` (Voice vocabularies); PR pending.
 - **protocol member** `testprotocols.wifi_radio:WifiRadio.get_modes(band: WifiBand | str) ->
@@ -419,266 +425,266 @@ their tags and PR history.
 
 - **member** `testprotocols.packet_filter:PacketFilter.get_rule_counters` (so also `Firewall`) —
   deprecated. Replacement: `get_rule_counter_values`. Earliest removal: the first release 6 months
-  after the release that deprecates it. Design `docs/architecture/precise-types-design.md`
-  (Deprecations); PR pending.
+  after the release that deprecates it. Design `docs/architecture/precise-types-design.md`;
+  register `packages/testprotocols/DEPRECATIONS.md`; PR pending.
 - **member** `testprotocols.nat:Nat.get_nat_rule_counters` — deprecated. Replacement:
   `get_nat_rule_counter_values`. Earliest removal: the first release 6 months after the release that
-  deprecates it. Design `docs/architecture/precise-types-design.md` (Deprecations); PR pending.
+  deprecates it. Design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR pending.
 - **member** `testprotocols.router:Router.get_telemetry` — deprecated. Replacement:
   `read_telemetry`. Earliest removal: the first release 6 months after the release that deprecates
-  it. Design `docs/architecture/precise-types-design.md` (Deprecations); PR pending.
+  it. Design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR pending.
 - **member** `testprotocols.sdwan_policy_manager:SdwanPolicyManager.apply_policy` — deprecated.
   Replacement: none: the typed steering and SLA members (`configure_sla_policy`,
   `set_uplink_selection`, `set_default_uplink`, `set_active_active_vpn`). Earliest removal: the
   first release 6 months after the release that deprecates it. Design
-  `docs/architecture/precise-types-design.md` (Deprecations); PR pending.
+  `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR pending.
 - **member** `testprotocols.wifi_client:WifiClient.iwlist_supported_channels` — deprecated.
   Replacement: `supported_channels`. Earliest removal: the first release 6 months after the release
-  that deprecates it. Design `docs/architecture/precise-types-design.md` (Deprecations); PR pending.
+  that deprecates it. Design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR pending.
 - **member** `testprotocols.wifi_radio:WifiRadio.get_mode` — deprecated. Replacement: `get_modes`.
   Earliest removal: the first release 6 months after the release that deprecates it. Design
-  `docs/architecture/precise-types-design.md` (Deprecations); PR pending.
+  `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR pending.
 - **member** `testprotocols.sip_server:SipServer.get_rtpengine_stats` — deprecated. Replacement:
-  `read_rtpengine_stats`. Earliest removal: the first release 6 months after the release that
-  deprecates it. Design `docs/architecture/precise-types-design.md` (Deprecations); PR pending.
+  `read_rtp_relay_stats`. Earliest removal: the first release 6 months after the release that
+  deprecates it. Design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR pending.
 - **member** `testprotocols.sip_server:SipServer.get_mwi_status` — deprecated. Replacement:
   `read_mwi_status`. Earliest removal: the first release 6 months after the release that deprecates
-  it. Design `docs/architecture/precise-types-design.md` (Deprecations); PR pending.
+  it. Design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR pending.
 - **member** `testprotocols.sip_server:SipServer.get_offline_messages` — deprecated. Replacement:
   `read_offline_messages`. Earliest removal: the first release 6 months after the release that
-  deprecates it. Design `docs/architecture/precise-types-design.md` (Deprecations); PR pending.
+  deprecates it. Design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR pending.
 - **member** `testprotocols.content_filtering:ContentFiltering.get_url_rules` — deprecated.
   Replacement: `read_url_rules`. Earliest removal: the first release 6 months after the release that
-  deprecates it. Design `docs/architecture/precise-types-design.md` (Deprecations); PR pending.
+  deprecates it. Design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR pending.
 - **member** `testprotocols.device_management:DeviceManagement.get_memory_utilization` — deprecated.
   Replacement: `read_memory_utilization`. Earliest removal: the first release 6 months after the
-  release that deprecates it. Design `docs/architecture/precise-types-design.md` (Deprecations); PR
+  release that deprecates it. Design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR
   pending.
 - **member** `testprotocols.device_management:DeviceManagement.get_running_processes` (with
   `ps_options`) — deprecated. Replacement: `read_running_processes`; a `ps_options` other than
   `"-A"` has no successor. Earliest removal: the first release 6 months after the release that
-  deprecates it. Design `docs/architecture/precise-types-design.md` (Deprecations); PR pending.
+  deprecates it. Design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR pending.
 - **member** `testprotocols.device_management:DeviceManagement.read_event_logs` — deprecated.
   Replacement: `read_log_entries`. Earliest removal: the first release 6 months after the release
-  that deprecates it. Design `docs/architecture/precise-types-design.md` (Deprecations); PR pending.
+  that deprecates it. Design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR pending.
 - **member** `testprotocols.dns_client:DnsClient.dns_lookup` (with `opts`) — deprecated.
   Replacement: `resolve`; `opts` has no successor. Earliest removal: the first release 6 months
-  after the release that deprecates it. Design `docs/architecture/precise-types-design.md`
-  (Deprecations); PR pending.
+  after the release that deprecates it. Design `docs/architecture/precise-types-design.md`;
+  register `packages/testprotocols/DEPRECATIONS.md`; PR pending.
 - **member** `testprotocols.iperf_client:IperfClient.start_traffic_sender` — deprecated.
   Replacement: `start_sender_session`. Earliest removal: the first release 6 months after the
-  release that deprecates it. Design `docs/architecture/precise-types-design.md` (Deprecations); PR
+  release that deprecates it. Design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR
   pending.
 - **member** `testprotocols.iperf_server:IperfServer.start_traffic_receiver` — deprecated.
   Replacement: `start_receiver_session`. Earliest removal: the first release 6 months after the
-  release that deprecates it. Design `docs/architecture/precise-types-design.md` (Deprecations); PR
+  release that deprecates it. Design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR
   pending.
 - **member** `testprotocols.nmap_scanner:NmapScanner.nmap` (with `opts`) — deprecated. Replacement:
   `scan_ports`; `fast` replaces `opts="-F"`, any other `opts` has no successor. Earliest removal:
   the first release 6 months after the release that deprecates it. Design
-  `docs/architecture/precise-types-design.md` (Deprecations); PR pending.
+  `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR pending.
 - **member** `testprotocols.arp_client:ArpClient.get_arp_table` — deprecated. Replacement:
   `read_arp_table`. Earliest removal: the first release 6 months after the release that deprecates
-  it. Design `docs/architecture/precise-types-design.md` (Deprecations); PR pending.
+  it. Design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR pending.
 - **member** `testprotocols.ntp_client:NtpClient.get_date` — deprecated. Replacement: `read_date`.
   Earliest removal: the first release 6 months after the release that deprecates it. Design
-  `docs/architecture/precise-types-design.md` (Deprecations); PR pending.
+  `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR pending.
 - **member** `testprotocols.ntp_client:NtpClient.set_date` — deprecated. Replacement:
   `set_date_time`. Earliest removal: the first release 6 months after the release that deprecates
-  it. Design `docs/architecture/precise-types-design.md` (Deprecations); PR pending.
+  it. Design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR pending.
 - **member** `testprotocols.netem_controller:NetemController.inject_transient` — deprecated.
   Replacement: `inject_event`. Earliest removal: the first release 6 months after the release that
-  deprecates it. Design `docs/architecture/precise-types-design.md` (Deprecations); PR pending.
+  deprecates it. Design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR pending.
 - **member** `testprotocols.snmp_client:SnmpClient.execute_snmp_command` — deprecated. Replacement:
   `snmp_get`, `snmp_walk`, `snmp_set` or `snmp_bulk_get`; any other command has no successor.
   Earliest removal: the first release 6 months after the release that deprecates it. Design
-  `docs/architecture/precise-types-design.md` (Deprecations); PR pending.
+  `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR pending.
 - **attribute** `testprotocols.models:HTTPResult.code` — deprecated (docstring and this entry; a
   plain attribute carries no marker). Replacement: `status` (`int | None`). Earliest removal: the first release 6 months after the release that deprecates it.
-  Design `docs/architecture/precise-types-design.md` (Deprecations); PR pending.
+  Design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR pending.
 - **attribute** `testprotocols.models:HTTPResult.beautified_text` — deprecated (docstring and this
   entry; a plain attribute carries no marker). Replacement: `body`. Earliest removal: the first release 6 months after the release that deprecates it. Design
-  `docs/architecture/precise-types-design.md` (Deprecations); PR pending.
+  `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR pending.
 - **class** `testprotocols.models:VPNPeerStatus` — deprecated. Replacement: none (`VpnPeerStatus`
   for site-to-site peers). Earliest removal: the first release 6 months after the release that
-  deprecates it. Design `docs/architecture/precise-types-design.md` (Deprecations); PR pending.
+  deprecates it. Design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR pending.
 - **class** `testprotocols.models:TrafficShapingRule` — deprecated. Replacement: none (`ShapingRule`
   where a capability needs one). Earliest removal: the first release 6 months after the release that
-  deprecates it. Design `docs/architecture/precise-types-design.md` (Deprecations); PR pending.
+  deprecates it. Design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR pending.
 - **parameter** `testprotocols.ip_routing:IpRouting.ping(json_output=True)` — deprecated.
   Replacement: `ping_stats`; at removal `ping` returns `bool`. Earliest removal: the first release 6
-  months after the release that deprecates it. Design `docs/architecture/precise-types-design.md`
-  (Deprecations); PR pending.
+  months after the release that deprecates it. Design `docs/architecture/precise-types-design.md`;
+  register `packages/testprotocols/DEPRECATIONS.md`; PR pending.
 - **parameter** `IpRouting.ping` and `traceroute` `options` — deprecated. Replacement: none.
   Earliest removal: the first release 6 months after the release that deprecates it. Design
-  `docs/architecture/precise-types-design.md` (Deprecations); PR pending.
+  `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR pending.
 - **parameter** `testprotocols.http_client:HttpClient.curl` and `http_get` `options` — deprecated.
   Replacement: keyword-only `no_proxy`, `insecure`, `follow_redirects`. Earliest removal: the first
   release 6 months after the release that deprecates it. Design
-  `docs/architecture/precise-types-design.md` (Deprecations); PR pending.
+  `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR pending.
 - **parameter** `PacketFilter` `chain` (every member) and `set_default_policy(policy)`: `Chain |
   str`, `DefaultAction | str` — deprecated. Replacement: `Chain`, `DefaultAction` (narrows to the
   enum). Earliest removal: the first release 6 months after the release that deprecates it. Design
-  `docs/architecture/precise-types-design.md` (Deprecations); PR pending.
+  `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR pending.
 - **parameter** `Nat.list_nat_rules(mode)`: `NatMode | str | None` — deprecated. Replacement:
   `NatMode | None` (narrows to the enum). Earliest removal: the first release 6 months after the
-  release that deprecates it. Design `docs/architecture/precise-types-design.md` (Deprecations); PR
+  release that deprecates it. Design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR
   pending.
 - **parameter** `Conntrack` `protocol` (`list_connections`, `count_connections`, `get_connection`,
   `drop_connection`): `RuleProtocol | str` — deprecated. Replacement: `RuleProtocol` (narrows to the
   enum). Earliest removal: the first release 6 months after the release that deprecates it. Design
-  `docs/architecture/precise-types-design.md` (Deprecations); PR pending.
+  `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR pending.
 - **parameter** Wi-Fi `band` (`WifiBss.create_bss`, every `WifiRadio` and `WifiRf` member,
   `WifiRadioWhiteBox.inject_radar_event`, `WifiMesh.set_backhaul_band`): `WifiBand | str` —
   deprecated. Replacement: `WifiBand` (narrows to the enum). Earliest removal: the first release 6
-  months after the release that deprecates it. Design `docs/architecture/precise-types-design.md`
-  (Deprecations); PR pending.
+  months after the release that deprecates it. Design `docs/architecture/precise-types-design.md`;
+  register `packages/testprotocols/DEPRECATIONS.md`; PR pending.
 - **parameter** `WifiBss.create_bss(security_mode, mfp)` and `set_security(mode, mfp)`:
   `WifiSecurityMode | str`, `MfpMode | str` — deprecated. Replacement: `WifiSecurityMode`, `MfpMode`
   (narrows to the enum). Earliest removal: the first release 6 months after the release that
-  deprecates it. Design `docs/architecture/precise-types-design.md` (Deprecations); PR pending.
+  deprecates it. Design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR pending.
 - **parameter** `WifiBss.set_acl_mode(mode)`: `WifiAclMode | str` — deprecated. Replacement:
   `WifiAclMode` (narrows to the enum). Earliest removal: the first release 6 months after the
-  release that deprecates it. Design `docs/architecture/precise-types-design.md` (Deprecations); PR
+  release that deprecates it. Design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR
   pending.
 - **parameter** `WifiRadio.set_mode(mode)`: `WifiPhyMode | str` — deprecated. Replacement:
   `WifiPhyMode` (narrows to the enum; a compound mode names no member). Earliest removal: the first
   release 6 months after the release that deprecates it. Design
-  `docs/architecture/precise-types-design.md` (Deprecations); PR pending.
+  `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR pending.
 - **parameter** `WifiClient.set_wlan_scan_channel(channel)`: `int | str` — deprecated. Replacement:
   `int`. Earliest removal: the first release 6 months after the release that deprecates it. Design
-  `docs/architecture/precise-types-design.md` (Deprecations); PR pending.
+  `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR pending.
 - **parameter** `SipPhone.wait_for_state(state)`: `PhoneState | str` — deprecated. Replacement:
   `PhoneState` (narrows to the enum). Earliest removal: the first release 6 months after the release
-  that deprecates it. Design `docs/architecture/precise-types-design.md` (Deprecations); PR pending.
+  that deprecates it. Design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR pending.
 - **parameter** `HttpClient.curl(protocol)`: `HttpScheme | str` — deprecated. Replacement:
   `HttpScheme` (narrows to the enum). Earliest removal: the first release 6 months after the release
-  that deprecates it. Design `docs/architecture/precise-types-design.md` (Deprecations); PR pending.
+  that deprecates it. Design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR pending.
 - **parameter** `IpInterface.set_link_state(state)`: `LinkAdminState | str` — deprecated.
   Replacement: `LinkAdminState` (narrows to the enum). Earliest removal: the first release 6 months
-  after the release that deprecates it. Design `docs/architecture/precise-types-design.md`
-  (Deprecations); PR pending.
+  after the release that deprecates it. Design `docs/architecture/precise-types-design.md`;
+  register `packages/testprotocols/DEPRECATIONS.md`; PR pending.
 - **parameter** `UpnpClient.create_upnp_rule(protocol)` and `delete_upnp_rule(protocol)`:
   `PortMappingProtocol | str` — deprecated. Replacement: `PortMappingProtocol` (narrows to the
   enum). Earliest removal: the first release 6 months after the release that deprecates it. Design
-  `docs/architecture/precise-types-design.md` (Deprecations); PR pending.
+  `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR pending.
 - **parameter** `QoeBrowser.measure_productivity(scenario, wait_until)`: `QoeScenario | str`,
   `PageCompletion | str` — deprecated. Replacement: `QoeScenario`, `PageCompletion` (narrows to the
   enum). Earliest removal: the first release 6 months after the release that deprecates it. Design
-  `docs/architecture/precise-types-design.md` (Deprecations); PR pending.
+  `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR pending.
 - **parameter** `HttpServer.start_http_service` / `stop_http_service(port)` and
   `start_http_service(ip_version)`: `str` — deprecated. Replacement: `int`, `IpFamily` (announced
   narrowing). Earliest removal: the first release 6 months after the release that deprecates it.
-  Design `docs/architecture/precise-types-design.md` (Deprecations); PR pending.
+  Design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR pending.
 - **parameter** `UpnpClient` `int_port`, `ext_port` and `VlanClient` `vlan_id`: `str` — deprecated.
   Replacement: `int` (announced narrowing). Earliest removal: the first release 6 months after the
-  release that deprecates it. Design `docs/architecture/precise-types-design.md` (Deprecations); PR
+  release that deprecates it. Design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR
   pending.
 - **parameter** `IpRouting.traceroute(version)`: `str` (`""` or `"6"`) — deprecated. Replacement:
   `IpFamily | None` (announced narrowing). Earliest removal: the first release 6 months after the
-  release that deprecates it. Design `docs/architecture/precise-types-design.md` (Deprecations); PR
+  release that deprecates it. Design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR
   pending.
 - **parameter** `IpInterface.is_link_up(pattern)` — deprecated. Replacement: `is_link_admin_up` for
   the administrative state; at removal `pattern` goes. Earliest removal: the first release 6 months
-  after the release that deprecates it. Design `docs/architecture/precise-types-design.md`
-  (Deprecations); PR pending.
+  after the release that deprecates it. Design `docs/architecture/precise-types-design.md`;
+  register `packages/testprotocols/DEPRECATIONS.md`; PR pending.
 - **parameter** `NetemController.set_impairment_profile` / `set_interface_profile(profile)` as a
   `dict` — deprecated. Replacement: `ImpairmentProfile` (narrows to it). Earliest removal: the first
   release 6 months after the release that deprecates it. Design
-  `docs/architecture/precise-types-design.md` (Deprecations); PR pending.
+  `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR pending.
 - **parameter** `MulticastClient.send_mldv2_report` records as plain tuples — deprecated.
   Replacement: `GroupRecord` (narrows to `Sequence[GroupRecord]`). Earliest removal: the first
   release 6 months after the release that deprecates it. Design
-  `docs/architecture/precise-types-design.md` (Deprecations); PR pending.
+  `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR pending.
 - **parameter** `HeldPrefixes.hold(address)`: `str` — deprecated. Replacement: `IPv4Interface |
   IPv6Interface` (announced narrowing). Earliest removal: the first release 6 months after the
-  release that deprecates it. Design `docs/architecture/precise-types-design.md` (Deprecations); PR
+  release that deprecates it. Design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR
   pending.
 - **member** `PacketFilter.get_default_policy` return `str` — deprecated. Replacement:
   `DefaultAction` (announced narrowing). Earliest removal: the first release 6 months after the
-  release that deprecates it. Design `docs/architecture/precise-types-design.md` (Deprecations); PR
+  release that deprecates it. Design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR
   pending.
 - **member** `WifiRadio.list_radios` and `get_bandwidth` returns (`list[str]`, `int`) —
   deprecated. Replacement: `list[WifiBand]`, `ChannelWidth` (announced). Earliest removal: the
-  first release 6 months after the release that deprecates it. Design `docs/architecture/precise-types-design.md` (Deprecations);
+  first release 6 months after the release that deprecates it. Design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`;
   PR pending.
 - **member** `RadiusServer.get_status` return `str` — deprecated. Replacement: `ServiceStatus`
   (announced narrowing). Earliest removal: the first release 6 months after the release that
-  deprecates it. Design `docs/architecture/precise-types-design.md` (Deprecations); PR pending.
+  deprecates it. Design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR pending.
 - **field** `FirewallRule.dst_port` (port text, required) — deprecated. Replacement: `dst_ports`; at
   removal the text field goes and `dst_ports` becomes required. Earliest removal: the first release
-  6 months after the release that deprecates it. Design `docs/architecture/precise-types-design.md`
-  (Deprecations); PR pending.
+  6 months after the release that deprecates it. Design `docs/architecture/precise-types-design.md`;
+  register `packages/testprotocols/DEPRECATIONS.md`; PR pending.
 - **field** `NatRule.dst_port` and `translated_port` (port text, released default `""`) —
   deprecated. Replacement: `dst_ports`, `translated_ports`; at removal the text fields go and the
   typed fields default to `()`, the typed form of the released default `""`, so a rule that never
   sets them keeps its meaning. Earliest removal: the first
   release 6 months after the release that deprecates it. Design
-  `docs/architecture/precise-types-design.md` (Deprecations); PR pending.
+  `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR pending.
 - **field** `L3Rule.src_port` and `dst_port` (port text, released default `"any"`) — deprecated.
   Replacement: `src_ports`, `dst_ports`; at removal the text fields go and the typed fields default to
   `()`, the typed form of the released default `"any"`, so a rule that never sets them keeps its
   meaning. Earliest removal: the first release 6 months
-  after the release that deprecates it. Design `docs/architecture/precise-types-design.md`
-  (Deprecations); PR pending.
+  after the release that deprecates it. Design `docs/architecture/precise-types-design.md`;
+  register `packages/testprotocols/DEPRECATIONS.md`; PR pending.
 - **field** `SecurityEvent.ts` (ISO-8601 text, required) — deprecated. Replacement: `timestamp`; at
   removal `ts` goes and `timestamp` becomes required (`None`: no time reported). Earliest removal:
   the first release 6 months after the release that deprecates it. Design
-  `docs/architecture/precise-types-design.md` (Deprecations); PR pending.
+  `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR pending.
 - **field** `QosRule.match` (classifier text, required) — deprecated. Replacement: `classifier`; at
   removal `match` goes and `classifier` becomes required (`None`: every frame). Earliest removal:
   the first release 6 months after the release that deprecates it. Design
-  `docs/architecture/precise-types-design.md` (Deprecations); PR pending.
+  `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR pending.
 - **field** `FirewallRule.action` / `protocol`: `FirewallRuleAction | str`, `RuleProtocol | str` —
   deprecated. Replacement: the enums (narrows from `E | str` to `E`). Earliest removal: the first
   release 6 months after the release that deprecates it. Design
-  `docs/architecture/precise-types-design.md` (Deprecations); PR pending.
+  `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR pending.
 - **field** `NatRule.mode` / `protocol`: `NatMode | str`, `RuleProtocol | str` — deprecated.
   Replacement: the enums (narrows from `E | str` to `E`). Earliest removal: the first release 6
-  months after the release that deprecates it. Design `docs/architecture/precise-types-design.md`
-  (Deprecations); PR pending.
+  months after the release that deprecates it. Design `docs/architecture/precise-types-design.md`;
+  register `packages/testprotocols/DEPRECATIONS.md`; PR pending.
 - **field** `PortMapping.protocol`, `Connection.protocol`: `PortMappingProtocol | str`,
   `RuleProtocol | str` — deprecated. Replacement: the enums (narrows from `E | str` to `E`).
   Earliest removal: the first release 6 months after the release that deprecates it. Design
-  `docs/architecture/precise-types-design.md` (Deprecations); PR pending.
+  `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR pending.
 - **field** `LinkStatus.state`, `LinkHealthReport.state`: `UplinkState | str` — deprecated.
   Replacement: `UplinkState` (narrows from `E | str` to `E`). Earliest removal: the first release 6
-  months after the release that deprecates it. Design `docs/architecture/precise-types-design.md`
-  (Deprecations); PR pending.
+  months after the release that deprecates it. Design `docs/architecture/precise-types-design.md`;
+  register `packages/testprotocols/DEPRECATIONS.md`; PR pending.
 - **field** Wi-Fi fields: `band` of `WifiBssConfig`, `WifiStation`, `WifiNeighbor`,
   `WifiChannelUtilization`, `WifiRadioStats`, `WifiMeshLink`; `WifiBssConfig.security_mode` / `mfp`;
   `WifiAcl.mode`; `role` of `WifiMeshStatus`, `WifiMeshNode` — deprecated. Replacement: `WifiBand`,
   `WifiSecurityMode`, `MfpMode`, `WifiAclMode`, `MeshRole` (narrows from `E | str` to `E`). Earliest
   removal: the first release 6 months after the release that deprecates it. Design
-  `docs/architecture/precise-types-design.md` (Deprecations); PR pending.
+  `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR pending.
 - **field** `MeasurementSpec.tool` / `completion`, `TrafficSpec.protocol` — deprecated. Replacement:
   `QoeTool`, `QoeCompletion | PageCompletion`, `TransportProtocol` (narrows from `E | str` to `E`).
   Earliest removal: the first release 6 months after the release that deprecates it. Design
-  `docs/architecture/precise-types-design.md` (Deprecations); PR pending.
+  `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR pending.
 - **field** `NatRule.src_cidr`, `dst_cidr`, `translated_src`, `translated_dst` (`""`: absent) —
   deprecated. Replacement: `str | None`, `None` absent (announced). Earliest removal: the first
   release 6 months after the release that deprecates it. Design
-  `docs/architecture/precise-types-design.md` (Deprecations); PR pending.
+  `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR pending.
 - **field** `L3Rule.src_cidr`, `dst_cidr` (`"any"`), `UplinkStatus.ip`, `gateway`, `public_ip`,
   `primary_dns` and `NetworkAttachment.segment` (`""`) — deprecated. Replacement: `str | None`,
   `None` unconstrained or not reported (announced). Earliest removal: the first release 6 months
-  after the release that deprecates it. Design `docs/architecture/precise-types-design.md`
-  (Deprecations); PR pending.
+  after the release that deprecates it. Design `docs/architecture/precise-types-design.md`;
+  register `packages/testprotocols/DEPRECATIONS.md`; PR pending.
 - **field** `LinkStatus.ip_address` (`""`: no address) — deprecated. Replacement: `str | None`
   (announced). Earliest removal: the first release 6 months after the release that deprecates it.
-  Design `docs/architecture/precise-types-design.md` (Deprecations); PR pending.
+  Design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR pending.
 - **member** `testprotocols.hw_console:HwConsole.get_console` and `get_interactive_consoles`
   returns `Any`, `dict[str, Any]` — deprecated. Replacement: `Console`, `Mapping[str, Console]`
   (announced narrowing; a console lacking a `Console` member stops conforming then). Earliest
   removal: the first release 6 months after the release that deprecates it. Design
-  `docs/architecture/precise-types-design.md` (Deprecations); PR pending.
+  `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR pending.
 - **parameter** `testprotocols.sip_server:SipServer.verify_sip_message(since)` as `Any` —
   deprecated. Replacement: `datetime | None` (announced narrowing; a caller passing a text
   marker, and an implementer whose declared parameter does not accept `datetime | None`, stop
   type-checking then). The released annotation is kept until then,
   and `message_type` stays `str`. Earliest removal: the first release 6 months after the
-  release that deprecates it. Design `docs/architecture/precise-types-design.md`
-  (Deprecations); PR pending.
+  release that deprecates it. Design `docs/architecture/precise-types-design.md`;
+  register `packages/testprotocols/DEPRECATIONS.md`; PR pending.
 
 ### testoperations
 
@@ -807,24 +813,24 @@ their tags and PR history.
 - **parameter** `testoperations.segmentation:build_deny_rule(scope, proto)` as a plain `str` —
   deprecated. Replacement: `DenyScope`, `RuleProtocol` (narrows to the enum). Earliest removal: the
   first release 6 months after the release that deprecates it. Design
-  `docs/architecture/precise-types-design.md` (Deprecations); PR pending.
+  `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR pending.
 - **parameter** `testoperations.netem_controller:apply_preset(preset_name)` as a plain `str` —
   deprecated. Replacement: `NetemPreset` (narrows to the enum). Earliest removal: the first release
-  6 months after the release that deprecates it. Design `docs/architecture/precise-types-design.md`
-  (Deprecations); PR pending.
+  6 months after the release that deprecates it. Design `docs/architecture/precise-types-design.md`;
+  register `packages/testprotocols/DEPRECATIONS.md`; PR pending.
 - **parameter** `testoperations.throughput:NonCompletion(which_side, what)` as a plain `str` —
   deprecated. Replacement: `NonCompletionSide`, `NonCompletionKind` (narrows to the enum). Earliest
   removal: the first release 6 months after the release that deprecates it. Design
-  `docs/architecture/precise-types-design.md` (Deprecations); PR pending.
+  `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR pending.
 - **parameter** `testoperations.iperf_generator:saturate_link(protocol)` as a plain `str` —
   deprecated. Replacement: `TransportProtocol` (narrows to the enum). Earliest removal: the first
   release 6 months after the release that deprecates it. Design
-  `docs/architecture/precise-types-design.md` (Deprecations); PR pending.
+  `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR pending.
 - **member** reading `IperfSession`, `HomeVerification` or `FlowPair` as the released dict
   (indexing, `get`, `in`, `len`, `keys`, `items`, `values`, iteration, `==` a dict, `as_dict()`) —
   deprecated. Replacement: the record's fields; the mapping access is removed. Earliest removal: the
   first release 6 months after the release that deprecates it. Design
-  `docs/architecture/precise-types-design.md` (Deprecations); PR pending.
+  `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR pending.
 
 #### Fixed
 

@@ -85,7 +85,7 @@ PROTOCOLS = [
             # Call state
             "get_active_calls",
             "get_rtpengine_stats",
-            "read_rtpengine_stats",
+            "read_rtp_relay_stats",
             "verify_sip_message",
             # Voicemail
             "get_voicemail_count",

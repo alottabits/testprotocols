@@ -103,19 +103,19 @@ class SipServer(Protocol):
         ...
 
     @deprecated(
-        "Deprecated: use read_rtpengine_stats. Removal not before the first release 6 "
+        "Deprecated: use read_rtp_relay_stats. Removal not before the first release 6 "
         "months after the release that deprecates it.",
         category=None,
     )
     def get_rtpengine_stats(self) -> dict[str, Any]:  # type: ignore[explicit-any]  # released signature kept until removal
-        """Return the fields of ``read_rtpengine_stats()`` (keys ``engaged``, ``sessions``).
+        """Return the fields of ``read_rtp_relay_stats()`` (keys ``engaged``, ``sessions``).
 
-        Deprecated: use :meth:`read_rtpengine_stats`. Removal not before the first release 6 months
+        Deprecated: use :meth:`read_rtp_relay_stats`. Removal not before the first release 6 months
         after the release that deprecates it.
         """
         ...
 
-    def read_rtpengine_stats(self) -> RtpStats:
+    def read_rtp_relay_stats(self) -> RtpStats:
         """Return the media relay's statistics: whether it is engaged on any call and
         how many sessions it holds."""
         ...
@@ -145,8 +145,7 @@ class SipServer(Protocol):
             Optional point in time; only messages after it are considered, and
             ``None`` considers the whole log. A ``datetime`` is the contract value. The
             released annotation (``Any``) is kept; its narrowing to ``datetime | None``
-            is announced (see ``docs/architecture/precise-types-design.md``,
-            "Deprecations").
+            is announced (see ``packages/testprotocols/DEPRECATIONS.md``).
         timeout:
             Seconds to wait for the expected message.
         """

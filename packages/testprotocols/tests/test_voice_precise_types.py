@@ -66,7 +66,7 @@ def test_verify_sip_message_signature() -> None:
 
 
 def test_new_members_exist() -> None:
-    for name in ("read_rtpengine_stats", "read_mwi_status", "read_offline_messages"):
+    for name in ("read_rtp_relay_stats", "read_mwi_status", "read_offline_messages"):
         assert callable(getattr(SipServer, name))
     # the deprecated names stay
     for name in ("get_rtpengine_stats", "get_mwi_status", "get_offline_messages"):

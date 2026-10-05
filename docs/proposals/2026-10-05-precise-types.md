@@ -2428,3 +2428,15 @@ models as far as checked.
   `feat/precise-types` and are proposed, not ratified. Merging the `feat:` PR,
   which takes the decision-file review, ratifies them; until then each item's
   evidence stands on a proposed list. (Round one's C7, carried.)
+
+---
+
+## Design delta (2026-10-05)
+
+A reshape at the implementation PR (#73), recorded per `docs/proposals/README.md`
+("After the review"). It changes one item's signature; the CHANGELOG entry carries the
+*proposed as* field.
+
+| Item | Change | Outcome | Date |
+| --- | --- | --- | --- |
+| P7 | The new mandatory member `SipServer.read_rtpengine_stats() -> RtpStats` is renamed `SipServer.read_rtp_relay_stats() -> RtpStats`, for neutrality, per the PR #73 decision-file review C1: the proposed name carried a reviewed family's product name into a capability named for a standard (`docs/architecture/precise-types-families.md` section 1), and `RtpStats` was already neutral. No other change: the return record, the deprecation of the released `get_rtpengine_stats` (which keeps its name, and whose `@deprecated` sentence and deprecation row now name `read_rtp_relay_stats`) and the other two new members stand as accepted. | accepted (reshaped at the implementation PR) | 2026-10-05 |
