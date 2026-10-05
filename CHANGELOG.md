@@ -567,12 +567,14 @@ their tags and PR history.
   (Deprecations); PR pending.
 - **field** `NatRule.dst_port` and `translated_port` (port text, released default `""`) —
   deprecated. Replacement: `dst_ports`, `translated_ports`; at removal the text fields go and the
-  typed field becomes required, or defaults to `()` (decide at removal). Earliest removal: the first
+  typed fields default to `()`, the typed form of the released default `""`, so a rule that never
+  sets them keeps its meaning. Earliest removal: the first
   release 6 months after the release that deprecates it. Design
   `docs/architecture/precise-types-design.md` (Deprecations); PR pending.
 - **field** `L3Rule.src_port` and `dst_port` (port text, released default `"any"`) — deprecated.
-  Replacement: `src_ports`, `dst_ports`; at removal the text fields go and the typed field becomes
-  required, or defaults to `()` (decide at removal). Earliest removal: the first release 6 months
+  Replacement: `src_ports`, `dst_ports`; at removal the text fields go and the typed fields default to
+  `()`, the typed form of the released default `"any"`, so a rule that never sets them keeps its
+  meaning. Earliest removal: the first release 6 months
   after the release that deprecates it. Design `docs/architecture/precise-types-design.md`
   (Deprecations); PR pending.
 - **field** `SecurityEvent.ts` (ISO-8601 text, required) — deprecated. Replacement: `timestamp`; at

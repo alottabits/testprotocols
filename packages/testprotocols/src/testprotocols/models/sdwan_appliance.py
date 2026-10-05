@@ -54,7 +54,8 @@ class L3Rule:
     pair, or both; when both are filled they describe the same ports. The text fields
     keep their released default ``"any"``; a driver that fills only the typed form may
     pass ``None`` for the text, which reads as that default. At removal, the text fields
-    go and the typed fields become required.
+    go and the typed fields default to ``()``, the typed form of the released default, so
+    a rule that never sets them keeps its meaning.
 
     A rule also flows into a driver (the ``L3Firewall.set_*_rules`` members). A caller
     building one for a write member fills both forms until removal: a driver not yet

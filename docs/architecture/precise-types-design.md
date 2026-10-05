@@ -27,7 +27,8 @@ form; the deprecation is stated, and the transition belongs to the drivers and t
   default keeps its released default text (a producer may pass `None`, which reads as that
   default). The typed form is an optional keyword-only field defaulting to `None`. A driver
   fills either form, or both, describing the same value; for a field that was required, at
-  least one is filled. At removal the text field goes and the typed field becomes required.
+  least one is filled. At removal the text field goes; the typed field becomes required, or,
+  where the text field had a released default, defaults to the typed form of that default.
   The record holds no sync, parsing or check: the `testoperations` readers apply the rule at
   use time. A reader that reads the text field directly sees `… | None`. Read a pair: the
   typed field when filled, else the text, else the released default's meaning. Write a pair
@@ -160,7 +161,8 @@ The record holds no code for the pair: no sync, no parsing and no check.
 - The typed field is keyword-only and defaults to `None`.
 - A driver fills either field, or both; when both are filled they describe the
   same value. For a field that was required, at least one is filled. At removal
-  the text field goes and the typed field becomes required.
+  the text field goes; the typed field becomes required, or, where the text field
+  had a released default, defaults to the typed form of that default.
 - `testoperations._compat` reads a pair: the typed field when filled, else the
   text parsed, else the released default's meaning, or `ValueError` naming the
   record and field when the released field was required. Where the typed field
@@ -176,7 +178,8 @@ The record holds no code for the pair: no sync, no parsing and no check.
   its released default (`"any"`, `""`), and a driver not yet updated acts on it: a
   rule meant for some ports would apply to any port, or to none.
 - At removal, a pair whose text field had a released default (`NatRule` and `L3Rule`
-  ports) may instead give the typed field a `()` default; that is decided at removal.
+  ports) gives the typed field a `()` default, the typed form of `""` and `"any"`, so a
+  caller that never set the ports changes nothing, before or after removal.
 - A reader that reads the text field directly sees `… | None`; this is listed
   under *Breaking for driver authors*.
 
@@ -705,8 +708,8 @@ required, or `E | str` becomes `E`.
 | `WifiRadio.list_radios`, `get_bandwidth` and `get_mode` returns (`list[str]`, `int`, `str`) | `list[WifiBand]`, `ChannelWidth`, `WifiPhyMode` (announced; `get_mode` once compound modes are settled) | member | next release | next release + 6 months |
 | `RadiusServer.get_status` return `str` | `ServiceStatus` (announced narrowing) | member | next release | next release + 6 months |
 | `FirewallRule.dst_port` (port text, required) | `dst_ports`; at removal the text field goes and `dst_ports` becomes required | field | next release | next release + 6 months |
-| `NatRule.dst_port` and `translated_port` (port text, released default `""`) | `dst_ports`, `translated_ports`; at removal the text fields go and the typed field becomes required, or defaults to `()` (decide at removal) | field | next release | next release + 6 months |
-| `L3Rule.src_port` and `dst_port` (port text, released default `"any"`) | `src_ports`, `dst_ports`; at removal the text fields go and the typed field becomes required, or defaults to `()` (decide at removal) | field | next release | next release + 6 months |
+| `NatRule.dst_port` and `translated_port` (port text, released default `""`) | `dst_ports`, `translated_ports`; at removal the text fields go and the typed fields default to `()` (the typed form of the released default `""`) | field | next release | next release + 6 months |
+| `L3Rule.src_port` and `dst_port` (port text, released default `"any"`) | `src_ports`, `dst_ports`; at removal the text fields go and the typed fields default to `()` (the typed form of the released default `"any"`) | field | next release | next release + 6 months |
 | `SecurityEvent.ts` (ISO-8601 text, required) | `timestamp`; at removal `ts` goes and `timestamp` becomes required (`None`: no time reported) | field | next release | next release + 6 months |
 | `QosRule.match` (classifier text, required) | `classifier`; at removal `match` goes and `classifier` becomes required (`None`: every frame) | field | next release | next release + 6 months |
 | `FirewallRule.action` / `protocol`: `FirewallRuleAction \| str`, `RuleProtocol \| str` | the enums (narrows from `E \| str` to `E`) | field | next release | next release + 6 months |
@@ -741,8 +744,8 @@ Notes:
 - Until removal, a caller passing a pair to a write member fills both forms, because a
   driver not yet updated reads only the text; filling only the typed form leaves the text
   at its released default, which such a driver acts on.
-- Released-defaulted pairs (`NatRule`, `L3Rule`): at removal the typed field becomes
-  required, or defaults to `()`; that is decided at removal.
+- Released-defaulted pairs (`NatRule`, `L3Rule`): at removal the typed field defaults to
+  `()`, the typed form of the released default.
 - The gaps left open on purpose (option strings with no typed successor, vocabularies
   awaiting evidence, the compatibility exemptions) are in `packages/testprotocols/GAPS.md`,
   "precise types: gaps left open".

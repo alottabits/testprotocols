@@ -140,7 +140,8 @@ class NatRule:
     both; when both are filled they describe the same ports. *dst_port* and
     *translated_port* keep their released default ``""`` (no port); a driver that fills
     only the typed form may pass ``None`` for the text, which reads as that default. At
-    removal, the text fields go and the typed fields become required.
+    removal, the text fields go and the typed fields default to ``()``, the typed form of
+    the released default, so a rule that never sets them keeps its meaning.
 
     A rule also flows into a driver (``Nat.add_nat_rule``). A caller building one for a
     write member fills both forms until removal: a driver not yet updated reads only the
