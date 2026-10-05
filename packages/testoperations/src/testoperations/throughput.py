@@ -139,6 +139,7 @@ type JsonValue = None | bool | int | float | str | list[JsonValue] | dict[str, J
 """A parsed JSON value, as ``json.loads`` returns it."""
 
 JsonObj = Mapping[str, JsonValue]
+"""A parsed JSON object (a ``Mapping`` over :data:`JsonValue`)."""
 
 # iperf3's --json log is untrusted input: a document may be truncated, or a
 # field may be absent or of an unexpected shape. These three narrowers turn any

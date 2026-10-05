@@ -531,7 +531,8 @@ where one exists, also records its retype.
   - `DHCPTraceData.dhcp_packet` / `DHCPV6TraceData.dhcpv6_packet` are
     `Mapping[str, object]`: a decoder's nested bag with no stable typed shape (an open value:
     exempted `object` lines). The device
-    registry casts to a one-member Protocol (`__protocol_attrs__`), not `Any`.
+    registry reads a protocol's members through `typing.get_protocol_members` (3.13 and
+    later; on 3.12 a cast to a one-member Protocol over `__protocol_attrs__`), not `Any`.
   - `testoperations` (`throughput`, `netem_controller`, `sdwan`) call the new names through
     `_renamed.py` (`start_sender_session`, `start_receiver_session`, `inject`); an old-name
     driver gets exactly the released call. `inject_packet_storm` gains `loss_percent`, and its
@@ -711,9 +712,12 @@ output equals that of the commit before it).
 
 `disallow_any_explicit = true` applies to every module of `testprotocols` and
 `testoperations` (a mypy per-module override in `pyproject.toml`). The only exemptions
-are released signatures, marked on the `def` line (or the field line), in two classes: 9
-deprecation-period exemptions and 16 compatibility exemptions. `tests/test_typing_ratchet.py`
-pins the number of each, so a new exemption needs a reviewed change.
+are released signatures, marked on the `def` line (or the field line), in two classes. Per
+package: `testprotocols` has 9 deprecation-period exemptions and 16 compatibility exemptions,
+and no other explicit `Any`; `testoperations` has none of either. `object` used as a type is
+exempted on 7 lines in `testprotocols` and 6 in `testoperations` (table below).
+`tests/test_typing_ratchet.py` pins the number of each, so a new exemption needs a reviewed
+change.
 
 **(a) Deprecation period, 9 lines.** Marker `# type: ignore[explicit-any]  # released
 signature kept until removal`. These are members, or a deprecated form of a member, whose
@@ -774,7 +778,13 @@ no error to ignore) and is pinned per class and package:
   `def` line; the option values are vendor-extensible), `DHCPTraceData.dhcp_packet` and
   `DHCPV6TraceData.dhcpv6_packet` (a decoder's nested bag with no stable typed shape).
 - Replaced rather than marked, because a precise type exists: `Console.sendline` returns
-  `int` (pexpect's), and `iter_json_docs` returns `list[dict[str, JsonValue]]`.
+  `int` (pexpect's), `iter_json_docs` returns `list[dict[str, JsonValue]]`, and the released
+  public alias `testoperations.throughput.JsonObj` keeps its name as `Mapping[str, JsonValue]`
+  (was `Mapping[str, object]`).
+- Removed rather than marked: the `cast("Any", …)` in `testprotocols.devices` that read a
+  protocol's member names. `typing.get_protocol_members` reads them on Python 3.13 and later,
+  and a cast to a small private protocol over `__protocol_attrs__` on 3.12, so no explicit
+  `Any` remains outside the two exempt classes.
 
 ## Deprecations
 

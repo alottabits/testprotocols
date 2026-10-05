@@ -783,6 +783,10 @@ their tags and PR history.
   `list[dict[str, JsonValue]]` (was `list[Any]`): each document is a JSON object, and
   `JsonValue` (new, in the same module) is the recursive type of a parsed JSON value. A caller
   indexing into a document narrows each nested value first. Design `docs/architecture/precise-types-design.md` (testoperations: typed records); PR pending.
+- **type alias** `testoperations.throughput:JsonObj` — `Mapping[str, JsonValue]` (was
+  `Mapping[str, object]`): a parsed JSON object, typed over the recursive JSON value. A value
+  of the alias still passes where `Mapping[str, object]` is expected; a caller that passes a
+  `Mapping[str, object]` where `JsonObj` is expected narrows its values first. Design `docs/architecture/precise-types-design.md` (testoperations: typed records); PR pending.
 
 #### Deprecated
 

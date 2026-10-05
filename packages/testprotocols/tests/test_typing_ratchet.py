@@ -60,6 +60,8 @@ COMPATIBILITY_MARKER = (
 VENDOR_MODEL_MARKER = (
     "# type: ignore[explicit-any]  # released signature kept: vendors extend the parameter model"
 )
+# Per package, explicit ``Any``: testprotocols 9 class (a) + 16 class (b) lines and nothing
+# else; testoperations none (``test_testoperations_exempts_nothing``).
 TESTPROTOCOLS_DEPRECATED_EXEMPT_LINES = 9
 TESTPROTOCOLS_COMPATIBILITY_EXEMPT_LINES = 16
 #     A live released return whose implementers return their own types (the consoles of
@@ -73,6 +75,7 @@ OBJECT_DEPRECATED_MARKER = "# object: deprecated form kept until removal"
 OBJECT_OPEN_VALUE_MARKER = "# object: open value: the contract does not enumerate it"
 OBJECT_MARKERS = (OBJECT_DEPRECATED_MARKER, OBJECT_OPEN_VALUE_MARKER)
 OBJECT_CEILING = 0
+# Per package, ``object`` as a type: testprotocols 4 + 3 lines, testoperations 6 + 0.
 OBJECT_EXEMPT_LINES = {
     ("testprotocols", OBJECT_DEPRECATED_MARKER): 4,
     ("testprotocols", OBJECT_OPEN_VALUE_MARKER): 3,
