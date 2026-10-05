@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+import dataclasses
 import warnings
+from collections.abc import Callable
 from enum import StrEnum
+from typing import cast
 
 import pytest
 from testprotocols.deprecation import (
@@ -11,6 +14,7 @@ from testprotocols.deprecation import (
     coerce_int,
     deprecated_attribute,
     renamed_attribute,
+    warn_at_caller,
     warn_renamed,
 )
 
@@ -140,3 +144,48 @@ def test_deprecated_attribute_points_at_the_accessing_module() -> None:
     with pytest.warns(DeprecationWarning) as record:
         __getattr__("Orphan")
     assert record[0].filename == __file__
+
+
+_MODEL_SOURCE = """
+import dataclasses
+from testprotocols.deprecation import coerce_enum
+
+
+@dataclasses.dataclass(frozen=True)
+class Painted:
+    colour: object
+
+    def __post_init__(self) -> None:
+        coerce_enum(COLOUR, self.colour, what="colour", skip_file_prefixes=("/model/",))
+"""
+
+
+def _model_type() -> type:
+    """A dataclass whose module file is ``/model/painted.py``, as a model in a package is."""
+    namespace: dict[str, object] = {"COLOUR": _Colour, "__name__": __name__}
+    exec(compile(_MODEL_SOURCE, "/model/painted.py", "exec"), namespace)
+    return cast(type, namespace["Painted"])
+
+
+def test_a_model_warning_points_at_the_construction_site_past_the_generated_init() -> None:
+    painted = _model_type()
+    with pytest.warns(DeprecationWarning) as caught:
+        painted("red")
+    assert caught[0].filename == __file__
+
+
+def test_a_model_warning_points_at_the_replace_call_past_dataclasses() -> None:
+    record = _model_type()(_Colour.RED)
+    with pytest.warns(DeprecationWarning) as caught:
+        dataclasses.replace(record, colour="blue")
+    assert caught[0].filename == __file__
+
+
+def test_warn_at_caller_skips_callers_after_the_skipped_frames() -> None:
+    namespace: dict[str, object] = {"warn_at_caller": warn_at_caller}
+    source = "def boundary():\n    warn_at_caller('gone', callers=1)\n"
+    exec(compile(source, "/driver/boundary.py", "exec"), namespace)
+    boundary = cast("Callable[[], None]", namespace["boundary"])
+    with pytest.warns(DeprecationWarning, match="gone") as caught:
+        boundary()
+    assert caught[0].filename == __file__

@@ -38,22 +38,20 @@ changed. A model's pairs share one text type, which types its provenance.
 from __future__ import annotations
 
 import dataclasses
-import warnings
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from enum import Enum
 from typing import TYPE_CHECKING, Protocol, cast
 
-from testprotocols.deprecation import MODEL_FRAMES, coerce_enum
+from testprotocols.deprecation import MODEL_FRAMES, coerce_enum, warn_at_caller
 
 if TYPE_CHECKING:
     from _typeshed import DataclassInstance
 
 
 def _warn(old: str, new: str, owner: str) -> None:
-    warnings.warn(
+    warn_at_caller(
         f"{owner}.{old} is deprecated; use {new}",
-        DeprecationWarning,
         skip_file_prefixes=MODEL_FRAMES,
     )
 

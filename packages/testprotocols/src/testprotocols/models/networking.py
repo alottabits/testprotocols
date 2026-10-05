@@ -2,14 +2,13 @@
 
 from __future__ import annotations
 
-import warnings
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 from enum import IntEnum, StrEnum
 from ipaddress import IPv4Address, IPv6Address
 from typing import cast
 
-from testprotocols.deprecation import MODEL_FRAMES, coerce_enum
+from testprotocols.deprecation import MODEL_FRAMES, coerce_enum, warn_at_caller
 from testprotocols.models import _checks
 from testprotocols.models._open_enum import OpenEnumPair
 from testprotocols.models._sync import settle
@@ -122,9 +121,8 @@ class HTTPResult:
     @property
     def code(self) -> str:
         """Deprecated: the status code as text; use *status*."""
-        warnings.warn(
+        warn_at_caller(
             "HTTPResult.code is deprecated; use HTTPResult.status",
-            DeprecationWarning,
             skip_file_prefixes=MODEL_FRAMES,
         )
         return _split_response(self.raw)[0]
@@ -132,9 +130,8 @@ class HTTPResult:
     @property
     def beautified_text(self) -> str:
         """Deprecated: the body; use *body*."""
-        warnings.warn(
+        warn_at_caller(
             "HTTPResult.beautified_text is deprecated; use HTTPResult.body",
-            DeprecationWarning,
             skip_file_prefixes=MODEL_FRAMES,
         )
         return self.body

@@ -12,17 +12,60 @@ from __future__ import annotations
 
 import dataclasses
 import re
+import sys
 import warnings
 from collections.abc import Mapping
 from enum import Enum, IntEnum
 from pathlib import Path
+from types import CodeType
 from typing import cast
 
-MODEL_FRAMES = (str(Path(__file__).parent / "models"), "<string>", dataclasses.__file__)
+MODEL_FRAMES = (str(Path(__file__).parent / "models"),)
 """The *skip_file_prefixes* of a warning raised inside a model's ``__post_init__`` or
-``__setattr__``: the models package, the dataclass-generated ``__init__`` (filename
-``<string>``) and ``dataclasses.replace``. The warning then points at the first frame
-outside them, the caller's construction or assignment site."""
+``__setattr__``: the models package. :func:`warn_at_caller` also skips ``dataclasses``
+(``replace``) and the dataclass-generated ``__init__``, so the warning points at the
+caller's construction, ``replace`` or assignment site."""
+
+
+_ALWAYS_SKIPPED = frozenset({__file__, dataclasses.__file__})
+
+
+def _generated(code: CodeType) -> bool:
+    """Whether *code* is a method that ``dataclasses`` generated with ``exec``."""
+    return code.co_filename == "<string>" and code.co_qualname.startswith("__create_fn__.")
+
+
+def warn_at_caller(
+    message: str, *, skip_file_prefixes: tuple[str, ...] = (), callers: int = 0
+) -> None:
+    """Emit a ``DeprecationWarning`` that points at the caller's frame.
+
+    The frame is found by walking the stack from here, skipping:
+
+    - every frame of this module and of ``dataclasses`` (``replace``);
+    - every frame whose file name starts with one of *skip_file_prefixes*;
+    - every method that ``dataclasses`` generated (the ``__init__`` of a
+      dataclass, whose file name is ``<string>``);
+
+    and then *callers* further frames. A model passes :data:`MODEL_FRAMES` and
+    ``callers=0``, so the warning names the construction, ``replace`` or
+    assignment site. A function that checks its own caller's argument at a
+    boundary passes ``callers=1``, so the warning names that function's caller.
+
+    The walk computes an explicit ``stacklevel``, so the result is the same on
+    every supported Python version. ``warnings.warn(skip_file_prefixes=…)``
+    alone does not skip the generated ``__init__`` on Python 3.12.
+    """
+    frame = sys._getframe(0)  # pyright: ignore[reportPrivateUsage]
+    level = 1
+    while frame.f_back is not None and (
+        frame.f_code.co_filename in _ALWAYS_SKIPPED
+        or frame.f_code.co_filename.startswith(skip_file_prefixes)
+        or _generated(frame.f_code)
+    ):
+        frame = frame.f_back
+        level += 1
+    warnings.warn(message, DeprecationWarning, stacklevel=level + callers)
 
 
 def renamed_attribute(
@@ -90,12 +133,13 @@ def coerce_enum[E: Enum](
     parameter typed ``ChannelWidth | int`` keeps accepting ``80``.
     Any other value raises ``ValueError`` listing the legal values.
 
-    The warning points at the caller's caller (``stacklevel=3``), which is the
-    right frame for a driver method that coerces at its boundary. Called from
-    a model's ``__post_init__`` or ``__setattr__`` that frame would be the
-    dataclass-generated ``__init__``: pass *skip_file_prefixes* (for a model in
-    this package, :data:`MODEL_FRAMES`) and the warning points at the first
-    frame outside them, the user's construction site.
+    The warning points at the caller's caller, which is the right frame for a
+    driver method that coerces at its boundary. Called from a model's
+    ``__post_init__`` or ``__setattr__`` that frame would be the model's own
+    code: pass *skip_file_prefixes* (for a model in this package,
+    :data:`MODEL_FRAMES`) and the warning points at the first frame outside
+    them and outside the dataclass-generated ``__init__``, the user's
+    construction site (see :func:`warn_at_caller`).
     """
     if isinstance(value, enum_type):
         return value
@@ -110,11 +154,10 @@ def coerce_enum[E: Enum](
         raise ValueError(f"{what}: {value!r} is not one of {legal}") from None
     if issubclass(enum_type, IntEnum):
         return member  # a number is an IntEnum's value, not a deprecated spelling
-    warnings.warn(
+    warn_at_caller(
         f"{what}: plain string {value!r} is deprecated; pass {enum_type.__name__}.{member.name}",
-        DeprecationWarning,
-        stacklevel=2 if skip_file_prefixes else 3,
         skip_file_prefixes=skip_file_prefixes,
+        callers=0 if skip_file_prefixes else 1,
     )
     return member
 
@@ -150,12 +193,11 @@ def coerce_open_enum[E: Enum](
     text: str = given
     for member in enum_type:
         if member.value == text:
-            warnings.warn(
+            warn_at_caller(
                 f"{what}: plain string {text!r} is deprecated; "
                 f"pass {enum_type.__name__}.{member.name}",
-                DeprecationWarning,
-                stacklevel=2 if skip_file_prefixes else 3,
                 skip_file_prefixes=skip_file_prefixes,
+                callers=0 if skip_file_prefixes else 1,
             )
             return member, None
     return other, text
@@ -178,8 +220,8 @@ def coerce_int(
     raises ``ValueError`` naming *what* and the value; any other type (``bool``,
     ``float``, ``None``, ``bytes``) raises ``TypeError``.
 
-    The warning frame works as in :func:`coerce_enum`: ``stacklevel=3`` for a driver
-    method that coerces at its boundary, or the first frame outside
+    The warning frame works as in :func:`coerce_enum`: the caller's caller for a
+    driver method that coerces at its boundary, or the first frame outside
     *skip_file_prefixes* for a model.
     """
     given = cast(object, value)  # checked at run time too: callers are not all type-checked
@@ -191,10 +233,9 @@ def coerce_int(
     if not _DECIMAL.fullmatch(value):
         raise ValueError(f"{what}: {value!r} is not a decimal integer")
     number = int(value)
-    warnings.warn(
+    warn_at_caller(
         f"{what}: plain string {value!r} is deprecated; pass the int {number}",
-        DeprecationWarning,
-        stacklevel=2 if skip_file_prefixes else 3,
         skip_file_prefixes=skip_file_prefixes,
+        callers=0 if skip_file_prefixes else 1,
     )
     return number

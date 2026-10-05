@@ -2,12 +2,11 @@
 
 from __future__ import annotations
 
-import warnings
 from dataclasses import dataclass, field
 from enum import Enum, StrEnum
 from typing import cast, override
 
-from testprotocols.deprecation import MODEL_FRAMES
+from testprotocols.deprecation import MODEL_FRAMES, warn_at_caller
 from testprotocols.models._open_enum import OpenEnumPair
 from testprotocols.models._open_set import OpenSetPair
 from testprotocols.models._sync import Settler, assign, settle
@@ -319,10 +318,9 @@ class RadiusAccountingRecord:
         if name == "terminate_cause":
             prose = _prose_cause(value)
             if prose is not None:  # the registry's prose spelling: a deprecated plain string
-                warnings.warn(
+                warn_at_caller(
                     f"RadiusAccountingRecord.terminate_cause: plain string {value!r} is "
                     f"deprecated; pass AcctTerminateCause.{prose.name}",
-                    DeprecationWarning,
                     skip_file_prefixes=MODEL_FRAMES,
                 )
                 value = prose

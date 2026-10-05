@@ -39,13 +39,12 @@ field LAST, and calls ``settle`` from ``__post_init__`` and ``assign`` from
 
 from __future__ import annotations
 
-import warnings
 from collections.abc import Iterable
 from dataclasses import dataclass
 from enum import Enum
 from typing import cast
 
-from testprotocols.deprecation import MODEL_FRAMES
+from testprotocols.deprecation import MODEL_FRAMES, warn_at_caller
 
 type Words = tuple[str, ...]
 
@@ -169,9 +168,8 @@ class OpenSetPair[E: Enum]:
         return words
 
     def _warn(self, owner: str) -> None:
-        warnings.warn(
+        warn_at_caller(
             f"{owner}.{self.old} is deprecated; use {self.known} and {self.unknown}",
-            DeprecationWarning,
             skip_file_prefixes=MODEL_FRAMES,
         )
 

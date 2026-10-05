@@ -34,15 +34,18 @@ their tags and PR history.
   counts the non-exempt `Any` (ceiling 0) and pins each class.
   lines. Migration: none. Design `docs/architecture/precise-types-design.md`; no
   proposal (contract infrastructure); PR pending.
-- **function and constant** `testprotocols.deprecation:coerce_enum` and
-  `MODEL_FRAMES` — `coerce_enum` normalises an `Enum | str` argument or field
+- **functions and constant** `testprotocols.deprecation:coerce_enum`,
+  `warn_at_caller` and `MODEL_FRAMES` — `coerce_enum` normalises an `Enum | str` argument or field
   to the enum member, warning (`DeprecationWarning`) on a plain string naming
   a member and raising `ValueError` listing the legal values on any other; the
-  helper behind the `E | str` deprecation shapes. Its keyword
-  `skip_file_prefixes` is passed to `warnings.warn`, so a model's
-  `__post_init__` or `__setattr__` can point the warning at the caller's
-  construction site; `MODEL_FRAMES` is that value for the models of this
-  package. Migration: none. Design `docs/architecture/precise-types-design.md`
+  helper behind the `E | str` deprecation shapes. `warn_at_caller` emits a
+  `DeprecationWarning` at the caller's frame: it walks the stack past this
+  module, `dataclasses`, the dataclass-generated `__init__` and the files named
+  by `skip_file_prefixes`, and passes an explicit `stacklevel`, so the frame is
+  the same on Python 3.12, 3.13 and 3.14. The `skip_file_prefixes` keyword of
+  `coerce_enum` goes to it, so a model's `__post_init__` or `__setattr__` points
+  the warning at the caller's construction, `replace` or assignment site;
+  `MODEL_FRAMES` is that value for the models of this package. Migration: none. Design `docs/architecture/precise-types-design.md`
   (shapes 1 and 3); PR pending.
 - **function** `testprotocols.deprecation:coerce_int` — returns an `int` unchanged,
   converts a string of optionally signed decimal digits (`"443"`, `"-1"`, `"+5"`) with a `DeprecationWarning` (the helper for a

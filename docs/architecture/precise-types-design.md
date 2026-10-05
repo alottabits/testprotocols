@@ -44,7 +44,8 @@ shapes below are the only ones used.
 
 Each retype names one of these shapes. The building blocks are reused, never
 copied: `testprotocols.deprecation` (`coerce_enum`, `coerce_int`,
-`coerce_open_enum`, `warn_renamed`, `renamed_attribute`, `MODEL_FRAMES`),
+`coerce_open_enum`, `warn_renamed`, `renamed_attribute`, `warn_at_caller`,
+`MODEL_FRAMES`),
 `testprotocols.models._sync` and, for shape 3o, `testprotocols.models._open_enum`.
 
 - **Shape 1: a released `str` parameter becomes an enum.** The parameter is
@@ -59,8 +60,11 @@ copied: `testprotocols.deprecation` (`coerce_enum`, `coerce_int`,
 - **Shape 3: a released model field becomes an enum.** The field is annotated
   `E | str` and the model coerces it in `__setattr__` (a mutable model) or
   `__post_init__` (a frozen one), with `skip_file_prefixes=MODEL_FRAMES` so the
-  warning points at the caller's construction or assignment site. A reader
-  always holds the member.
+  warning points at the caller's construction or assignment site. Every model
+  warning goes through `warn_at_caller`, which walks the stack past the models,
+  `dataclasses` and the dataclass-generated `__init__` and passes an explicit
+  `stacklevel`: `warnings.warn(skip_file_prefixes=…)` alone does not skip the
+  generated `__init__` on Python 3.12. A reader always holds the member.
 - **Shape 3o: an extensible enum field.** The field is annotated `E | str` (as
   shape 3, so a caller may still pass a plain string) and always holds a member
   after construction; `E` has a catch-all `OTHER`, and the device's own word is
