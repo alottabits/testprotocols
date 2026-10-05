@@ -160,9 +160,18 @@ maintainer change with `no proposal` and its rationale.
    for the kind runs, posts one PR review, sets the `review` status on the
    head commit. (A PR that takes two reviewers — a `feat:` that also
    touches a decision file — gets two reviews, and the worst verdict sets
-   the status.)
+   the status.) A re-review checks the change since the last review and
+   the previous conditions; `/review full` asks for a full review. A
+   `/review` after pushes that change nothing a reviewer reviews (an empty
+   commit, or a merge of `main` that touches none of the PR's files)
+   carries that reviewer's earlier verdict, so after a changed PR body, a
+   moved `main` or updated review criteria ask for `/review full`, which
+   forces a fresh full review. (A repeated `/review` on an unchanged head
+   already runs in full.)
 4. **Rework.** Push fixups; a new head commit clears the status; a
-   maintainer comments `/review` again once the gates are green. Fixup
+   maintainer comments `/review` again once the gates are green (a
+   re-review checks the change since the last review and the previous
+   conditions; `/review full` asks for a full review). Fixup
    commits may stay; the merge commit groups the PR. No interactive
    rebase is asked of you.
 5. **Go-ahead.** A maintainer reads the review and merges with a merge
