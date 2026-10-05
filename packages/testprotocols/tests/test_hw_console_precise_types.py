@@ -1,4 +1,4 @@
-"""HwConsole returns a Console protocol and takes no ``Any`` (Phase 5b Task 10)."""
+"""HwConsole returns a Console protocol and takes no ``Any`` ."""
 
 from __future__ import annotations
 

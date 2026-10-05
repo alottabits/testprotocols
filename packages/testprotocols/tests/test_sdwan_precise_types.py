@@ -23,7 +23,7 @@ def _l3(**kw: object) -> L3Rule:
     return L3Rule(**{"action": RuleAction.DENY, **kw})  # type: ignore[arg-type]
 
 
-# --- M10: L3Rule ports ---
+# --- L3Rule ports ---
 
 
 def test_l3_typed_ports_fill_the_text() -> None:
@@ -98,7 +98,7 @@ def test_l3_released_equality_between_the_two_builders() -> None:
     assert a == _l3(dst_ports=(PortRange.single(22), PortRange.single(80)))
 
 
-# --- M13: SecurityEvent timestamp ---
+# --- SecurityEvent timestamp ---
 
 
 def _event(**kw: object) -> SecurityEvent:
@@ -226,7 +226,7 @@ def test_event_required_fields_still_required() -> None:
         SecurityEvent()
 
 
-# --- fix round 1 ---
+# --- wrong types and edge values ---
 
 
 @pytest.mark.parametrize("bad", [80, None, 80.0, b"80", ("80",)])

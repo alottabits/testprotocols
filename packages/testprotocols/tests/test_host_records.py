@@ -1,5 +1,4 @@
-"""Host-tier record returns and the remaining ``Any`` (O8-O13, O20, O21, O24, O27, O28, O31,
-O32, O60-O62, M19, M34).
+"""Host-tier record returns and the remaining ``Any``.
 
 Fixture data is real tool output captured on a Linux host and parsed with the parsers the
 released implementers use (``jc`` for ps, syslog, ping and dig; the implementers' own regex for
@@ -221,7 +220,7 @@ def test_new_members_take_no_tool_option_string() -> None:
 
 
 # --------------------------------------------------------------------------------------
-# O8 UrlRules
+# UrlRules
 # --------------------------------------------------------------------------------------
 
 
@@ -262,7 +261,7 @@ def test_url_rules_refuses_wrong_types(kwargs: dict[str, object]) -> None:
 
 
 # --------------------------------------------------------------------------------------
-# O9 MemoryUtilization
+# MemoryUtilization
 # --------------------------------------------------------------------------------------
 
 
@@ -314,7 +313,7 @@ def test_memory_refuses_bad_values(kwargs: dict[str, object], error: type[Except
 
 
 # --------------------------------------------------------------------------------------
-# O10 ProcessInfo
+# ProcessInfo
 # --------------------------------------------------------------------------------------
 
 
@@ -355,7 +354,7 @@ def test_process_refuses_bad_values(kwargs: dict[str, object], error: type[Excep
 
 
 # --------------------------------------------------------------------------------------
-# O11 EventLogEntry
+# EventLogEntry
 # --------------------------------------------------------------------------------------
 
 
@@ -409,7 +408,7 @@ def test_event_log_refuses_bad_values(kwargs: dict[str, object], error: type[Exc
 
 
 # --------------------------------------------------------------------------------------
-# O13 DnsRecord
+# DnsRecord
 # --------------------------------------------------------------------------------------
 
 
@@ -491,7 +490,7 @@ def test_resolve_takes_the_enum() -> None:
 
 
 # --------------------------------------------------------------------------------------
-# O20 / O21 IperfProcess and the window size
+# IperfProcess and the window size
 # --------------------------------------------------------------------------------------
 
 
@@ -581,7 +580,7 @@ def test_receiver_session_signature() -> None:
 
 
 # --------------------------------------------------------------------------------------
-# O24 PingResult
+# PingResult
 # --------------------------------------------------------------------------------------
 
 
@@ -628,13 +627,13 @@ def test_ping_result_refuses_bad_values(kwargs: dict[str, object], error: type[E
     with pytest.raises(error):
         PingResult(**(base | kwargs))  # type: ignore[arg-type]
 
+
 @pytest.mark.parametrize("value", [float("nan"), float("inf")])
 def test_a_record_number_must_be_finite(value: float) -> None:
     with pytest.raises(ValueError, match=r"PingResult\.rtt_avg_ms must be a finite number"):
         PingResult("127.0.0.1", 2, 2, 0.0, rtt_avg_ms=value)
     with pytest.raises(ValueError, match=r"Brownout\.loss_percent must be a finite number"):
         Brownout(loss_percent=value)
-
 
 
 @pytest.mark.parametrize(
@@ -659,7 +658,7 @@ def test_ping_json_output_is_documented_deprecated() -> None:
 
 
 # --------------------------------------------------------------------------------------
-# O31 NmapResult
+# NmapResult
 # --------------------------------------------------------------------------------------
 
 
@@ -735,7 +734,7 @@ def test_scan_ports_signature() -> None:
 
 
 # --------------------------------------------------------------------------------------
-# O62 ArpEntry
+# ArpEntry
 # --------------------------------------------------------------------------------------
 
 # ``arp -n`` (net-tools) and the released use case's parse of it.
@@ -780,7 +779,7 @@ def test_arp_entry_refuses_wrong_types(kwargs: dict[str, object]) -> None:
 
 
 # --------------------------------------------------------------------------------------
-# O28 TransientEvent
+# TransientEvent
 # --------------------------------------------------------------------------------------
 
 
@@ -879,7 +878,7 @@ def test_inject_event_signature() -> None:
 
 
 # --------------------------------------------------------------------------------------
-# O27 impairment profile parameter
+# impairment profile parameter
 # --------------------------------------------------------------------------------------
 
 
@@ -930,7 +929,7 @@ def test_coerce_impairment_profile_refuses(value: object, error: type[Exception]
 
 
 # --------------------------------------------------------------------------------------
-# O60 GroupRecord
+# GroupRecord
 # --------------------------------------------------------------------------------------
 
 
@@ -1010,7 +1009,7 @@ def test_group_records_refuses_a_wrong_shape() -> None:
 
 
 # --------------------------------------------------------------------------------------
-# O12, O32, O61, M19, M34 and the remaining Any
+# The remaining Any
 # --------------------------------------------------------------------------------------
 
 

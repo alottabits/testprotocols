@@ -1,4 +1,4 @@
-"""Tool command-line strings become typed parameters (Phase 5b Task 9, O26 and O10)."""
+"""Tool command-line strings become typed parameters."""
 
 from __future__ import annotations
 

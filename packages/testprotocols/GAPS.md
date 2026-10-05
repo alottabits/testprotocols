@@ -251,7 +251,7 @@ keys; plugins map to vendor app-ids), grown on evidence; `L7Rule.value` for
 
 ## 2026-06-11 — migrate legacy bare-`str` value fields to typed vocabularies [priority: low]
 
-> **Status (precise-types work): done for the surveyed fields.** The firewall, NAT and
+> **Status (precise-types work): done for the fields below.** The firewall, NAT and
 > conntrack vocabularies, `LinkStatus.state` / `LinkHealthReport.state` (now
 > `UplinkState`, the shared vocabulary, not a separate `LinkState`), the Wi-Fi
 > vocabularies (`WifiBand`, `WifiSecurityMode`, `MfpMode`, `WifiAclMode`,
@@ -353,7 +353,7 @@ linux_firewall / frr_router impls, unit tests).
 **Signal:** The precise-types retype (`docs/architecture/precise-types-design.md`) typed
 every field and parameter that evidence supported and left the following open on
 purpose, rather than guess a vocabulary. Each needs evidence (a second implementer, a
-specification table or an owner ruling), not more code.
+specification table or a maintainer decision), not more code.
 
 - **Tool option strings without a typed successor.** `dns_lookup(opts)`, `nmap(opts)`
   and a non-default `get_running_processes(ps_options)` are deprecated, and the typed
@@ -376,10 +376,10 @@ specification table or an owner ruling), not more code.
   port range. Widening needs a producer that writes more.
 - **"Packet storm" meaning.** The released implementers apply a loss burst; the name could
   also mean packet duplication. `PacketStorm` keeps the released meaning (`duplicate_percent`
-  is optional, `None` means not requested). The contract's meaning is awaiting the owner.
+  is optional, `None` means not requested). The contract's meaning awaits a maintainer decision.
 - **Compatibility exemptions.** `flash_via_bootloader` and `start_tcpdump(filters)` keep
   `Any` because implementers declare framework or dict types the contract cannot accept
-  (parameter contravariance, `dict` invariance). Closing them needs the owner to decide
+  (parameter contravariance, `dict` invariance). Closing them needs a maintainer to decide
   whether implementers change their declarations.
 - **`Console` has no `expect` / `expect_exact`.** A console that satisfies the protocol
   statically cannot carry pexpect's own pattern type without the package depending on
@@ -387,7 +387,7 @@ specification table or an owner ruling), not more code.
 
 **Not a gap here:** DHCP integer option width per code. `DhcpOption.value` is text in this
 package, so the width question arises only for a model that carries an integer content
-type (a managed-router concern).
+type.
 
 **Cross-references:** `docs/architecture/precise-types-design.md` ("Retypes", "Pending
 narrow steps"), `tool_options.py`, `models/wifi.py`, `models/switch.py`.

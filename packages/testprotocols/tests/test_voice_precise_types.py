@@ -1,4 +1,4 @@
-"""Voice vocabularies and records (O37-O43)."""
+"""Voice vocabularies and records."""
 
 from __future__ import annotations
 

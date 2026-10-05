@@ -1,4 +1,4 @@
-"""Host-tool and service vocabularies (Phase 5b Task 7)."""
+"""Host-tool and service vocabularies."""
 
 from __future__ import annotations
 
@@ -198,7 +198,7 @@ def test_radius_get_status_stays_str_and_is_announced() -> None:
     assert "ServiceStatus" in (RadiusServer.get_status.__doc__ or "")
 
 
-# --- HTTPResult (M20) ---------------------------------------------------------------
+# --- HTTPResult --------------------------------------------------------------------
 
 _RESPONSE = "HTTP/1.1 200 OK\r\nContent-Length: 5\r\n\r\nhello"
 
@@ -261,7 +261,7 @@ def test_http_result_rejects_non_text() -> None:
         HTTPResult(None)  # type: ignore[arg-type]
 
 
-# --- QoEResult.protocol (M22, shape 3o with None) -----------------------------------
+# --- QoEResult.protocol (shape 3o with None) ----------------------------------------
 
 
 def test_qoe_result_defaults_and_member() -> None:
@@ -331,7 +331,7 @@ def test_qoe_result_inconsistent_raw_is_refused() -> None:
     assert result.protocol is HttpVersion.H2
 
 
-# --- MeasurementSpec (M21) ----------------------------------------------------------
+# --- MeasurementSpec ---------------------------------------------------------------
 
 
 def test_measurement_spec_defaults_equal_released_text() -> None:
@@ -370,7 +370,7 @@ def test_measurement_spec_unknown_word_is_refused() -> None:
         MeasurementSpec(completion="idle")
 
 
-# --- TrafficSpec (M23) --------------------------------------------------------------
+# --- TrafficSpec -------------------------------------------------------------------
 
 
 def test_traffic_spec_protocol() -> None:
@@ -385,7 +385,7 @@ def test_traffic_spec_protocol() -> None:
     assert spec.protocol is TransportProtocol.UDP
 
 
-# --- RADIUS (M24-M26, O34) ----------------------------------------------------------
+# --- RADIUS ------------------------------------------------------------------------
 
 
 def _record(**kw: object) -> RadiusAccountingRecord:
@@ -577,7 +577,7 @@ def test_radius_user_refusals() -> None:
     assert user.eap_methods == ["EAP-TLS"]
 
 
-# --- StormControlConfig (M33) -------------------------------------------------------
+# --- StormControlConfig ------------------------------------------------------------
 
 
 def test_storm_control_unit_is_an_addition() -> None:

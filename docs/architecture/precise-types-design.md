@@ -290,7 +290,7 @@ where one exists, also records its retype.
   (`coerce_int`). The model fields (`WifiBssConfig`, `WifiStation`, `WifiNeighbor`,
   `WifiChannelUtilization`, `WifiRadioStats`, `WifiMeshLink`, `WifiAcl`,
   `WifiMeshStatus`, `WifiMeshNode`) are shape 3, a `__setattr__` coercion. Decisions
-  taken on evidence rather than from the survey: `WifiNeighbor.security_mode` stays free text
+  taken on evidence rather than from a first assessment: `WifiNeighbor.security_mode` stays free text
   (a best-effort identification of a foreign network); `WifiClient.wifi_client_connect`'s
   `security_mode` stays `str | None` because the only implementer passes a client
   key-management word (`NONE`, `WPA-PSK`, `WPA-EAP`), not an access-point
@@ -386,7 +386,7 @@ where one exists, also records its retype.
   - `DnsRecordType` and `QoeScenario` (`page_load`, the only released word) and
     `PageCompletion` (the four Playwright load events) are `E | str` parameters.
     `ServiceStatus` is shape 6, announced only (`get_status -> str`).
-  - M21 `MeasurementSpec.tool` / `completion` are shape 3 (closed): `QoeTool` is the four
+  - `MeasurementSpec.tool` / `completion` are shape 3 (closed): `QoeTool` is the four
     tools the example implementer dispatches on (`browser`, `http_client`, `webrtc`,
     `tcp_probe`); `completion` is `QoeCompletion`: the four `PageCompletion` events plus
     `DURATION` (the example's streaming and conferencing specs), and `RESPONSE` and `CONNECT`
@@ -395,14 +395,14 @@ where one exists, also records its retype.
     silently. `QoeTool` and `QoeCompletion` have `__repr__` returning `repr(self.value)`:
     the example browser measurement embeds `repr(spec.completion)` in a generated script,
     and the default enum repr would break it. Every other enum keeps the default repr.
-  - M22 `QoEResult.protocol` is shape 3o with `None` allowed (`OpenEnumPair(optional=True)`):
+  - `QoEResult.protocol` is shape 3o with `None` allowed (`OpenEnumPair(optional=True)`):
     `HttpVersion.H1 = "http/1.1"`, `H2 = "h2"`, `H3 = "h3"` are the words a browser
     reports as the next-hop protocol, and the example's unit tests pass `"h2"`, `"h3"` and
     `"http/1.1"` (so they warn: the intended warnings; a driver uses `coerce_open_enum`); any
     other word (`http/1.0`, `h2c`) is `OTHER` plus `protocol_raw`.
-  - M23 `TransportProtocol` (`tcp`, `udp`): the released docstring of `saturate_link` lists
+  - `TransportProtocol` (`tcp`, `udp`): the released docstring of `saturate_link` lists
     exactly those two; `saturate_link` coerces at its boundary.
-  - M24 `AcctStatusType` and M25 `AcctTerminateCause` are shape 3o (`OpenEnumPair` with a raw
+  - `AcctStatusType` and `AcctTerminateCause` are shape 3o (`OpenEnumPair` with a raw
     companion on `RadiusAccountingRecord`, two pairs sharing one provenance field), because
     the IANA registries have an open assignment policy. They carry every registered value
     cited from RFC 2866 (status 1 to 3, 7, 8 and `Failed` 15; causes 1 to 18), RFC 2867 (status
@@ -414,15 +414,15 @@ where one exists, also records its retype.
     converts the registry's prose spellings (`User Request`, `Port Reinitialized`, `Port
     Administratively Disabled`, `Lost Power`); the conversion warns quoting the word the
     caller passed. A pure `Enum` does not equal a `str`.
-  - M26 `RadiusUser.eap_methods: list[str]` is a multi-valued open set (shape 3o, many
+  - `RadiusUser.eap_methods: list[str]` is a multi-valued open set (shape 3o, many
     words, `OpenSetPair`): `eap_methods_known` and `eap_methods_unknown` sync with the
     released list. `EapMethod` has the two words of the released docstring and five more
     (`PEAP-GTC`, `TTLS-MSCHAPv2`, `EAP-TLS`, `EAP-SIM`, `EAP-AKA`) named by analogy to
     them; no local driver uses those five. There is no single-valued EAP field, so no
     `OpenEnumPair` is used for it. `add_user(eap_methods: list[str] | None)` keeps its type
     (an implementer declares `list[str]`; `Sequence` would not conform).
-  - M33 `StormControlConfig.unit: StormControlUnit | None = None` is an addition.
-  - M20 `HTTPResult` is a frozen dataclass `(status, body, raw)` whose constructor still
+  - `StormControlConfig.unit: StormControlUnit | None = None` is an addition.
+  - `HTTPResult` is a frozen dataclass `(status, body, raw)` whose constructor still
     takes the response text (`init=False`, parameter `response`), so the released
     `HTTPResult(response)` works; `parse_http_response` is the same parse. `status` is `0`
     for a response with no numeric code or one outside 100 to 599. The released `code` is a
@@ -531,7 +531,7 @@ where one exists, also records its retype.
     the default `"-A"` is not a deprecated spelling and does not warn. This is a gap before
     removal: boardfarm's `dns_resolve` use case forwards a caller's `opts` to `dns_lookup`, and
     options such as `+short` and `@server` are used with `dig` by hand, so a typed form (or an
-    owner decision to drop them) is needed before the strings go.
+    maintainer decision to drop them) is needed before the strings go.
   - `SnmpClient.execute_snmp_command` takes a whole command line. The command lines seen
     (boardfarm's SNMP library) are `snmpget`, `snmpwalk`, `snmpset` and `snmpbulkget`, with `-v
     2c -On -c <community> -t <seconds> -r <retries> <host> <oid>`. The new mandatory members
@@ -562,14 +562,14 @@ where one exists, also records its retype.
     `start_interactive_session()` (the interactive shell over `get_interactive_consoles()`);
     and `expect`, `expect_exact` (boardfarm's networking helpers, typed there by a structural
     protocol). `before` is a member: the callers read it after `sendline` and `expect`.
-  - Ruling: `Console` holds only members a stubbed `pexpect.spawn` subclass can satisfy
+  - Decision: `Console` holds only members a stubbed `pexpect.spawn` subclass can satisfy
     without this package depending on pexpect, so `expect` and `expect_exact` are NOT
     members. With real `types-pexpect` stubs, `sendline` returns `int` (the protocol says
     `object`), and `expect` takes pexpect's own pattern list: a parameter is contravariant
     and `list` invariant, so only pexpect's exact type would match. Members: `execute_command`,
     `sendline(...) -> object`, a read-only `before: str | bytes | None`,
-    `start_interactive_session`. A caller that pattern-matches keeps the concrete console type
-    (cost if wrong: callers of `expect` through `Console` need a cast). The example consumer
+    `start_interactive_session`. A caller that pattern-matches keeps the concrete console type;
+    the trade-off is that a caller of `expect` through `Console` needs a cast. The example consumer
     environments have no stubs, so the consumer gate cannot show this; a mypy-backed test
     (`test_console_pexpect_conformance.py`, `types-pexpect` as a dev dependency) checks that a
     `pexpect.spawn` subclass with `execute_command` and `start_interactive_session` satisfies
@@ -621,7 +621,7 @@ where one exists, also records its retype.
     of TR-069 Amendment 6 (and in boardfarm's documented list). The base64 type is spelled
     `soapenc:base64` in `cwmp-1-2.xsd` (line 1296), `base64Binary` in XML Schema, and
     `xsd:base64` by ACSs.
-  - Decisions. `CwmpType` has the ten built-in types, not only the six of the first sketch:
+  - Decisions. `CwmpType` has the ten built-in types, not only six:
     the TR-181 statistics counters are `unsignedLong`, so a six-member set could not hold
     values a GPV returns. The set is open (shape 3o): an `OTHER` member with the companion
     `ParameterValue.type_raw` (an `OpenEnumPair`, settled in `__post_init__` of the frozen
@@ -635,7 +635,7 @@ where one exists, also records its retype.
     constructor follows shape 3o (a plain `str` naming a member warns and converts).
     `decimal` values are `Decimal` (finite; written without an exponent). A dateTime offset
     must be whole minutes, at most 14:00, so `text` never writes a form `from_text` refuses.
-    `CwmpNotification` is an `IntEnum` 0 to 6 (the sketch had `int` 0 to 2). `CwmpFileType`
+    `CwmpNotification` is an `IntEnum` 0 to 6 (an earlier draft had `int` 0 to 2). `CwmpFileType`
     has the five `cwmp-1-2` types and `6 Stored Firmware Image` (TR-069 Amendment 6); vendor
     file types (`X <OUI> <name>`) had no caller or implementer and are
     not modelled (a gap: `download` cannot ask for one; the deprecated `Download` can until it
@@ -754,7 +754,7 @@ declarations.
 ## Effective now
 
 Changes that take effect in this release for code written against the released
-contract, whether or not it uses the deprecated spelling. Each retype appends here;
+contract, whether or not it uses the deprecated spelling. Each retype is listed here;
 the matching CHANGELOG entry sits under *Changed*.
 
 - **Conntrack and coercion** (vocabularies). `Connection.protocol` refuses
@@ -969,15 +969,16 @@ Each lands in a later release with its own breaking changelog entry:
   `TransportProtocol`; `start_iperf(ip_version)` narrows from `IpFamily | int` to `IpFamily`;
   the deprecated `testoperations` call paths to the released member names (the typed fallback
   accessors) are removed with those members.
-- Held back until evidence or a ruling supplies a vocabulary (see `GAPS.md`, "precise types:
+- Held back until evidence or a maintainer decision supplies a vocabulary (see `GAPS.md`, "precise types:
   gaps left open"):
   - `WifiClient.wifi_client_connect(security_mode)` stays `str | None` until a client
     key-management vocabulary (`NONE`, `WPA-PSK`, `WPA-EAP` and more) has a second
     implementer or a specification table; `WifiNeighbor.security_mode`, `WifiRadio.get_mode`
     (compound modes) and `WifiMeshWhiteBox.get_raw_easymesh_tlvs(message_type)` stay text.
-  - `dns_lookup(opts)`, `nmap(opts)`, a non-default `get_running_processes(ps_options)` and the
-    `ping` and `traceroute` `options` have no typed successor: before they are removed, either
-    typed options are derived from callers or the owner decides to drop them.
+  - `dns_lookup(opts)`, an `nmap(opts)` other than `-F` (which `fast` replaces), a
+    non-default `get_running_processes(ps_options)` and the `ping` and `traceroute` `options`
+    have no typed successor: before they are removed, either
+    typed options are derived from callers or a maintainer decides to drop them.
   - `QosRule.classifier` is `None` for match text that does not parse (the text stays
     as given), and holds one source and one destination port range; widening needs a producer.
   - A "packet storm" is a loss burst, as the released implementers apply it; whether the term
@@ -985,6 +986,6 @@ Each lands in a later release with its own breaking changelog entry:
     it is settled.
   - `HwConsole.flash_via_bootloader` and `start_tcpdump(filters)` keep `Any` (compatibility
     exemptions); `Console` omits `expect` / `expect_exact`. Closing either needs implementers
-    to change their declarations, which is an owner decision.
+    to change their declarations, which is a maintainer decision.
   - `MemoryUtilization` stays in bytes as released; an implementer that reports MiB is the
     one to change.

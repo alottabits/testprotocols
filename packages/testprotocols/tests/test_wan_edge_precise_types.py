@@ -16,7 +16,7 @@ from testprotocols.models import (
     UplinkState,
 )
 
-# --- M14 / M15: link states ---
+# --- link states ---
 
 
 def _health(state: UplinkState | str) -> LinkHealthReport:
@@ -85,7 +85,7 @@ def test_link_health_assignment_converts() -> None:
     assert r.state is UplinkState.DOWN
 
 
-# --- M16: AppFlow category (open) ---
+# --- AppFlow category (open) ---
 
 
 def _flow(category: ApplicationCategory | str, category_raw: str | None = None) -> AppFlow:
@@ -156,7 +156,7 @@ def test_other_is_not_a_matchable_category() -> None:
         traffic_match(L7MatchType.APPLICATION_CATEGORY, "other")
 
 
-# --- M17 / M18: orphan models deprecated ---
+# --- orphan models deprecated ---
 
 
 @pytest.mark.parametrize("name", ["VPNPeerStatus", "TrafficShapingRule"])

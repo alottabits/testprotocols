@@ -312,7 +312,7 @@ def test_typed_member_signatures() -> None:
 
 
 # Every typed member's parameters, by kind: the leading (positional-or-keyword) ones, and the
-# keyword-only options with their defaults. ``None`` means "not given" (O46).
+# keyword-only options with their defaults. ``None`` means "not given".
 _TYPED_PARAMETERS: dict[str, tuple[list[str], dict[str, object]]] = {
     "get_parameter_values": (["names"], {"timeout": None, "cpe_id": None}),
     "set_parameter_values": (

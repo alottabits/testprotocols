@@ -1,4 +1,4 @@
-"""Wi-Fi vocabularies typed (O48-O59, M27-M31): enums, shape 1/3, the multi-valued open set."""
+"""Wi-Fi vocabularies typed: enums, shape 1/3, the multi-valued open set."""
 
 from __future__ import annotations
 
@@ -119,7 +119,7 @@ def test_coerce_enum_str_enum_still_warns_on_a_plain_string() -> None:
         assert coerce_enum(WifiBand, "5GHz", what="band") is WifiBand.GHZ_5
 
 
-# --- shape 3 models (M27-M30) ---
+# --- shape 3 models ---
 
 
 def _bss(
@@ -221,7 +221,7 @@ def test_acl_and_mesh_roles() -> None:
         WifiMeshNode("aa:bb:cc:dd:ee:ff", "relay", None, 1)
 
 
-# --- M31: the multi-valued open set ---
+# --- the multi-valued open set ---
 
 _MAC = "aa:bb:cc:dd:ee:ff"
 
@@ -385,7 +385,7 @@ def test_station_provenance_field_is_last() -> None:
     assert names.index("capability_flags") < names.index("capabilities")
 
 
-# --- Protocol signatures (shape 1, shape 1i, shape 5, O59 decision) ---
+# --- Protocol signatures (shape 1, shape 1i, shape 5) ---
 
 
 def _hints(member: object) -> dict[str, object]:
