@@ -688,6 +688,25 @@ output equals that of the commit before it).
 - **`start_http_server`** is as the HTTP-service change left it: `port` stays `str` and
   `ip_version` is the text `"4"` / `"6"`.
 
+## Vocabulary and boundary decisions
+
+- **`RuleAction` is not extended for `FirewallRule.action`.** `RuleAction` (`allow`,
+  `deny`) types the actions of `L3Rule`, `L7Rule` and `SwitchAclRule`; adding `REJECT` and
+  `LOG` would widen what those rules may carry. `FirewallRule.action` gets its own enum.
+  `DefaultAction` (what happens to traffic no rule matches) and `SecurityAction` (the outcome
+  of a security event) are different sets, not a third spelling of the same one.
+- **`RuleCounters` comes from new members, not a retype in place.** Narrowing the released
+  `get_rule_counters` return to a `NamedTuple` would break every implementer that declares
+  `tuple[int, int]` (a return is covariant: the implementer's type must be the narrower
+  one). `GroupRecord` differs because it appears in a parameter, where the released tuple
+  form stays accepted.
+- **`Router` telemetry and `DeviceManagement` are separate concerns.** `DeviceManagement`
+  is host access (uptime, load, memory, processes, logs), composed only by `CpeDevice`.
+  `Router.read_telemetry` is the routing device's summary health, composed by the SD-WAN
+  archetypes. An API-managed appliance composes `Router`, not `DeviceManagement`, so it
+  reports telemetry without having to offer host access; `uptime_seconds` is `None` when it
+  reports none.
+
 ## Exemption policy for explicit `Any` and `object`
 
 `disallow_any_explicit = true` applies to every module of `testprotocols` and
