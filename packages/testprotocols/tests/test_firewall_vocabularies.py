@@ -1,6 +1,6 @@
 """The firewall, NAT and conntrack vocabularies are enums; plain strings are deprecated.
 
-Shape 1 (parameters, through minimal conforming fakes) and shape 3 (model fields).
+Parameters, through minimal conforming fakes; model fields store a plain string as given.
 """
 
 from __future__ import annotations
@@ -89,7 +89,7 @@ class _FakeFilter:
 
 
 def _rule() -> FirewallRule:
-    return FirewallRule("r", FirewallRuleAction.ALLOW, RuleProtocol.TCP, "any", "any")
+    return FirewallRule("r", FirewallRuleAction.ALLOW, RuleProtocol.TCP, "any", "any", "any")
 
 
 def test_the_fake_conforms_to_packet_filter() -> None:
@@ -253,7 +253,7 @@ def test_conntrack_filters() -> None:
         fake.count_connections(protocol="sctp")
 
 
-# --- shape 3: model fields (construction, replace, assignment) -----------------
+# --- model fields: a member or a plain string, stored as given ------------------
 
 
 def _nat() -> NatRule:
@@ -292,91 +292,16 @@ def test_models_built_from_members_do_not_warn_and_defaults_are_members() -> Non
     assert conn.state == "ESTABLISHED"
 
 
-def test_firewall_rule_coerces_on_construction_replace_and_assignment() -> None:
-    with pytest.warns(DeprecationWarning) as caught:
-        rule = FirewallRule("r", "deny", "udp", "any", "any")
-    assert [str(w.message).split(":")[0] for w in caught] == [
-        "FirewallRule.action",
-        "FirewallRule.protocol",
-    ]
-    assert all(w.filename == __file__ for w in caught)
-    assert rule.action is FirewallRuleAction.DENY and rule.protocol is RuleProtocol.UDP
-    with pytest.warns(DeprecationWarning) as caught:
-        again = dataclasses.replace(rule, action="log")
-    assert again.action is FirewallRuleAction.LOG and caught[0].filename == __file__
-    with pytest.warns(DeprecationWarning, match=r"FirewallRule\.protocol"):
-        again.protocol = "tcp"
-    assert again.protocol is RuleProtocol.TCP
-    with pytest.raises(ValueError, match="permit"):
-        again.action = "permit"
-    assert again.action is FirewallRuleAction.LOG
-    with pytest.raises(ValueError, match="gre"):
-        FirewallRule("r", FirewallRuleAction.ALLOW, "gre", "any", "any")
-
-
-@pytest.mark.parametrize("wrong", [5, None, b"deny"])
-def test_a_shape_3_field_of_the_wrong_type_is_a_type_error(wrong: object) -> None:
-    with pytest.raises(TypeError, match=r"FirewallRule\.action: takes a FirewallRuleAction or str"):
-        FirewallRule("r", wrong, RuleProtocol.TCP, "any", "any")  # type: ignore[arg-type]
-    with pytest.raises(TypeError, match=r"Connection\.protocol: takes a RuleProtocol or str"):
-        _conn(protocol=wrong)
-
-
-def test_nat_rule_coerces_on_construction_replace_and_assignment() -> None:
-    with pytest.warns(DeprecationWarning) as caught:
-        nat = NatRule("n", "dnat", "wan", protocol="tcp")
-    assert nat.mode is NatMode.DNAT and nat.protocol is RuleProtocol.TCP
-    assert all(w.filename == __file__ for w in caught)
-    with pytest.warns(DeprecationWarning, match=r"NatRule\.mode"):
-        other = dataclasses.replace(nat, mode="1to1")
-    assert other.mode is NatMode.ONE_TO_ONE
-    with pytest.warns(DeprecationWarning, match=r"NatMode\.SNAT"):
-        other.mode = "snat"
-    assert other.mode is NatMode.SNAT
-    with pytest.raises(ValueError, match="nat66"):
-        other.mode = "nat66"
-    with pytest.raises(ValueError):
-        NatRule("n", NatMode.SNAT, "wan", protocol="gre")
-
-
-def test_port_mapping_coerces_on_construction_replace_and_assignment() -> None:
-    with pytest.warns(DeprecationWarning, match=r"PortMapping\.protocol") as caught:
-        mapping = PortMapping("m", 80, "tcp-udp", "10.0.0.2", 80)
-    assert mapping.protocol is PortMappingProtocol.TCP_UDP
-    assert caught[0].filename == __file__
-    with pytest.warns(DeprecationWarning):
-        again = dataclasses.replace(mapping, protocol="udp")
-    assert again.protocol is PortMappingProtocol.UDP
-    with pytest.warns(DeprecationWarning):
-        again.protocol = "tcp"
-    assert again.protocol is PortMappingProtocol.TCP
-    with pytest.raises(ValueError, match="icmp"):
-        again.protocol = "icmp"
-
-
-def test_connection_protocol_coerces_on_construction_replace_and_assignment() -> None:
-    with pytest.warns(DeprecationWarning, match=r"Connection\.protocol") as caught:
+def test_plain_strings_are_stored_as_given_and_equal_the_members() -> None:
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        rule = FirewallRule("r", "deny", "udp", "any", "any", "any")
+        nat = dataclasses.replace(_nat(), mode="dnat")
+        mapping = _mapping()
+        mapping.protocol = "tcp-udp"
         conn = _conn(protocol="icmp")
-    assert conn.protocol is RuleProtocol.ICMP and caught[0].filename == __file__
-    with pytest.warns(DeprecationWarning):
-        again = dataclasses.replace(conn, protocol="udp")
-    assert again.protocol is RuleProtocol.UDP
-    with pytest.warns(DeprecationWarning):
-        again.protocol = "tcp"
-    assert again.protocol is RuleProtocol.TCP
-    with pytest.raises(ValueError, match="sctp"):
-        again.protocol = "sctp"
-
-
-def test_connection_refuses_the_any_protocol() -> None:
-    with pytest.raises(ValueError, match="one transport"):
-        _conn(protocol=RuleProtocol.ANY)
-    with pytest.raises(ValueError, match="one transport"):
-        with pytest.warns(DeprecationWarning):
-            _conn(protocol="any")
-    conn = _conn()
-    with pytest.raises(ValueError, match="one transport"):
-        conn.protocol = RuleProtocol.ANY
-    with pytest.raises(ValueError, match="one transport"):
-        dataclasses.replace(conn, protocol=RuleProtocol.ANY)
-    assert conn.protocol is RuleProtocol.TCP
+    assert (type(rule.action), type(nat.mode), type(mapping.protocol)) == (str, str, str)
+    assert rule.action == FirewallRuleAction.DENY and rule.protocol == RuleProtocol.UDP
+    assert nat.mode == NatMode.DNAT
+    assert mapping.protocol == PortMappingProtocol.TCP_UDP
+    assert conn.protocol == RuleProtocol.ICMP

@@ -18,11 +18,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import StrEnum
-from typing import assert_never, cast, override
 
-from testprotocols.models import _checks
-from testprotocols.models._sync import SyncedField, assign, settle
-from testprotocols.models.ports import PortRange, format_port_ranges, parse_port_ranges, port_tuple
+from testprotocols.models.ports import PortRange
 
 
 class RuleAction(StrEnum):
@@ -42,14 +39,6 @@ class RuleProtocol(StrEnum):
     ANY = "any"
 
 
-_L3_PAIRS = tuple(
-    SyncedField[tuple[PortRange, ...]](
-        old, new, parse_port_ranges, format_port_ranges, port_tuple, "any"
-    )
-    for old, new in (("src_port", "src_ports"), ("dst_port", "dst_ports"))
-)
-
-
 @dataclass
 class L3Rule:
     """A single ordered L3 firewall rule — 5-tuple match plus an action.
@@ -58,18 +47,13 @@ class L3Rule:
     (not as netfilter INPUT/OUTPUT/FORWARD chains). The CIDR fields take
     ``"any"`` when unconstrained.
 
-    Ports are ``src_ports`` and ``dst_ports``: tuples of :class:`PortRange`, the
-    empty tuple meaning any port. ``src_port`` and ``dst_port`` are the released
-    text form (``"any"``, a port, a range such as ``"8000-8100"``, or a comma
-    list), deprecated. Each pair always agrees, so a reader of either sees the
-    same ports. At construction the typed field fills the text; the text alone
-    warns (``DeprecationWarning``) and fills the typed field; both given and
-    disagreeing raise ``ValueError``. Afterwards, through ``dataclasses.replace``
-    and through assignment, the side that changed wins: ``rule.dst_ports = ...``
-    rewrites the text, while ``rule.dst_port = "443"`` re-parses the text into the
-    typed field and warns. A text normalises to its canonical form (``"22, 80"``
-    reads ``"22,80"``); malformed text raises ``ValueError`` and a non-text port
-    or a non-``PortRange`` item raises ``TypeError``.
+    The ports have two forms each. ``src_ports`` and ``dst_ports`` are tuples of
+    :class:`PortRange`, the empty tuple meaning any port. ``src_port`` and
+    ``dst_port`` are the released text forms (``"any"``, a port, a range such as
+    ``"8000-8100"``, or a comma list), deprecated. A driver fills either field of a
+    pair, or both; when both are filled they describe the same ports. A pair left
+    unfilled (``None``) means what the released default ``"any"`` meant: any port. At
+    removal, the text fields go and the typed fields become required.
 
     ``src_cidr`` and ``dst_cidr`` ``"any"`` will become ``str | None``, with
     ``None`` meaning unconstrained; ``"any"`` means unconstrained until then.
@@ -83,23 +67,13 @@ class L3Rule:
     action: RuleAction
     protocol: RuleProtocol = RuleProtocol.ANY
     src_cidr: str = "any"
-    src_port: str = "any"
+    src_port: str | None = None
     dst_cidr: str = "any"
-    dst_port: str = "any"
+    dst_port: str | None = None
     comment: str = ""
     syslog_enabled: bool = False
-    src_ports: tuple[PortRange, ...] = field(default=(), kw_only=True)
-    dst_ports: tuple[PortRange, ...] = field(default=(), kw_only=True)
-    _ports_seen: tuple[str, ...] | None = field(
-        default=None, kw_only=True, repr=False, compare=False
-    )
-
-    def __post_init__(self) -> None:
-        settle(self, _L3_PAIRS, "_ports_seen")
-
-    @override
-    def __setattr__(self, name: str, value: object) -> None:
-        assign(self, name, value, _L3_PAIRS, "_ports_seen")
+    src_ports: tuple[PortRange, ...] | None = field(default=None, kw_only=True)
+    dst_ports: tuple[PortRange, ...] | None = field(default=None, kw_only=True)
 
 
 class L7MatchType(StrEnum):
@@ -175,21 +149,11 @@ class ContentCategory(StrEnum):
 class UrlRules:
     """A content filter's explicit URL-pattern lists: *allowed* and *blocked*.
 
-    Patterns are free strings (host or glob patterns), as the appliance holds them. A list is
-    accepted and held as a tuple; anything else, or an item that is not text, raises
-    ``TypeError``. :meth:`as_tuple` is the released ``get_url_rules`` return.
+    Patterns are free strings (host or glob patterns), as the appliance holds them.
     """
 
     allowed: tuple[str, ...] = ()
     blocked: tuple[str, ...] = ()
-
-    def __post_init__(self) -> None:
-        object.__setattr__(self, "allowed", _checks.texts("UrlRules", "allowed", self.allowed))
-        object.__setattr__(self, "blocked", _checks.texts("UrlRules", "blocked", self.blocked))
-
-    def as_tuple(self) -> tuple[list[str], list[str]]:
-        """The released ``(allowed, blocked)`` pair of lists."""
-        return list(self.allowed), list(self.blocked)
 
 
 class ApplicationCategory(StrEnum):
@@ -235,35 +199,24 @@ class ApplicationCategory(StrEnum):
 @dataclass(frozen=True)
 class ApplicationMatch:
     """Traffic of one application, by its vendor-mapped name (an open name: a
-    normalized application registry is not seeded; grow on evidence)."""
+    normalized application registry is not seeded; grow on evidence). The name is
+    not empty."""
 
     name: str
-
-    def __post_init__(self) -> None:
-        if not self.name:
-            raise ValueError("an application match names an application")
 
 
 @dataclass(frozen=True)
 class CategoryMatch:
-    """Traffic of one application category. A plain string is converted to the
-    ``ApplicationCategory`` member; an unknown one raises ``ValueError``."""
+    """Traffic of one application category."""
 
     category: ApplicationCategory
-
-    def __post_init__(self) -> None:
-        object.__setattr__(self, "category", ApplicationCategory(self.category))
 
 
 @dataclass(frozen=True)
 class HostMatch:
-    """Traffic to one host, by name."""
+    """Traffic to one host, by name. The name is not empty."""
 
     host: str
-
-    def __post_init__(self) -> None:
-        if not self.host:
-            raise ValueError("a host match names a host")
 
 
 @dataclass(frozen=True)
@@ -272,74 +225,19 @@ class PortMatch:
 
     ports: tuple[PortRange, ...]
 
-    def __post_init__(self) -> None:
-        object.__setattr__(self, "ports", port_tuple(self.ports))
-        if not self.ports:
-            raise ValueError("a port match names at least one port")
-
 
 @dataclass(frozen=True)
 class IpRangeMatch:
     """Traffic to or from an address range: an address prefix
     (``198.51.100.0/24``) or a first-last range (``198.51.100.10-198.51.100.20``).
-    A product that matches prefixes only refuses a first-last range per value."""
+    A product that matches prefixes only refuses a first-last range per value. The
+    range is not empty."""
 
     cidr: str
-
-    def __post_init__(self) -> None:
-        if not self.cidr:
-            raise ValueError("an address-range match names a range")
 
 
 TrafficMatch = ApplicationMatch | CategoryMatch | HostMatch | PortMatch | IpRangeMatch
 """What an L7 or shaping rule selects: one of the five match kinds."""
-
-
-# the released port text "any" as a port match: every port
-_EVERY_PORT = PortRange(1, 65535)
-
-
-def traffic_match(match_type: L7MatchType, value: str) -> TrafficMatch:
-    """The :data:`TrafficMatch` the released ``(match_type, value)`` pair spells.
-
-    ``value`` is an application name, an ``ApplicationCategory`` value, a host, a
-    port text (``"80"``, ``"8000-8100"``, ``"22,80-90"``; ``"any"`` is every port,
-    ``1-65535``) or an address range, by ``match_type``. Raises ``ValueError`` for a
-    value that names no match: an empty one, an unknown category, or a port text
-    that names no port number (a service name such as ``"http"``).
-    """
-    kind = L7MatchType(match_type)
-    match kind:
-        case L7MatchType.APPLICATION:
-            return ApplicationMatch(value)
-        case L7MatchType.APPLICATION_CATEGORY:
-            return CategoryMatch(ApplicationCategory(value))
-        case L7MatchType.HOST:
-            return HostMatch(value)
-        case L7MatchType.PORT:
-            return PortMatch(parse_port_ranges(value) or (_EVERY_PORT,))
-        case L7MatchType.IP_RANGE:
-            return IpRangeMatch(value)
-        case _:
-            assert_never(kind)
-
-
-def match_fields(match: TrafficMatch) -> tuple[L7MatchType, str]:
-    """The released ``(match_type, value)`` pair of *match*; the inverse of
-    :func:`traffic_match` (port text in canonical form)."""
-    match match:
-        case ApplicationMatch(name=name):
-            return L7MatchType.APPLICATION, name
-        case CategoryMatch(category=category):
-            return L7MatchType.APPLICATION_CATEGORY, str(category)
-        case HostMatch(host=host):
-            return L7MatchType.HOST, host
-        case PortMatch(ports=ports):
-            return L7MatchType.PORT, format_port_ranges(ports)
-        case IpRangeMatch(cidr=cidr):
-            return L7MatchType.IP_RANGE, cidr
-        case _:
-            assert_never(match)
 
 
 # --- Traffic shaping ---
@@ -536,50 +434,6 @@ class MalwareConfig:
     mode: MalwareMode
 
 
-def _parse_timestamp(text: str) -> datetime | None:
-    if not isinstance(text, str):  # pyright: ignore[reportUnnecessaryIsInstance]
-        raise TypeError(f"SecurityEvent.ts takes text, not {text!r}")
-    if text == "":
-        return None
-    try:
-        return datetime.fromisoformat(text)
-    except ValueError:
-        raise ValueError(f"malformed ISO-8601 timestamp {text!r}") from None
-
-
-def _format_timestamp(value: datetime | None) -> str:
-    return "" if value is None else value.isoformat()
-
-
-def _check_timestamp(value: datetime | None) -> datetime | None:
-    if value is not None and not isinstance(value, datetime):  # pyright: ignore[reportUnnecessaryIsInstance]
-        raise TypeError(f"SecurityEvent.timestamp takes a datetime or None, not {value!r}")
-    return value
-
-
-# The text is kept as the caller gave it: an ISO-8601 instant has several equal
-# spellings (``Z`` or ``+00:00``, ``T`` or a space), and ``isoformat()`` writes one.
-_EVENT_PAIRS = (
-    SyncedField[datetime | None](
-        "ts", "timestamp", _parse_timestamp, _format_timestamp, _check_timestamp, "", keep_text=True
-    ),
-)
-
-
-# ``ts`` gained a default so an event can be built from ``timestamp`` alone; the fields
-# after it keep their released positions, so they take this placeholder and
-# ``__post_init__`` refuses an event that still holds it.
-class _Required:
-    """The placeholder default of a required field that follows a defaulted one."""
-
-    @override
-    def __repr__(self) -> str:
-        return "<required>"
-
-
-_REQUIRED = _Required()
-
-
 @dataclass
 class SecurityEvent:
     """A normalized security event (the deferred-API-augmentation surface).
@@ -587,44 +441,24 @@ class SecurityEvent:
     Carries only normalized fields for portable assertions — vendor signature
     ids and raw payloads are deliberately not modelled.
 
-    ``timestamp`` is when the event happened, a :class:`~datetime.datetime`, or
-    ``None`` when the product reports no time. A timezone-naive value stays naive:
-    no zone is assumed. ``ts`` is the released spelling, an ISO-8601 string
-    (``""`` for none), deprecated. The two always agree. At construction the typed
-    value fills the text (as ``datetime.isoformat()``), the text alone warns
-    (``DeprecationWarning``) and fills the typed value, and both given and
-    disagreeing raise ``ValueError``. Afterwards, through ``dataclasses.replace``
-    and through assignment, the side that changed wins. A text that parses is kept
-    exactly as given (``"…Z"`` stays ``"…Z"``), so a released producer's text reads
-    back unchanged; one that does not parse raises ``ValueError``, and a
-    non-``datetime`` *timestamp* or non-text *ts* raises ``TypeError``. ``src_ip``,
-    ``dst_ip``, ``protocol``, ``action`` and ``category`` are required; omitting
-    one raises ``TypeError``.
+    The time of the event has two forms. ``timestamp`` is when the event happened, a
+    :class:`~datetime.datetime`, or ``None`` when the product reports no time; a
+    timezone-naive value stays naive (no zone is assumed). ``ts`` is the released text
+    form, an ISO-8601 timestamp string (``""`` for none), deprecated. A driver fills
+    either field, or both; when both are filled they describe the same instant. At
+    least one is filled: ``ts`` stays required, and a driver that fills only
+    ``timestamp`` passes ``ts=None`` (``timestamp=None`` is then the value "no time
+    reported"). At removal, ``ts`` goes and ``timestamp`` becomes required.
     """
 
-    ts: str = ""
-    src_ip: str = field(default=cast("str", _REQUIRED))
-    dst_ip: str = field(default=cast("str", _REQUIRED))
-    protocol: RuleProtocol = field(default=cast("RuleProtocol", _REQUIRED))
-    action: SecurityAction = field(default=cast("SecurityAction", _REQUIRED))
-    category: ThreatCategory = field(default=cast("ThreatCategory", _REQUIRED))
+    ts: str | None
+    src_ip: str
+    dst_ip: str
+    protocol: RuleProtocol
+    action: SecurityAction
+    category: ThreatCategory
     description: str = ""
     timestamp: datetime | None = field(default=None, kw_only=True)
-    _ts_seen: tuple[str, ...] | None = field(default=None, kw_only=True, repr=False, compare=False)
-
-    def __post_init__(self) -> None:
-        missing = [
-            name
-            for name in ("src_ip", "dst_ip", "protocol", "action", "category")
-            if getattr(self, name) is _REQUIRED
-        ]
-        if missing:
-            raise TypeError(f"SecurityEvent missing required argument(s): {', '.join(missing)}")
-        settle(self, _EVENT_PAIRS, "_ts_seen")
-
-    @override
-    def __setattr__(self, name: str, value: object) -> None:
-        assign(self, name, value, _EVENT_PAIRS, "_ts_seen")
 
 
 # --- LAN VLANs + DHCP ---

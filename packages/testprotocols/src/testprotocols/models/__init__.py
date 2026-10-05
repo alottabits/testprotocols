@@ -71,7 +71,7 @@ from testprotocols.models.networking import (
     parse_http_response,
 )
 from testprotocols.models.packets import RIPv2PacketData
-from testprotocols.models.ports import PortRange, format_port_ranges, parse_port_ranges
+from testprotocols.models.ports import PortRange
 from testprotocols.models.qoe import (
     MeasurementSpec,
     PageCompletion,
@@ -141,8 +141,6 @@ from testprotocols.models.sdwan_appliance import (
     VpnPeerStatus,
     VpnRole,
     VpnSubnet,
-    match_fields,
-    traffic_match,
 )
 from testprotocols.models.switch import (
     AccessPolicy,
@@ -446,13 +444,9 @@ __all__ = [
     "ZonePolicy",
     # ports
     "coerce_impairment_profile",
-    "format_port_ranges",
     "group_records",
-    "match_fields",
     "parse_http_response",
-    "parse_port_ranges",
     "parse_window_size",
-    "traffic_match",
     "transient_event",
 ]
 

@@ -222,12 +222,6 @@ def test_new_members_take_no_tool_option_string() -> None:
 # --------------------------------------------------------------------------------------
 
 
-def test_url_rules_as_tuple_is_the_released_return() -> None:
-    rules = UrlRules(allowed=("*.example.com",), blocked=("bad.example.net", "*.test"))
-    assert rules.as_tuple() == (["*.example.com"], ["bad.example.net", "*.test"])
-    assert UrlRules().as_tuple() == ([], [])
-
-
 def _released_url_rules(settings: dict[str, list[str]]) -> tuple[list[str], list[str]]:
     """A released reader's shape: the appliance's two pattern lists, copied into lists."""
     return list(settings.get("allowed", [])), list(settings.get("blocked", []))
@@ -238,24 +232,8 @@ def test_old_reader_matches_new_record_url_rules() -> None:
     released = _released_url_rules(settings)
     # a driver builds the record from the same device settings, not from the released tuple
     record = UrlRules(allowed=tuple(settings["allowed"]), blocked=tuple(settings["blocked"]))
-    got = record.as_tuple()
-    assert got == released
-    assert all(type(part) is list for part in got)  # lists, as released, not tuples
-    assert _released_url_rules({}) == UrlRules().as_tuple()
-
-
-def test_url_rules_takes_a_list_and_holds_a_tuple() -> None:
-    rules = UrlRules(allowed=["a.example"], blocked=[])  # type: ignore[arg-type]
-    assert rules.allowed == ("a.example",)
-
-
-@pytest.mark.parametrize(
-    "kwargs",
-    [{"allowed": "a.example"}, {"blocked": [1]}, {"allowed": None}],
-)
-def test_url_rules_refuses_wrong_types(kwargs: dict[str, object]) -> None:
-    with pytest.raises(TypeError):
-        UrlRules(**kwargs)  # type: ignore[arg-type]
+    assert (list(record.allowed), list(record.blocked)) == released
+    assert UrlRules() == UrlRules(allowed=(), blocked=())
 
 
 # --------------------------------------------------------------------------------------

@@ -62,7 +62,6 @@ def test_switch_enums_values() -> None:
 
 
 def test_switch_records() -> None:
-    from testprotocols.models import PortRange, QosClassifier
     from testprotocols.models.sdwan_appliance import RuleAction
     from testprotocols.models.switch import (
         AccessPolicy,
@@ -96,9 +95,6 @@ def test_switch_records() -> None:
     assert r.src_mac is None and r.dst_cidr == "any"
     assert LldpNeighbor(local_port="1", remote_system="sw2", remote_port="5").protocol == "lldp"
     assert PortStatusEntry(name="1", link_state=LinkState.UP).duplex == "auto"
-    assert (
-        QosRule(name="voip", classifier=QosClassifier(dst_ports=(PortRange.single(5060),))).dscp
-        is None
-    )
+    assert QosRule(name="voip", match="vlan 10").dscp is None
     assert FhsBinding(mac="aa", ip="10.0.0.1", vlan=10, port="1").source == "dynamic_snooping"
     assert NtpServer(host="10.0.0.1").prefer is False

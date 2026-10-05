@@ -2,13 +2,12 @@
 
 from __future__ import annotations
 
-import math
 from collections.abc import Mapping
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import TYPE_CHECKING, cast, override
+from typing import TYPE_CHECKING
 
-from testprotocols.deprecation import MODEL_FRAMES, coerce_enum, deprecated_attribute
+from testprotocols.deprecation import deprecated_attribute
 from testprotocols.models.sdwan_appliance import UplinkState
 
 
@@ -23,23 +22,14 @@ class PathMetrics:
     mos: float | None = None
 
 
-def _link_state(owner: str, name: str, value: object) -> UplinkState:
-    return coerce_enum(
-        UplinkState,
-        cast("UplinkState | str", value),
-        what=f"{owner}.{name}",
-        skip_file_prefixes=MODEL_FRAMES,
-    )
-
-
 @dataclass
 class LinkStatus:
     """Holds the current operational state and IP address of a WAN link.
 
     *state* is an :class:`~testprotocols.models.UplinkState`; every member is
     accepted (``up``, ``down`` and ``degraded`` are the common ones). A plain
-    ``str`` naming one is deprecated: it warns and is converted, also on
-    assignment, so a reader always holds the enum; any other string raises ``ValueError``.
+    ``str`` naming one is accepted and stored as given; the field narrows to
+    :class:`~testprotocols.models.UplinkState` when the plain ``str`` form is removed.
     ``ip_address`` is ``""`` when the link has none; it will become
     ``str | None``, and ``""`` means none until then.
     """
@@ -47,12 +37,6 @@ class LinkStatus:
     name: str
     state: UplinkState | str
     ip_address: str
-
-    @override
-    def __setattr__(self, name: str, value: object) -> None:
-        if name == "state":
-            value = _link_state("LinkStatus", name, value)
-        object.__setattr__(self, name, value)
 
 
 class RouteOrigin(StrEnum):
@@ -73,36 +57,13 @@ class Telemetry:
     """A device's resource telemetry: uptime, CPU load and memory use.
 
     *uptime_seconds* is the time since the device started. *cpu_load_percent*
-    and *mem_used_percent* are ``None`` when the device does not report them.
-    Each is an ``int`` or ``float`` (a ``bool`` or other type raises
-    ``TypeError``) and finite and not negative (``ValueError``; ``nan`` and
-    ``inf`` are refused). Returned by ``Router.read_telemetry``; :meth:`as_dict` is the released
-    ``Router.get_telemetry`` mapping, so a driver's old member can delegate.
+    and *mem_used_percent* are ``None`` when the device does not report them. Each
+    is finite and not negative. Returned by ``Router.read_telemetry``.
     """
 
     uptime_seconds: float
     cpu_load_percent: float | None = None
     mem_used_percent: float | None = None
-
-    def __post_init__(self) -> None:
-        for name in ("uptime_seconds", "cpu_load_percent", "mem_used_percent"):
-            value: object = getattr(self, name)
-            if value is None and name != "uptime_seconds":
-                continue
-            if isinstance(value, bool) or not isinstance(value, int | float):
-                raise TypeError(f"Telemetry.{name} must be a number, not {value!r}")
-            if not math.isfinite(value) or value < 0:
-                raise ValueError(f"Telemetry.{name} must be finite and not negative, got {value}")
-
-    def as_dict(self) -> dict[str, float]:
-        """The released ``get_telemetry`` mapping: the values the device reported,
-        keyed by field name (a ``None`` field is absent)."""
-        values = {
-            "uptime_seconds": self.uptime_seconds,
-            "cpu_load_percent": self.cpu_load_percent,
-            "mem_used_percent": self.mem_used_percent,
-        }
-        return {name: value for name, value in values.items() if value is not None}
 
 
 @dataclass
@@ -137,9 +98,9 @@ class LinkHealthReport:
 
     *state* is an :class:`~testprotocols.models.UplinkState`: ``up``, ``down``,
     ``degraded``, or ``unknown`` when the product has no health data for the
-    link. A plain ``str`` naming one is deprecated: it warns and is converted,
-    also on assignment, so a reader always holds the enum; any other string raises
-    ``ValueError``.
+    link. A plain ``str`` naming one is accepted and stored as given; the field
+    narrows to :class:`~testprotocols.models.UplinkState` when the plain ``str`` form
+    is removed.
     """
 
     state: UplinkState | str
@@ -149,12 +110,6 @@ class LinkHealthReport:
     loss_percent: float
     sla_compliant: bool
     mos: float | None = None
-
-    @override
-    def __setattr__(self, name: str, value: object) -> None:
-        if name == "state":
-            value = _link_state("LinkHealthReport", name, value)
-        object.__setattr__(self, name, value)
 
 
 @dataclass

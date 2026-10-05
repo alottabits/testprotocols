@@ -1,9 +1,8 @@
-"""FirewallRule and NatRule ports as PortRange (shape 4(ii)); RuleCounters (shape 5)."""
+"""FirewallRule and NatRule ports: the released text and the PortRange tuple; RuleCounters."""
 
 from __future__ import annotations
 
 import dataclasses
-import warnings
 
 import pytest
 from testprotocols.models import (
@@ -18,6 +17,8 @@ from testprotocols.models import (
 from testprotocols.nat import Nat
 from testprotocols.packet_filter import PacketFilter
 
+pytestmark = pytest.mark.filterwarnings("error::DeprecationWarning")
+
 
 def _rule(**kw: object) -> FirewallRule:
     base: dict[str, object] = {
@@ -26,163 +27,59 @@ def _rule(**kw: object) -> FirewallRule:
         "protocol": RuleProtocol.TCP,
         "src_cidr": "any",
         "dst_cidr": "any",
+        "dst_port": None,
     }
     return FirewallRule(**{**base, **kw})  # type: ignore[arg-type]
-
-
-def _ports(r: FirewallRule) -> tuple[PortRange, ...]:
-    return r.dst_ports
 
 
 def _nat(**kw: object) -> NatRule:
     return NatRule(**{"name": "n", "mode": NatMode.DNAT, "interface": "wan", **kw})  # type: ignore[arg-type]
 
 
-pytestmark = pytest.mark.filterwarnings("error::DeprecationWarning")
-
-
 # --- FirewallRule ---
 
 
-def test_typed_ports_fill_the_text() -> None:
-    r = _rule(dst_ports=(PortRange(80, 90), PortRange.single(22)))
-    assert r.dst_port == "80-90,22"
-
-
-def test_text_alone_warns_and_fills_typed() -> None:
-    with pytest.warns(DeprecationWarning, match="FirewallRule.dst_port is deprecated"):
-        r = _rule(dst_port="1024-65535")
-    assert r.dst_ports == (PortRange(1024, 65535),)
+def test_each_port_form_is_stored_as_given() -> None:
+    ports = (PortRange(80, 90), PortRange.single(22))
+    assert (_rule(dst_ports=ports).dst_port, _rule(dst_ports=ports).dst_ports) == (None, ports)
+    assert (_rule(dst_port="22, 80-90").dst_port, _rule(dst_port="80").dst_ports) == (
+        "22, 80-90",
+        None,
+    )
+    both = _rule(dst_port="80-90,22", dst_ports=ports)
+    assert (both.dst_port, both.dst_ports) == ("80-90,22", ports)
 
 
 def test_released_positional_construction_still_works() -> None:
-    with pytest.warns(DeprecationWarning):
-        r = FirewallRule("r", FirewallRuleAction.ALLOW, RuleProtocol.TCP, "any", "any", "443")
-    assert r.dst_ports == (PortRange.single(443),)
+    r = FirewallRule("r", FirewallRuleAction.ALLOW, RuleProtocol.TCP, "any", "any", "443")
+    assert (r.dst_port, r.dst_ports) == ("443", None)
 
 
-def test_any_text_and_default_mean_any_port() -> None:
-    assert _rule().dst_ports == ()
-    assert _rule().dst_port == "any"
-    # "any" is the text default, so giving it is indistinguishable from omitting it: silent
-    assert _rule(dst_port="any").dst_ports == ()
-
-
-def test_disagreeing_construction_raises() -> None:
-    with pytest.raises(ValueError, match="disagree"):
-        _rule(dst_port="80", dst_ports=(PortRange.single(81),))
-
-
-def test_agreeing_construction_is_silent() -> None:
-    r = _rule(dst_port="80", dst_ports=(PortRange.single(80),))
-    assert r.dst_ports == (PortRange.single(80),)
-
-
-def test_malformed_text_raises_before_warning() -> None:
-    with pytest.raises(ValueError, match="malformed"):
-        _rule(dst_port="http")
-
-
-def test_typed_field_refuses_text() -> None:
-    with pytest.raises(TypeError):
-        _rule(dst_ports="80")
-
-
-def test_replace_each_side_wins() -> None:
+def test_replace_and_assignment_change_one_field_only() -> None:
     r = _rule(dst_ports=(PortRange.single(80),))
-    assert dataclasses.replace(r, dst_ports=(PortRange.single(81),)).dst_port == "81"
-    with pytest.warns(DeprecationWarning):
-        r2 = dataclasses.replace(r, dst_port="443")
-    assert r2.dst_ports == (PortRange.single(443),)
-    assert dataclasses.replace(r, name="x").dst_ports == r.dst_ports
-
-
-def test_assignment_each_side_wins() -> None:
-    r = _rule()
+    assert dataclasses.replace(r, dst_port="443").dst_ports == (PortRange.single(80),)
     r.dst_ports = (PortRange(1, 2),)
-    assert r.dst_port == "1-2"
-    with pytest.warns(DeprecationWarning):
-        r.dst_port = "any"
-    assert not _ports(r)
-    with pytest.raises(ValueError):
-        r.dst_port = "x"
-    assert not _ports(r)
-    with pytest.raises(TypeError):
-        r.dst_port = 80  # type: ignore[assignment]  # pyright: ignore[reportAttributeAccessIssue]
-
-
-def test_enum_coercion_survives_the_sync_wiring() -> None:
-    with pytest.warns(DeprecationWarning, match="FirewallRule.action"):
-        r = _rule(action="deny")
-    assert r.action is FirewallRuleAction.DENY
-    with pytest.warns(DeprecationWarning, match="FirewallRule.protocol"):
-        r.protocol = "udp"
-    assert r.protocol is RuleProtocol.UDP
-    with pytest.raises(ValueError):
-        r.action = "bogus"
-
-
-def test_equality_ignores_provenance() -> None:
-    assert _rule(dst_ports=(PortRange.single(80),)) == _rule(dst_ports=(PortRange.single(80),))
-    with pytest.warns(DeprecationWarning):
-        assert _rule(dst_port="80") == _rule(dst_ports=(PortRange.single(80),))
+    assert r.dst_port is None
 
 
 # --- NatRule ---
 
 
-def test_nat_default_ports_are_any_with_released_empty_text() -> None:
+def test_nat_ports_default_to_unset() -> None:
     n = _nat()
-    assert (n.dst_ports, n.translated_ports) == ((), ())
-    assert (n.dst_port, n.translated_port) == ("", "")
+    assert (n.dst_port, n.translated_port, n.dst_ports, n.translated_ports) == (
+        None,
+        None,
+        None,
+        None,
+    )
 
 
-def test_nat_typed_fills_text_for_both_pairs() -> None:
-    n = _nat(dst_ports=(PortRange.single(8080),), translated_ports=(PortRange.single(80),))
-    assert (n.dst_port, n.translated_port) == ("8080", "80")
-
-
-def test_nat_text_warns() -> None:
-    with pytest.warns(DeprecationWarning, match="NatRule.dst_port is deprecated"):
-        n = _nat(dst_port="8080")
-    assert n.dst_ports == (PortRange.single(8080),)
-    with pytest.warns(DeprecationWarning, match="NatRule.translated_port is deprecated"):
-        n = _nat(translated_port="80")
-    assert n.translated_ports == (PortRange.single(80),)
-
-
-def test_nat_released_empty_and_any_text_still_work_and_normalise_to_empty() -> None:
-    assert _nat(dst_port="", translated_port="").dst_ports == ()
-    with pytest.warns(DeprecationWarning):
-        n = _nat(dst_port="any")
-    assert n.dst_ports == ()
-    assert n.dst_port == ""
-
-
-def test_nat_conflict_raises() -> None:
-    with pytest.raises(ValueError, match="disagree"):
-        _nat(translated_port="80", translated_ports=(PortRange.single(81),))
-
-
-def test_nat_replace_and_assignment() -> None:
-    n = _nat(dst_ports=(PortRange.single(80),), translated_ports=(PortRange.single(8080),))
-    m = dataclasses.replace(n, translated_ports=(PortRange.single(9),))
-    assert (m.dst_port, m.translated_port) == ("80", "9")
-    with pytest.warns(DeprecationWarning):
-        m = dataclasses.replace(n, dst_port="")
-    assert (m.dst_ports, m.translated_ports) == ((), (PortRange.single(8080),))
-    n.translated_ports = ()
-    assert n.translated_port == ""
-    with pytest.warns(DeprecationWarning):
-        n.dst_port = "1-2"
-    assert n.dst_ports == (PortRange(1, 2),)
-    assert n.translated_ports == ()
-
-
-def test_nat_enum_coercion_survives() -> None:
-    with pytest.warns(DeprecationWarning, match="NatRule.mode"):
-        n = _nat(mode="snat")
-    assert n.mode is NatMode.SNAT
+def test_nat_port_forms_are_stored_as_given() -> None:
+    n = _nat(dst_ports=(PortRange.single(8080),), translated_port="80")
+    assert (n.dst_port, n.dst_ports) == (None, (PortRange.single(8080),))
+    assert (n.translated_port, n.translated_ports) == ("80", None)
+    assert _nat(dst_port="", translated_port="").dst_port == ""
 
 
 # --- RuleCounters ---
@@ -196,22 +93,6 @@ def test_rule_counters_hold_values_and_are_frozen() -> None:
         c.packets = 1  # type: ignore[misc]
 
 
-@pytest.mark.parametrize("bad", [-1])
-def test_rule_counters_refuse_negative(bad: int) -> None:
-    with pytest.raises(ValueError, match="packets"):
-        RuleCounters(bad, 0)
-    with pytest.raises(ValueError, match="bytes"):
-        RuleCounters(0, bad)
-
-
-@pytest.mark.parametrize("bad", [True, 1.0, "1", None])
-def test_rule_counters_refuse_non_int(bad: object) -> None:
-    with pytest.raises(TypeError, match="packets"):
-        RuleCounters(bad, 0)  # type: ignore[arg-type]
-    with pytest.raises(TypeError, match="bytes"):
-        RuleCounters(0, bad)  # type: ignore[arg-type]
-
-
 def test_new_counter_members_exist_and_old_remain() -> None:
     assert callable(PacketFilter.get_rule_counter_values)
     assert callable(PacketFilter.get_rule_counters)
@@ -223,33 +104,3 @@ def test_rule_counters_accept_zero_and_large() -> None:
     assert RuleCounters(0, 0).packets == 0
     big = 2**63
     assert RuleCounters(big, big * 2).bytes == big * 2
-
-
-def test_nat_replace_with_both_pairs_inconsistent_raises() -> None:
-    n = _nat(dst_ports=(PortRange.single(80),), translated_ports=(PortRange.single(8080),))
-    # first pair conflicts (text and typed changed to different ports)
-    with pytest.raises(ValueError, match="dst_port"):
-        dataclasses.replace(n, dst_port="81", dst_ports=(PortRange.single(82),))
-    # first pair is a valid text change, second pair conflicts
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore", DeprecationWarning)
-        with pytest.raises(ValueError, match="translated_port"):
-            dataclasses.replace(
-                n,
-                dst_port="81",
-                translated_port="9",
-                translated_ports=(PortRange.single(10),),
-            )
-
-
-def test_nat_typed_ports_wrong_type_raises() -> None:
-    n = _nat()
-    for bad in ("80", 80, (80,)):
-        with pytest.raises(TypeError):
-            n.dst_ports = bad  # type: ignore[assignment]  # pyright: ignore[reportAttributeAccessIssue]
-        with pytest.raises(TypeError):
-            _nat(translated_ports=bad)
-    with pytest.raises(ValueError):
-        n.dst_port = "80:90"
-    with pytest.raises(ValueError):
-        n.dst_port = "80,"

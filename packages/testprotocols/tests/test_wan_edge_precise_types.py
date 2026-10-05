@@ -1,4 +1,5 @@
-"""WAN-edge models typed: link states (shape 3), the AppFlow category, orphans deprecated."""
+"""WAN-edge models typed: link states (an enum or its word), the AppFlow category, orphans
+deprecated."""
 
 from __future__ import annotations
 
@@ -31,11 +32,12 @@ def _health(state: UplinkState | str) -> LinkHealthReport:
 
 
 @pytest.mark.parametrize("word", ["up", "down", "degraded"])
-def test_link_status_released_words_convert_with_a_warning(word: str) -> None:
-    with pytest.warns(DeprecationWarning, match=r"LinkStatus.state: plain string"):
+def test_link_status_released_words_are_stored_as_given(word: str) -> None:
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
         s = LinkStatus(name="wan1", state=word, ip_address="198.51.100.2")
-    assert s.state is UplinkState(word)
-    assert s.state == word
+    assert type(s.state) is str
+    assert s.state == UplinkState(word)
 
 
 def test_link_status_member_is_silent() -> None:
@@ -43,46 +45,17 @@ def test_link_status_member_is_silent() -> None:
         warnings.simplefilter("error")
         s = LinkStatus("wan1", UplinkState.DOWN, "")
     assert s.state is UplinkState.DOWN
-
-
-def test_link_status_assignment_converts_and_refuses_unknown_words() -> None:
-    s = LinkStatus("wan1", UplinkState.UP, "")
-    with pytest.warns(DeprecationWarning):
-        s.state = "degraded"
-    assert s.state is UplinkState.DEGRADED
-    with pytest.raises(ValueError, match="not one of"):
-        s.state = "flapping"
-    assert s.state is UplinkState.DEGRADED
-    s2 = dataclasses.replace(s, state=UplinkState.UP)
-    assert s2.state is UplinkState.UP
-
-
-def test_link_status_unknown_word_raises() -> None:
-    with pytest.raises(ValueError, match=r"LinkStatus\.state"):
-        LinkStatus("wan1", "flapping", "")
+    assert dataclasses.replace(s, state=UplinkState.UP).state is UplinkState.UP
 
 
 @pytest.mark.parametrize("word", ["up", "down", "degraded", "unknown"])
-def test_link_health_state_converts(word: str) -> None:
-    with pytest.warns(DeprecationWarning, match=r"LinkHealthReport.state: plain string"):
-        r = _health(word)
-    assert r.state is UplinkState(word)
-    assert r.state == word
-
-
-def test_link_health_member_silent_and_unknown_word_raises() -> None:
+def test_link_health_state_is_stored_as_given(word: str) -> None:
     with warnings.catch_warnings():
         warnings.simplefilter("error")
-        assert _health(UplinkState.UNKNOWN).state is UplinkState.UNKNOWN
-    with pytest.raises(ValueError, match=r"LinkHealthReport\.state"):
-        _health("healthy")
-
-
-def test_link_health_assignment_converts() -> None:
-    r = _health(UplinkState.UP)
-    with pytest.warns(DeprecationWarning):
-        r.state = "down"
-    assert r.state is UplinkState.DOWN
+        r = _health(word)
+        member = _health(UplinkState(word))
+    assert r.state == member.state == UplinkState(word)
+    assert type(r.state) is str
 
 
 # --- AppFlow category (the product's own word) ---
@@ -113,13 +86,9 @@ def test_flow_category_is_stored_as_given() -> None:
 
 
 def test_other_is_not_a_category() -> None:
-    from testprotocols.models import CategoryMatch, L7MatchType, traffic_match
-
     assert "other" not in {m.value for m in ApplicationCategory}
     with pytest.raises(ValueError):
-        CategoryMatch("other")  # type: ignore[arg-type]
-    with pytest.raises(ValueError):
-        traffic_match(L7MatchType.APPLICATION_CATEGORY, "other")
+        ApplicationCategory("other")
 
 
 # --- orphan models deprecated ---

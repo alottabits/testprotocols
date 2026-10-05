@@ -45,8 +45,9 @@ class ContentFiltering(Protocol):
     def get_url_rules(self) -> tuple[list[str], list[str]]:
         """Deprecated name of :meth:`read_url_rules`.
 
-        Returns ``read_url_rules().as_tuple()``, the ``(allowed, blocked)`` URL-pattern
-        lists; the driver warns with ``warn_renamed("get_url_rules", "read_url_rules")``.
+        Returns the ``(allowed, blocked)`` URL-pattern lists, the fields of
+        ``read_url_rules()`` as lists; the driver warns with
+        ``warn_renamed("get_url_rules", "read_url_rules")``.
         """
         ...
 

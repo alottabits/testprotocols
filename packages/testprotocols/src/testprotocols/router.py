@@ -58,7 +58,7 @@ class Router(Protocol):
         ``uptime_seconds``, ``cpu_load_percent`` and ``mem_used_percent`` (a key
         is absent when the device does not report it), each a number. A driver
         implements ``read_telemetry`` and lets this member warn with
-        ``warn_renamed`` and return ``read_telemetry().as_dict()``.
+        ``warn_renamed`` and return the reported fields of ``read_telemetry()``.
         """
         ...
 

@@ -7,7 +7,6 @@ from testprotocols.models import (
     QoEResult,
     RadiusAccountingRecord,
     RadiusUser,
-    RuleProtocol,
     WifiBand,
     WifiStation,
 )
@@ -17,7 +16,7 @@ def test_device_vocabularies_store_as_given() -> None:
     with warnings.catch_warnings():
         warnings.simplefilter("error")
         conn = Connection(
-            protocol=RuleProtocol.TCP,
+            protocol="tcp",
             src_ip="192.0.2.1",
             dst_ip="192.0.2.2",
             src_port=1,

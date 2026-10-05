@@ -46,8 +46,8 @@ their tags and PR history.
   `warn_renamed` and delegate. Design `docs/architecture/precise-types-design.md` (firewall and NAT ports and counters); PR pending.
 - **protocol member** `testprotocols.router:Router.read_telemetry() -> Telemetry` —
   new mandatory member. Migration: implement it, and make `get_telemetry` warn
-  with `warn_renamed("get_telemetry", "read_telemetry")` and return
-  `self.read_telemetry().as_dict()`. Design `docs/architecture/precise-types-design.md` (telemetry and policy); PR pending.
+  with `warn_renamed("get_telemetry", "read_telemetry")` and return the reported
+  fields of `self.read_telemetry()` as the released mapping. Design `docs/architecture/precise-types-design.md` (telemetry and policy); PR pending.
 - **protocol member** `testprotocols.wifi_client:WifiClient.supported_channels(band: WifiBand) -> list[int]` —
   new mandatory member, replacing `iwlist_supported_channels` (which returned the
   channel numbers as text). Migration: implement it and make
@@ -88,6 +88,26 @@ their tags and PR history.
   output includes unparsable lines), `dns_lookup`, `ping(json_output=True)`, `nmap`,
   `get_arp_table` and `get_date` keep their released output (which the records cannot
   rebuild) and warn. Design `docs/architecture/precise-types-design.md` (Host-tier records); PR pending.
+- **field** `testprotocols.models:FirewallRule.dst_port` — now `str | None`, still required
+  and in its released position; `None` when the driver fills only `dst_ports`. A reader of
+  the field sees `str | None` (read the ports through testoperations, which accepts either
+  form). Design `docs/architecture/precise-types-design.md` (firewall and NAT ports and counters); PR pending.
+- **fields** `testprotocols.models:NatRule.dst_port` and `translated_port` — now
+  `str | None`, default `None` (released: `""`, no port); `None` means the same as `""`. A
+  reader sees `str | None`. Design `docs/architecture/precise-types-design.md` (firewall and NAT ports and counters); PR pending.
+- **fields** `testprotocols.models:L3Rule.src_port` and `dst_port` — now `str | None`,
+  default `None` (released: `"any"`); `None` means the same as `"any"`. A reader sees
+  `str | None`. Design `docs/architecture/precise-types-design.md` (SD-WAN models); PR pending.
+- **field** `testprotocols.models:SecurityEvent.ts` — now `str | None`, still required and in
+  its released position; `None` when the driver fills only `timestamp`. A reader sees
+  `str | None`. Design `docs/architecture/precise-types-design.md` (SD-WAN models); PR pending.
+- **field** `testprotocols.models:QosRule.match` — now `str | None`, still required and in
+  its released position; `None` when the driver fills only `classifier`. A reader sees
+  `str | None`. Design `docs/architecture/precise-types-design.md` (switch QoS classifier); PR pending.
+- **fields** `testprotocols.models:FirewallRule.action` / `protocol`, `NatRule.mode` /
+  `protocol`, `PortMapping.protocol`, `Connection.protocol`, `LinkStatus.state` and
+  `LinkHealthReport.state` — now `E | str` (the enum or its released word, stored as
+  given), so a reader sees `E | str`. Design `docs/architecture/precise-types-design.md`; PR pending.
 
 #### Added
 
@@ -125,14 +145,9 @@ their tags and PR history.
   that is not a decimal integer and `TypeError` for a `bool`, `float` or other type.
   Migration: none. Design `docs/architecture/precise-types-design.md` (shape 1i);
   PR pending.
-- **model and functions** `testprotocols.models:PortRange` (`first`, `last`,
-  inclusive, `1 <= first <= last <= 65535` else `ValueError`, a non-int
-  `TypeError`; `PortRange.single(port)`), `parse_port_ranges`,
-  `format_port_ranges` — the typed L4 port range and the pure converters for
-  the released port text (`"any"` is `()`; `"80"`, `"80-90"`, comma lists;
-  `ValueError` otherwise). A typed port field takes an iterable of `PortRange`
-  (a string, bytes, a non-iterable or an item that is not a `PortRange` raises
-  `TypeError`).
+- **model** `testprotocols.models:PortRange` (`first`, `last`, inclusive,
+  `1 <= first <= last <= 65535`; frozen; `PortRange.single(port)`) — the typed L4
+  port range. A typed port field is a tuple of `PortRange`.
   Migration: none. Design `docs/architecture/precise-types-design.md`
   (shape 4(ii)); PR pending.
 - **enum** `testprotocols.models:DefaultAction` (`ACCEPT`, `DROP`, `REJECT`) —
@@ -140,61 +155,36 @@ their tags and PR history.
   coerces a released plain string with `coerce_enum(DefaultAction, …)`.
   Migration: none. Design `docs/architecture/precise-types-design.md`;
   PR pending.
-- **models and functions** `testprotocols.models:TrafficMatch`
-  (`ApplicationMatch(name)`, `CategoryMatch(category: ApplicationCategory)`
-  (a plain string is converted, an unknown one raises `ValueError`),
-  `HostMatch(host)`, `PortMatch(ports: tuple[PortRange, ...])` (checked as a
-  typed port field), `IpRangeMatch(cidr)` (a prefix or a `first-last` range);
-  frozen; an empty name, host or range, or no port, raises `ValueError`),
-  `traffic_match(match_type, value)` and `match_fields(match)` — what an L7 or
-  shaping rule selects, as a tagged union, and the pure converters to and from
-  the released `(L7MatchType, value)` pair (`"any"` for a port is every port,
-  `1-65535`; `traffic_match` raises `ValueError` for a value that names no
-  match: empty, an unknown category, a port text naming no port number).
+- **models** `testprotocols.models:TrafficMatch`
+  (`ApplicationMatch(name)`, `CategoryMatch(category: ApplicationCategory)`,
+  `HostMatch(host)`, `PortMatch(ports: tuple[PortRange, ...])`,
+  `IpRangeMatch(cidr)` (a prefix or a `first-last` range); frozen; a name, host
+  or range is not empty and a port match names at least one port) — what an L7 or
+  shaping rule selects, as a tagged union.
   Migration: none. Design `docs/architecture/precise-types-design.md`
   (shape 4(ii)); PR pending.
-- **internal module** `testprotocols.models._sync` (`SyncedField`,
-  `SyncedFields`, `settle`, `assign`) — keeps a deprecated text field, or
-  several fields spelling one value, in agreement with its typed successor:
-  at construction the typed side fills the text and the text alone warns;
-  through `dataclasses.replace` and assignment the side that changed wins;
-  malformed text raises before it warns; a hidden provenance field, which must
-  be the model's last field, tells a changed side from an unchanged one; a
-  subclass of a synced model that is not itself decorated with `@dataclass`
-  raises `TypeError` naming the class (it would silently drop its own fields). Not
-  public API; listed because later retypes build on it. Migration: none.
-  Design `docs/architecture/precise-types-design.md`; PR pending.
 - **enums** `testprotocols.models:Chain` (`INPUT`, `OUTPUT`, `FORWARD`),
   `FirewallRuleAction` (`ALLOW`, `DENY`, `REJECT`, `LOG`), `NatMode` (`SNAT`,
   `DNAT`, `ONE_TO_ONE`) and `PortMappingProtocol` (`TCP`, `UDP`, `TCP_UDP`).
   Migration: none. Design `docs/architecture/precise-types-design.md` (firewall, NAT and conntrack vocabularies); PR pending.
-- **model** `testprotocols.models:RuleCounters` (`packets`, `bytes`; frozen;
-  a negative number raises `ValueError`, a non-int, bool included, `TypeError`) —
+- **model** `testprotocols.models:RuleCounters` (`packets`, `bytes`: non-negative
+  ints; frozen) —
   what a rule has matched since it was added. Migration: none. Design `docs/architecture/precise-types-design.md` (firewall and NAT ports and counters); PR pending.
 - **fields** `testprotocols.models:FirewallRule.dst_ports`, `NatRule.dst_ports`
-  and `NatRule.translated_ports` — `tuple[PortRange, ...]`, the empty tuple
-  meaning no port restriction, kept in agreement with the deprecated text
-  fields `dst_port` / `translated_port` (typed fills text; text alone warns and
-  fills typed; disagreeing raises `ValueError`; the side that changed wins under
-  `replace` and assignment). Migration: pass `PortRange` tuples. Design `docs/architecture/precise-types-design.md` (firewall and NAT ports and counters); PR pending.
+  and `NatRule.translated_ports` — `tuple[PortRange, ...] | None` (keyword-only,
+  default `None`), the empty tuple meaning no port restriction: the typed form of
+  the deprecated text fields `dst_port` / `translated_port`. A driver fills either
+  form, or both, describing the same ports. Migration: pass `PortRange` tuples. Design `docs/architecture/precise-types-design.md` (firewall and NAT ports and counters); PR pending.
 - **fields** `testprotocols.models:L3Rule.src_ports` and `dst_ports` —
-  `tuple[PortRange, ...]`, the empty tuple meaning any port, kept in agreement
-  with the deprecated text fields `src_port` / `dst_port` (typed fills text;
-  text alone warns and fills typed; disagreeing raises `ValueError`; the side
-  that changed wins under `replace` and assignment). Migration: pass `PortRange`
-  tuples. Design `docs/architecture/precise-types-design.md` (SD-WAN models); PR pending.
+  `tuple[PortRange, ...] | None` (keyword-only, default `None`), the empty tuple
+  meaning any port: the typed form of the deprecated text fields `src_port` /
+  `dst_port`. A driver fills either form, or both, describing the same ports.
+  Migration: pass `PortRange` tuples. Design `docs/architecture/precise-types-design.md` (SD-WAN models); PR pending.
 - **field** `testprotocols.models:SecurityEvent.timestamp` — `datetime | None`
-  (`None`: the product reports no time), kept in agreement with the deprecated
-  ISO-8601 text `ts` by the same rule. A timezone-naive value stays naive; a
-  text that parses is kept as given (`"…Z"` reads back `"…Z"`), a typed value
-  writes `datetime.isoformat()`. Migration: pass `timestamp`. Design `docs/architecture/precise-types-design.md` (SD-WAN models); PR pending.
-- **internal option** `testprotocols.models._sync:SyncedField.keep_text` — a text
-  that differs from the canonical form only in spelling (it parses to the agreed
-  value and formats back to the agreed text, as an ISO-8601 `Z` for `+00:00`) stays
-  exactly as given; a text that spells a different value (another UTC offset for
-  the same instant) is rewritten, so `replace` and assignment agree. Used by
-  `SecurityEvent.ts` and `QosRule.match`. Not public API. Migration: none. Design
-  `docs/architecture/precise-types-design.md` (SD-WAN models); PR pending.
+  (keyword-only, default `None`; `None`: the product reports no time), the typed
+  form of the deprecated ISO-8601 text `ts`. A driver fills either form, or both,
+  describing the same instant. A timezone-naive value stays naive. Migration: pass
+  `timestamp`. Design `docs/architecture/precise-types-design.md` (SD-WAN models); PR pending.
 - **function** `testprotocols.deprecation:deprecated_attribute` — for a module
   `__getattr__` that resolves a deprecated name with no successor, with a
   `DeprecationWarning` that gives the reason; the counterpart of
@@ -204,17 +194,14 @@ their tags and PR history.
 - **model** `testprotocols.models:QosClassifier` (`vlan`, `protocol`, `src_ports`,
   `dst_ports`; frozen; every field left out places no restriction; `vlan` is 1 to
   4094) — what a QoS rule selects. **field** `testprotocols.models:QosRule.classifier`
-  — `QosClassifier | None`, kept in agreement with the deprecated text `match`
-  (typed fills text; text alone warns and fills typed; disagreeing raises
-  `ValueError`; the side that changed wins under `replace` and assignment). Text
-  that is not a key=value list of VLAN, protocol and port terms has no classifier:
-  `None`, and the text stays as given. A rule holds at most one source and one
-  destination port range (`ValueError` otherwise). Migration: pass `classifier`.
+  — `QosClassifier | None` (keyword-only, default `None`; `None`: every frame), the
+  typed form of the deprecated text `match`. A driver fills either form, or both,
+  describing the same traffic. A rule's classifier holds at most one source and one
+  destination port range. Migration: pass `classifier`.
   Design `docs/architecture/precise-types-design.md` (switch QoS classifier); PR pending.
 - **model** `testprotocols.models:Telemetry` (`uptime_seconds`, `cpu_load_percent`,
   `mem_used_percent`; frozen; the last two are `None` when the device does not
-  report them; a bool or non-number raises `TypeError`, a negative number
-  `ValueError`; `as_dict()` is the released `get_telemetry` mapping) — a device's
+  report them; each finite and not negative) — a device's
   resource telemetry. Migration: none. Design `docs/architecture/precise-types-design.md` (telemetry and policy); PR pending.
 - **enums** `testprotocols.models:WifiBand` (`GHZ_2_4`, `GHZ_5`, `GHZ_6`),
   `WifiSecurityMode` (`OPEN`, `OWE`, `WPA2_PSK`, `WPA2_EAP`, `WPA3_SAE`, `WPA3_EAP`,
@@ -258,7 +245,7 @@ their tags and PR history.
   Migration: none. Design `docs/architecture/precise-types-design.md` (Host-tool and service vocabularies); PR pending.
 - **field** `testprotocols.models:StormControlConfig.unit` (`StormControlUnit | None`,
   default `None`, meaning "as the driver reads it"; released drivers ignore it). Migration: none. Design `docs/architecture/precise-types-design.md` (Host-tool and service vocabularies); PR pending.
-- **models** `testprotocols.models:UrlRules` (`allowed`, `blocked`; `as_tuple()`),
+- **models** `testprotocols.models:UrlRules` (`allowed`, `blocked`),
   `MemoryUtilization` (`total_bytes`, `used_bytes`, `free_bytes`, and `shared_bytes`,
   `cache_bytes`, `available_bytes` all given or all `None`; used and free at most total;
   `as_dict()`), `ProcessInfo` (`pid`, `tty`, `cpu_time:
@@ -271,7 +258,7 @@ their tags and PR history.
   TransportProtocol`, `state`, `service`), `ArpEntry` (`address: IPv4Address`, `hw_type`,
   `hw_address`, `flags`, `interface`) — frozen records for the host-tier readers; a wrong type
   raises `TypeError`, an out-of-range, non-finite or inconsistent value `ValueError`. `as_dict()` /
-  `as_tuple()` give exactly what the deprecated reader returned for `UrlRules`,
+  `as_tuple()` give exactly what the deprecated reader returned for
   `MemoryUtilization` (in bytes), `ProcessInfo` (a procps `ps -A` entry, time
   `[DD-]hh:mm:ss`) and `IperfProcess`. `EventLogEntry.as_dict()` is the released entry of a
   parsed line (`priority`, `date`, `hostname`, `tag`, `content`) only: the released output
@@ -336,54 +323,16 @@ their tags and PR history.
   annotations and the coercion. Design `docs/architecture/precise-types-design.md` (firewall, NAT and conntrack vocabularies); PR pending.
 - **models** `testprotocols.models:FirewallRule` (`action`, `protocol`),
   `NatRule` (`mode`, `protocol`), `PortMapping` (`protocol`) and `Connection`
-  (`protocol`) — each field is now `Enum | str` and always holds the
-  enum after construction, `replace` and assignment; the enums are
+  (`protocol`) — each field is now `Enum | str`: a member or the released word,
+  stored as given (a member compares equal to its word); the enums are
   `FirewallRuleAction`, `RuleProtocol`, `NatMode` and `PortMappingProtocol`.
-  `NatRule.protocol` defaults to `RuleProtocol.ANY`. An unknown
-  string raises `ValueError`. A value that is neither a member nor a string
-  (`None`, a number, `bytes`) raises `TypeError`. `Connection.state` stays a
-  `str`, the device's own word. `Connection.protocol` refuses `RuleProtocol.ANY` with `ValueError`, as its
-  docstring says (a flow has one transport). Migration: pass the members. Design `docs/architecture/precise-types-design.md` (firewall, NAT and conntrack vocabularies); PR pending.
+  `NatRule.protocol` defaults to `RuleProtocol.ANY`. `Connection.state` stays a
+  `str`, the device's own word. Migration: pass the members. Design `docs/architecture/precise-types-design.md` (firewall, NAT and conntrack vocabularies); PR pending.
 
-- **models** `testprotocols.models:FirewallRule.dst_port` — now defaults to
-  `"any"`, so a rule can be built from `dst_ports` alone (released: required).
-  `NatRule.dst_port` and `translated_port` read `""` for no port, as released,
-  including after `"any"` was given (it is accepted and reads back `""`). A
-  malformed port text (for example `"http"`, or `""` on `FirewallRule`) raises
-  `ValueError`, and a non-text `dst_port` or a non-`PortRange` `dst_ports`
-  raises `TypeError`; no value the released documentation allowed raises.
-  A text is canonical (`"22, 80"` reads `"22,80"`).
-  Accepted port forms are `"any"` (and `""` on `NatRule`), numbers, `a-b` ranges and
-  comma lists; colon or slash forms (`"80:90"`, `"tcp/80"`) and a trailing comma
-  raise `ValueError`, so a driver that reads them back must convert them.
-  Static only, no runtime change: unpacking a loosely typed dict (for example
-  `FirewallRule(**dict[str, str])`) into `FirewallRule` or `NatRule` now fails
-  type-checking, because `dst_ports` and the private `_ports_seen` are keyword
-  parameters (`_ports_seen` shows in signatures and error text); type the dict or
-  pass the fields explicitly. Listed in the design doc's "Effective now". Design `docs/architecture/precise-types-design.md` (firewall and NAT ports and counters); PR pending.
-- **models** `testprotocols.models:L3Rule` ports and `SecurityEvent` timestamp —
-  `L3Rule.src_port` / `dst_port` now raise `ValueError` for malformed text
-  (`""`, `"http"`, `"80:90"`, a trailing comma; the released contract allowed
-  `"any"`, a number, `a-b` or a comma list) and `TypeError` for a non-text
-  value, at construction too (`FirewallRule` and `NatRule` follow); text normalises to its canonical form (`"22, 80"` reads `"22,80"`).
-  `SecurityEvent.ts` now raises `ValueError` for text that
-  `datetime.fromisoformat` does not parse (released: any string) and `TypeError`
-  naming the field for a non-text value; it defaults to `""` (no time), so the fields after it
-  take a required-argument placeholder and omitting one still raises
-  `TypeError`; a type checker no longer flags a missing `src_ip`, `dst_ip`,
-  `protocol`, `action` or `category`. The placeholder reads `<required>`. Static only, no runtime change: unpacking a loosely typed dict
-  (for example `L3Rule(**dict[str, str])`) into `L3Rule` or `SecurityEvent` now
-  fails type-checking, because `src_ports`, `dst_ports`, `timestamp` and the
-  private provenance fields (`_ports_seen`, `_ts_seen`; not API) are keyword
-  parameters; type the dict or pass the fields explicitly. Listed in the design
-  doc's "Effective now". Design `docs/architecture/precise-types-design.md` (SD-WAN models); PR pending.
 - **models** `testprotocols.models:LinkStatus.state` and `LinkHealthReport.state` —
-  now `UplinkState | str`, and always hold the enum after construction,
-  `replace` and assignment. A link state word that is not an `UplinkState` value
-  (released: any string) now raises `ValueError`; the vocabulary is the existing
-  `up`, `down`, `degraded` plus `unknown` (a probe with no data), so the words a
-  reference implementer returns still work. A plain string naming a member warns
-  and converts. Migration: pass the members. Static only:
+  now `UplinkState | str`: a member or the released word, stored as given. The
+  vocabulary is the existing `up`, `down`, `degraded` plus `unknown` (a probe with no
+  data). Migration: pass the members. Static only:
   `TrafficShapingRule.match` is `Mapping[str, object]` (was `dict[str, Any]`),
   so a reader gets `object` values. Listed in the design doc's "Effective now".
   Design `docs/architecture/precise-types-design.md` (WAN-edge models); PR pending.
@@ -391,13 +340,6 @@ their tags and PR history.
   `VPNPeerStatus` — no longer in `__all__`, so `from testprotocols.models import *`
   does not bind them; reaching them by name still works and warns (see
   *Deprecated*). Design `docs/architecture/precise-types-design.md` (WAN-edge models); PR pending.
-- **model** `testprotocols.models:QosRule.match` — now optional (`""`, every
-  frame), and text with a repeated term (a VLAN, protocol or port term twice, or
-  both the port and the range key of one direction) raises `ValueError`; a non-text
-  value raises `TypeError`. Free text stays legal and keeps its spelling; it has no
-  classifier. Static only: unpacking a loosely typed dict into `QosRule` fails
-  type-checking (`classifier` and the private `_match_seen`). Listed in the design
-  doc's "Effective now". Design `docs/architecture/precise-types-design.md` (switch QoS classifier); PR pending.
 - **protocol members** `testprotocols.router:Router.get_telemetry` and
   `testprotocols.sdwan_policy_manager:SdwanPolicyManager.apply_policy` — static
   only, no runtime change: `get_telemetry` returns `Mapping[str, float]` (was
@@ -505,7 +447,8 @@ their tags and PR history.
   `protocol`, `NatRule.mode` / `protocol`, `PortMapping.protocol` and
   `Connection.protocol` — a plain `str` naming a member (`"FORWARD"`,
   `"drop"`, `"snat"`, `"tcp"`, `"allow"`, `"tcp-udp"`) is
-  deprecated: it warns and is converted. The annotations narrow to the enums in
+  deprecated: a driver converts a parameter and warns; a field stores it as given.
+  The annotations narrow to the enums in
   a later release. Use `Chain`, `DefaultAction`, `NatMode`, `RuleProtocol`,
   `FirewallRuleAction` and `PortMappingProtocol`. Design `docs/architecture/precise-types-design.md` (firewall, NAT and conntrack vocabularies); PR pending.
 - **return type** `PacketFilter.get_default_policy` — announced only: it returns
@@ -513,8 +456,9 @@ their tags and PR history.
   `DefaultAction` is a `str`, so comparisons with the plain words keep working).
   Design `docs/architecture/precise-types-design.md` (firewall, NAT and conntrack vocabularies); PR pending.
 - **fields** `FirewallRule.dst_port`, `NatRule.dst_port` and
-  `NatRule.translated_port` — the port text; assigning or constructing from it
-  warns. Use `dst_ports` / `translated_ports`. Design `docs/architecture/precise-types-design.md` (firewall and NAT ports and counters); PR pending.
+  `NatRule.translated_port` — the port text. A driver fills `dst_ports` /
+  `translated_ports`, or both forms; at removal the text fields go and the typed
+  fields become required. Design `docs/architecture/precise-types-design.md` (firewall and NAT ports and counters); PR pending.
 - **protocol members** `PacketFilter.get_rule_counters` and
   `Nat.get_nat_rule_counters` — deprecated names of `get_rule_counter_values` and
   `get_nat_rule_counter_values`; they return `RuleCounters` from the new names.
@@ -523,16 +467,16 @@ their tags and PR history.
   `translated_dst` — announced only: `""` means absent today and becomes `None`
   in a later release. Design `docs/architecture/precise-types-design.md` (firewall and NAT ports and counters); PR pending.
 - **fields** `L3Rule.src_port` and `dst_port`, `SecurityEvent.ts` — the port and
-  timestamp text; assigning or constructing from it warns. Use `src_ports` /
-  `dst_ports` and `timestamp`. Design `docs/architecture/precise-types-design.md` (SD-WAN models); PR pending.
+  timestamp text. A driver fills `src_ports` / `dst_ports` and `timestamp`, or both
+  forms; at removal the text fields go and the typed fields become required. Design `docs/architecture/precise-types-design.md` (SD-WAN models); PR pending.
 - **placeholders** `L3Rule.src_cidr` and `dst_cidr` (`"any"`),
   `UplinkStatus.ip`, `gateway`, `public_ip` and `primary_dns` (`""`), and
   `NetworkAttachment.segment` (`""`) — announced only: they mean
   unconstrained or not reported today and become `str | None` (`None`) in a
   later release. Design `docs/architecture/precise-types-design.md` (SD-WAN models); PR pending.
 - **parameters and fields** `LinkStatus.state` and `LinkHealthReport.state` — a plain
-  `str` naming a member (`"up"`, `"degraded"`) is deprecated: it warns and is
-  converted. The annotations narrow to `UplinkState` in a later release. Design `docs/architecture/precise-types-design.md` (WAN-edge models); PR pending.
+  `str` naming a member (`"up"`, `"degraded"`) is deprecated; it is stored as given.
+  The annotations narrow to `UplinkState` in a later release. Design `docs/architecture/precise-types-design.md` (WAN-edge models); PR pending.
 - **models** `testprotocols.models.wan_edge:VPNPeerStatus` and
   `TrafficShapingRule` (also reached as `testprotocols.models.VPNPeerStatus` and
   `TrafficShapingRule`) — deprecated with no successor: no capability uses them;
@@ -541,8 +485,8 @@ their tags and PR history.
   capability needs one. Design `docs/architecture/precise-types-design.md` (WAN-edge models); PR pending.
 - **placeholder** `LinkStatus.ip_address` — announced only: `""` means no
   address today and becomes `str | None` in a later release. Design `docs/architecture/precise-types-design.md` (WAN-edge models); PR pending.
-- **field** `QosRule.match` — the classifier text; assigning or constructing from
-  it warns (free text has no classifier and stays as given). Use `classifier`. Design `docs/architecture/precise-types-design.md` (switch QoS classifier); PR pending.
+- **field** `QosRule.match` — the classifier text. A driver fills `classifier`, or
+  both forms; at removal the text field goes and `classifier` becomes required. Design `docs/architecture/precise-types-design.md` (switch QoS classifier); PR pending.
 - **protocol members** `Router.get_telemetry` — deprecated name of
   `Router.read_telemetry` (a driver warns with `warn_renamed` and delegates).
   `SdwanPolicyManager.apply_policy` — deprecated with no successor: the typed
@@ -613,6 +557,15 @@ their tags and PR history.
 
 #### Added
 
+- **internal module** `testoperations._compat` — reads a record field that has a released
+  text form and a typed form (`FirewallRule`, `NatRule` and `L3Rule` ports,
+  `SecurityEvent` time, `QosRule` classifier) the same way whichever form the driver
+  filled: the typed field, else the text parsed, else the released default's meaning (or
+  `ValueError` naming the record and field when the released field was required). It also
+  holds the parsers and formatters of those text forms (`parse_port_ranges`,
+  `format_port_ranges`, the QoS classifier text, `traffic_match` / `match_fields` for the
+  released `(L7MatchType, value)` pair). Not public API. Migration: none. Design
+  `docs/architecture/precise-types-design.md`; PR pending.
 - **enum** `testoperations.segmentation:DenyScope` (`HOST`, `SUBNET`) — how wide
   a deny rule built by `build_deny_rule` matches. Migration: pass the member. Design `docs/architecture/precise-types-design.md` (Segmentation deny scope); PR pending.
 - **parameter** `testoperations.netem_controller:inject_packet_storm(loss_percent=None)` —
@@ -655,7 +608,8 @@ their tags and PR history.
   naming a member warns (`DeprecationWarning`) and converts. The error for an
   unknown scope changes: it is the `coerce_enum` `ValueError` (`scope: 'vlan' is
   not one of ['host', 'subnet']`), still naming `scope`; an unknown `proto` is the
-  same kind of `ValueError`, naming `proto`. Migration: pass `DenyScope` and
+  same kind of `ValueError`, naming `proto`. The rule fills both port forms
+  (`"any"` and the empty tuple). Migration: pass `DenyScope` and
   `RuleProtocol` members. Design `docs/architecture/precise-types-design.md` (Segmentation deny scope); PR pending.
 - **operation** `testoperations.iperf_generator:saturate_link(protocol)` — takes
   `TransportProtocol | str` (default `UDP`) and converts it at its boundary with `coerce_enum`:

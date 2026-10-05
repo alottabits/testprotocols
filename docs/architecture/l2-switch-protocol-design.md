@@ -325,7 +325,7 @@ explicit queue-scheduler / per-port-rate-limit tuning is **not** modeled now
 (deferred — surfaces unevenly and no test drives it).
 
 *Classifier typing:* `QosRule.classifier` (`QosClassifier | None`: VLAN, protocol,
-source and destination ports; synced with the deprecated `match` text) types the
+source and destination ports; beside the deprecated `match` text) types the
 classification; free text stays legal and has no classifier. See
 `precise-types-design.md` ("Switch QoS classifier").
 

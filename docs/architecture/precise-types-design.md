@@ -5,7 +5,7 @@
 | Status  | Implemented, unreleased                                               |
 | Author  | rjvisser                                                              |
 | Date    | 2026-10-04                                                            |
-| Related | `docs/proposals/README.md` (question 9, precise types), `CONTRIBUTING.md` (Versioning), `testprotocols.deprecation`, `testprotocols.models._sync`, `packages/testprotocols/tests/test_typing_ratchet.py` |
+| Related | `docs/proposals/README.md` (question 9, precise types), `CONTRIBUTING.md` (Versioning), `testprotocols.deprecation`, `testoperations._compat`, `packages/testprotocols/tests/test_typing_ratchet.py` |
 
 ## Purpose
 
@@ -47,7 +47,7 @@ Each retype names one of these shapes. The building blocks are reused, never
 copied: `testprotocols.deprecation` (`coerce_enum`, `coerce_int`,
 `warn_renamed`, `renamed_attribute`, `warn_at_caller`,
 `MODEL_FRAMES`),
-and `testprotocols.models._sync`.
+and `testoperations._compat`.
 
 - **Shape 1: a released `str` parameter becomes an enum.** The parameter is
   annotated `E | str`. A driver or operation coerces it once, at its boundary
@@ -70,8 +70,8 @@ and `testprotocols.models._sync`.
   `stacklevel`: `warnings.warn(skip_file_prefixes=…)` alone does not skip the
   generated `__init__` on Python 3.12. A reader always holds the member.
 - **Shape 4(ii): a released field holding a grammar becomes structured.** A
-  new typed field is added beside the text field and the two are kept in
-  agreement through `_sync` (below).
+  new typed field is added beside the text field, and a driver fills either
+  form (below).
 - **Shape 4p: a free-string tool parameter becomes typed keyword
   parameters.** The typed keyword-only parameters are added; the old string
   parameter stays, documented as deprecated, and warns when non-empty; passing
@@ -93,33 +93,27 @@ and `testprotocols.models._sync`.
 A narrowing that takes effect at once (a value that was never meaningful now
 raises) is recorded under *Changed* in the changelog.
 
-## Synced fields: the side that changed wins
+## Text and typed fields: either form
 
-A shape 4(ii) retype keeps a deprecated text field (or several fields that
-together spell one value, such as a `(kind, value)` pair) and its typed
-successor in agreement. `testprotocols.models._sync` holds the rule once;
-a model declares one `SyncedField` (one text field) or `SyncedFields` (several)
-per pair and calls `settle` from `__post_init__` and `assign` from
-`__setattr__`.
+A shape 4(ii) retype keeps a released text field and adds its typed successor.
+The record holds no code for the pair: no sync, no parsing and no check.
 
-- **At construction**, a typed value fills the text; the text alone warns and
-  fills the typed value; both given and disagreeing raise `ValueError`.
-- **Through `dataclasses.replace` and assignment, the side that changed
-  wins.** Changing the typed field rewrites the text silently; changing the
-  text re-parses it into the typed field and warns. Both changed and
-  disagreeing raise `ValueError`.
-- **Parse before warn.** Malformed text raises `ValueError` without warning
-  and changes nothing.
-- **Type errors.** A text field assigned a non-text value, or an enum-typed
-  text field assigned a value of another type, raises `TypeError`; a plain
-  string for an enum-typed text field converts through `coerce_enum`.
-- **Provenance last.** A hidden provenance field (`repr=False`,
-  `compare=False`) records the agreed text of every pair; `replace` copies it,
-  which is how a changed side is told from an unchanged one. It must be the
-  model's last field, because the generated `__init__` assigns in field order;
-  `settle` raises `TypeError` otherwise.
-- Text is kept in its canonical form, so two records that agree compare equal
-  whichever side built them.
+- The released text field keeps its name and position; its type widens to
+  `<released type> | None`. A field that was required stays required (a driver
+  that fills only the typed form passes `None`); a field that had a default now
+  defaults to `None`, which means what the released default meant.
+- The typed field is keyword-only and defaults to `None`.
+- A driver fills either field, or both; when both are filled they describe the
+  same value. For a field that was required, at least one is filled. At removal
+  the text field goes and the typed field becomes required.
+- `testoperations._compat` reads a pair: the typed field when filled, else the
+  text parsed, else the released default's meaning, or `ValueError` naming the
+  record and field when the released field was required. Where the typed field
+  holds `None` as a value (`SecurityEvent.timestamp`: no time reported;
+  `QosRule.classifier`: every frame), a record with neither form filled reads
+  as that `None`. The parsers and formatters of the text forms live there too.
+- A reader that reads the text field directly sees `… | None`; this is listed
+  under *Breaking for driver authors*.
 
 ## Retypes
 
@@ -135,48 +129,32 @@ where one exists, also records its retype.
   `policy`, `mode` and `protocol` parameters of `PacketFilter`, `Nat`
   and `Conntrack` are `E | str` and a driver coerces once at each member
   (shape 1). The four closed vocabularies on `FirewallRule`, `NatRule`,
-  `PortMapping` and `Connection` are shape 3: the records are mutable, so the
-  coercion is a `__setattr__`, and a plain string warns while an unknown one
-  raises `ValueError`. A connection's `state` stays `str`: the released contract
+  `PortMapping` and `Connection` are shape 3: `E | str`, stored as given. A connection's `state` stays `str`: the released contract
   listed nine TCP states, `UNREPLIED` and `ASSURED`, "or driver-specific
   values", so the device reports its own word and the docstring lists the common
   ones. A conntrack `state` filter is the same word. A conntrack `protocol` filter of `any` is refused: a
-  flow has one transport, and so is `Connection.protocol`, which raises
-  `ValueError` for `RuleProtocol.ANY`. `get_default_policy` keeps returning `str`
+  flow has one transport, and `Connection.protocol` is never `RuleProtocol.ANY`
+  (stated in its docstring). `get_default_policy` keeps returning `str`
   (shape 6, announced only).
 - **Firewall and NAT ports and counters** (shapes 4(ii), 5 and 6). `FirewallRule`
   gains `dst_ports` and `NatRule` gains `dst_ports` and `translated_ports`, each a
-  `tuple[PortRange, ...]` synced with its deprecated text field through `_sync`.
-  A record has one provenance field (`_ports_seen`, last), shared by all its pairs,
-  and the same `__setattr__` also applies the enum coercion of the vocabularies
-  retype. `FirewallRule.dst_port` now defaults to `"any"` (its released contract
-  allowed `"any"`; the default lets a rule be built from `dst_ports` alone). The
-  released `NatRule` contract used `""` for no port, so its pairs use `""` as the
-  canonical empty text (`"any"` is accepted and reads back `""`), while
-  `FirewallRule` keeps `"any"`. The `NatRule` cidr and translated-address `""`
+  `tuple[PortRange, ...] | None` beside its deprecated text field (either form).
+  `FirewallRule.dst_port` stays required (`str | None`). The released `NatRule`
+  contract used `""` for no port, so an unfilled `NatRule` pair reads as no port
+  (`"any"` reads the same), while `FirewallRule` reads `"any"` as any port. The
+  `NatRule` cidr and translated-address `""`
   placeholders are announced only (shape 6). `RuleCounters(packets, bytes)`
   replaces the `(int, int)` tuple: the new members
   `PacketFilter.get_rule_counter_values` and `Nat.get_nat_rule_counter_values`
   are mandatory (breaking for driver authors), the old names deprecated (shape 5).
   `testoperations` does not call either old name.
 - **SD-WAN models** (shapes 4(ii) and 6). `L3Rule` gains `src_ports` and
-  `dst_ports`, `tuple[PortRange, ...]` synced with the deprecated `src_port` /
-  `dst_port` text through `_sync`, one provenance field (`_ports_seen`) for both
-  pairs, as on `FirewallRule`. `SecurityEvent` gains `timestamp: datetime | None`
-  synced with the deprecated ISO-8601 `ts`. The codec is `datetime.fromisoformat`
-  and `datetime.isoformat()`; a timezone-naive value stays naive and no zone is
-  assumed. An ISO-8601 instant has several equal spellings (`Z` or `+00:00`, `T` or
-  a space), and `isoformat()` writes one, so `isoformat()` does not round-trip a
-  producer's text: the pair is a `SyncedField` with `keep_text=True`, which keeps a
-  text exactly as given when it differs from the canonical form only in spelling
-  (it parses to the agreed value and formats back to the agreed text). A text that
-  spells a different value, such as the same instant at another UTC offset, is
-  rewritten, so `replace`, assignment and re-assigning the same value agree. A
-  typed value alone writes `isoformat()`. Two events with the same instant in two
-  spellings compare unequal on `ts`. `ts` gained a default (`""`, no time) so an event can
-  be built from `timestamp` alone; the fields after it keep their released
-  positions and take a required-argument placeholder that `__post_init__` refuses,
-  so omitting one still raises `TypeError` (the placeholder reads `<required>`). The `"any"` cidr placeholders
+  `dst_ports`, `tuple[PortRange, ...] | None` beside the deprecated `src_port` /
+  `dst_port` text (either form; an unfilled pair reads as the released `"any"`).
+  `SecurityEvent` gains `timestamp: datetime | None` beside the deprecated
+  ISO-8601 `ts`, which stays required and in its released position. The text
+  parser is `datetime.fromisoformat`; a timezone-naive value stays naive and no
+  zone is assumed. The `"any"` cidr placeholders
   of `L3Rule`, the `""` placeholders of `UplinkStatus` and `NetworkAttachment.segment`
   are announced only (shape 6).
 - **WAN-edge models** (shape 3 and the orphan deprecation). `LinkStatus.state`
@@ -197,7 +175,7 @@ where one exists, also records its retype.
   dict match (destination prefix, source prefix, protocol, port) a reference
   consumer builds into `TrafficShapingRule`.
 - **Switch QoS classifier** (shape 4(ii)). `QosRule.classifier` is
-  `QosClassifier | None`, synced with the deprecated `match` text. `QosClassifier`
+  `QosClassifier | None` beside the deprecated `match` text, which stays required. `QosClassifier`
   is a frozen record of neutral fields: `vlan`, `protocol` (`RuleProtocol`),
   `src_ports` and `dst_ports` (`PortRange` tuples); a field left out places no
   restriction. The released contract described `match` as a vendor-neutral
@@ -206,9 +184,8 @@ where one exists, also records its retype.
   list of `key=value` terms over a VLAN, a protocol, and source and destination
   ports (a port, or an `a-b` range). The parser accepts that list (protocol in any
   letter case, `any` is `RuleProtocol.ANY`); text that is not such a list has no
-  classifier, so `classifier` is `None` and `match` keeps the text exactly as given:
-  no error, nothing lost. A term given twice raises `ValueError`. Parsed text keeps
-  its spelling (`keep_text`); assigning a classifier writes canonical text. A
+  classifier: the reader gives `None`, and `match` keeps the text exactly as given.
+  A term given twice raises `ValueError` in the reader. A
   `TrafficMatch` was the wrong carrier: it is one match of one kind and has no VLAN
   or protocol. A rule holds one source and one destination range at most, because
   the text spells one range per direction.
@@ -217,8 +194,8 @@ where one exists, also records its retype.
   `Mapping[str, float]`, so an implementer whose declared return is not
   `float`-valued no longer conforms:
   `Router.read_telemetry() -> Telemetry` is a new mandatory member, and the old name
-  is documented "Deprecated name of" it; a driver delegates with
-  `read_telemetry().as_dict()` after `warn_renamed`. The fields come from evidence,
+  is documented "Deprecated name of" it; a driver returns the reported fields of
+  `read_telemetry()` after `warn_renamed`. The fields come from evidence,
   not from design. The released docstring said only "a dict of current device
   telemetry data" and named no key. The only implementer in the consumer examples
   (a Linux router) returns `uptime_seconds`, `cpu_load_percent` and
@@ -618,51 +595,30 @@ Changes that take effect in this release for code written against the released
 contract, whether or not it uses the deprecated spelling. Each retype is listed here;
 the matching CHANGELOG entry sits under *Changed*.
 
-- **Conntrack and coercion** (vocabularies). `Connection.protocol` refuses
-  `RuleProtocol.ANY` with `ValueError`, as the released docstring said. An unknown
-  string on `FirewallRule`, `NatRule`, `PortMapping` or `Connection` (protocol, mode,
-  action) raises `ValueError`; `Connection.state` stays `str`. A conntrack `protocol` filter of `any`
-  is refused. `NatRule.protocol` defaults to `RuleProtocol.ANY`.
-- **Firewall and NAT ports** (ports). `FirewallRule.dst_port` now defaults to
-  `"any"`. `NatRule` port text reads `""` for no port (`"any"` is accepted and reads
-  back `""`). Port text accepts only `"any"` (or `""` on `NatRule`), numbers, `a-b`
-  ranges and comma lists with no trailing comma; colon or slash forms (`"80:90"`,
-  `"tcp/80"`) and a trailing comma raise `ValueError`, so a driver that reads them
-  back must convert them. A non-text port text or a non-`PortRange` item raises
-  `TypeError`. An implementer must provide `PacketFilter.get_rule_counter_values` (so also
+- **Conntrack** (vocabularies). The firewall record fields (protocol, mode,
+  action) are `E | str`, stored as given; `Connection.state` stays `str`. A conntrack
+  `protocol` filter of `any` is refused. `NatRule.protocol` defaults to `RuleProtocol.ANY`.
+- **Firewall and NAT ports** (ports). `FirewallRule.dst_port` is `str | None` (still
+  required) and `NatRule.dst_port` / `translated_port` are `str | None` defaulting to
+  `None`; a reader of the text field sees `… | None`. An implementer must provide `PacketFilter.get_rule_counter_values` (so also
   `Firewall`) and `Nat.get_nat_rule_counter_values`, which return `RuleCounters`; the old
   counter names delegate to them.
 - **Static-only: unpacking a loose dict** (no runtime change). Unpacking
   a loosely typed dict, for example `FirewallRule(**dict[str, str])`, into a retyped
-  released record fails type-checking, because the synced typed fields (`dst_ports`)
-  and the hidden provenance field are keyword parameters and a type checker matches
-  the dict's value type against each. The caller types the dict or passes the fields
-  explicitly. The private `_ports_seen` also appears in `__init__` signatures and in
-  static error text; it is not API.
-- **SD-WAN models** (SD-WAN). `L3Rule.src_port` / `dst_port` follow the
-  `FirewallRule` port rule: only `"any"`, numbers, `a-b` ranges and comma lists are
-  text that parses (`""`, `"http"`, `"80:90"` and a trailing comma raise
-  `ValueError`; a non-text value raises `TypeError`), and text reads back
-  canonical. `SecurityEvent.ts` raises `ValueError` for text `datetime.fromisoformat`
-  does not parse (released: any string was accepted) and `TypeError` for a
-  non-text value. Static only: unpacking a loosely typed dict into `L3Rule` or
-  `SecurityEvent` fails type-checking, as for `FirewallRule` (the keyword
-  parameters `src_ports`, `dst_ports`, `timestamp` and the private `_ports_seen`
-  and `_ts_seen`). Also static only: `ts` has a default, so `src_ip`, `dst_ip`,
-  `protocol`, `action` and `category` carry a `<required>` placeholder default and
-  a type checker no longer flags an event built without them (a runtime
-  `TypeError` still does).
-- **WAN-edge models** (WAN-edge). A `LinkStatus.state` or
-  `LinkHealthReport.state` word that is not an `UplinkState` value raises
-  `ValueError` (released: any string). `testprotocols.models.TrafficShapingRule`
+  released record fails type-checking, because the typed fields (`dst_ports`) are
+  keyword parameters and a type checker matches the dict's value type against each.
+  The caller types the dict or passes the fields explicitly.
+- **SD-WAN models** (SD-WAN). `L3Rule.src_port` / `dst_port` are `str | None`
+  defaulting to `None`, and `SecurityEvent.ts` is `str | None` (still required); a
+  reader of the text field sees `… | None`. Static only: unpacking a loosely typed
+  dict into `L3Rule` or `SecurityEvent` fails type-checking, as for `FirewallRule`.
+- **WAN-edge models** (WAN-edge). `LinkStatus.state` and `LinkHealthReport.state`
+  are `UplinkState | str`, stored as given. `testprotocols.models.TrafficShapingRule`
   and `VPNPeerStatus` are not star-exported any more (they warn on access). Static
   only: `TrafficShapingRule.match` reads as `Mapping[str, object]` (was `dict[str, Any]`).
-- **Switch QoS classifier** (switch QoS). `QosRule.match` raises `ValueError`
-  for a term given twice; free text stays legal (no classifier, text unchanged).
-  `match` is now optional (`""`, every frame). A non-text `match` raises
-  `TypeError`. Static only: unpacking a
-  loosely typed dict into `QosRule` fails type-checking (`classifier` and the private
-  `_match_seen`).
+- **Switch QoS classifier** (switch QoS). `QosRule.match` is `str | None` (still
+  required); a reader of the text field sees `str | None`. Static only: unpacking a
+  loosely typed dict into `QosRule` fails type-checking (`classifier`).
 - **Telemetry and policy** (router). Static only, no runtime change:
   `Router.get_telemetry` returns `Mapping[str, float]` (was `dict[str, Any]`), so a
   reader gets `float` values and cannot assume a `dict`, and an implementer whose
