@@ -7,8 +7,6 @@ from collections.abc import Mapping
 from dataclasses import dataclass, fields
 from typing import ClassVar, cast
 
-from testprotocols.models import _checks
-
 
 @dataclass
 class ImpairmentProfile:
@@ -69,18 +67,6 @@ def coerce_impairment_profile(
     )
 
 
-def _ms(owner: str, name: str, value: object) -> None:
-    _checks.optional_count(owner, name, value)
-
-
-def _percent(owner: str, name: str, value: object) -> None:
-    _checks.optional_number(owner, name, value, high=100)
-
-
-def _given(**values: float | int | None) -> dict[str, float | int]:
-    return {key: value for key, value in values.items() if value is not None}
-
-
 @dataclass(frozen=True)
 class Blackout:
     """Every packet is lost for the event's duration (100 % loss); the latency and jitter
@@ -88,15 +74,12 @@ class Blackout:
 
     event_name: ClassVar[str] = "blackout"
 
-    def as_kwargs(self) -> dict[str, float | int]:
-        """The released ``inject_transient`` keyword arguments: none."""
-        return {}
-
 
 @dataclass(frozen=True)
 class Brownout:
-    """A degraded link: the given one-way *latency_ms*, *jitter_ms* and *loss_percent*
-    (0 to 100). A field left ``None`` takes the driver's own default for a brownout."""
+    """A degraded link: the given one-way *latency_ms* and *jitter_ms* (not negative) and
+    *loss_percent* (0 to 100). A field left ``None`` takes the driver's own default for a
+    brownout."""
 
     event_name: ClassVar[str] = "brownout"
 
@@ -104,44 +87,24 @@ class Brownout:
     jitter_ms: int | None = None
     loss_percent: float | None = None
 
-    def __post_init__(self) -> None:
-        _ms("Brownout", "latency_ms", self.latency_ms)
-        _ms("Brownout", "jitter_ms", self.jitter_ms)
-        _percent("Brownout", "loss_percent", self.loss_percent)
-
-    def as_kwargs(self) -> dict[str, float | int]:
-        """The released ``inject_transient`` keyword arguments: ``latency_ms``,
-        ``jitter_ms`` and ``loss_percent``, each only when given."""
-        return _given(
-            latency_ms=self.latency_ms, jitter_ms=self.jitter_ms, loss_percent=self.loss_percent
-        )
-
 
 @dataclass(frozen=True)
 class LatencySpike:
-    """A temporary high latency: *latency_ms* (one-way) and *jitter_ms* during the spike;
-    the loss in force is kept. A field left ``None`` takes the driver's own default."""
+    """A temporary high latency: *latency_ms* (one-way) and *jitter_ms* during the spike,
+    not negative; the loss in force is kept. A field left ``None`` takes the driver's own
+    default."""
 
     event_name: ClassVar[str] = "latency_spike"
 
     latency_ms: int | None = None
     jitter_ms: int | None = None
 
-    def __post_init__(self) -> None:
-        _ms("LatencySpike", "latency_ms", self.latency_ms)
-        _ms("LatencySpike", "jitter_ms", self.jitter_ms)
-
-    def as_kwargs(self) -> dict[str, float | int]:
-        """The released ``inject_transient`` keyword arguments: the released implementers
-        read the spike latency as ``spike_latency_ms``, and ``jitter_ms``."""
-        return _given(spike_latency_ms=self.latency_ms, jitter_ms=self.jitter_ms)
-
 
 @dataclass(frozen=True)
 class PacketStorm:
     """A burst of packet loss: *loss_percent* (0 to 100) with the given *latency_ms* and
-    *jitter_ms*, as the released implementers apply a packet storm. A field left ``None``
-    takes the driver's own default.
+    *jitter_ms* (not negative), as the released implementers apply a packet storm. A field
+    left ``None`` takes the driver's own default.
 
     *duplicate_percent* (0 to 100) is optional and ``None`` (not requested) by default: the
     share of packets duplicated as well. No released implementer applies duplication; a
@@ -155,26 +118,10 @@ class PacketStorm:
     jitter_ms: int | None = None
     duplicate_percent: float | None = None
 
-    def __post_init__(self) -> None:
-        _percent("PacketStorm", "loss_percent", self.loss_percent)
-        _ms("PacketStorm", "latency_ms", self.latency_ms)
-        _ms("PacketStorm", "jitter_ms", self.jitter_ms)
-        _percent("PacketStorm", "duplicate_percent", self.duplicate_percent)
-
-    def as_kwargs(self) -> dict[str, float | int]:
-        """The released ``inject_transient`` keyword arguments, each only when given."""
-        return _given(
-            loss_percent=self.loss_percent,
-            latency_ms=self.latency_ms,
-            jitter_ms=self.jitter_ms,
-            duplicate_percent=self.duplicate_percent,
-        )
-
 
 TransientEvent = Blackout | Brownout | LatencySpike | PacketStorm
 """A timed impairment event for ``NetemController.inject_event``. Each event's
-``event_name`` is its released ``inject_transient`` word and ``as_kwargs()`` the released
-keyword arguments the implementers read."""
+``event_name`` is its released ``inject_transient`` word."""
 
 
 _EVENT_KEYS: dict[str, frozenset[str]] = {

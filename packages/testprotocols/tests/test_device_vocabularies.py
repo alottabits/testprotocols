@@ -7,7 +7,6 @@ from testprotocols.models import (
     QoEResult,
     RadiusAccountingRecord,
     RadiusUser,
-    WifiBand,
     WifiStation,
 )
 
@@ -67,7 +66,7 @@ def test_device_vocabularies_store_as_given() -> None:
         station = WifiStation(
             mac="02:00:00:00:00:01",
             bss_name="bss",
-            band=WifiBand.GHZ_5,
+            band="5GHz",
             ip_address=None,
             associated_since=0.0,
             rssi_dbm=-50,

@@ -247,11 +247,6 @@ def test_http_result_non_numeric_code_text_is_kept_in_the_released_attribute() -
         assert HTTPResult("HTTP/1.1 abc Weird\n\nx").code == "abc"
 
 
-def test_http_result_rejects_non_text() -> None:
-    with pytest.raises(TypeError, match="response text"):
-        HTTPResult(None)  # type: ignore[arg-type]
-
-
 # --- QoEResult.protocol --------------------------------------------------------------
 
 
@@ -277,33 +272,15 @@ def test_measurement_spec_defaults_equal_released_text() -> None:
     assert _equal(spec.completion, "networkidle")
 
 
-def test_measurement_spec_plain_strings_warn_and_convert() -> None:
-    with pytest.warns(DeprecationWarning) as record:
-        spec = MeasurementSpec(tool="http_client", completion="duration", duration_s=15)
-    assert [str(w.message).split(":")[0] for w in record] == [
-        "MeasurementSpec.tool",
-        "MeasurementSpec.completion",
-    ]
-    assert all(w.filename == __file__ for w in record)
-    assert spec.tool is QoeTool.HTTP_CLIENT
-    assert spec.completion is QoeCompletion.DURATION
-    with pytest.warns(DeprecationWarning):
-        spec.tool = "webrtc"
-    assert spec.tool is QoeTool.WEBRTC
-
-
-def test_measurement_spec_page_completion_converts_silently() -> None:
+def test_measurement_spec_plain_strings_are_stored_as_given() -> None:
     with warnings.catch_warnings():
         warnings.simplefilter("error")
-        spec = MeasurementSpec(completion=PageCompletion.LOAD)
-    assert spec.completion is QoeCompletion.LOAD
-
-
-def test_measurement_spec_unknown_word_is_refused() -> None:
-    with pytest.raises(ValueError, match="bogus"):
-        MeasurementSpec(tool="bogus")
-    with pytest.raises(ValueError, match="idle"):
-        MeasurementSpec(completion="idle")
+        spec = MeasurementSpec(tool="http_client", completion="duration", duration_s=15)
+        spec.tool = "webrtc"
+        page = MeasurementSpec(completion=PageCompletion.LOAD)
+    assert type(spec.tool) is str and spec.tool == QoeTool.WEBRTC
+    assert spec.completion == QoeCompletion.DURATION
+    assert page.completion is PageCompletion.LOAD and _equal(page.completion, QoeCompletion.LOAD)
 
 
 # --- TrafficSpec -------------------------------------------------------------------
@@ -311,14 +288,10 @@ def test_measurement_spec_unknown_word_is_refused() -> None:
 
 def test_traffic_spec_protocol() -> None:
     assert TrafficSpec("10.0.0.1", 1.0).protocol is TransportProtocol.UDP
-    with pytest.warns(DeprecationWarning, match="TransportProtocol.TCP") as record:
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
         spec = TrafficSpec("10.0.0.1", 1.0, protocol="tcp")
-    assert record[0].filename == __file__
-    assert spec.protocol is TransportProtocol.TCP and _equal(spec.protocol, "tcp")
-    spec.protocol = TransportProtocol.UDP
-    with pytest.raises(ValueError, match="icmp"):
-        spec.protocol = "icmp"
-    assert spec.protocol is TransportProtocol.UDP
+    assert type(spec.protocol) is str and _equal(spec.protocol, TransportProtocol.TCP)
 
 
 # --- StormControlConfig ------------------------------------------------------------

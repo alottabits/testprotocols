@@ -34,8 +34,8 @@ class DeviceManagement(Protocol):
     def get_memory_utilization(self) -> dict[str, int]:
         """Deprecated name of :meth:`read_memory_utilization`.
 
-        Returns ``read_memory_utilization().as_dict()``: memory utilization in bytes, keyed
-        by metric name (``total``, ``used``, ``free`` and, when reported, ``shared``,
+        Returns the figures of ``read_memory_utilization()``: memory utilization in bytes,
+        keyed by metric name (``total``, ``used``, ``free`` and, when reported, ``shared``,
         ``cache``, ``available``); the driver warns with
         ``warn_renamed("get_memory_utilization", "read_memory_utilization")``.
         """
@@ -49,8 +49,8 @@ class DeviceManagement(Protocol):
         """Deprecated name of :meth:`read_running_processes`.
 
         Returns the list of running processes using the given ps options. For the default
-        ``"-A"`` on a procps host that is
-        ``[p.as_dict() for p in read_running_processes()]``; the driver warns with
+        ``"-A"`` on a procps host each entry holds the fields of a ``read_running_processes()``
+        record (``pid``, ``tty``, ``time`` as ``[DD-]hh:mm:ss``, ``cmd``); the driver warns with
         ``warn_renamed("get_running_processes", "read_running_processes")``. Other
         options keep the driver's released output until the removal step.
 
@@ -75,8 +75,9 @@ class DeviceManagement(Protocol):
         ``tag``, ``content``). A driver keeps its released output here until the removal
         step (it warns with ``warn_renamed("read_event_logs", "read_log_entries")``): that
         output also carries the lines its parser could not read (``{"unparsable": line}``),
-        which :meth:`read_log_entries` leaves out. For a parsed line,
-        ``EventLogEntry.as_dict()`` is the released entry.
+        which :meth:`read_log_entries` leaves out. For a parsed line, the released entry holds
+        the fields of an ``EventLogEntry`` (``date`` is its *timestamp*, ``content`` its
+        *message*).
         """
         ...
 

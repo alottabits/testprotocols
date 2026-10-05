@@ -3,20 +3,15 @@
 The closed vocabularies are enums (``WifiBand``, ``WifiSecurityMode``, ``MfpMode``,
 ``WifiAclMode``, ``WifiPhyMode``, ``ChannelWidth``, ``MeshRole``); every member equals
 the string the released contract used (``WifiBand.GHZ_5 == "5GHz"``). A model field
-that holds one is typed ``E | str``: a plain string naming a member is deprecated (it
-warns and is converted, also on assignment, so a reader always holds the member) and
-any other string raises ``ValueError``. ``WifiStation.capability_flags`` stays
-``list[str]``, the device's own words.
+that holds one is typed ``E | str``: a plain string naming a member is deprecated and
+is stored as given, and each field narrows to its enum when the plain ``str`` form is
+removed. ``WifiStation.capability_flags`` stays ``list[str]``, the device's own words.
 """
 
 from __future__ import annotations
 
-from collections.abc import Mapping
 from dataclasses import dataclass, field
-from enum import Enum, IntEnum, StrEnum
-from typing import ClassVar, cast, override
-
-from testprotocols.deprecation import MODEL_FRAMES, coerce_enum
+from enum import IntEnum, StrEnum
 
 
 class WifiBand(StrEnum):
@@ -87,33 +82,6 @@ class MeshRole(StrEnum):
     UNCOMMISSIONED = "uncommissioned"  # about to be onboarded as an agent
 
 
-class _EnumFields:
-    """Mixin: a model whose ``_ENUM_FIELDS`` are coerced to their enum on assignment (shape 3).
-
-    The generated ``__init__`` assigns each field, so construction, ``replace`` and
-    later assignment all go through :meth:`__setattr__`. A plain string naming a
-    member warns (the warning points at the caller's construction or assignment
-    site); any other string raises ``ValueError`` listing the legal values.
-    """
-
-    _ENUM_FIELDS: ClassVar[Mapping[str, type[Enum]]] = {}
-
-    def _coerced(self, name: str, value: object) -> object:
-        enum_type = self._ENUM_FIELDS.get(name)
-        if enum_type is None:
-            return value
-        return coerce_enum(
-            enum_type,
-            cast("Enum | str", value),
-            what=f"{type(self).__name__}.{name}",
-            skip_file_prefixes=MODEL_FRAMES,
-        )
-
-    @override
-    def __setattr__(self, name: str, value: object) -> None:
-        object.__setattr__(self, name, self._coerced(name, value))
-
-
 @dataclass
 class WifiDfsState:
     """DFS state of a radio.
@@ -137,20 +105,14 @@ class WifiCaptiveConfig:
 
 
 @dataclass
-class WifiBssConfig(_EnumFields):
+class WifiBssConfig:
     """Configuration of a single BSS, as returned by WifiBss read methods.
 
     *passphrase* is intentionally absent — write-only across the contract.
     *band*, *security_mode* and *mfp* are :class:`WifiBand`, :class:`WifiSecurityMode`
-    and :class:`MfpMode`; a plain string naming a member is deprecated (it warns and
-    is converted) and any other string raises ``ValueError``.
+    and :class:`MfpMode`; a plain string naming a member is deprecated and stored as
+    given, and each field narrows to its enum when the plain ``str`` form is removed.
     """
-
-    _ENUM_FIELDS: ClassVar[Mapping[str, type[Enum]]] = {
-        "band": WifiBand,
-        "security_mode": WifiSecurityMode,
-        "mfp": MfpMode,
-    }
 
     name: str  # stable logical handle
     band: WifiBand | str
@@ -174,8 +136,9 @@ class WifiStation:
     Stats are point-in-time snapshots; cumulative counters (bytes, packets,
     retries) are since the start of the current association.
 
-    *band* is a :class:`WifiBand`; a plain string naming one is deprecated (it warns
-    and is converted) and any other string raises ``ValueError``.
+    *band* is a :class:`WifiBand`; a plain string naming one is deprecated and stored
+    as given, and the field narrows to :class:`WifiBand` when the plain ``str`` form is
+    removed.
 
     *capability_flags* are the device's own words, stored as given and in order (for
     example ``["HT", "VHT", "HE"]``, or ``["EHT", "MLO"]`` for Wi-Fi 7).
@@ -197,23 +160,10 @@ class WifiStation:
     tx_retries: int
     capability_flags: list[str] = field(default_factory=list[str])
 
-    @override
-    def __setattr__(self, name: str, value: object) -> None:
-        if name == "band":
-            value = coerce_enum(
-                WifiBand,
-                cast("WifiBand | str", value),
-                what="WifiStation.band",
-                skip_file_prefixes=MODEL_FRAMES,
-            )
-        object.__setattr__(self, name, value)
-
 
 @dataclass
-class WifiAcl(_EnumFields):
+class WifiAcl:
     """Per-BSS MAC access-control list state. *mode* is a :class:`WifiAclMode`."""
-
-    _ENUM_FIELDS: ClassVar[Mapping[str, type[Enum]]] = {"mode": WifiAclMode}
 
     bss_name: str
     mode: WifiAclMode | str
@@ -222,15 +172,13 @@ class WifiAcl(_EnumFields):
 
 
 @dataclass
-class WifiNeighbor(_EnumFields):
+class WifiNeighbor:
     """A neighbour BSS observed by an off-channel scan.
 
     *band* is a :class:`WifiBand`. *security_mode* stays free text: it is a
     best-effort identification of a foreign network and may name a scheme no
     :class:`WifiSecurityMode` lists.
     """
-
-    _ENUM_FIELDS: ClassVar[Mapping[str, type[Enum]]] = {"band": WifiBand}
 
     bssid: str  # MAC, canonical lowercase colon-separated
     ssid: str  # may be empty for hidden SSIDs
@@ -242,15 +190,13 @@ class WifiNeighbor(_EnumFields):
 
 
 @dataclass
-class WifiChannelUtilization(_EnumFields):
+class WifiChannelUtilization:
     """Per-radio channel-utilization breakdown.
 
     All fields are 0-100. ``busy_pct`` is always populated; the
     component splits (tx/rx/interference) are populated only on drivers
     that report them separately. *band* is a :class:`WifiBand`.
     """
-
-    _ENUM_FIELDS: ClassVar[Mapping[str, type[Enum]]] = {"band": WifiBand}
 
     band: WifiBand | str
     busy_pct: int  # total channel occupancy
@@ -260,10 +206,8 @@ class WifiChannelUtilization(_EnumFields):
 
 
 @dataclass
-class WifiRadioStats(_EnumFields):
+class WifiRadioStats:
     """Cumulative per-radio TX/RX/retry counters. *band* is a :class:`WifiBand`."""
-
-    _ENUM_FIELDS: ClassVar[Mapping[str, type[Enum]]] = {"band": WifiBand}
 
     band: WifiBand | str
     tx_bytes: int
@@ -287,10 +231,8 @@ class WifiTransitionConfig:
 
 
 @dataclass
-class WifiMeshLink(_EnumFields):
+class WifiMeshLink:
     """A wireless backhaul link between mesh agents. *band* is a :class:`WifiBand`."""
-
-    _ENUM_FIELDS: ClassVar[Mapping[str, type[Enum]]] = {"band": WifiBand}
 
     band: WifiBand | str
     channel: int
@@ -299,10 +241,8 @@ class WifiMeshLink(_EnumFields):
 
 
 @dataclass
-class WifiMeshStatus(_EnumFields):
+class WifiMeshStatus:
     """A mesh participant's local status snapshot. *role* is a :class:`MeshRole`."""
-
-    _ENUM_FIELDS: ClassVar[Mapping[str, type[Enum]]] = {"role": MeshRole}
 
     role: MeshRole | str
     enabled: bool
@@ -312,10 +252,8 @@ class WifiMeshStatus(_EnumFields):
 
 
 @dataclass
-class WifiMeshNode(_EnumFields):
+class WifiMeshNode:
     """Identity and position of a mesh agent in the topology. *role* is a :class:`MeshRole`."""
-
-    _ENUM_FIELDS: ClassVar[Mapping[str, type[Enum]]] = {"role": MeshRole}
 
     mac: str  # canonical lowercase colon-separated
     role: MeshRole | str

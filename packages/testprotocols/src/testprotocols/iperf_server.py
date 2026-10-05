@@ -25,7 +25,7 @@ class IperfServer(Protocol):
     ) -> tuple[int, str]:
         """Deprecated name of :meth:`start_receiver_session`.
 
-        Returns ``start_receiver_session(...).as_tuple()``; the driver warns with
+        Returns the ``(pid, log_file)`` of ``start_receiver_session(...)``; the driver warns with
         ``warn_renamed("start_traffic_receiver", "start_receiver_session")``.
 
         Start an iperf traffic receiver on *traffic_port*.

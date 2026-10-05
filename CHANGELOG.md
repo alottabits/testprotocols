@@ -58,8 +58,8 @@ their tags and PR history.
   `read_mwi_status(user) -> MwiStatus` and `read_offline_messages(user) -> list[OfflineMessage]` —
   new mandatory members, replacing `get_rtpengine_stats`, `get_mwi_status` and
   `get_offline_messages` (which return dicts). Migration: implement them, and make each
-  old name warn with `warn_renamed(old, new)` and return the record's `as_dict()` (a list
-  comprehension of `as_dict()` for the offline messages). Design `docs/architecture/precise-types-design.md` (Voice vocabularies); PR pending.
+  old name warn with `warn_renamed(old, new)` and return the record's fields as the
+  released dict (one dict per offline message). Design `docs/architecture/precise-types-design.md` (Voice vocabularies); PR pending.
 - **protocol member** `testprotocols.ip_interface:IpInterface.is_link_admin_up(interface) -> bool`
   — new mandatory member: True when the interface is administratively up (the state
   `set_link_state` sets), whether or not a carrier is present. Migration: implement it
@@ -82,7 +82,7 @@ their tags and PR history.
   wins). The new members take no free tool-option string. Migration: implement them; make
   `get_url_rules`, `get_memory_utilization`, `start_traffic_sender` /
   `start_traffic_receiver` warn with `warn_renamed(old, new)` and return the record's
-  `as_tuple()` / `as_dict()` (a list of `as_dict()` for `get_running_processes` with the
+  fields in the released shape (one dict per process for `get_running_processes` with the
   default `"-A"` on a procps host); make `inject_transient` warn and call
   `inject_event(transient_event(event, **kwargs), duration_ms)`. `read_event_logs` (whose
   output includes unparsable lines), `dns_lookup`, `ping(json_output=True)`, `nmap`,
@@ -106,8 +106,12 @@ their tags and PR history.
   `str | None`. Design `docs/architecture/precise-types-design.md` (switch QoS classifier); PR pending.
 - **fields** `testprotocols.models:FirewallRule.action` / `protocol`, `NatRule.mode` /
   `protocol`, `PortMapping.protocol`, `Connection.protocol`, `LinkStatus.state` and
-  `LinkHealthReport.state` — now `E | str` (the enum or its released word, stored as
-  given), so a reader sees `E | str`. Design `docs/architecture/precise-types-design.md`; PR pending.
+  `LinkHealthReport.state`, `TrafficSpec.protocol`, `MeasurementSpec.tool` /
+  `completion`, the `band` of `WifiBssConfig`, `WifiStation`, `WifiNeighbor`,
+  `WifiChannelUtilization`, `WifiRadioStats` and `WifiMeshLink`,
+  `WifiBssConfig.security_mode` / `mfp`, `WifiAcl.mode` and the `role` of
+  `WifiMeshStatus` and `WifiMeshNode` — now `E | str` (the enum or its released word,
+  stored as given), so a reader sees `E | str`. Design `docs/architecture/precise-types-design.md`; PR pending.
 
 #### Added
 
@@ -222,13 +226,9 @@ their tags and PR history.
 - **records** `testprotocols.models:RtpStats` (`engaged`, `sessions`), `MwiStatus`
   (`waiting`, `new`, `old`) and `OfflineMessage` (`sender`, `body`, `stored_at`) —
   frozen records for what the SIP server's media relay, message-waiting and offline-message
-  readers returned as dicts; each has `as_dict()`, the released dict shape (for
-  `OfflineMessage`: keys `from`, `body`, `timestamp`, the latter `stored_at.isoformat(sep=" ")`,
-  i.e. `"2026-04-22 10:00:00"`, naive stays naive, aware keeps its offset). A driver parses its
-  stored text into a `datetime` for `read_offline_messages`; its deprecated
-  `get_offline_messages` may keep returning that original text unchanged. A
-  wrong type raises `TypeError`, a negative count `ValueError`. Migration: read the new
-  records. Design `docs/architecture/precise-types-design.md` (Voice vocabularies); PR pending.
+  readers returned as dicts (counts not negative). A driver parses its stored text into a
+  `datetime` for `read_offline_messages`; its deprecated `get_offline_messages` may keep
+  returning that original text unchanged. Migration: read the new records. Design `docs/architecture/precise-types-design.md` (Voice vocabularies); PR pending.
 - **enums** `testprotocols.models:IpVersion` (`IPV4 = "ipv4"`, `IPV6 = "ipv6"`; the
   `nmap(ip_type)` words), the `IntEnum` `IpFamily` (`V4 = 4`, `V6 = 6`; the iperf
   `ip_version` numbers), `DnsRecordType` (`A`, `AAAA`, `CNAME`, `MX`, `NS`, `PTR`, `SOA`,
@@ -247,22 +247,18 @@ their tags and PR history.
   default `None`, meaning "as the driver reads it"; released drivers ignore it). Migration: none. Design `docs/architecture/precise-types-design.md` (Host-tool and service vocabularies); PR pending.
 - **models** `testprotocols.models:UrlRules` (`allowed`, `blocked`),
   `MemoryUtilization` (`total_bytes`, `used_bytes`, `free_bytes`, and `shared_bytes`,
-  `cache_bytes`, `available_bytes` all given or all `None`; used and free at most total;
-  `as_dict()`), `ProcessInfo` (`pid`, `tty`, `cpu_time:
-  timedelta`, `command`; `as_dict()`), `EventLogEntry` (`timestamp` text, `hostname`, `tag`,
-  `message`, `priority`; `severity`; `as_dict()`), `DnsRecord` (`name`, `record_type`, `ttl`,
-  `data`; `record_type` is the resolver's own word), `IperfProcess` (`pid`, `log_file`; `as_tuple()`), `PingResult`
+  `cache_bytes`, `available_bytes` all given or all `None`; used and free at most total),
+  `ProcessInfo` (`pid`, `tty`, `cpu_time: timedelta`, `command`), `EventLogEntry`
+  (`timestamp` text, `hostname`, `tag`, `message`, `priority`; `severity`), `DnsRecord`
+  (`name`, `record_type`, `ttl`, `data`; `record_type` is the resolver's own word),
+  `IperfProcess` (`pid`, `log_file`), `PingResult`
   (`destination`, `transmitted`, `received`, `packet_loss_percent`, `duplicates`, `rtt_*_ms`;
   received at most transmitted, the loss within one point of what they give),
   `NmapResult` (`up`, `addresses`, `ports`) and `NmapPort` (`port`, `protocol:
   TransportProtocol`, `state`, `service`), `ArpEntry` (`address: IPv4Address`, `hw_type`,
-  `hw_address`, `flags`, `interface`) — frozen records for the host-tier readers; a wrong type
-  raises `TypeError`, an out-of-range, non-finite or inconsistent value `ValueError`. `as_dict()` /
-  `as_tuple()` give exactly what the deprecated reader returned for
-  `MemoryUtilization` (in bytes), `ProcessInfo` (a procps `ps -A` entry, time
-  `[DD-]hh:mm:ss`) and `IperfProcess`. `EventLogEntry.as_dict()` is the released entry of a
-  parsed line (`priority`, `date`, `hostname`, `tag`, `content`) only: the released output
-  also holds `{"unparsable": line}` entries, which no record holds. Migration: none. Design `docs/architecture/precise-types-design.md` (Host-tier records); PR pending.
+  `hw_address`, `flags`, `interface`) — frozen records for the host-tier readers; each
+  holds the figures the deprecated reader returned (the released event-log output also holds
+  `{"unparsable": line}` entries, which no record holds). Migration: none. Design `docs/architecture/precise-types-design.md` (Host-tier records); PR pending.
 - **enums** `testprotocols.models:SyslogSeverity` (`IntEnum`, RFC 5424 severities 0 to 7),
   `NmapPortState` (nmap's six port states: `open`, `closed`, `filtered`, `unfiltered`,
   `open|filtered`, `closed|filtered`). Migration: none. Design `docs/architecture/precise-types-design.md` (Host-tier records); PR pending.
@@ -271,8 +267,8 @@ their tags and PR history.
   jitter_ms, duplicate_percent)` (a burst of loss, as the released implementers apply it;
   `duplicate_percent` is `None`, not requested, unless given), the union `TransientEvent`, and
   `transient_event(event, **kwargs)` — the typed transient impairment events (every field
-  optional: `None` is the driver's default; `event_name` and `as_kwargs()` give the released `inject_transient` word
-  and keywords, a spike's latency being `spike_latency_ms` there) and the converter from a
+  optional: `None` is the driver's default; `event_name` gives the released `inject_transient`
+  word, whose keyword for a spike's latency is `spike_latency_ms`) and the converter from a
   released call (an unknown event or keyword raises `ValueError`). Migration: none. Design `docs/architecture/precise-types-design.md` (Host-tier records); PR pending.
 - **functions** `testprotocols.models:coerce_impairment_profile(profile, *, what)`,
   `group_records(records, *, what)` and `parse_window_size(text)` — a driver's converters:
@@ -280,14 +276,9 @@ their tags and PR history.
   released example implementer converts; a wrong value type raises `TypeError`), plain group-record tuples to
   `GroupRecord` (warns), and an iperf size (`"8M"`, binary units) to bytes (`ValueError` for
   text that is not a size). Migration: none. Design `docs/architecture/precise-types-design.md` (Host-tier records); PR pending.
-- **internal module** `testprotocols.models._checks` — the field checks the frozen records
-  share (`TypeError` for a wrong type, `ValueError` out of range or not finite; a `bool` is
-  never a number);
-  the voice records use it too. Not public API. Migration: none. Design `docs/architecture/precise-types-design.md` (Host-tier records); PR pending.
 - **model** `testprotocols.models:GroupRecord(sources, group, record_type)` — a `NamedTuple`,
   so it is the released `(sources, group, record_type)` tuple and fits the released
-  `MulticastGroupRecord` parameter type; a wrong type raises `TypeError`, also through
-  `_make` and `_replace`. Migration: none.
+  `MulticastGroupRecord` parameter type. Migration: none.
   Design `docs/architecture/precise-types-design.md` (Host-tier records); PR pending.
 
 - **module** `testprotocols.tool_options` — `settle_option_string` (a driver's one rule for a
@@ -352,11 +343,9 @@ their tags and PR history.
 - **models** `testprotocols.models` `WifiBssConfig` (`band`, `security_mode`, `mfp`),
   `WifiStation.band`, `WifiNeighbor.band`, `WifiChannelUtilization.band`,
   `WifiRadioStats.band`, `WifiMeshLink.band`, `WifiAcl.mode`, `WifiMeshStatus.role` and
-  `WifiMeshNode.role` — now enums (`WifiBand`, `WifiSecurityMode`, `MfpMode`,
-  `WifiAclMode`, `MeshRole`); a plain string naming a member warns and converts
-  (also on assignment and `replace`), and a string that is no member raises
-  `ValueError` (released: any string). Listed in the design
-  doc's "Effective now". Design `docs/architecture/precise-types-design.md` (Wi-Fi vocabularies); PR pending.
+  `WifiMeshNode.role` — now `E | str` (`WifiBand`, `WifiSecurityMode`, `MfpMode`,
+  `WifiAclMode`, `MeshRole`): a member or the released word, stored as given. Listed in
+  the design doc's "Effective now". Design `docs/architecture/precise-types-design.md` (Wi-Fi vocabularies); PR pending.
 - **protocol members** `WifiBss.create_bss` / `set_security` (`band`, `security_mode`,
   `mfp`; the `mfp` default is `MfpMode.OPTIONAL`, equal to `"optional"`),
   `WifiBss.set_acl_mode`, every `band` of `WifiRadio` and `WifiRf`,
@@ -384,10 +373,8 @@ their tags and PR history.
   and `dataclasses.replace` does not apply (the constructor takes the text). Migration: read
   `status` and `body`. Design `docs/architecture/precise-types-design.md` (Host-tool and service vocabularies); PR pending.
 - **models** `MeasurementSpec.tool` and `completion`, and `TrafficSpec.protocol` — now
-  enums. A plain `str` naming a member warns and converts, also on assignment, so a reader
-  holds the member (it compares equal to its text). A word that names no member raises
-  `ValueError` (released: free text; the example implementer treated an unknown
-  tool as the browser). `QoEResult.protocol`, `RadiusUser.eap_methods` and
+  `E | str`: a member or the released word, stored as given (a member compares equal to
+  its text). `QoEResult.protocol`, `RadiusUser.eap_methods` and
   `RadiusAccountingRecord.record_type` / `terminate_cause` stay `str`, the device's own
   word. `repr()` of a
   `QoeTool` or `QoeCompletion` is the quoted text, so generated text is unchanged; every
@@ -503,7 +490,7 @@ their tags and PR history.
 - **parameter** `WifiClient.set_wlan_scan_channel(channel)` — a numeric `str` is
   deprecated: the driver converts it with `coerce_int` (it warns). Narrows to `int`
   in a later release. Design `docs/architecture/precise-types-design.md` (Wi-Fi vocabularies); PR pending.
-- **fields** the Wi-Fi model fields listed under *Changed* — a plain `str` naming a member is deprecated (warns, converts). The
+- **fields** the Wi-Fi model fields listed under *Changed* — a plain `str` naming a member is deprecated; it is stored as given. The
   annotations narrow to the enums in a later release. Design `docs/architecture/precise-types-design.md` (Wi-Fi vocabularies); PR pending.
 - **protocol member** `WifiClient.iwlist_supported_channels` — deprecated name of
   `supported_channels` (see *Breaking for driver authors*); it keeps its released

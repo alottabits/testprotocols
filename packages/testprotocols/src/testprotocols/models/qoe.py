@@ -4,9 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import cast, override
-
-from testprotocols.deprecation import MODEL_FRAMES, coerce_enum
+from typing import override
 
 
 class QoeTool(StrEnum):
@@ -89,11 +87,9 @@ class MeasurementSpec:
     """Holds parameters controlling how a QoE measurement is performed.
 
     *tool* is a :class:`QoeTool` and *completion* a :class:`QoeCompletion` (a
-    :class:`PageCompletion` is accepted and converted). A plain ``str`` naming a member
-    is deprecated: it warns and converts, also on assignment, so a reader holds the enum
-    (the text still compares equal). Any other string raises ``ValueError`` listing the
-    legal values: the released field was free text, and an implementer treated an unknown
-    tool as the browser.
+    :class:`PageCompletion` has the same words). A plain ``str`` naming a member is
+    deprecated and stored as given (a member compares equal to its text); each field
+    narrows to its enum when the plain ``str`` form is removed.
     """
 
     tool: QoeTool | str = QoeTool.BROWSER
@@ -101,23 +97,3 @@ class MeasurementSpec:
     timeout_ms: int = 30000
     duration_s: int | None = None
     force_quic: bool = True
-
-    @override
-    def __setattr__(self, name: str, value: object) -> None:
-        if name == "tool":
-            value = coerce_enum(
-                QoeTool,
-                cast("QoeTool | str", value),
-                what="MeasurementSpec.tool",
-                skip_file_prefixes=MODEL_FRAMES,
-            )
-        elif name == "completion":
-            if isinstance(value, PageCompletion):
-                value = QoeCompletion(value.value)  # a page event, not a deprecated spelling
-            value = coerce_enum(
-                QoeCompletion,
-                cast("QoeCompletion | str", value),
-                what="MeasurementSpec.completion",
-                skip_file_prefixes=MODEL_FRAMES,
-            )
-        object.__setattr__(self, name, value)

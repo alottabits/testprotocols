@@ -2,14 +2,11 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
 from dataclasses import dataclass
 from enum import IntEnum, StrEnum
 from ipaddress import IPv4Address, IPv6Address
-from typing import cast
 
-from testprotocols.deprecation import MODEL_FRAMES, coerce_enum, warn_at_caller
-from testprotocols.models import _checks
+from testprotocols.deprecation import MODEL_FRAMES, warn_at_caller
 from testprotocols.models.traffic import TransportProtocol
 
 
@@ -106,8 +103,6 @@ class HTTPResult:
     raw: str
 
     def __init__(self, response: str) -> None:
-        if not isinstance(cast(object, response), str):
-            raise TypeError(f"HTTPResult takes the response text, not {response!r}")
         code, body, _ = _split_response(response)
         object.__setattr__(self, "status", _status(code))
         object.__setattr__(self, "body", body)
@@ -169,7 +164,8 @@ def _split_response(response: str) -> tuple[str, str, str]:
 class DnsRecord:
     """One resource record of a DNS answer: the owner *name* (as the resolver prints it,
     usually fully qualified with a trailing dot), its *record_type*, its *ttl* in seconds and
-    its *data* (the record data as text: an address, a target name, ...).
+    its *data* (the record data as text: an address, a target name, ...). *ttl* is not
+    negative.
 
     *record_type* is the resolver's own word, stored as given (``"A"``, ``"CAA"``); the common
     ones are the values of :class:`DnsRecordType`.
@@ -180,11 +176,6 @@ class DnsRecord:
     ttl: int
     data: str
 
-    def __post_init__(self) -> None:
-        _checks.text("DnsRecord", "name", self.name)
-        _checks.count("DnsRecord", "ttl", self.ttl)
-        _checks.text("DnsRecord", "data", self.data)
-
 
 @dataclass(frozen=True)
 class PingResult:
@@ -193,9 +184,10 @@ class PingResult:
     *packet_loss_percent* (0 to 100) and the round-trip times in milliseconds (minimum,
     average, maximum and standard deviation; ``None`` when no reply came back).
 
-    *received* is at most *transmitted*, and the loss agrees with them: within one percentage
-    point of ``(transmitted - received) / transmitted * 100`` (the tool rounds it), and 0
-    when nothing was transmitted. Anything else raises ``ValueError``."""
+    The counts and times are not negative and finite. *received* is at most *transmitted*,
+    and the loss agrees with them: within one percentage point of
+    ``(transmitted - received) / transmitted * 100`` (the tool rounds it), and 0 when nothing
+    was transmitted."""
 
     destination: str
     transmitted: int
@@ -206,28 +198,6 @@ class PingResult:
     rtt_avg_ms: float | None = None
     rtt_max_ms: float | None = None
     rtt_stddev_ms: float | None = None
-
-    def __post_init__(self) -> None:
-        _checks.text("PingResult", "destination", self.destination)
-        for name in ("transmitted", "received", "duplicates"):
-            _checks.count("PingResult", name, getattr(self, name))
-        _checks.number("PingResult", "packet_loss_percent", self.packet_loss_percent, high=100)
-        for name in ("rtt_min_ms", "rtt_avg_ms", "rtt_max_ms", "rtt_stddev_ms"):
-            _checks.optional_number("PingResult", name, getattr(self, name))
-        if self.received > self.transmitted:
-            raise ValueError(
-                f"PingResult.received ({self.received}) exceeds transmitted ({self.transmitted})"
-            )
-        expected = (
-            0.0
-            if self.transmitted == 0
-            else (self.transmitted - self.received) / self.transmitted * 100
-        )
-        if abs(self.packet_loss_percent - expected) > 1:
-            raise ValueError(
-                f"PingResult.packet_loss_percent {self.packet_loss_percent} disagrees with "
-                f"{self.received} of {self.transmitted} received"
-            )
 
 
 class NmapPortState(StrEnum):
@@ -243,61 +213,23 @@ class NmapPortState(StrEnum):
 
 @dataclass(frozen=True)
 class NmapPort:
-    """One scanned port: its number, transport *protocol*, *state* and the *service* name
-    nmap guessed (``None`` when it named none). A plain string naming a member of
-    :class:`~testprotocols.models.TransportProtocol` or :class:`NmapPortState` converts with a
-    ``DeprecationWarning``; any other raises ``ValueError``."""
+    """One scanned port: its number (1 to 65535), transport *protocol*, *state* and the
+    *service* name nmap guessed (``None`` when it named none)."""
 
     port: int
     protocol: TransportProtocol
     state: NmapPortState
     service: str | None = None
 
-    def __post_init__(self) -> None:
-        _checks.count("NmapPort", "port", self.port)
-        if not 1 <= self.port <= 65535:
-            raise ValueError(f"NmapPort.port must be 1 to 65535: {self.port}")
-        protocol = coerce_enum(
-            TransportProtocol,
-            cast("TransportProtocol | str", self.protocol),
-            what="NmapPort.protocol",
-            skip_file_prefixes=MODEL_FRAMES,
-        )
-        state = coerce_enum(
-            NmapPortState,
-            cast("NmapPortState | str", self.state),
-            what="NmapPort.state",
-            skip_file_prefixes=MODEL_FRAMES,
-        )
-        object.__setattr__(self, "protocol", protocol)
-        object.__setattr__(self, "state", state)
-        _checks.optional_text("NmapPort", "service", self.service)
-
 
 @dataclass(frozen=True)
 class NmapResult:
     """What a port scan found on its target: whether the host is *up*, the *addresses* nmap
-    reported for it (as text, in report order) and the scanned *ports* in scan order. A list
-    is accepted and held as a tuple."""
+    reported for it (as text, in report order) and the scanned *ports* in scan order."""
 
     up: bool
     addresses: tuple[str, ...] = ()
     ports: tuple[NmapPort, ...] = ()
-
-    def __post_init__(self) -> None:
-        _checks.flag("NmapResult", "up", self.up)
-        object.__setattr__(
-            self, "addresses", _checks.texts("NmapResult", "addresses", self.addresses)
-        )
-        ports = cast(object, self.ports)
-        if not isinstance(ports, list | tuple):
-            raise TypeError(f"NmapResult.ports takes a tuple of NmapPort, not {ports!r}")
-        held: list[NmapPort] = []
-        for item in cast("Sequence[object]", ports):
-            if not isinstance(item, NmapPort):
-                raise TypeError(f"NmapResult.ports holds NmapPort only, not {item!r}")
-            held.append(item)
-        object.__setattr__(self, "ports", tuple(held))
 
 
 @dataclass(frozen=True)
@@ -312,9 +244,3 @@ class ArpEntry:
     hw_address: str
     flags: str
     interface: str
-
-    def __post_init__(self) -> None:
-        if not isinstance(cast(object, self.address), IPv4Address):
-            raise TypeError(f"ArpEntry.address takes an IPv4Address, not {self.address!r}")
-        for name in ("hw_type", "hw_address", "flags", "interface"):
-            _checks.text("ArpEntry", name, getattr(self, name))

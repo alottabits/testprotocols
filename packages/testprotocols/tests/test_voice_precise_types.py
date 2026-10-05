@@ -72,65 +72,16 @@ def test_new_members_exist() -> None:
         assert callable(getattr(SipServer, name))
 
 
-def test_rtp_stats_as_dict_is_the_released_dict() -> None:
-    # the example implementer returned {"engaged": bool, "sessions": int}
-    assert RtpStats(engaged=True, sessions=2).as_dict() == {"engaged": True, "sessions": 2}
-
-
-def test_mwi_status_as_dict_is_the_released_dict() -> None:
-    assert MwiStatus(waiting=True, new=2, old=1).as_dict() == {
-        "waiting": True,
-        "new": 2,
-        "old": 1,
-    }
-
-
-def test_offline_message_as_dict_is_the_released_entry() -> None:
-    # the implementer's own text: the database's "date time" form
-    when = datetime.fromisoformat("2026-04-22 10:00:00")
-    msg = OfflineMessage(sender="sip:a@x", body="hi", stored_at=when)
-    assert msg.as_dict() == {"from": "sip:a@x", "body": "hi", "timestamp": "2026-04-22 10:00:00"}
-
-
-def test_offline_message_round_trips_the_implementer_text() -> None:
+def test_records_hold_the_released_values() -> None:
+    # the example implementer returned {"engaged": bool, "sessions": int},
+    # {"waiting", "new", "old"} and the database's "date time" text for a stored message
+    stats = RtpStats(engaged=True, sessions=2)
+    assert (stats.engaged, stats.sessions) == (True, 2)
+    mwi = MwiStatus(waiting=True, new=2, old=1)
+    assert (mwi.waiting, mwi.new, mwi.old) == (True, 2, 1)
     row = ("sip:a@x", "hi", "2026-04-22 10:00:00")
     msg = OfflineMessage(row[0], row[1], datetime.fromisoformat(row[2]))
-    assert msg.as_dict() == {"from": row[0], "body": row[1], "timestamp": row[2]}
-
-
-def test_offline_message_aware_datetime_keeps_its_offset() -> None:
-    when = datetime.fromisoformat("2026-04-22 10:00:00+02:00")
-    msg = OfflineMessage(sender="s", body="b", stored_at=when)
-    assert msg.as_dict()["timestamp"] == "2026-04-22 10:00:00+02:00"
-    assert (
-        OfflineMessage("s", "b", datetime.fromisoformat("2026-04-22 10:00:00")).as_dict()[
-            "timestamp"
-        ]
-        == "2026-04-22 10:00:00"
-    )
-
-
-@pytest.mark.parametrize(
-    "build",
-    [
-        lambda: RtpStats(engaged=1, sessions=0),  # type: ignore[arg-type]
-        lambda: RtpStats(engaged=True, sessions=True),
-        lambda: MwiStatus(waiting="yes", new=0, old=0),  # type: ignore[arg-type]
-        lambda: MwiStatus(waiting=True, new="1", old=0),  # type: ignore[arg-type]
-        lambda: OfflineMessage(sender="a", body="b", stored_at="2026-10-04"),  # type: ignore[arg-type]
-        lambda: OfflineMessage(sender=1, body="b", stored_at=datetime(2026, 1, 1)),  # type: ignore[arg-type]
-    ],
-)
-def test_records_refuse_wrong_types(build) -> None:  # type: ignore[no-untyped-def]
-    with pytest.raises(TypeError):
-        build()
-
-
-def test_records_refuse_negative_counts() -> None:
-    with pytest.raises(ValueError, match="negative"):
-        MwiStatus(waiting=False, new=-1, old=0)
-    with pytest.raises(ValueError, match="negative"):
-        RtpStats(engaged=False, sessions=-1)
+    assert (msg.sender, msg.body, msg.stored_at.isoformat(sep=" ")) == row
 
 
 def test_records_are_frozen() -> None:

@@ -105,7 +105,8 @@ class SipServer(Protocol):
     def get_rtpengine_stats(self) -> dict[str, Any]:  # type: ignore[explicit-any]  # released signature kept until removal
         """Deprecated name of :meth:`read_rtpengine_stats`.
 
-        Returns ``read_rtpengine_stats().as_dict()``; the driver warns with
+        Returns the fields of ``read_rtpengine_stats()`` (keys ``engaged``, ``sessions``);
+        the driver warns with
         ``warn_renamed("get_rtpengine_stats", "read_rtpengine_stats")``.
         """
         ...
@@ -170,7 +171,7 @@ class SipServer(Protocol):
     def get_mwi_status(self, user: str) -> dict[str, Any]:  # type: ignore[explicit-any]  # released signature kept until removal
         """Deprecated name of :meth:`read_mwi_status`.
 
-        Returns ``read_mwi_status(user).as_dict()`` (keys ``waiting``, ``new``,
+        Returns the fields of ``read_mwi_status(user)`` (keys ``waiting``, ``new``,
         ``old``); the driver warns with
         ``warn_renamed("get_mwi_status", "read_mwi_status")``.
         """
@@ -229,8 +230,8 @@ class SipServer(Protocol):
     def get_offline_messages(self, user: str) -> list[dict[str, Any]]:  # type: ignore[explicit-any]  # released signature kept until removal
         """Deprecated name of :meth:`read_offline_messages`.
 
-        Returns the entries as dicts (keys ``from``, ``body``, ``timestamp``): either
-        ``[m.as_dict() for m in read_offline_messages(user)]`` (``timestamp`` is then
+        Returns the entries as dicts (keys ``from``, ``body``, ``timestamp``): the fields of
+        each ``read_offline_messages(user)`` record (``timestamp`` as
         ``"YYYY-MM-DD HH:MM:SS"``, space-separated) or, unchanged, the text the driver
         read from its store. The driver warns with
         ``warn_renamed("get_offline_messages", "read_offline_messages")``.

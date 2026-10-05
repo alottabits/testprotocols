@@ -15,6 +15,7 @@ from testprotocols.models import (
     L3Rule,
     LinkHealthReport,
     LinkStatus,
+    MeasurementSpec,
     NatRule,
     PortMapping,
     PortRange,
@@ -25,7 +26,17 @@ from testprotocols.models import (
     SecurityAction,
     SecurityEvent,
     ThreatCategory,
+    TrafficSpec,
+    WifiAcl,
+    WifiBssConfig,
     WifiCaptiveConfig,
+    WifiChannelUtilization,
+    WifiMeshLink,
+    WifiMeshNode,
+    WifiMeshStatus,
+    WifiNeighbor,
+    WifiRadioStats,
+    WifiStation,
 )
 
 # The origin/main FirewallRule fields only, with the port as released text.
@@ -295,6 +306,54 @@ _C4_CASES: list[tuple[Callable[..., object], dict[str, object]]] = [
             "loss_percent": 0.0,
             "sla_compliant": True,
         },
+    ),
+    (TrafficSpec, {"destination": "192.0.2.1", "bandwidth_mbps": 1.0, "protocol": "tcp"}),
+    (MeasurementSpec, {"tool": "http_client", "completion": "load"}),
+    (WifiBssConfig, _BSS),  # band, security_mode, mfp
+    (WifiStation, _STATION),
+    (WifiAcl, {"bss_name": "main", "mode": "allow"}),
+    (
+        WifiNeighbor,
+        {
+            "bssid": "02:00:00:00:00:03",
+            "ssid": "",
+            "band": "5GHz",
+            "channel": 36,
+            "rssi_dbm": -70,
+            "security_mode": "WPA2-PSK",
+            "last_seen": 0.0,
+        },
+    ),
+    (
+        WifiChannelUtilization,
+        {"band": "2.4GHz", "busy_pct": 1, "tx_pct": None, "rx_pct": None, "interference_pct": None},
+    ),
+    (
+        WifiRadioStats,
+        {
+            "band": "6GHz",
+            "tx_bytes": 0,
+            "rx_bytes": 0,
+            "tx_packets": 0,
+            "rx_packets": 0,
+            "tx_retries": 0,
+            "tx_failed": 0,
+        },
+    ),
+    (WifiMeshLink, _MESH_LINK),
+    (
+        WifiMeshStatus,
+        {
+            "role": "agent",
+            "enabled": True,
+            "parent_mac": None,
+            "hop_count": 1,
+            "backhaul_link": None,
+        },
+    ),
+    (
+        WifiMeshNode,
+        {"mac": "02:00:00:00:00:04", "role": "controller", "parent_mac": None, "hop_count": 0},
     ),
 ]
 

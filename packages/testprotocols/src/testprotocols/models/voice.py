@@ -7,8 +7,7 @@ travel as ``str``.
 
 ``RtpStats``, ``MwiStatus`` and ``OfflineMessage`` are the typed forms of what
 ``get_rtpengine_stats``, ``get_mwi_status`` and ``get_offline_messages`` returned as
-dicts. Each has ``as_dict()``, the released dict shape, for the deprecated readers to return
-(for ``OfflineMessage`` the timestamp text has one fixed format, see its ``as_dict``).
+dicts.
 """
 
 from __future__ import annotations
@@ -16,8 +15,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
-
-from testprotocols.models import _checks
 
 
 class PhoneState(StrEnum):
@@ -49,37 +46,20 @@ class PhoneState(StrEnum):
 @dataclass(frozen=True)
 class RtpStats:
     """What a SIP server's media relay reports: whether it is engaged on any call and
-    how many sessions it holds."""
+    how many sessions it holds (not negative)."""
 
     engaged: bool
     sessions: int
-
-    def __post_init__(self) -> None:
-        _checks.flag("RtpStats", "engaged", self.engaged)
-        _checks.count("RtpStats", "sessions", self.sessions)
-
-    def as_dict(self) -> dict[str, object]:
-        """The released ``get_rtpengine_stats`` dict (``engaged``, ``sessions``)."""
-        return {"engaged": self.engaged, "sessions": self.sessions}
 
 
 @dataclass(frozen=True)
 class MwiStatus:
     """A user's message-waiting indication: the waiting flag and the counts of new
-    (unheard) and old (heard but retained) messages."""
+    (unheard) and old (heard but retained) messages, each not negative."""
 
     waiting: bool
     new: int
     old: int
-
-    def __post_init__(self) -> None:
-        _checks.flag("MwiStatus", "waiting", self.waiting)
-        _checks.count("MwiStatus", "new", self.new)
-        _checks.count("MwiStatus", "old", self.old)
-
-    def as_dict(self) -> dict[str, object]:
-        """The released ``get_mwi_status`` dict (``waiting``, ``new``, ``old``)."""
-        return {"waiting": self.waiting, "new": self.new, "old": self.old}
 
 
 @dataclass(frozen=True)
@@ -90,21 +70,3 @@ class OfflineMessage:
     sender: str
     body: str
     stored_at: datetime
-
-    def __post_init__(self) -> None:
-        _checks.text("OfflineMessage", "sender", self.sender)
-        _checks.text("OfflineMessage", "body", self.body)
-        _checks.when("OfflineMessage", "stored_at", self.stored_at)
-
-    def as_dict(self) -> dict[str, object]:
-        """The released ``get_offline_messages`` entry shape: ``from``, ``body`` and
-        ``timestamp``: ``stored_at.isoformat(sep=" ")``, ISO-8601 with a space between
-        date and time (``"2026-04-22 10:00:00"``). A naive datetime stays naive and an
-        aware one keeps its offset. This is the text the one released implementer
-        returns; a driver whose own text differs may keep returning that text from its
-        deprecated reader instead of calling this."""
-        return {
-            "from": self.sender,
-            "body": self.body,
-            "timestamp": self.stored_at.isoformat(sep=" "),
-        }

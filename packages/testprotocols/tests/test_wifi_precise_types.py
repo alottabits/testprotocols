@@ -112,7 +112,7 @@ def test_coerce_enum_str_enum_still_warns_on_a_plain_string() -> None:
         assert coerce_enum(WifiBand, "5GHz", what="band") is WifiBand.GHZ_5
 
 
-# --- shape 3 models ---
+# --- model fields: a member or its released word, stored as given ---
 
 
 def _bss(
@@ -146,72 +146,33 @@ def test_bss_config_members_are_silent() -> None:
     assert c.mfp is MfpMode.OPTIONAL
 
 
-def test_bss_config_released_strings_convert_with_a_warning() -> None:
-    with pytest.warns(DeprecationWarning) as seen:
+def test_bss_config_released_strings_are_stored_as_given() -> None:
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
         c = _bss("2.4GHz", "WPA3-SAE", "required")
-    assert len(seen) == 3
-    assert c.band is WifiBand.GHZ_2_4
-    assert c.security_mode is WifiSecurityMode.WPA3_SAE
-    assert c.mfp is MfpMode.REQUIRED
-    assert_str_value(c.band, "2.4GHz")
-
-
-def test_bss_config_warning_points_at_the_construction_site() -> None:
-    with pytest.warns(DeprecationWarning) as seen:
-        _bss("5GHz")
-    assert seen[0].filename == __file__
-
-
-def test_bss_config_unknown_word_raises_and_assignment_converts() -> None:
-    with pytest.raises(ValueError, match="band: '7GHz' is not one of"):
-        _bss("7GHz")
-    c = _bss()
-    with pytest.warns(DeprecationWarning):
         c.mfp = "off"
-    assert c.mfp is MfpMode.OFF
-    with pytest.raises(ValueError):
-        c.security_mode = "WEP"
-    assert c.security_mode is WifiSecurityMode.WPA2_PSK
-    c2 = dataclasses.replace(c, band=WifiBand.GHZ_6)
-    assert c2.band is WifiBand.GHZ_6
+    assert (c.band, c.security_mode, c.mfp) == ("2.4GHz", "WPA3-SAE", "off")
+    assert type(c.band) is str
+    assert c.band == WifiBand.GHZ_2_4 and c.mfp == MfpMode.OFF
+    assert dataclasses.replace(c, band=WifiBand.GHZ_6).band is WifiBand.GHZ_6
 
 
-def test_other_models_coerce_their_fields() -> None:
-    with pytest.warns(DeprecationWarning):
+def test_other_models_store_their_fields_as_given() -> None:
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
         n = WifiNeighbor("aa:bb:cc:dd:ee:ff", "x", "5GHz", 36, -60, "WPA2", 1.0)
-    assert n.band is WifiBand.GHZ_5
-    assert n.security_mode == "WPA2"  # best-effort identification: stays free text
-    with pytest.warns(DeprecationWarning):
         u = WifiChannelUtilization("6GHz", 10, None, None, None)
-    assert u.band is WifiBand.GHZ_6
-    with pytest.warns(DeprecationWarning):
         r = WifiRadioStats("2.4GHz", 1, 1, 1, 1, 0, 0)
-    assert r.band is WifiBand.GHZ_2_4
-    with pytest.warns(DeprecationWarning):
         link = WifiMeshLink("5GHz", 36, -50, 100.0)
-    assert link.band is WifiBand.GHZ_5
-    with pytest.raises(ValueError):
-        WifiMeshLink("9GHz", 36, -50, 100.0)
-
-
-def test_acl_and_mesh_roles() -> None:
-    with pytest.warns(DeprecationWarning):
         a = WifiAcl("guest", "deny")
-    assert a.mode is WifiAclMode.DENY
-    assert WifiAcl("guest", WifiAclMode.ALLOW).mode is WifiAclMode.ALLOW
-    with pytest.raises(ValueError):
-        WifiAcl("guest", "blacklist")
-    with pytest.warns(DeprecationWarning):
         s = WifiMeshStatus("controller-and-agent", True, None, 0, None)
-    assert s.role is MeshRole.CONTROLLER_AND_AGENT
-    with pytest.warns(DeprecationWarning):
-        s.role = "uncommissioned"
-    assert s.role is MeshRole.UNCOMMISSIONED
-    with pytest.warns(DeprecationWarning):
         node = WifiMeshNode("aa:bb:cc:dd:ee:ff", "agent", "11:22:33:44:55:66", 1)
-    assert node.role is MeshRole.AGENT
-    with pytest.raises(ValueError):
-        WifiMeshNode("aa:bb:cc:dd:ee:ff", "relay", None, 1)
+    assert n.band == WifiBand.GHZ_5 and n.security_mode == "WPA2"
+    assert u.band == WifiBand.GHZ_6 and r.band == WifiBand.GHZ_2_4
+    assert link.band == WifiBand.GHZ_5
+    assert a.mode == WifiAclMode.DENY
+    assert s.role == MeshRole.CONTROLLER_AND_AGENT and node.role == MeshRole.AGENT
+    assert WifiAcl("guest", WifiAclMode.ALLOW).mode is WifiAclMode.ALLOW
 
 
 # --- WifiStation ---
@@ -241,12 +202,12 @@ def _station(
     )
 
 
-def test_station_band_is_coerced() -> None:
-    with pytest.warns(DeprecationWarning):
+def test_station_band_is_stored_as_given() -> None:
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
         s = _station(band="6GHz")
-    assert s.band is WifiBand.GHZ_6
-    with pytest.raises(ValueError):
-        _station(band="60GHz")
+    assert s.band == "6GHz"
+    assert_str_value(WifiBand.GHZ_6, "6GHz")
 
 
 def test_station_capability_flags_are_the_device_words_stored_as_given() -> None:

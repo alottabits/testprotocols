@@ -37,7 +37,7 @@ class IperfClient(Protocol):
     ) -> tuple[int, str]:
         """Deprecated name of :meth:`start_sender_session`.
 
-        Returns ``start_sender_session(...).as_tuple()``; the driver warns with
+        Returns the ``(pid, log_file)`` of ``start_sender_session(...)``; the driver warns with
         ``warn_renamed("start_traffic_sender", "start_sender_session")`` and passes *window*
         on as ``window_bytes=parse_window_size(window)`` (``None`` stays ``None``). The
         parameters below keep their released meaning.

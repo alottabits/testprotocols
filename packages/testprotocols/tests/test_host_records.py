@@ -2,7 +2,8 @@
 
 Fixture data is real tool output captured on a Linux host and parsed with the parsers the
 released implementers use (``jc`` for ps, syslog, ping and dig; the implementers' own regex for
-``free``), so each ``as_dict()`` is checked against what a deprecated reader really returned.
+``free``), so each record's fields are checked against what a deprecated reader really
+returned.
 """
 
 from __future__ import annotations
@@ -251,41 +252,15 @@ def test_old_reader_matches_new_record_memory() -> None:
         cache_bytes=released["cache"],
         available_bytes=released["available"],
     )
-    assert record.as_dict() == released
-    assert list(record.as_dict()) == list(released)  # same key order
-
-
-@pytest.mark.parametrize(
-    "kwargs",
-    [
-        {"total_bytes": 10, "used_bytes": 11, "free_bytes": 0},
-        {"total_bytes": 10, "used_bytes": 1, "free_bytes": 11},
-        {"total_bytes": 10, "used_bytes": 1, "free_bytes": 1, "cache_bytes": 2},
-        {"total_bytes": 10, "used_bytes": 1, "free_bytes": 1, "shared_bytes": 0, "cache_bytes": 0},
-    ],
-)
-def test_memory_refuses_inconsistent_figures(kwargs: dict[str, int]) -> None:
-    with pytest.raises(ValueError):
-        MemoryUtilization(**kwargs)
-
-
-def test_memory_optional_figures_are_left_out_of_the_dict() -> None:
-    record = MemoryUtilization(total_bytes=10, used_bytes=4, free_bytes=6)
-    assert record.as_dict() == {"total": 10, "used": 4, "free": 6}
-
-
-@pytest.mark.parametrize(
-    ("kwargs", "error"),
-    [
-        ({"total_bytes": -1, "used_bytes": 0, "free_bytes": 0}, ValueError),
-        ({"total_bytes": "10", "used_bytes": 0, "free_bytes": 0}, TypeError),
-        ({"total_bytes": 10, "used_bytes": True, "free_bytes": 0}, TypeError),
-        ({"total_bytes": 10, "used_bytes": 0, "free_bytes": 0, "cache_bytes": 1.5}, TypeError),
-    ],
-)
-def test_memory_refuses_bad_values(kwargs: dict[str, object], error: type[Exception]) -> None:
-    with pytest.raises(error):
-        MemoryUtilization(**kwargs)  # type: ignore[arg-type]
+    held = {
+        "total": record.total_bytes,
+        "used": record.used_bytes,
+        "free": record.free_bytes,
+        "shared": record.shared_bytes,
+        "cache": record.cache_bytes,
+        "available": record.available_bytes,
+    }
+    assert held == released
 
 
 # --------------------------------------------------------------------------------------
@@ -301,32 +276,12 @@ def test_old_reader_matches_new_record_process(entry: dict[str, object]) -> None
         cpu_time=_cpu_time(entry["time"]),  # type: ignore[arg-type]
         command=entry["cmd"],  # type: ignore[arg-type]
     )
-    assert record.as_dict() == entry
+    assert (record.pid, record.tty, record.command) == (entry["pid"], entry["tty"], entry["cmd"])
 
 
 def test_process_cpu_time_beyond_a_day_uses_the_ps_day_prefix() -> None:
     # procps TIME is [DD-]hh:mm:ss
-    record = ProcessInfo(pid=7, tty="pts/0", cpu_time=timedelta(days=1, seconds=7384), command="x")
-    assert record.as_dict()["time"] == "1-02:03:04"
-    assert _cpu_time("1-02:03:04") == record.cpu_time
-
-
-@pytest.mark.parametrize(
-    ("kwargs", "error"),
-    [
-        ({"pid": -1}, ValueError),
-        ({"pid": "1"}, TypeError),
-        ({"cpu_time": timedelta(seconds=-1)}, ValueError),
-        ({"cpu_time": timedelta(milliseconds=1500)}, ValueError),
-        ({"cpu_time": "00:00:01"}, TypeError),
-        ({"tty": 0}, TypeError),
-        ({"command": None}, TypeError),
-    ],
-)
-def test_process_refuses_bad_values(kwargs: dict[str, object], error: type[Exception]) -> None:
-    base: dict[str, object] = {"pid": 1, "tty": None, "cpu_time": timedelta(0), "command": "init"}
-    with pytest.raises(error):
-        ProcessInfo(**(base | kwargs))  # type: ignore[arg-type]
+    assert _cpu_time("1-02:03:04") == timedelta(days=1, seconds=7384)
 
 
 # --------------------------------------------------------------------------------------
@@ -343,7 +298,14 @@ def test_old_reader_matches_new_record_event_log(entry: dict[str, object]) -> No
         message=entry["content"],  # type: ignore[arg-type]
         priority=entry["priority"],  # type: ignore[arg-type]
     )
-    assert record.as_dict() == entry
+    held = {
+        "priority": record.priority,
+        "date": record.timestamp,
+        "hostname": record.hostname,
+        "tag": record.tag,
+        "content": record.message,
+    }
+    assert held == entry
 
 
 def test_event_log_reader_keeps_unparsable_lines_in_the_released_output() -> None:
@@ -359,28 +321,6 @@ def test_event_log_severity_is_the_priority_low_bits() -> None:
     assert entry.severity is SyslogSeverity.CRITICAL  # 34 = facility 4 (auth) * 8 + 2
     assert EventLogEntry("Oct 11 22:14:15", "h", None, "x").severity is None
     assert [m.value for m in SyslogSeverity] == list(range(8))
-
-
-@pytest.mark.parametrize(
-    ("kwargs", "error"),
-    [
-        ({"priority": 192}, ValueError),
-        ({"priority": -1}, ValueError),
-        ({"priority": "34"}, TypeError),
-        ({"timestamp": None}, TypeError),
-        ({"tag": 5}, TypeError),
-        ({"message": b"x"}, TypeError),
-    ],
-)
-def test_event_log_refuses_bad_values(kwargs: dict[str, object], error: type[Exception]) -> None:
-    base: dict[str, object] = {
-        "timestamp": "Oct 04 21:55:01",
-        "hostname": "h",
-        "tag": "t",
-        "message": "m",
-    }
-    with pytest.raises(error):
-        EventLogEntry(**(base | kwargs))  # type: ignore[arg-type]
 
 
 # --------------------------------------------------------------------------------------
@@ -411,26 +351,6 @@ def test_dns_record_type_outside_the_enum_is_stored_as_given() -> None:
     assert record.record_type == "CAA"
 
 
-@pytest.mark.parametrize(
-    ("kwargs", "error"),
-    [
-        ({"ttl": -1}, ValueError),
-        ({"ttl": "60"}, TypeError),
-        ({"name": None}, TypeError),
-        ({"data": 1}, TypeError),
-    ],
-)
-def test_dns_record_refuses_bad_values(kwargs: dict[str, object], error: type[Exception]) -> None:
-    base: dict[str, object] = {
-        "name": "a.",
-        "record_type": "A",
-        "ttl": 1,
-        "data": "192.0.2.1",
-    }
-    with pytest.raises(error):
-        DnsRecord(**(base | kwargs))  # type: ignore[arg-type]
-
-
 def test_record_type_parameters_take_the_enum_or_its_text() -> None:
     for member in (DnsClient.dns_lookup, DnsClient.resolve):
         params = inspect.signature(member).parameters
@@ -458,27 +378,8 @@ def _released_receiver_return(ps_line: str, log_file: str) -> tuple[int, str]:
 def test_old_reader_matches_new_record_iperf() -> None:
     released = _released_receiver_return(PS_IPERF_LINE, IPERF_LOG)
     pid_text = PS_IPERF_LINE.split()[1]
-    got = IperfProcess(pid=int(pid_text), log_file=IPERF_LOG).as_tuple()
-    assert got == released
-    assert (type(got[0]), type(got[1])) == (int, str)
-
-
-@pytest.mark.parametrize(
-    ("kwargs", "error"),
-    [
-        ({"pid": 0}, ValueError),
-        ({"pid": "42"}, TypeError),
-        ({"pid": True}, TypeError),
-        ({"log_file": ""}, ValueError),
-        ({"log_file": None}, TypeError),
-    ],
-)
-def test_iperf_process_refuses_bad_values(
-    kwargs: dict[str, object], error: type[Exception]
-) -> None:
-    base: dict[str, object] = {"pid": 1, "log_file": "/tmp/x.log"}
-    with pytest.raises(error):
-        IperfProcess(**(base | kwargs))  # type: ignore[arg-type]
+    record = IperfProcess(pid=int(pid_text), log_file=IPERF_LOG)
+    assert (record.pid, record.log_file) == released
 
 
 @pytest.mark.parametrize(
@@ -554,47 +455,6 @@ def test_ping_result_from_real_output() -> None:
     assert lost.received == 0 and lost.rtt_min_ms is None and lost.packet_loss_percent == 100.0
 
 
-@pytest.mark.parametrize(
-    ("kwargs", "error"),
-    [
-        ({"transmitted": -1}, ValueError),
-        ({"received": "2"}, TypeError),
-        ({"packet_loss_percent": 100.5}, ValueError),
-        ({"packet_loss_percent": True}, TypeError),
-        ({"rtt_avg_ms": -0.1}, ValueError),
-        ({"destination": None}, TypeError),
-    ],
-)
-def test_ping_result_refuses_bad_values(kwargs: dict[str, object], error: type[Exception]) -> None:
-    base: dict[str, object] = {
-        "destination": "127.0.0.1",
-        "transmitted": 2,
-        "received": 2,
-        "packet_loss_percent": 0.0,
-    }
-    with pytest.raises(error):
-        PingResult(**(base | kwargs))  # type: ignore[arg-type]
-
-
-@pytest.mark.parametrize("value", [float("nan"), float("inf")])
-def test_a_record_number_must_be_finite(value: float) -> None:
-    with pytest.raises(ValueError, match=r"PingResult\.rtt_avg_ms must be a finite number"):
-        PingResult("127.0.0.1", 2, 2, 0.0, rtt_avg_ms=value)
-    with pytest.raises(ValueError, match=r"Brownout\.loss_percent must be a finite number"):
-        Brownout(loss_percent=value)
-
-
-@pytest.mark.parametrize(
-    ("transmitted", "received", "loss"),
-    [(2, 3, 0.0), (4, 2, 0.0), (4, 4, 25.0), (0, 0, 100.0)],
-)
-def test_ping_result_refuses_inconsistent_counts(
-    transmitted: int, received: int, loss: float
-) -> None:
-    with pytest.raises(ValueError):
-        PingResult("192.0.2.1", transmitted, received, loss)
-
-
 def test_ping_result_accepts_the_tools_rounded_loss() -> None:
     assert PingResult("192.0.2.1", 3, 1, 66.6667).received == 1  # iputils prints 66.6667%
     assert PingResult("192.0.2.1", 0, 0, 0.0).transmitted == 0
@@ -639,41 +499,6 @@ def test_nmap_port_states_are_nmaps_six() -> None:
     ]
 
 
-@pytest.mark.parametrize(
-    "build",
-    [
-        lambda: NmapPort(0, TransportProtocol.TCP, NmapPortState.OPEN, None),
-        lambda: NmapPort(65536, TransportProtocol.TCP, NmapPortState.OPEN, None),
-    ],
-)
-def test_nmap_port_refuses_out_of_range(build) -> None:  # type: ignore[no-untyped-def]
-    with pytest.raises(ValueError):
-        build()
-
-
-@pytest.mark.parametrize(
-    "build",
-    [
-        lambda: NmapPort("22", TransportProtocol.TCP, NmapPortState.OPEN, None),  # type: ignore[arg-type]
-        lambda: NmapPort(22, TransportProtocol.TCP, NmapPortState.OPEN, 1),  # type: ignore[arg-type]
-        lambda: NmapResult(up=1, addresses=(), ports=()),  # type: ignore[arg-type]
-        lambda: NmapResult(up=True, addresses="10.0.0.1", ports=()),  # type: ignore[arg-type]
-        lambda: NmapResult(up=True, addresses=(), ports=({"port": 22},)),  # type: ignore[arg-type]
-    ],
-)
-def test_nmap_records_refuse_wrong_types(build) -> None:  # type: ignore[no-untyped-def]
-    with pytest.raises(TypeError):
-        build()
-
-
-def test_nmap_port_takes_released_words_with_a_warning() -> None:
-    with pytest.warns(DeprecationWarning):
-        port = NmapPort(22, "tcp", "open", "ssh")  # type: ignore[arg-type]
-    assert port.protocol is TransportProtocol.TCP and port.state is NmapPortState.OPEN
-    with pytest.raises(ValueError):
-        NmapPort(22, TransportProtocol.TCP, "half-open", None)  # type: ignore[arg-type]
-
-
 def test_scan_ports_signature() -> None:
     params = inspect.signature(NmapScanner.scan_ports).parameters
     assert params["ip_version"].annotation == "IpFamily"
@@ -710,22 +535,6 @@ def test_arp_entry_from_a_real_table_line() -> None:
     assert entry.address == IPv4Address("192.168.1.1") and entry.interface == "eth0"
 
 
-@pytest.mark.parametrize(
-    "kwargs",
-    [{"address": "192.168.1.1"}, {"hw_address": None}, {"interface": 0}, {"flags": None}],
-)
-def test_arp_entry_refuses_wrong_types(kwargs: dict[str, object]) -> None:
-    base: dict[str, object] = {
-        "address": IPv4Address("192.0.2.1"),
-        "hw_type": "ether",
-        "hw_address": "aa:bb:cc:00:11:22",
-        "flags": "C",
-        "interface": "eth0",
-    }
-    with pytest.raises(TypeError):
-        ArpEntry(**(base | kwargs))  # type: ignore[arg-type]
-
-
 # --------------------------------------------------------------------------------------
 # TransientEvent
 # --------------------------------------------------------------------------------------
@@ -751,34 +560,14 @@ def test_arp_entry_refuses_wrong_types(kwargs: dict[str, object]) -> None:
         (PacketStorm(), "packet_storm", {}),
     ],
 )
-def test_transient_event_as_kwargs_is_what_released_implementers_read(
+def test_transient_event_is_what_the_released_call_spells(
     event: TransientEvent, name: str, kwargs: dict[str, float | int]
 ) -> None:
     assert event.event_name == name
-    assert event.as_kwargs() == kwargs
-    # and the released form converts back to the same event (the driver warns, not this)
+    # the released form converts to the same event (the driver warns, not this)
     with warnings.catch_warnings():
         warnings.simplefilter("error")
         assert transient_event(name, **kwargs) == event
-
-
-def test_transient_event_through_a_released_implementer_profile_builder() -> None:
-    """The kwargs reach the profile the released example implementer builds."""
-
-    def released_build(
-        event: str, previous: ImpairmentProfile, **kw: float | int
-    ) -> ImpairmentProfile:
-        # vitro-bdd example LinuxNetemImpl._build_transient_profile, latency_spike branch
-        assert event == "latency_spike"
-        return ImpairmentProfile(
-            latency_ms=int(kw.get("spike_latency_ms", 500)),
-            jitter_ms=int(kw.get("jitter_ms", 100)),
-            loss_percent=previous.loss_percent,
-        )
-
-    spike = LatencySpike(latency_ms=750)
-    built = released_build(spike.event_name, ImpairmentProfile(10, 2, 0.0), **spike.as_kwargs())
-    assert built.latency_ms == 750
 
 
 def test_transient_event_accepts_the_released_caller_spelling_for_a_spike() -> None:
@@ -802,21 +591,6 @@ def test_transient_event_refuses_unknown_events_and_keys(
 ) -> None:
     with pytest.raises(error):
         transient_event(name, **kwargs)
-
-
-@pytest.mark.parametrize(
-    ("build", "error"),
-    [
-        (lambda: Brownout(loss_percent=101.0), ValueError),
-        (lambda: Brownout(loss_percent="5"), TypeError),  # type: ignore[arg-type]
-        (lambda: LatencySpike(latency_ms=-1), ValueError),
-        (lambda: LatencySpike(latency_ms=1.5), TypeError),  # type: ignore[arg-type]
-        (lambda: PacketStorm(duplicate_percent=True), TypeError),
-    ],
-)
-def test_transient_events_refuse_bad_values(build, error: type[Exception]) -> None:  # type: ignore[no-untyped-def]
-    with pytest.raises(error):
-        build()
 
 
 def test_inject_event_signature() -> None:
@@ -916,39 +690,6 @@ def test_group_records_converts_a_plain_tuple_with_a_warning() -> None:
     with pytest.warns(DeprecationWarning, match="GroupRecord"):
         converted = group_records([([], "ff3e::1", rtype)], what="records")
     assert converted == [record] and isinstance(converted[0], GroupRecord)
-
-
-@pytest.mark.parametrize(
-    "build",
-    [
-        lambda: GroupRecord("2001:db8::1", "ff3e::1", MulticastGroupRecordType.MODE_IS_INCLUDE),  # type: ignore[arg-type]
-        lambda: GroupRecord([1], "ff3e::1", MulticastGroupRecordType.MODE_IS_INCLUDE),  # type: ignore[list-item]
-        lambda: GroupRecord([], None, MulticastGroupRecordType.MODE_IS_INCLUDE),  # type: ignore[arg-type]
-        lambda: GroupRecord([], "ff3e::1", 1),  # type: ignore[arg-type]
-    ],
-)
-def test_group_record_refuses_wrong_types(build) -> None:  # type: ignore[no-untyped-def]
-    with pytest.raises(TypeError):
-        build()
-
-
-def test_group_record_make_and_replace_check_as_the_constructor_does() -> None:
-    rtype = MulticastGroupRecordType.MODE_IS_INCLUDE
-    record = GroupRecord._make(  # pyright: ignore[reportPrivateUsage]
-        (["2001:db8::1"], "ff3e::1", rtype)
-    )
-    assert isinstance(record, GroupRecord) and record.sources == ["2001:db8::1"]
-    assert record._replace(group="ff3e::2").group == "ff3e::2"
-    with pytest.raises(TypeError):
-        GroupRecord._make(  # pyright: ignore[reportPrivateUsage]
-            (["2001:db8::1"], 5, rtype)
-        )
-    with pytest.raises(TypeError):
-        record._replace(record_type=1)  # type: ignore[arg-type]
-    with pytest.raises(TypeError):
-        GroupRecord._make(  # pyright: ignore[reportPrivateUsage]
-            ([], "ff3e::1")
-        )
 
 
 def test_group_records_refuses_a_wrong_shape() -> None:

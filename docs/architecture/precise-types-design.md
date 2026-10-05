@@ -62,13 +62,14 @@ and `testoperations._compat`.
   int and warns on a numeric string, and a non-numeric string raises
   `ValueError`.
 - **Shape 3: a released model field becomes an enum.** The field is annotated
-  `E | str` and the model coerces it in `__setattr__` (a mutable model) or
-  `__post_init__` (a frozen one), with `skip_file_prefixes=MODEL_FRAMES` so the
-  warning points at the caller's construction or assignment site. Every model
-  warning goes through `warn_at_caller`, which walks the stack past the models,
-  `dataclasses` and the dataclass-generated `__init__` and passes an explicit
-  `stacklevel`: `warnings.warn(skip_file_prefixes=…)` alone does not skip the
-  generated `__init__` on Python 3.12. A reader always holds the member.
+  `E | str`, where `E` is a `StrEnum` (or `IntEnum`) whose values are the released
+  spellings. Nothing converts at run time: a plain string is stored as given, and a
+  member compares equal to its string. The docstring announces the narrowing to `E`.
+  A field with no released form is annotated `E`.
+- **Records hold no code.** A record new in this release is a plain frozen
+  dataclass with precise annotations: no `__post_init__` checks and no
+  `__setattr__`. A constraint on a field (not negative, 1 to 65535, at most another
+  field) is stated in the docstring.
 - **Shape 4(ii): a released field holding a grammar becomes structured.** A
   new typed field is added beside the text field, and a driver fills either
   form (below).
@@ -229,7 +230,7 @@ where one exists, also records its retype.
   a `bool`, a `float` and text. `WifiClient.set_wlan_scan_channel` takes `int | str`
   (`coerce_int`). The model fields (`WifiBssConfig`, `WifiStation`, `WifiNeighbor`,
   `WifiChannelUtilization`, `WifiRadioStats`, `WifiMeshLink`, `WifiAcl`,
-  `WifiMeshStatus`, `WifiMeshNode`) are shape 3, a `__setattr__` coercion. Decisions
+  `WifiMeshStatus`, `WifiMeshNode`) are shape 3, stored as given. Decisions
   taken on evidence rather than from a first assessment: `WifiNeighbor.security_mode` stays free text
   (a best-effort identification of a foreign network); `WifiClient.wifi_client_connect`'s
   `security_mode` stays `str | None` because the only implementer passes a client
@@ -269,18 +270,17 @@ where one exists, also records its retype.
   straight to the implementer, which may keep `Any`. The three dict readers are shape 5:
   new mandatory `read_rtpengine_stats`, `read_mwi_status` and `read_offline_messages`
   return frozen `RtpStats`, `MwiStatus` and `OfflineMessage`; the old names are deprecated
-  and a driver delegates, returning `as_dict()`. Fields come from evidence only. `RtpStats`
+  and a driver delegates, returning the record's fields in the released dict shape. Fields
+  come from evidence only. `RtpStats`
   (`engaged`, `sessions`): the released docstring says only "a dictionary"; the one
   implementer returns exactly those two keys and the step definitions read `engaged`.
   `MwiStatus` (`waiting`, `new`, `old`) and `OfflineMessage` (`sender`, `body`,
   `stored_at`): the released docstrings list the keys `waiting`/`new`/`old` and
-  `from`/`body`/`timestamp`; `timestamp` was ISO-8601 text and becomes a `datetime`;
-  `as_dict()` writes it as `isoformat(sep=" ")` (`"2026-04-22 10:00:00"`, the form the implementer's
-  database returns; naive stays naive, aware keeps its offset), and the deprecated reader may
-  instead keep returning the driver's original text unchanged
-  (the implementer returns the database's text unparsed, so it must parse it). No
-  synced field was needed, so the records are plain frozen dataclasses with
-  `__post_init__` type checks. `testoperations` calls none of the three readers.
+  `from`/`body`/`timestamp`; `timestamp` was ISO-8601 text and becomes a `datetime`
+  (`isoformat(sep=" ")` gives `"2026-04-22 10:00:00"`, the form the implementer's database
+  returns), and the deprecated reader may instead keep returning the driver's original
+  text unchanged (the implementer returns the database's text unparsed, so it must parse
+  it). The records are plain frozen dataclasses. `testoperations` calls none of the three readers.
 - **Host-tool and service vocabularies** (shapes 1, 3, 4p, 5 and 6).
   Evidence for every set, from the released docstrings, the `testoperations` callers, the
   example implementers and the released reference implementers of the host templates
@@ -322,8 +322,8 @@ where one exists, also records its retype.
     `tcp_probe`); `completion` is `QoeCompletion`: the four `PageCompletion` events plus
     `DURATION` (the example's streaming and conferencing specs), and `RESPONSE` and `CONNECT`
     (the boardfarm QoE specification's tool by completion matrix: `http_client` completes on
-    `response` or `duration`, `tcp_probe` on `connect`). A `PageCompletion` converts
-    silently. `QoeTool` and `QoeCompletion` have `__repr__` returning `repr(self.value)`:
+    `response` or `duration`, `tcp_probe` on `connect`). A `PageCompletion` has the same
+    words. `QoeTool` and `QoeCompletion` have `__repr__` returning `repr(self.value)`:
     the example browser measurement embeds `repr(spec.completion)` in a generated script,
     and the default enum repr would break it. Every other enum keeps the default repr.
   - `QoEResult.protocol` stays `str | None`: the HTTP version as the device reports it
@@ -354,15 +354,14 @@ where one exists, also records its retype.
   (`read_arp_table`), `datetime | None` (`read_date`) and the transient events
   (`inject_event`). Fields come from the released docstrings and what the released
   implementers return (the tool output they parse: `free`, `ps -A`, BSD syslog, `dig`,
-  `ping`, `nmap -oX`, `arp -n`); a field nothing supports is left out. A number field
-  refuses `nan` and `inf` (`ValueError`), as `Telemetry` does.
-  - Exact released shapes: `UrlRules.as_tuple()`, `MemoryUtilization.as_dict()` (`total`,
-    `used`, `free`, then `shared`, `cache`, `available` when reported, in bytes as the
-    released docstring says), `ProcessInfo.as_dict()` (`pid`, `tty`, `time` as procps
-    `[DD-]hh:mm:ss`, `cmd`: the `ps -A` entry of a procps host) and `IperfProcess.as_tuple()`
-    are what the deprecated readers returned, tested against captured tool output parsed with
-    the implementers' own parsers. `EventLogEntry.as_dict()` is the released entry of a parsed
-    line only: the released output also holds `{"unparsable": line}` entries, so
+  `ping`, `nmap -oX`, `arp -n`); a field nothing supports is left out.
+  - Released shapes: the records hold what the deprecated readers returned for `UrlRules`,
+    `MemoryUtilization` (`total`, `used`, `free`, then `shared`, `cache`, `available` when
+    reported, in bytes as the released docstring says), `ProcessInfo` (`pid`, `tty`, `time`
+    as procps `[DD-]hh:mm:ss`, `cmd`: the `ps -A` entry of a procps host) and `IperfProcess`,
+    tested against captured tool output parsed with the implementers' own parsers.
+    `EventLogEntry` holds the released entry of a parsed line only: the released output
+    also holds `{"unparsable": line}` entries, so
     `read_event_logs` keeps its released output, as do `dns_lookup`, `ping(json_output=True)`,
     `nmap`, `get_arp_table` and `get_date` (a tool's full parse or device text, which the
     record cannot rebuild). The new readers' names avoid near-collisions: `read_log_entries`
@@ -386,8 +385,8 @@ where one exists, also records its retype.
     `LatencySpike(latency_ms, jitter_ms)` and `PacketStorm(loss_percent, latency_ms,
     jitter_ms, duplicate_percent)`, every field optional (`None`: the driver's default; the
     released implementers' defaults differ). The fields are the keywords the released
-    implementers read; `as_kwargs()` renders them (a spike's latency is `spike_latency_ms`
-    there) and `transient_event(event, **kwargs)` converts the released call, refusing an
+    implementers read (a spike's latency is `spike_latency_ms` there), and
+    `transient_event(event, **kwargs)` converts the released call, refusing an
     unknown event or keyword. A packet storm keeps its released meaning, a loss burst:
     `duplicate_percent` (from the in-repo caller; no released implementer reads it) is `None`,
     not requested, unless given, and a driver that cannot apply a requested field raises.
@@ -627,10 +626,9 @@ the matching CHANGELOG entry sits under *Changed*.
   no longer type-checks. A driver must implement `Router.read_telemetry` (breaking for
   driver authors).
 - **Wi-Fi vocabularies** (Wi-Fi). A `band`, `security_mode`, `mfp`, ACL `mode` or
-  mesh `role` string on a Wi-Fi model that is not a member raises `ValueError`
-  (released: any string); `WifiNeighbor.security_mode` is unchanged. A model reader
-  now always holds the enum (`StrEnum` members compare equal to the old strings).
-  Static only: an implementer must provide `WifiClient.supported_channels` (breaking
+  mesh `role` field on a Wi-Fi model is `E | str`, stored as given, so a reader sees
+  `E | str` (`StrEnum` members compare equal to the old strings);
+  `WifiNeighbor.security_mode` is unchanged. Static only: an implementer must provide `WifiClient.supported_channels` (breaking
   for driver authors).
 - **Voice vocabularies** (voice). `SipServer.verify_sip_message(since)` is
   `datetime | None` (released `Any`): a caller passing a `datetime` or `None` is
@@ -641,10 +639,8 @@ the matching CHANGELOG entry sits under *Changed*.
 - **Host-tool and service vocabularies** (host tools). `HTTPResult` is frozen (assigning
   an attribute raises `FrozenInstanceError`), compares by value (released: identity) and
   `code` / `beautified_text` warn when read; `status` is `0` outside 100 to 599.
-  `MeasurementSpec.tool` / `completion` and `TrafficSpec.protocol` raise `ValueError` for a
-  word that names no member (released: any text was stored; the example implementer treated an
-  unknown tool as the browser); a plain string naming a member warns and the field holds the
-  member. `QoEResult.protocol`, `RadiusAccountingRecord.record_type` and `terminate_cause`,
+  `MeasurementSpec.tool` / `completion` and `TrafficSpec.protocol` are `E | str`, stored as
+  given, so a reader sees `E | str`. `QoEResult.protocol`, `RadiusAccountingRecord.record_type` and `terminate_cause`,
   and `RadiusUser.eap_methods` stay `str` and store the device's word as given. `repr()`: `QoeTool` and `QoeCompletion` repr as their quoted text, so text built with
   `repr(spec.completion)` is unchanged; every other new enum (`IpVersion`, `PageCompletion`,
   `TransportProtocol`, ...) keeps the default `<Enum.MEMBER: 'x'>` repr, and
@@ -673,8 +669,8 @@ the matching CHANGELOG entry sits under *Changed*.
   With a driver that implements `start_sender_session`, a flow's `window` text that is not an
   iperf size raises `ValueError` before anything starts (released: passed to the tool).
   Not followed: the boardfarm CPE implementer's `get_memory_utilization` returns `free -m`
-  figures (MiB), while the released docstring says bytes; `MemoryUtilization` and its
-  `as_dict()` are in bytes, so that implementer diverges (a pre-existing implementer bug).
+  figures (MiB), while the released docstring says bytes; `MemoryUtilization` is in
+  bytes, so that implementer diverges (a pre-existing implementer bug).
 
 - **Tool option strings.** Nothing changes at run time for a driver or a caller that passes
   only the released arguments. Static only: an implementer's declaration of `curl`, `http_get`
