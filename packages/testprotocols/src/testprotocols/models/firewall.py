@@ -91,6 +91,11 @@ class FirewallRule:
     is filled: *dst_port* stays required, and a driver that fills only *dst_ports*
     passes ``dst_port=None``. At removal, *dst_port* goes and *dst_ports* becomes required.
 
+    A rule also flows into a driver (``PacketFilter.add_rule``). A caller building one
+    for a write member fills both forms until removal: a driver not yet updated reads
+    only *dst_port*. A driver implementing a write member reads *dst_ports* when it is
+    filled, else *dst_port*.
+
     *application* / *application_category* are L7 classifiers used by
     SD-WAN policy; they are ignored by simple packet-filter drivers.
     """
@@ -132,9 +137,16 @@ class NatRule:
     tuple meaning no port (any, for the match). *dst_port* and *translated_port*
     are the released text forms (``""`` for no port, also ``"any"``, a port number,
     a range, or a comma list), deprecated. A driver fills either field of a pair, or
-    both; when both are filled they describe the same ports. A pair left unfilled
-    (``None``) means what the released default ``""`` meant: no port. At removal, the text
-    fields go and the typed fields become required.
+    both; when both are filled they describe the same ports. *dst_port* and
+    *translated_port* keep their released default ``""`` (no port); a driver that fills
+    only the typed form may pass ``None`` for the text, which reads as that default. At
+    removal, the text fields go and the typed fields become required.
+
+    A rule also flows into a driver (``Nat.add_nat_rule``). A caller building one for a
+    write member fills both forms until removal: a driver not yet updated reads only the
+    text. A driver implementing a write member reads the typed form when it is filled,
+    else the text. A caller that fills only the typed form leaves the text at its
+    released default ``""``, and a driver not yet updated acts on that: no port.
 
     ``src_cidr`` / ``dst_cidr`` ``""`` and ``translated_src`` / ``translated_dst``
     ``""`` will become ``str | None``, with ``None`` meaning absent; ``""`` means
@@ -151,10 +163,10 @@ class NatRule:
     protocol: RuleProtocol | str = "any"
     src_cidr: str = ""
     dst_cidr: str = ""
-    dst_port: str | None = None
+    dst_port: str | None = ""
     translated_src: str = ""
     translated_dst: str = ""
-    translated_port: str | None = None
+    translated_port: str | None = ""
     enabled: bool = True
     dst_ports: tuple[PortRange, ...] | None = field(default=None, kw_only=True)
     translated_ports: tuple[PortRange, ...] | None = field(default=None, kw_only=True)

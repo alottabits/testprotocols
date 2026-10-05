@@ -146,13 +146,27 @@ def test_the_any_spelling_and_the_empty_tuple_agree() -> None:
     assert nat_rule_dst_ports(_nat(dst_port="any")) == ()
 
 
-def test_neither_filled_reads_the_released_default() -> None:
-    # L3Rule's released default text was "any": every port, the empty tuple.
+def test_released_defaults_read_as_the_released_default() -> None:
+    # L3Rule's released default text is "any": every port, the empty tuple.
     assert l3_rule_src_ports(_l3()) == ()
     assert l3_rule_dst_ports(_l3()) == ()
-    # NatRule's released default text was "": no port, the empty tuple.
+    # NatRule's released default text is "": no port, the empty tuple.
     assert nat_rule_dst_ports(_nat()) == ()
     assert nat_rule_translated_ports(_nat()) == ()
+
+
+def test_the_typed_form_wins_over_a_default_text() -> None:
+    # A typed-only producer leaves the text at its released default; the typed form is read.
+    assert l3_rule_dst_ports(_l3(dst_ports=_PORTS)) == _PORTS
+    assert nat_rule_dst_ports(_nat(dst_ports=_PORTS)) == _PORTS
+
+
+def test_text_set_to_none_reads_the_released_default() -> None:
+    # A producer may pass None for a defaulted text field and leave the typed form unfilled.
+    assert l3_rule_src_ports(_l3(src_port=None)) == ()
+    assert l3_rule_dst_ports(_l3(dst_port=None)) == ()
+    assert nat_rule_dst_ports(_nat(dst_port=None)) == ()
+    assert nat_rule_translated_ports(_nat(translated_port=None)) == ()
 
 
 def test_neither_filled_on_a_released_required_field_raises() -> None:

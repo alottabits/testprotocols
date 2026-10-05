@@ -65,11 +65,11 @@ def test_replace_and_assignment_change_one_field_only() -> None:
 # --- NatRule ---
 
 
-def test_nat_ports_default_to_unset() -> None:
+def test_nat_ports_default_to_the_released_text() -> None:
     n = _nat()
     assert (n.dst_port, n.translated_port, n.dst_ports, n.translated_ports) == (
-        None,
-        None,
+        "",
+        "",
         None,
         None,
     )
@@ -77,7 +77,7 @@ def test_nat_ports_default_to_unset() -> None:
 
 def test_nat_port_forms_are_stored_as_given() -> None:
     n = _nat(dst_ports=(PortRange.single(8080),), translated_port="80")
-    assert (n.dst_port, n.dst_ports) == (None, (PortRange.single(8080),))
+    assert (n.dst_port, n.dst_ports) == ("", (PortRange.single(8080),))
     assert (n.translated_port, n.translated_ports) == ("80", None)
     assert _nat(dst_port="", translated_port="").dst_port == ""
 

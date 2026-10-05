@@ -88,11 +88,13 @@ def ports_of(
     field: str,
     parse: Callable[[str], tuple[PortRange, ...]] = parse_port_ranges,
 ) -> tuple[PortRange, ...]:
-    """The ports a driver gave in either form.
+    """The ports a driver gave in either form: the typed form when filled, else the text.
 
-    *unset* is the released default's text (``"any"``, ``""``) when the released field had
-    one, and ``None`` when the released field was required: then neither form filled raises
-    ``ValueError`` naming *record* and *field*. *parse* reads the text form.
+    The text field of a released-defaulted pair holds its released default (``"any"``,
+    ``""``) unless a producer set it to ``None``. *unset* is that released default's text,
+    read when the text is ``None`` too; it is ``None`` when the released field was required:
+    then neither form filled raises ``ValueError`` naming *record* and *field*. *parse*
+    reads the text form.
     """
     if typed is not None:
         return typed
@@ -114,8 +116,8 @@ def firewall_rule_dst_ports(rule: FirewallRule) -> tuple[PortRange, ...]:
 
 
 def nat_rule_dst_ports(rule: NatRule) -> tuple[PortRange, ...]:
-    """*rule*'s matched destination ports (``()`` is no port: any). Neither form filled
-    reads as the released default ``""``."""
+    """*rule*'s matched destination ports (``()`` is no port: any). A text set to ``None``
+    with no typed form reads as the released default ``""``."""
     return ports_of(
         rule.dst_ports,
         rule.dst_port,
@@ -127,8 +129,8 @@ def nat_rule_dst_ports(rule: NatRule) -> tuple[PortRange, ...]:
 
 
 def nat_rule_translated_ports(rule: NatRule) -> tuple[PortRange, ...]:
-    """*rule*'s translated ports (``()`` is no port). Neither form filled reads as the
-    released default ``""``."""
+    """*rule*'s translated ports (``()`` is no port). A text set to ``None`` with no typed
+    form reads as the released default ``""``."""
     return ports_of(
         rule.translated_ports,
         rule.translated_port,
@@ -140,14 +142,14 @@ def nat_rule_translated_ports(rule: NatRule) -> tuple[PortRange, ...]:
 
 
 def l3_rule_src_ports(rule: L3Rule) -> tuple[PortRange, ...]:
-    """*rule*'s source ports (``()`` is any port). Neither form filled reads as the
-    released default ``"any"``."""
+    """*rule*'s source ports (``()`` is any port). A text set to ``None`` with no typed
+    form reads as the released default ``"any"``."""
     return ports_of(rule.src_ports, rule.src_port, unset="any", record="L3Rule", field="src_port")
 
 
 def l3_rule_dst_ports(rule: L3Rule) -> tuple[PortRange, ...]:
-    """*rule*'s destination ports (``()`` is any port). Neither form filled reads as the
-    released default ``"any"``."""
+    """*rule*'s destination ports (``()`` is any port). A text set to ``None`` with no
+    typed form reads as the released default ``"any"``."""
     return ports_of(rule.dst_ports, rule.dst_port, unset="any", record="L3Rule", field="dst_port")
 
 

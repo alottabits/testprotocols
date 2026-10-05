@@ -22,9 +22,9 @@ def _l3(**kw: object) -> L3Rule:
     return L3Rule(**{"action": RuleAction.DENY, **kw})  # type: ignore[arg-type]
 
 
-def test_l3_ports_are_unset_by_default() -> None:
+def test_l3_ports_default_to_the_released_text() -> None:
     r = _l3()
-    assert (r.src_ports, r.dst_ports, r.src_port, r.dst_port) == (None, None, None, None)
+    assert (r.src_ports, r.dst_ports, r.src_port, r.dst_port) == (None, None, "any", "any")
 
 
 def test_l3_released_positional_construction_still_works() -> None:
@@ -36,7 +36,7 @@ def test_l3_released_positional_construction_still_works() -> None:
 def test_l3_each_form_is_stored_as_given() -> None:
     r = _l3(src_port="22, 80", dst_ports=(PortRange(53, 53),))
     assert (r.src_port, r.src_ports) == ("22, 80", None)
-    assert (r.dst_port, r.dst_ports) == (None, (PortRange.single(53),))
+    assert (r.dst_port, r.dst_ports) == ("any", (PortRange.single(53),))
 
 
 def _event(**kw: object) -> SecurityEvent:

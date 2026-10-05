@@ -305,6 +305,11 @@ class QosRule:
     ("every frame"), so a rule with both fields ``None`` is read as every frame, not as
     an unfilled pair. At removal, ``match`` goes and ``classifier`` becomes required.
 
+    A rule also flows into a driver (``SwitchQos.set_rules``). A caller building one for
+    a write member fills both forms until removal: a driver not yet updated reads only
+    ``match``. A driver implementing a write member reads ``classifier`` when it is
+    filled, else ``match``.
+
     The driver maps the selection to its product's QoS classifier; ``dscp`` and
     ``cos`` are the resulting mark values.
     """

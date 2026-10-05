@@ -51,9 +51,17 @@ class L3Rule:
     :class:`PortRange`, the empty tuple meaning any port. ``src_port`` and
     ``dst_port`` are the released text forms (``"any"``, a port, a range such as
     ``"8000-8100"``, or a comma list), deprecated. A driver fills either field of a
-    pair, or both; when both are filled they describe the same ports. A pair left
-    unfilled (``None``) means what the released default ``"any"`` meant: any port. At
-    removal, the text fields go and the typed fields become required.
+    pair, or both; when both are filled they describe the same ports. The text fields
+    keep their released default ``"any"``; a driver that fills only the typed form may
+    pass ``None`` for the text, which reads as that default. At removal, the text fields
+    go and the typed fields become required.
+
+    A rule also flows into a driver (the ``L3Firewall.set_*_rules`` members). A caller
+    building one for a write member fills both forms until removal: a driver not yet
+    updated reads only the text. A driver implementing a write member reads the typed
+    form when it is filled, else the text. A caller that fills only the typed form leaves
+    the text at its released default ``"any"``, and a driver not yet updated acts on
+    that: any port.
 
     ``src_cidr`` and ``dst_cidr`` ``"any"`` will become ``str | None``, with
     ``None`` meaning unconstrained; ``"any"`` means unconstrained until then.
@@ -67,9 +75,9 @@ class L3Rule:
     action: RuleAction
     protocol: RuleProtocol = RuleProtocol.ANY
     src_cidr: str = "any"
-    src_port: str | None = None
+    src_port: str | None = "any"
     dst_cidr: str = "any"
-    dst_port: str | None = None
+    dst_port: str | None = "any"
     comment: str = ""
     syslog_enabled: bool = False
     src_ports: tuple[PortRange, ...] | None = field(default=None, kw_only=True)

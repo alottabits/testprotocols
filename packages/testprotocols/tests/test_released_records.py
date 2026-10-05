@@ -164,18 +164,22 @@ def test_released_records_keep_released_positions() -> None:
     assert qos.match == ""
 
 
-def test_released_defaults_are_unset() -> None:
+def test_released_defaults_carry_the_released_text() -> None:
+    # A released caller that relies on the defaults sends a released driver exactly the text
+    # it sent before: "any" for the L3Rule ports, "" for the NatRule ports.
     with warnings.catch_warnings():
         warnings.simplefilter("error")
         nat = NatRule(name="n", mode="snat", interface="wan0")
         l3 = L3Rule(action=RuleAction.ALLOW)
     assert (nat.dst_port, nat.translated_port, nat.dst_ports, nat.translated_ports) == (
-        None,
-        None,
+        "",
+        "",
         None,
         None,
     )
-    assert (l3.src_port, l3.dst_port, l3.src_ports, l3.dst_ports) == (None, None, None, None)
+    assert (l3.src_port, l3.dst_port, l3.src_ports, l3.dst_ports) == ("any", "any", None, None)
+    for held in (nat.dst_port, nat.translated_port, l3.src_port, l3.dst_port):
+        assert type(held) is str
 
 
 def test_typed_only_records_build() -> None:
@@ -206,9 +210,10 @@ def test_typed_only_records_build() -> None:
         classifier = QosClassifier(vlan=10)
         qos = QosRule(name="q", match=None, classifier=classifier)
     assert (rule.dst_port, rule.dst_ports) == (None, ports)
-    assert (nat.dst_port, nat.translated_port) == (None, None)
+    # The text fields a typed-only producer leaves out keep their released default text.
+    assert (nat.dst_port, nat.translated_port) == ("", "")
     assert (nat.dst_ports, nat.translated_ports) == (ports, ())
-    assert (l3.src_port, l3.dst_port, l3.src_ports, l3.dst_ports) == (None, None, (), ports)
+    assert (l3.src_port, l3.dst_port, l3.src_ports, l3.dst_ports) == ("any", "any", (), ports)
     assert (event.ts, event.timestamp) == (None, when)
     assert (qos.match, qos.classifier) == (None, classifier)
 
