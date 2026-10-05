@@ -158,9 +158,11 @@ their tags and PR history.
   own type code. Counter types are left out (a counter only increments, RFC 2578).
 - **type checking** mypy now runs `disallow_any_explicit` on `testprotocols.*` and
   `testoperations.*` (internal; the contract is unchanged). The only
-  exemptions are released signatures, in two classes: 9 deprecation-period
-  exemptions, marked `# type: ignore[explicit-any]  # released signature kept
-  until removal` and removed with their members; and 16 compatibility
+  exemptions are released signatures, in two classes, all in `testprotocols`
+  (`testoperations` has none): 10 deprecation-period exemptions, marked
+  `# type: ignore[explicit-any]  # released signature kept until removal` and removed
+  with their members or forms (the announced `SipServer.verify_sip_message(since)`
+  narrowing among them); and 16 compatibility
   exemptions on live members: `flash_via_bootloader` and `start_tcpdump`, marked
   `# released parameter kept: implementers declare their own types`, the 12
   TR-069 RPCs of `Tr069Server`, marked `# released signature kept: vendors extend the
@@ -372,11 +374,6 @@ their tags and PR history.
   `WifiMesh.set_backhaul_band` and `WifiClient.set_wlan_scan_channel` (`int | str`) —
   parameter annotations widen to `E | str`, so every released call still type-checks;
   a driver converts once at the boundary. An `int` naming a `ChannelWidth` is that member. Design `docs/architecture/precise-types-design.md` (Wi-Fi vocabularies); PR pending.
-- **protocol member** `testprotocols.sip_server:SipServer.verify_sip_message(message_type, since)` —
-  `since` is `datetime | None` (released: `Any`, documented as a timestamp or marker). A
-  caller that passed a `datetime` or `None` is unaffected; a caller that passed a text
-  marker was outside the typed contract and no longer type-checks (an implementer may
-  keep `since: Any`, which still conforms). `message_type` stays `str`. Design `docs/architecture/precise-types-design.md` (Voice vocabularies); PR pending.
 - **protocol member** `SipPhone.wait_for_state(state)` — the annotation widens to
   `PhoneState | str`, so every released call still type-checks. A `wait_for_state` word
   that names no state raises `ValueError` (released implementer: the same). The presence
@@ -669,6 +666,13 @@ their tags and PR history.
   (announced narrowing; a console lacking a `Console` member stops conforming then). Earliest
   removal: the first release 6 months after the release that deprecates it. Design
   `docs/architecture/precise-types-design.md` (Deprecations); PR pending.
+- **parameter** `testprotocols.sip_server:SipServer.verify_sip_message(since)` as `Any` —
+  deprecated. Replacement: `datetime | None` (announced narrowing; a caller passing a text
+  marker, and an implementer whose declared parameter does not accept `datetime | None`, stop
+  type-checking then). The released annotation is kept until then,
+  and `message_type` stays `str`. Earliest removal: the first release 6 months after the
+  release that deprecates it. Design `docs/architecture/precise-types-design.md`
+  (Deprecations); PR pending.
 
 ### testoperations
 

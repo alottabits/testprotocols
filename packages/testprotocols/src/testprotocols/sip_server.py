@@ -6,7 +6,6 @@ management, call tracking and SIP message verification.
 
 from __future__ import annotations
 
-from datetime import datetime
 from typing import Any, Protocol, runtime_checkable
 
 from testprotocols._compat import deprecated
@@ -121,10 +120,10 @@ class SipServer(Protocol):
         how many sessions it holds."""
         ...
 
-    def verify_sip_message(
+    def verify_sip_message(  # type: ignore[explicit-any]  # released signature kept until removal
         self,
         message_type: str,
-        since: datetime | None = None,
+        since: Any = None,
         timeout: int = 5,
     ) -> bool:
         """Verify that a SIP message of *message_type* was received.
@@ -143,9 +142,11 @@ class SipServer(Protocol):
             is announced, not yet accepted: it joins the annotation in a later
             release, once implementers have widened their own parameter.
         since:
-            Optional timestamp; only messages after this point are considered.
-            Released as ``Any``, documented as a timestamp or marker: it is now a
-            ``datetime`` (or ``None`` for the whole log).
+            Optional point in time; only messages after it are considered, and
+            ``None`` considers the whole log. A ``datetime`` is the contract value. The
+            released annotation (``Any``) is kept; its narrowing to ``datetime | None``
+            is announced (see ``docs/architecture/precise-types-design.md``,
+            "Deprecations").
         timeout:
             Seconds to wait for the expected message.
         """

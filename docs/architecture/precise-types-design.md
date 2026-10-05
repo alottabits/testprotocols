@@ -125,7 +125,7 @@ shapes below are the only ones used.
   exceptions are released signatures, marked line by line (see
   "Exemption policy for explicit `Any` and `object`" below). `tests/test_typing_ratchet.py`
   is the second line of defence, because pyright has no such rule: it counts
-  the non-exempt `Any` (ceiling 0) and pins the exempted lines per class (9
+  the non-exempt `Any` (ceiling 0) and pins the exempted lines per class (10
   deprecation-period lines and 16 compatibility lines).
 - No `object` as a type in a public signature or field either: it is as imprecise as
   `Any`, and no checker flags it, so the ratchet is the only defence. It counts `object`
@@ -396,9 +396,10 @@ where one exists, also records its retype.
   static conformance (a parameter widening breaks an implementer declared narrower),
   which is neither a missing member nor a retyped record. A response code stays its
   released text (`"486"`), a raw word. The example's callers also pass a log marker (`"[VOICEMAIL]"`) and a numeric string
-  (`"408"`), which are raw words and still work. `since: Any` is `datetime | None`:
-  the example's step definitions pass a `datetime`; its unit test passes a text marker
-  straight to the implementer, which may keep `Any`. The three dict readers are shape 5:
+  (`"408"`), which are raw words and still work. `since` keeps its released `Any`
+  (a deprecation-period exemption) and its narrowing to `datetime | None` is announced
+  (shape 6): the example's step definitions pass a `datetime`; its unit test passes a text
+  marker straight to the implementer. The three dict readers are shape 5:
   new mandatory `read_rtpengine_stats`, `read_mwi_status` and `read_offline_messages`
   return frozen `RtpStats`, `MwiStatus` and `OfflineMessage`; the old names are deprecated
   and a driver delegates, returning the record's fields in the released dict shape. Fields
@@ -719,19 +720,21 @@ output equals that of the commit before it).
 `disallow_any_explicit = true` applies to every module of `testprotocols` and
 `testoperations` (a mypy per-module override in `pyproject.toml`). The only exemptions
 are released signatures, marked on the `def` line (or the field line), in two classes. Per
-package: `testprotocols` has 9 deprecation-period exemptions and 16 compatibility exemptions,
+package: `testprotocols` has 10 deprecation-period exemptions and 16 compatibility exemptions,
 and no other explicit `Any`; `testoperations` has none of either. `object` used as a type is
 exempted on 7 lines in `testprotocols` and 6 in `testoperations` (table below).
 `tests/test_typing_ratchet.py` pins the number of each, so a new exemption needs a reviewed
 change.
 
-**(a) Deprecation period, 9 lines.** Marker `# type: ignore[explicit-any]  # released
+**(a) Deprecation period, 10 lines.** Marker `# type: ignore[explicit-any]  # released
 signature kept until removal`. These are members, or a deprecated form of a member, whose
 released `dict[str, Any]` / `list[Any]` returns stay readable until removal: `ip_routing.ping`
 (`json_output=True`), `dns_client.dns_lookup`, `nmap_scanner.nmap`,
 `device_management.get_running_processes` and `read_event_logs`,
 `sip_server.get_rtpengine_stats`, `get_mwi_status` and `get_offline_messages`, and
-`router.get_telemetry`. The line is deleted with the member (or form) at the removal
+`router.get_telemetry`; and one released parameter whose narrowing is announced:
+`sip_server.verify_sip_message(since: Any)`, which narrows to `datetime | None` (marked on
+the `def` line that opens the multi-line signature). The line is deleted with the member (or form) at the removal
 release, and the pinned count drops with it.
 
 **(b) Compatibility, 16 lines.** These members are live, not deprecated, and the exemption
@@ -859,6 +862,7 @@ required, or `E | str` becomes `E`.
 | `PacketFilter.get_default_policy` return `str` | `DefaultAction` (announced narrowing) | member | next release | next release + 6 months |
 | `WifiRadio.list_radios` and `get_bandwidth` returns (`list[str]`, `int`) | `list[WifiBand]`, `ChannelWidth` (announced) | member | next release | next release + 6 months |
 | `RadiusServer.get_status` return `str` | `ServiceStatus` (announced narrowing) | member | next release | next release + 6 months |
+| `SipServer.verify_sip_message(since)`: `Any` | `datetime \| None` (announced narrowing) | parameter | next release | next release + 6 months |
 | `HwConsole.get_console` and `get_interactive_consoles` returns `Any`, `dict[str, Any]` | `Console`, `Mapping[str, Console]` (announced narrowing; a console lacking a `Console` member stops conforming then) | member | next release | next release + 6 months |
 | `FirewallRule.dst_port` (port text, required) | `dst_ports`; at removal the text field goes and `dst_ports` becomes required | field | next release | next release + 6 months |
 | `NatRule.dst_port` and `translated_port` (port text, released default `""`) | `dst_ports`, `translated_ports`; at removal the text fields go and the typed fields default to `()` (the typed form of the released default `""`) | field | next release | next release + 6 months |

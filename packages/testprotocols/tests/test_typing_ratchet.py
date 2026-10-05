@@ -60,9 +60,9 @@ COMPATIBILITY_MARKER = (
 VENDOR_MODEL_MARKER = (
     "# type: ignore[explicit-any]  # released signature kept: vendors extend the parameter model"
 )
-# Per package, explicit ``Any``: testprotocols 9 class (a) + 16 class (b) lines and nothing
+# Per package, explicit ``Any``: testprotocols 10 class (a) + 16 class (b) lines and nothing
 # else; testoperations none (``test_testoperations_exempts_nothing``).
-TESTPROTOCOLS_DEPRECATED_EXEMPT_LINES = 9
+TESTPROTOCOLS_DEPRECATED_EXEMPT_LINES = 10
 TESTPROTOCOLS_COMPATIBILITY_EXEMPT_LINES = 16
 #     A live released return whose implementers return their own types (the consoles of
 #     ``HwConsole``); the narrowing to a contract type is announced.

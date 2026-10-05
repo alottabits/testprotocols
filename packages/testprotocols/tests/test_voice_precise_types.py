@@ -60,7 +60,8 @@ def test_presence_parameters_and_returns_are_str() -> None:
 def test_verify_sip_message_signature() -> None:
     params = inspect.signature(SipServer.verify_sip_message).parameters
     assert params["message_type"].annotation == "str"
-    assert params["since"].annotation == "datetime | None"
+    # the released annotation is kept; its narrowing to ``datetime | None`` is announced
+    assert params["since"].annotation == "Any"
     assert params["since"].default is None
 
 
