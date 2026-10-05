@@ -84,7 +84,9 @@ class Nat(Protocol):
         :class:`~testprotocols.models.RuleCounters`.
 
         Raises KeyError if no rule with that name exists.
-        Drivers without per-rule counter support raise NotImplementedError.
+        Drivers without per-rule counter support raise ``NotSupportedError`` (the stub the
+        extend rule of ``docs/proposals/README.md`` gives a new member; the deprecated
+        member's ``NotImplementedError`` stays as released).
         """
         ...
 

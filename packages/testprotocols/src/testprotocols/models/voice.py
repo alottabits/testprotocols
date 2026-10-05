@@ -65,8 +65,16 @@ class MwiStatus:
 @dataclass(frozen=True)
 class OfflineMessage:
     """A SIP MESSAGE stored while its addressee was offline: the sender URI, the body
-    and when it was stored."""
+    and when it was stored.
+
+    *stored_at* is ``None`` when the message store reports no time for the message (a
+    driver never invents one). A driver parses the store's time text as ISO 8601, the form
+    ``datetime.fromisoformat`` reads, with a ``T`` or a space between date and time
+    (``"2026-04-22 10:00:00"``, the form the released implementer's store returns); the
+    value is naive, in the store's local time, unless the text carries a UTC offset. Text
+    that is not such a time is a driver error, not ``None``.
+    """
 
     sender: str
     body: str
-    stored_at: datetime
+    stored_at: datetime | None

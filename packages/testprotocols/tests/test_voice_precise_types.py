@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import dataclasses
 import inspect
+import typing
 from datetime import datetime
 
 import pytest
@@ -80,7 +81,15 @@ def test_records_hold_the_released_values() -> None:
     assert (mwi.waiting, mwi.new, mwi.old) == (True, 2, 1)
     row = ("sip:a@x", "hi", "2026-04-22 10:00:00")
     msg = OfflineMessage(row[0], row[1], datetime.fromisoformat(row[2]))
+    assert msg.stored_at is not None
     assert (msg.sender, msg.body, msg.stored_at.isoformat(sep=" ")) == row
+
+
+def test_offline_message_time_may_be_unreported() -> None:
+    hints = typing.get_type_hints(OfflineMessage)
+    assert hints["stored_at"] == datetime | None
+    assert dataclasses.fields(OfflineMessage)[2].default is dataclasses.MISSING
+    assert OfflineMessage("sip:a@x", "hi", None).stored_at is None
 
 
 def test_records_are_frozen() -> None:

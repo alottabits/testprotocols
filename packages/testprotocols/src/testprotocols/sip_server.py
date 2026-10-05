@@ -129,12 +129,10 @@ class SipServer(Protocol):
     ) -> bool:
         """Verify that a SIP message of *message_type* was received.
 
-        Implementations MUST consult an authoritative log channel (e.g.
-        the sipcenter's ``/var/log/kamailio/kamailio.log`` written by
-        rsyslog, or the merged testbed log at ``raikou/logs/sip-testbed.log``).
-        The pre-v0.2.0 ``journalctl``-based probe is dead — the image does
-        not run systemd — and any driver still relying on it must switch
-        to the authoritative file path.
+        Implementations MUST consult an authoritative log channel: the log the
+        SIP server itself writes, or a testbed log that collects it. A probe of
+        a service journal that the server's host does not run is not such a
+        channel.
 
         Parameters
         ----------

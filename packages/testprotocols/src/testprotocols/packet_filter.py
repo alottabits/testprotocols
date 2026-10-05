@@ -117,7 +117,9 @@ class PacketFilter(Protocol):
 
         Raises ValueError if *chain* is unknown.
         Raises KeyError if no rule with that name exists in *chain*.
-        Drivers without per-rule counter support raise NotImplementedError.
+        Drivers without per-rule counter support raise ``NotSupportedError`` (the stub the
+        extend rule of ``docs/proposals/README.md`` gives a new member; the deprecated
+        member's ``NotImplementedError`` stays as released).
         """
         ...
 

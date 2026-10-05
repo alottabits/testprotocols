@@ -33,6 +33,11 @@ class NtpClient(Protocol):
     def read_date(self) -> datetime | None:
         """Return the device's current date and time, or ``None`` when it cannot be read.
 
+        ``None`` means the device gave no date to read: its date command produced no output
+        that holds a date and time (the case in which the released ``get_date`` returned
+        ``None``). It never means "not synchronised": an unsynchronised clock still has a
+        date, which is returned.
+
         The value is naive, in the device's local time, unless the device reports its UTC
         offset; then it is aware.
         """
