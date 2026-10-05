@@ -100,9 +100,11 @@ def test_ip_family_is_an_int_enum_for_the_iperf_options() -> None:
         )  # an int naming a member is its value, not a deprecated spelling
         assert coerce_enum(IpFamily, 4, what="ip_version") is IpFamily.V4
         assert coerce_enum(IpFamily, IpFamily.V6, what="ip_version") is IpFamily.V6
-    for bad in (5, True, 4.0):
-        with pytest.raises(ValueError, match="ip_version"):
-            coerce_enum(IpFamily, bad, what="ip_version")  # type: ignore[arg-type]
+    with pytest.raises(ValueError, match="ip_version"):
+        coerce_enum(IpFamily, 5, what="ip_version")  # a number naming no member: a bad value
+    for wrong in (True, 4.0):  # a bool or a float is a wrong type
+        with pytest.raises(TypeError, match="ip_version"):
+            coerce_enum(IpFamily, wrong, what="ip_version")  # type: ignore[arg-type]
 
 
 def test_qoe_enums_used_in_generated_text_repr_as_their_quoted_text() -> None:

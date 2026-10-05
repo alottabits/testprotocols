@@ -37,7 +37,8 @@ their tags and PR history.
 - **functions and constant** `testprotocols.deprecation:coerce_enum`,
   `warn_at_caller` and `MODEL_FRAMES` — `coerce_enum` normalises an `Enum | str` argument or field
   to the enum member, warning (`DeprecationWarning`) on a plain string naming
-  a member and raising `ValueError` listing the legal values on any other; the
+  a member, raising `ValueError` listing the legal values for a string that
+  names no member and `TypeError` for a value of another type; the
   helper behind the `E | str` deprecation shapes. `warn_at_caller` emits a
   `DeprecationWarning` at the caller's frame: it walks the stack past this
   module, `dataclasses`, the dataclass-generated `__init__` and the files named
@@ -188,8 +189,8 @@ their tags and PR history.
   multi-valued counterpart of `_open_enum`: a `_sync` pair that splits a released
   word list into known members and unknown words. Not public API. Migration: none. Design `docs/architecture/precise-types-design.md` (Wi-Fi vocabularies); PR pending.
 - **behaviour** `testprotocols.deprecation:coerce_enum` — for an `IntEnum`, a plain
-  `int` naming a member returns it with no warning (a `bool`, a `float` or a number
-  that is no member raises `ValueError`). Migration: none. Design `docs/architecture/precise-types-design.md` (Wi-Fi vocabularies); PR pending.
+  `int` naming a member returns it with no warning (a number that is no member, or
+  text, raises `ValueError`; a `bool` or a `float` raises `TypeError`). Migration: none. Design `docs/architecture/precise-types-design.md` (Wi-Fi vocabularies); PR pending.
 - **enums** `testprotocols.models:PhoneState` (`IDLE`, `DIALING`, `INCALL_DIALING`,
   `RINGING`, `CONNECTED`, `INCALL_CONNECTED`, `HOLD`, `DIALTONE`, `INCALL_DIALTONE`,
   `CALL_ENDED`, `CODE_ENDED`, `CALL_WAITING`, `CONFERENCE`, `BUSY`, `NOT_ANSWERED`;
@@ -388,7 +389,9 @@ their tags and PR history.
   `FirewallRuleAction`, `RuleProtocol`, `NatMode`, `PortMappingProtocol` and
   `ConnState`. `NatRule.protocol` defaults to `RuleProtocol.ANY`. An unknown
   string raises `ValueError`, except `Connection.state`: the set is open, so an
-  unknown word becomes `ConnState.OTHER` plus `state_raw`, without a warning. A
+  unknown word becomes `ConnState.OTHER` plus `state_raw`, without a warning.
+  A value that is neither a member nor a string (`None`, a number, `bytes`)
+  raises `TypeError`. A
   plain string naming a `ConnState` warns and converts. The `ConnState` values
   are the released upper-case words (`"ESTABLISHED"`, `"SYN_SENT"`, …,
   `"OTHER"`), so no reading idiom changes: `conn.state == "ESTABLISHED"` holds.

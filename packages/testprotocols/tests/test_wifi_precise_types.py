@@ -108,9 +108,9 @@ def test_coerce_enum_int_enum_refuses_a_number_that_is_no_member() -> None:
 
 
 def test_coerce_enum_int_enum_refuses_a_bool_and_text() -> None:
-    with pytest.raises(ValueError):
+    with pytest.raises(TypeError):  # a bool is a wrong type
         coerce_enum(ChannelWidth, True, what="w")
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError):  # text is never an IntEnum's value
         coerce_enum(ChannelWidth, "80", what="w")
 
 

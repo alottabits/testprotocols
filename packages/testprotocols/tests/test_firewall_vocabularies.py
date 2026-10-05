@@ -333,6 +333,16 @@ def test_firewall_rule_coerces_on_construction_replace_and_assignment() -> None:
         FirewallRule("r", FirewallRuleAction.ALLOW, "gre", "any", "any")
 
 
+@pytest.mark.parametrize("wrong", [5, None, b"deny"])
+def test_a_shape_3_field_of_the_wrong_type_is_a_type_error(wrong: object) -> None:
+    with pytest.raises(TypeError, match=r"FirewallRule\.action: takes a FirewallRuleAction or str"):
+        FirewallRule("r", wrong, RuleProtocol.TCP, "any", "any")  # type: ignore[arg-type]
+    with pytest.raises(TypeError, match=r"Connection\.protocol: takes a RuleProtocol or str"):
+        _conn(protocol=wrong)
+    with pytest.raises(TypeError, match=r"Connection\.state: takes a ConnState or str"):
+        _conn(state=wrong)
+
+
 def test_nat_rule_coerces_on_construction_replace_and_assignment() -> None:
     with pytest.warns(DeprecationWarning) as caught:
         nat = NatRule("n", "dnat", "wan", protocol="tcp")

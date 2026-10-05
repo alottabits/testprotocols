@@ -52,7 +52,10 @@ copied: `testprotocols.deprecation` (`coerce_enum`, `coerce_int`,
   annotated `E | str`. A driver or operation coerces it once, at its boundary
   and before any device I/O, with `coerce_enum(E, value, what=…)`: a member
   passes, a plain string naming a member warns (`DeprecationWarning`) and
-  converts, any other string raises `ValueError` listing the legal values.
+  converts, any other string raises `ValueError` listing the legal values, and
+  a value of another type (`None`, `bytes`, a `bool`, a `float`, a list)
+  raises `TypeError`, as every other coercion helper does. For an `IntEnum` an
+  `int` is a legal type, so a number that names no member is a `ValueError`.
 - **Shape 1i: a released `str` parameter that is really a number becomes
   `int`.** The parameter is annotated `int | str`; `coerce_int` returns the
   int and warns on a numeric string, and a non-numeric string raises

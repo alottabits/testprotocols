@@ -131,7 +131,10 @@ def coerce_enum[E: Enum](
     For an ``IntEnum`` the number is the value, not a deprecated spelling: a plain
     ``int`` (never a ``bool``) naming a member returns it with no warning, so a
     parameter typed ``ChannelWidth | int`` keeps accepting ``80``.
-    Any other value raises ``ValueError`` listing the legal values.
+    A string, or an ``IntEnum``'s ``int``, that names no member raises
+    ``ValueError`` listing the legal values. A value of any other type (``None``,
+    ``bytes``, a ``bool``, a ``float``, a list, or an ``int`` for an enum that is
+    not an ``IntEnum``) raises ``TypeError``.
 
     The warning points at the caller's caller, which is the right frame for a
     driver method that coerces at its boundary. Called from a model's
@@ -143,16 +146,20 @@ def coerce_enum[E: Enum](
     """
     if isinstance(value, enum_type):
         return value
+    given = cast(object, value)  # checked at run time too: callers are not all type-checked
+    numeric = issubclass(enum_type, IntEnum)
+    # True == 1 and 80.0 == 80 must not pick an IntEnum member: a bool or float is a wrong type.
+    if isinstance(given, bool) or not isinstance(given, (int, str) if numeric else str):
+        kinds = f"{enum_type.__name__}, int or str" if numeric else f"{enum_type.__name__} or str"
+        raise TypeError(f"{what}: takes a {kinds}, not {given!r}")
+    legal = [m.value for m in enum_type]
+    if numeric and isinstance(given, str):  # an IntEnum's value is the number, never its text
+        raise ValueError(f"{what}: {given!r} is not one of {legal}")
     try:
-        if isinstance(value, bool) or (
-            issubclass(enum_type, IntEnum) and not isinstance(value, int)
-        ):
-            raise ValueError(value)  # True == 1 and 80.0 == 80 must not pick an IntEnum member
-        member = enum_type(value)
+        member = enum_type(given)
     except ValueError:
-        legal = [m.value for m in enum_type]
-        raise ValueError(f"{what}: {value!r} is not one of {legal}") from None
-    if issubclass(enum_type, IntEnum):
+        raise ValueError(f"{what}: {given!r} is not one of {legal}") from None
+    if numeric:
         return member  # a number is an IntEnum's value, not a deprecated spelling
     warn_at_caller(
         f"{what}: plain string {value!r} is deprecated; pass {enum_type.__name__}.{member.name}",
