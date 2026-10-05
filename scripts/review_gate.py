@@ -4,7 +4,10 @@ Pure decisions over data the workflow fetched through the API: who commented
 and with what access, whether they are a maintainer, whether the PR is a
 draft, and whether the deterministic checks are green on the head commit.
 Prints `ok` and exits 0 when the review may start, otherwise the reason and
-exit 1. The workflow posts the reason as a PR comment.
+exit 1. The workflow posts the reason as a PR comment. The comment is exactly
+`/review` (a re-review checks the change since the last review and its
+conditions) or `/review full` (a full review); `--full-out` receives `true` or
+`false` for the dispatch.
 """
 
 from __future__ import annotations
@@ -20,6 +23,7 @@ REQUIRED_CHECKS = ("dco", "lint", "hygiene")
 WRITE_PERMISSIONS = frozenset({"admin", "maintain", "write"})
 _LIST_HEADING = re.compile(r"^## Maintainers\s*$", re.MULTILINE)
 _ENTRY = re.compile(r"^- @([A-Za-z0-9-]+)(?:\s|$)", re.MULTILINE)
+COMMANDS = {"/review": False, "/review full": True}
 
 
 def maintainers(text: str) -> frozenset[str]:
@@ -34,6 +38,11 @@ def maintainers(text: str) -> frozenset[str]:
     return frozenset(m.group(1).lower() for m in _ENTRY.finditer(section))
 
 
+def full_requested(body: str) -> bool:
+    """Whether the comment asks for a full review (`/review full`)."""
+    return COMMANDS.get(body.strip(), False)
+
+
 def refusal(
     *,
     body: str,
@@ -44,8 +53,8 @@ def refusal(
     checks: dict[str, str],
 ) -> str | None:
     """Why the review may not start, or ``None``."""
-    if body.strip() != "/review":
-        return "the comment must be exactly `/review`"
+    if body.strip() not in COMMANDS:
+        return "the comment must be exactly `/review` or `/review full`"
     if permission not in WRITE_PERMISSIONS:
         return f"@{commenter} does not have write access"
     if commenter.lower() not in maintainers(maintainers_text):
@@ -67,6 +76,12 @@ def main(argv: list[str]) -> int:
     parser.add_argument("--maintainers", required=True, type=Path)
     parser.add_argument("--pr", required=True, type=Path, help="gh api repos/O/R/pulls/N output")
     parser.add_argument("--checks", required=True, type=Path, help='{"dco": "success", ...}')
+    parser.add_argument(
+        "--full-out",
+        type=Path,
+        default=None,
+        help="on success, write true or false (`/review full`)",
+    )
     args = parser.parse_args(argv)
     body_path: Path = args.body
     maintainers_path: Path = args.maintainers
@@ -74,8 +89,9 @@ def main(argv: list[str]) -> int:
     checks_path: Path = args.checks
     pr_data: dict[str, Any] = json.loads(pr_path.read_text(encoding="utf-8"))
     checks_data: dict[str, str] = json.loads(checks_path.read_text(encoding="utf-8"))
+    body = body_path.read_text(encoding="utf-8")
     reason = refusal(
-        body=body_path.read_text(encoding="utf-8"),
+        body=body,
         commenter=str(args.commenter),
         permission=str(args.permission),
         maintainers_text=maintainers_path.read_text(encoding="utf-8"),
@@ -83,6 +99,9 @@ def main(argv: list[str]) -> int:
         checks=checks_data,
     )
     print(reason if reason is not None else "ok")
+    full_out: Path | None = args.full_out
+    if reason is None and full_out is not None:
+        full_out.write_text("true\n" if full_requested(body) else "false\n", encoding="utf-8")
     return 0 if reason is None else 1
 
 

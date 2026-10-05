@@ -1,7 +1,7 @@
 name: Review
 
 # The gate and the dispatch (CONTRIBUTING.md, "A PR's life", step 3). A
-# maintainer comments `/review` on a PR; this job checks that the commenter
+# maintainer comments `/review` (or `/review full`, a full re-review) on a PR; this job checks that the commenter
 # is listed in MAINTAINERS.md on `main` and has write access, that the PR is
 # not a draft and that `dco`, `lint` and `hygiene` are green on the head
 # commit, sets the `review` status to pending and sends a repository_dispatch
@@ -71,7 +71,7 @@ jobs:
                --body review-work/body.txt --commenter "$COMMENTER" \
                --permission "$(cat review-work/permission.txt)" \
                --maintainers MAINTAINERS.md --pr review-work/pr.json \
-               --checks review-work/checks.json > review-work/gate.txt; then
+               --checks review-work/checks.json --full-out review-work/full.txt > review-work/gate.txt; then
             echo "allowed=true" >> "$GITHUB_OUTPUT"
           else
             echo "allowed=false" >> "$GITHUB_OUTPUT"
@@ -128,10 +128,11 @@ jobs:
           set -euo pipefail
           jq -n --arg repo "$REPO" --argjson pr "$PR" --arg sha "$HEAD_SHA" \
              --arg kind "$KIND" --arg reviewers "$REVIEWERS" --arg ref "$HEAD_REF" \
+             --argjson full "$(cat review-work/full.txt)" \
              '{event_type: "review-requested",
-               client_payload: {repo: $repo, pr: $pr, sha: $sha, kind: $kind, reviewers: $reviewers, head_ref: $ref}}' \
+               client_payload: {repo: $repo, pr: $pr, sha: $sha, kind: $kind, reviewers: $reviewers, head_ref: $ref, full: $full}}' \
           | gh api -X POST "repos/$RUNNER_REPO/dispatches" --input -
-          echo "dispatched pr=$PR sha=$HEAD_SHA kind=$KIND reviewers=$REVIEWERS"
+          echo "dispatched pr=$PR sha=$HEAD_SHA kind=$KIND reviewers=$REVIEWERS full=$(cat review-work/full.txt)"
 
       - name: Mint the corpus dispatch token (fork PRs with package source)
         id: corpus_app
