@@ -8,6 +8,7 @@ from __future__ import annotations
 from typing import Protocol, runtime_checkable
 
 from testprotocols._compat import deprecated
+from testprotocols.models.networking import SnmpValueType
 
 
 @runtime_checkable
@@ -70,7 +71,7 @@ class SnmpClient(Protocol):
         oid: str,
         community: str,
         value: str,
-        value_type: str,
+        value_type: SnmpValueType,
         *,
         timeout_s: int = 10,
         retries: int = 3,
@@ -79,9 +80,9 @@ class SnmpClient(Protocol):
         """Write *value* to the object *oid* of the SNMP agent at *host* and return the tool's
         output.
 
-        *value_type* is the tool's single-letter type code (``"i"`` integer, ``"s"`` string,
-        ``"x"`` hex string, ...); a *value* beginning ``0x`` is sent as hex. The other
-        parameters are as for :meth:`snmp_get`.
+        *value_type* is the :class:`~testprotocols.models.SnmpValueType` of *value*; the driver
+        maps it to its tool's own type code. A *value* beginning ``0x`` is sent as hex. The
+        other parameters are as for :meth:`snmp_get`.
         """
         ...
 

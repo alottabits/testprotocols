@@ -22,7 +22,7 @@ their tags and PR history.
 - **protocol members** `testprotocols.snmp_client:SnmpClient.snmp_get(host, oid, community, *,
   timeout_s=10, retries=3, command_timeout=30) -> str`, `snmp_walk(...)` (same parameters,
   `timeout_s=100`; an empty `oid` walks from the root), `snmp_set(host, oid, community, value,
-  value_type, *, timeout_s=10, retries=3, command_timeout=30) -> str`, `snmp_bulk_get(host, oid,
+  value_type: SnmpValueType, *, timeout_s=10, retries=3, command_timeout=30) -> str`, `snmp_bulk_get(host, oid,
   community, *, non_repeaters=0, max_repetitions=10, timeout_s=100, retries=3,
   command_timeout=30) -> str`, and `testprotocols.ntp_client:NtpClient.set_date_time(value:
   datetime) -> bool` — new mandatory members. Migration: implement them (the first runs
@@ -139,6 +139,10 @@ their tags and PR history.
 
 #### Added
 
+- **enum** `testprotocols.models.SnmpValueType` (`integer`, `unsigned`, `octet-string`,
+  `object-identifier`, `ip-address`, `timeticks`, `bits`) — the SNMP value type of a SET;
+  `SnmpClient.snmp_set` takes it as `value_type`, and a driver maps each member to its tool's
+  own type code. Counter types are left out (a counter only increments, RFC 2578).
 - **type checking** mypy now runs `disallow_any_explicit` on `testprotocols.*` and
   `testoperations.*` (internal; the contract is unchanged). The only
   exemptions are released signatures, in two classes: 8 deprecation-period

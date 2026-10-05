@@ -61,6 +61,7 @@ from testprotocols.models.networking import (
     NmapPortState,
     NmapResult,
     PingResult,
+    SnmpValueType,
 )
 from testprotocols.models.packets import RIPv2PacketData
 from testprotocols.models.ports import PortRange
@@ -371,6 +372,7 @@ __all__ = [
     "ShapingPriority",
     "ShapingRule",
     "SiteToSiteVpnConfig",
+    "SnmpValueType",
     "StaticRoute",
     "SteeringScope",
     "StormControlConfig",

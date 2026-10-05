@@ -11,6 +11,7 @@ from testprotocols.device_management import DeviceManagement
 from testprotocols.dns_client import DnsClient
 from testprotocols.http_client import HttpClient
 from testprotocols.ip_routing import IpRouting
+from testprotocols.models import SnmpValueType
 from testprotocols.nmap_scanner import NmapScanner
 from testprotocols.ntp_client import NtpClient
 from testprotocols.snmp_client import SnmpClient
@@ -82,6 +83,17 @@ def test_released_positions_and_types_are_unchanged() -> None:
 # --- new members: SNMP and date ---------------------------------------------------
 
 
+_NET_SNMP_TYPE_LETTERS = {
+    SnmpValueType.INTEGER: "i",
+    SnmpValueType.UNSIGNED: "u",
+    SnmpValueType.OCTET_STRING: "s",
+    SnmpValueType.OBJECT_IDENTIFIER: "o",
+    SnmpValueType.IP_ADDRESS: "a",
+    SnmpValueType.TIMETICKS: "t",
+    SnmpValueType.BITS: "b",
+}
+
+
 class FakeSnmp:
     def __init__(self) -> None:
         self.commands: list[str] = []
@@ -131,7 +143,7 @@ class FakeSnmp:
         oid: str,
         community: str,
         value: str,
-        value_type: str,
+        value_type: SnmpValueType,
         *,
         timeout_s: int = 10,
         retries: int = 3,
@@ -139,7 +151,7 @@ class FakeSnmp:
     ) -> str:
         self.commands.append(
             f"snmpset -v 2c -On -c {community} -t {timeout_s} -r {retries} {host} {oid}"
-            f" {value_type} '{value}'"
+            f" {_NET_SNMP_TYPE_LETTERS[value_type]} '{value}'"
         )
         return "out"
 
@@ -184,7 +196,7 @@ def test_snmp_members_are_declared_and_the_fake_conforms() -> None:
     assert [p for p in _sig(SnmpClient, "snmp_set").parameters][:6] == [
         "self", "host", "oid", "community", "value", "value_type",
     ]  # fmt: skip
-    assert client.snmp_set("192.0.2.1", ".1.3", "private", "5", "i") == "out"
+    assert client.snmp_set("192.0.2.1", ".1.3", "private", "5", SnmpValueType.INTEGER) == "out"
     assert client.snmp_bulk_get("192.0.2.1", "", "private") == "out"
     assert client.snmp_walk("192.0.2.1", "", "private") == "out"
     assert _kwonly(SnmpClient, "snmp_walk") == {
@@ -192,6 +204,17 @@ def test_snmp_members_are_declared_and_the_fake_conforms() -> None:
         "retries": 3,
         "command_timeout": 30,
     }
+
+
+def test_every_snmp_value_type_has_a_net_snmp_letter() -> None:
+    assert set(_NET_SNMP_TYPE_LETTERS) == set(SnmpValueType)
+
+
+def test_snmp_set_takes_an_snmp_value_type() -> None:
+    assert _sig(SnmpClient, "snmp_set").parameters["value_type"].annotation == "SnmpValueType"
+    client = FakeSnmp()
+    client.snmp_set("192.0.2.1", ".1.3", "private", "5", SnmpValueType.TIMETICKS)
+    assert client.commands[-1].endswith(" t '5'")
 
 
 def test_set_date_time_is_declared_and_set_date_is_deprecated() -> None:

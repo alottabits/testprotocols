@@ -27,6 +27,31 @@ class IpFamily(IntEnum):
     V6 = 6
 
 
+class SnmpValueType(StrEnum):
+    """The SNMP value type (RFC 2578 base types) of the value an SNMP SET writes.
+
+    A driver maps each member to its tool's own type code. The members are the types a SET
+    can carry: Counter32 and Counter64 are left out because a counter only ever increments
+    (RFC 2578, sections 7.1.6 and 7.1.10), so no object accepts a SET of one, and Opaque is
+    obsolete. A value beginning ``0x`` is sent as hex; hex is an input notation, not a type.
+    """
+
+    INTEGER = "integer"
+    """INTEGER / Integer32."""
+    UNSIGNED = "unsigned"
+    """Unsigned32 (Gauge32)."""
+    OCTET_STRING = "octet-string"
+    """OCTET STRING."""
+    OBJECT_IDENTIFIER = "object-identifier"
+    """OBJECT IDENTIFIER."""
+    IP_ADDRESS = "ip-address"
+    """IpAddress."""
+    TIMETICKS = "timeticks"
+    """TimeTicks."""
+    BITS = "bits"
+    """BITS (the textual construct of RFC 2578, section 7.1.4, carried as an octet string)."""
+
+
 class DnsRecordType(StrEnum):
     """A DNS resource-record type (RFC 1035 and the IANA registry). Grows on evidence.
 

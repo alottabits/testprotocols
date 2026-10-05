@@ -500,7 +500,7 @@ where one exists, also records its retype.
   - `SnmpClient.execute_snmp_command` takes a whole command line. The command lines seen
     (boardfarm's SNMP library) are `snmpget`, `snmpwalk`, `snmpset` and `snmpbulkget`, with `-v
     2c -On -c <community> -t <seconds> -r <retries> <host> <oid>`. The new mandatory members
-    `snmp_get`, `snmp_walk`, `snmp_set(value, value_type)` and `snmp_bulk_get(non_repeaters,
+    `snmp_get`, `snmp_walk`, `snmp_set(value, value_type)` (`value_type` is the `SnmpValueType` enum, not a tool's type letter) and `snmp_bulk_get(non_repeaters,
     max_repetitions)` take `host`, `oid`, `community` and keyword-only `timeout_s`, `retries`
     and `command_timeout`, with the library's defaults. An empty `oid` of `snmp_walk` or
     `snmp_bulk_get` starts at the root. The library's free `extra_args` string has no typed
