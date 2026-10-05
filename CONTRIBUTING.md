@@ -272,13 +272,13 @@ same way from its first release under this process. The MAJOR digit stays
 
 A contract change may deprecate the old form. The deprecation model:
 
-- protocols state a deprecation (docstring, `@deprecated` marker, CHANGELOG) and carry no transition code;
+- protocols state a deprecation (docstring, `@deprecated` marker, CHANGELOG) and carry no transition code: nothing in `testprotocols` warns at run time;
 - a record keeps a released field during a deprecation, widened to `… | None` next to an optional typed twin, so a driver fills either form; a released default stays the released default;
 - reading such a pair: the typed field when filled, else the text, else the released default's meaning (or `ValueError` where the released field was required and the typed field cannot hold `None`; a typed field that holds `None` as a value reads it as that value);
 - writing such a pair: a caller building a record for a write member fills both forms until removal, because a driver not yet updated reads only the text; a driver implementing a write member reads the typed form when filled, else the text. A caller that fills only the typed form leaves the text at its released default, and a driver not yet updated acts on that default;
 - drivers decide how they transition;
-- `testoperations` supports both forms until removal, and its public `testoperations.pairs` module reads a text/typed pair by the rule above (each reader goes with the text fields it reads);
-- removal happens in the first release after 6 months, tracked in the Deprecations table of `docs/architecture/precise-types-design.md`.
+- `testoperations` supports both forms until removal, and its public `testoperations.pairs` module reads a text/typed pair by the rule above (each reader goes with the text fields it reads); a `testoperations` operation's own released form (a plain-`str` parameter, a released dict read) warns at its caller with a `DeprecationWarning` (`_compat.coerce_enum`, `_released.ReleasedMapping`);
+- the deprecation period lasts until the first release 6 months after the release that deprecates it; every deprecation is a row of the deprecation register, `packages/testprotocols/DEPRECATIONS.md`, from the deprecating change until the removal release.
 
 ## The changelog
 
@@ -316,7 +316,7 @@ breaking entry has waited long enough. Never per merged PR, never with an
 empty `[Unreleased]`. A merged PR is in the next release without
 exception; a change that must wait stays unmerged.
 
-Before tagging, remove or carry forward every row of the Deprecations table whose earliest removal has passed.
+Before tagging, remove or carry forward every row of `packages/testprotocols/DEPRECATIONS.md` whose earliest removal has passed.
 
 1. Branch `release/X.Y.Z` from `main`; bump both version fields and the
    `testoperations` pin on `testprotocols`; rename `## [Unreleased]` to
@@ -336,15 +336,18 @@ followed by a PATCH; the yank is noted in the changelog section. Fixes
 land on `main` first; there are no stable branches at 0.x, and a consumer
 that cannot take the next release carries the fix as a `Backport` patch.
 A removal, rename or retype is preceded by a deprecation period where the
-two forms can coexist: a *Deprecated* changelog entry, a row in the
-Deprecations table, and for a member or class the `@deprecated` marker that
+two forms can coexist: a *Deprecated* changelog entry, a row in
+`packages/testprotocols/DEPRECATIONS.md`, and for a member or class the `@deprecated` marker that
 type checkers report (pyright in strict mode; mypy with
-`enable_error_code = deprecated`, as this workspace configures it; nothing
-warns at run time, and the marker adds no runtime dependency), until the first release
+`enable_error_code = deprecated`, as this workspace configures it; the marker
+adds no runtime dependency), until the first release
 6 months after the release that deprecates it. The period covers the published
 `testoperations` operations too: an operation that calls a renamed or
 retyped member accepts a driver with only the old form until the old form
-is removed. How a rename or a retype keeps both forms alive is in
+is removed. `testprotocols` carries no runtime transition code, so nothing
+warns there at run time; a `testoperations` operation's own released form
+warns at its caller (`_compat.coerce_enum`, `_released.ReleasedMapping`).
+How a rename or a retype keeps both forms alive is in
 `docs/proposals/README.md` ("The placement ladder", rung 5).
 
 ## Branch protection on `main`

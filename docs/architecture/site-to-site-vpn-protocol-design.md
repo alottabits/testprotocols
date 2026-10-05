@@ -79,7 +79,10 @@ Decisions recorded:
   normalized-vocabulary-vs-plugin-mapping rule as content categories.
 - New normalized `VpnPeerStatus` is used; `wan_edge.VPNPeerStatus`
   (free-string reachability, zero consumers) is deprecated, with no successor
-  (see `precise-types-design.md`).
+  (see `precise-types-design.md`). This replaces the earlier "left untouched
+  for the twin": the twin, like every site-to-site consumer, uses `VpnPeerStatus`
+  for site-to-site peers, as the deprecation register
+  (`packages/testprotocols/DEPRECATIONS.md`) records.
 
 ## Protocol (`site_to_site_vpn.py`)
 

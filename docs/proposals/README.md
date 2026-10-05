@@ -100,7 +100,8 @@ operations of one concern into one capability, never one capability per verb.
   migration line.
 - **Rename.** A capability or model class keeps its old name for the
   deprecation period, marked `@deprecated` (type checkers report each use;
-  nothing warns at run time); tests and drivers keep working unchanged. A
+  `testprotocols` carries no runtime transition code, so nothing warns there
+  at run time); tests and drivers keep working unchanged. A
   model field rename declares both names for the deprecation period: a
   driver fills either, and `testoperations` reads whichever is filled. A **protocol
   method rename** declares both names too, and implementers add the new
@@ -127,12 +128,15 @@ operations of one concern into one capability, never one capability per verb.
     turn.
 - **The deprecation period** lasts until the first release 6 months after
   the release that deprecates it. It is announced by a *Deprecated* changelog
-  entry and a row in the Deprecations table of
-  `docs/architecture/precise-types-design.md`, and a deprecated member or
+  entry and a row in the deprecation register,
+  `packages/testprotocols/DEPRECATIONS.md`, and a deprecated member or
   class carries the `@deprecated` marker (passed `category=None`: type
   checkers report each use, pyright in strict mode and mypy with
-  `enable_error_code = deprecated`, as this workspace configures it;
-  nothing warns at run time). A consumer reads a text/typed field pair
+  `enable_error_code = deprecated`, as this workspace configures it).
+  `testprotocols` carries no runtime transition code and nothing warns
+  there at run time; a `testoperations` operation's own released form
+  warns at its caller (`_compat.coerce_enum`, `_released.ReleasedMapping`).
+  A consumer reads a text/typed field pair
   through the public `testoperations.pairs` readers.
 - **Operations honour the period.** A published `testoperations` operation
   that calls a renamed or retyped member keeps working with a driver that has

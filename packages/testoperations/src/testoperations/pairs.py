@@ -13,7 +13,7 @@ naming the record and field. A typed field that holds ``None`` as a value
 as that ``None``.
 
 Each reader and parser here is removed in the release that removes the text fields it
-reads (see ``docs/architecture/precise-types-design.md``, "Deprecations"); from then on a
+reads (see ``packages/testprotocols/DEPRECATIONS.md``); from then on a
 test reads the typed field directly.
 """
 

@@ -129,7 +129,7 @@ SLA policy, and application-flow visibility:
 
 ```python
 class SdwanPolicyManager(Protocol):
-    def apply_policy(self, policy: dict[str, object]) -> None: ...   # generic escape hatch (deprecated, no successor)
+    def apply_policy(self, policy: dict[str, object]) -> None: ...   # generic escape hatch (deprecated, no successor; precise-types-design.md)
     def remove_policy(self, name: str) -> None: ...
     def configure_sla_policy(self, policy: SLAPolicy) -> None: ...
     def remove_sla_policy(self, name: str) -> None: ...
@@ -163,6 +163,10 @@ tag, bandwidth limit, priority; `wan_edge.TrafficShapingRule` is deprecated, see
 `precise-types-design.md`), covering DSCP marking and per-application
 shaping. Cross-vendor: per-link + per-app shaping and DSCP marking exist on
 every reviewed appliance.
+
+(Correction of the record: the protocol has taken `ShapingRule` since it landed;
+the released text, which said it reused `wan_edge.TrafficShapingRule`, was wrong.
+This is not a design change.)
 
 ### `l3_firewall: L3Firewall`
 An appliance L3 policy is a **flat ordered list replaced whole**, with separate
@@ -409,9 +413,10 @@ Concretely:
   lacking a mapped entry surfaces as a clear *unsupported-capability* error in
   the driver — a coverage gap, **not** a contract leak. `testprotocols` stays
   clean.
-- **Read models carry only normalized fields.** e.g. `SecurityEvent(src_ip,
+- **Read models carry only normalized fields.** e.g. `SecurityEvent(ts, src_ip,
   dst_ip, protocol, action: SecurityAction, category: ThreatCategory,
-  description, *, timestamp)` (`timestamp` is keyword-only; `ts` is the deprecated text); `UplinkStatus(name, state: UplinkState, ip, gateway,
+  description, *, timestamp)` (`ts` is the deprecated text, widened to `str | None`;
+  `timestamp` is keyword-only; see `precise-types-design.md`); `UplinkStatus(name, state: UplinkState, ip, gateway,
   public_ip)`. **No `native` bucket.** If a test needs a vendor-only datum with
   no normalized field, that is the signal to **add a normalized field on
   evidence** — not to smuggle a dict.

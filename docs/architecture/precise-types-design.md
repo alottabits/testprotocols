@@ -5,7 +5,7 @@
 | Status  | Implemented, unreleased                                               |
 | Author  | rjvisser                                                              |
 | Date    | 2026-10-05                                                            |
-| Related | `docs/proposals/README.md` (question 9, precise types), `CONTRIBUTING.md` (Versioning), `docs/architecture/precise-types-families.md` (the reviewed families and substrate surveys), `testprotocols._compat`, `testoperations.pairs`, `testoperations._compat`, `packages/testprotocols/tests/test_typing_ratchet.py` |
+| Related | `docs/proposals/README.md` (question 9, precise types), `CONTRIBUTING.md` (Versioning), `docs/architecture/precise-types-families.md` (the reviewed families and substrate surveys), `docs/proposals/2026-10-05-precise-types.md` (the proposal, items P1–P12), PR #73, `packages/testprotocols/DEPRECATIONS.md` (the deprecation register), `testprotocols._compat`, `testoperations.pairs`, `testoperations._compat`, `packages/testprotocols/tests/test_typing_ratchet.py` |
 
 ## The contract model
 
@@ -86,13 +86,15 @@ implementation of this change that did so produced four findings, which C1 rests
 4. The warning cannot tell a driver how to transition anyway: the driver knows its device,
    the contract does not.
 
-The deprecation period itself (one MINOR release and six months) is kept, and
-`testoperations` keeps the runtime warning for its own operations' released forms (C6),
-where the warning names the operation's caller. The change governs the rung-5 items of
-the retypes below; it adds no protocol member of its own.
+The deprecation period itself (until the first release 6 months after the release that
+deprecates it) is kept, and `testoperations` keeps the runtime warning for its own
+operations' released forms (C6), where the warning names the operation's caller. The
+change governs the rung-5 items of the retypes below; it adds no protocol member of its
+own.
 
-Each deprecation is a row of the Deprecations table at the end of this document, with its
-earliest removal: the first release 6 months after the release that deprecates it.
+Each deprecation is a row of the deprecation register,
+`packages/testprotocols/DEPRECATIONS.md`, with its earliest removal: the first release 6
+months after the release that deprecates it.
 
 ## Purpose
 
@@ -400,8 +402,10 @@ where one exists, also records its retype.
   (a deprecation-period exemption) and its narrowing to `datetime | None` is announced
   (shape 6): the example's step definitions pass a `datetime`; its unit test passes a text
   marker straight to the implementer. The three dict readers are shape 5:
-  new mandatory `read_rtpengine_stats`, `read_mwi_status` and `read_offline_messages`
-  return frozen `RtpStats`, `MwiStatus` and `OfflineMessage`; the old names are deprecated
+  new mandatory `read_rtp_relay_stats`, `read_mwi_status` and `read_offline_messages`
+  (the new name drops the relay's product name, which the released `get_rtpengine_stats`
+  keeps until its removal; `precise-types-families.md` section 1) return frozen
+  `RtpStats`, `MwiStatus` and `OfflineMessage`; the old names are deprecated
   and a driver delegates, returning the record's fields in the released dict shape. Fields
   come from evidence only. `RtpStats`
   (`engaged`, `sessions`): the released docstring says only "a dictionary"; the one
@@ -445,7 +449,8 @@ where one exists, also records its retype.
   - UPnP port mapping reuses `PortMappingProtocol` (`tcp`, `udp`, `tcp-udp`); `tcp-udp` is not a UPnP
     protocol and a driver refuses it. The plain `str` stays legal.
   - `DnsRecordType` (for `dns_lookup` and `resolve`), `QoeScenario` (`page_load`, the only
-    released word) and `PageCompletion` (the four Playwright load events) are `E | str`
+    released word) and `PageCompletion` (the four page-load events a browser automation framework waits on;
+    `precise-types-families.md` section 6) are `E | str`
     parameters.
     `ServiceStatus` is shape 6, announced only (`get_status -> str`).
   - `MeasurementSpec.tool` / `completion` are shape 3 (closed): `QoeTool` is the four
@@ -474,7 +479,7 @@ where one exists, also records its retype.
     properties over the released attributes, so they follow an assignment: `status: int |
     None` (`None` when no status line with a code from 100 to 599 was parsed; a new name has
     no released form, so no `0` sentinel) and `body: str`. `code` and `beautified_text` are
-    deprecated by docstring and the Deprecations table only: they are plain attributes, and
+    deprecated by docstring and the deprecation register only: they are plain attributes, and
     a `@deprecated` property in their place would make them read-only. The example
     implementer builds `HTTPResult(response)` and its test reads `result.code == "200"`,
     which is unchanged.
@@ -610,7 +615,7 @@ where one exists, also records its retype.
     (compatibility exemptions, marker `released return kept: implementers return their own
     types`), and the docstrings state that the returned objects satisfy `Console`. Narrowing
     them now would break a console lacking a `Console` member with no period; the narrowing
-    to `Console` / `Mapping[str, Console]` is announced in the Deprecations table, at the
+    to `Console` / `Mapping[str, Console]` is announced in the deprecation register, at the
     earliest removal release. `Console` is a returned-object contract, not a capability
     (`precise-types-families.md`, section 8).
   - `Console` holds only members a stubbed `pexpect.spawn` subclass can satisfy without
@@ -754,7 +759,7 @@ is not tied to a removal.
 - Marker `# type: ignore[explicit-any]  # released return kept: implementers return their
   own types` (2 lines): `hw_console.get_console` (`Any`) and `get_interactive_consoles`
   (`dict[str, Any]`). Implementers return their own console types; the returned consoles
-  satisfy `Console`, and the narrowing to `Console` is announced (Deprecations table), so
+  satisfy `Console`, and the narrowing to `Console` is announced (deprecation register), so
   these two lines go at that narrowing.
 
 **`object` used as a type.** `object` in a public signature or field is as imprecise as
@@ -797,97 +802,12 @@ no error to ignore) and is pinned per class and package:
 
 ## Deprecations
 
-One row per deprecated item, in `testprotocols` and in `testoperations`. The CHANGELOG
-*Deprecated* sections list exactly these rows. On an unreleased branch "deprecated in"
-reads `next release` and "earliest removal" `next release + 6 months`; the release that
-ships a row fills in its version and date. Before tagging a release, every row whose
-earliest removal has passed is removed (the item goes, or narrows as its replacement says)
-or carried forward. For a text/typed pair (C3) or an `E | str` annotation (C4) the
-replacement names the removal step: the text field goes and the typed field becomes
-required, or `E | str` becomes `E`.
-
-**testprotocols**
-
-| item | replacement | kind | deprecated in | earliest removal |
-| --- | --- | --- | --- | --- |
-| `testprotocols.packet_filter:PacketFilter.get_rule_counters` (so also `Firewall`) | `get_rule_counter_values` | member | next release | next release + 6 months |
-| `testprotocols.nat:Nat.get_nat_rule_counters` | `get_nat_rule_counter_values` | member | next release | next release + 6 months |
-| `testprotocols.router:Router.get_telemetry` | `read_telemetry` | member | next release | next release + 6 months |
-| `testprotocols.sdwan_policy_manager:SdwanPolicyManager.apply_policy` | none: the typed steering and SLA members (`configure_sla_policy`, `set_uplink_selection`, `set_default_uplink`, `set_active_active_vpn`) | member | next release | next release + 6 months |
-| `testprotocols.wifi_client:WifiClient.iwlist_supported_channels` | `supported_channels` | member | next release | next release + 6 months |
-| `testprotocols.wifi_radio:WifiRadio.get_mode` | `get_modes` | member | next release | next release + 6 months |
-| `testprotocols.sip_server:SipServer.get_rtpengine_stats` | `read_rtpengine_stats` | member | next release | next release + 6 months |
-| `testprotocols.sip_server:SipServer.get_mwi_status` | `read_mwi_status` | member | next release | next release + 6 months |
-| `testprotocols.sip_server:SipServer.get_offline_messages` | `read_offline_messages` | member | next release | next release + 6 months |
-| `testprotocols.content_filtering:ContentFiltering.get_url_rules` | `read_url_rules` | member | next release | next release + 6 months |
-| `testprotocols.device_management:DeviceManagement.get_memory_utilization` | `read_memory_utilization` | member | next release | next release + 6 months |
-| `testprotocols.device_management:DeviceManagement.get_running_processes` (with `ps_options`) | `read_running_processes`; a `ps_options` other than `"-A"` has no successor | member | next release | next release + 6 months |
-| `testprotocols.device_management:DeviceManagement.read_event_logs` | `read_log_entries` | member | next release | next release + 6 months |
-| `testprotocols.dns_client:DnsClient.dns_lookup` (with `opts`) | `resolve`; `opts` has no successor | member | next release | next release + 6 months |
-| `testprotocols.iperf_client:IperfClient.start_traffic_sender` | `start_sender_session` | member | next release | next release + 6 months |
-| `testprotocols.iperf_server:IperfServer.start_traffic_receiver` | `start_receiver_session` | member | next release | next release + 6 months |
-| `testprotocols.nmap_scanner:NmapScanner.nmap` (with `opts`) | `scan_ports`; `fast` replaces `opts="-F"`, any other `opts` has no successor | member | next release | next release + 6 months |
-| `testprotocols.arp_client:ArpClient.get_arp_table` | `read_arp_table` | member | next release | next release + 6 months |
-| `testprotocols.ntp_client:NtpClient.get_date` | `read_date` | member | next release | next release + 6 months |
-| `testprotocols.ntp_client:NtpClient.set_date` | `set_date_time` | member | next release | next release + 6 months |
-| `testprotocols.netem_controller:NetemController.inject_transient` | `inject_event` | member | next release | next release + 6 months |
-| `testprotocols.snmp_client:SnmpClient.execute_snmp_command` | `snmp_get`, `snmp_walk`, `snmp_set` or `snmp_bulk_get`; any other command has no successor | member | next release | next release + 6 months |
-| `testprotocols.models:HTTPResult.code` (a plain attribute: docstring only, no marker) | `status` (`int \| None`) | attribute | next release | next release + 6 months |
-| `testprotocols.models:HTTPResult.beautified_text` (a plain attribute: docstring only, no marker) | `body` | attribute | next release | next release + 6 months |
-| `testprotocols.models:VPNPeerStatus` | none (`VpnPeerStatus` for site-to-site peers) | class | next release | next release + 6 months |
-| `testprotocols.models:TrafficShapingRule` | none (`ShapingRule` where a capability needs one) | class | next release | next release + 6 months |
-| `testprotocols.ip_routing:IpRouting.ping(json_output=True)` | `ping_stats`; at removal `ping` returns `bool` | parameter | next release | next release + 6 months |
-| `IpRouting.ping` and `traceroute` `options` | none | parameter | next release | next release + 6 months |
-| `testprotocols.http_client:HttpClient.curl` and `http_get` `options` | keyword-only `no_proxy`, `insecure`, `follow_redirects` | parameter | next release | next release + 6 months |
-| `PacketFilter` `chain` (every member) and `set_default_policy(policy)`: `Chain \| str`, `DefaultAction \| str` | `Chain`, `DefaultAction` (narrows to the enum) | parameter | next release | next release + 6 months |
-| `Nat.list_nat_rules(mode)`: `NatMode \| str \| None` | `NatMode \| None` (narrows to the enum) | parameter | next release | next release + 6 months |
-| `Conntrack` `protocol` (`list_connections`, `count_connections`, `get_connection`, `drop_connection`): `RuleProtocol \| str` | `RuleProtocol` (narrows to the enum) | parameter | next release | next release + 6 months |
-| Wi-Fi `band` (`WifiBss.create_bss`, every `WifiRadio` and `WifiRf` member, `WifiRadioWhiteBox.inject_radar_event`, `WifiMesh.set_backhaul_band`): `WifiBand \| str` | `WifiBand` (narrows to the enum) | parameter | next release | next release + 6 months |
-| `WifiBss.create_bss(security_mode, mfp)` and `set_security(mode, mfp)`: `WifiSecurityMode \| str`, `MfpMode \| str` | `WifiSecurityMode`, `MfpMode` (narrows to the enum) | parameter | next release | next release + 6 months |
-| `WifiBss.set_acl_mode(mode)`: `WifiAclMode \| str` | `WifiAclMode` (narrows to the enum) | parameter | next release | next release + 6 months |
-| `WifiRadio.set_mode(mode)`: `WifiPhyMode \| str` | `WifiPhyMode` (narrows to the enum; a compound mode names no member) | parameter | next release | next release + 6 months |
-| `WifiClient.set_wlan_scan_channel(channel)`: `int \| str` | `int` | parameter | next release | next release + 6 months |
-| `SipPhone.wait_for_state(state)`: `PhoneState \| str` | `PhoneState` (narrows to the enum) | parameter | next release | next release + 6 months |
-| `HttpClient.curl(protocol)`: `HttpScheme \| str` | `HttpScheme` (narrows to the enum) | parameter | next release | next release + 6 months |
-| `IpInterface.set_link_state(state)`: `LinkAdminState \| str` | `LinkAdminState` (narrows to the enum) | parameter | next release | next release + 6 months |
-| `UpnpClient.create_upnp_rule(protocol)` and `delete_upnp_rule(protocol)`: `PortMappingProtocol \| str` | `PortMappingProtocol` (narrows to the enum) | parameter | next release | next release + 6 months |
-| `QoeBrowser.measure_productivity(scenario, wait_until)`: `QoeScenario \| str`, `PageCompletion \| str` | `QoeScenario`, `PageCompletion` (narrows to the enum) | parameter | next release | next release + 6 months |
-| `HttpServer.start_http_service` / `stop_http_service(port)` and `start_http_service(ip_version)`: `str` | `int`, `IpFamily` (announced narrowing) | parameter | next release | next release + 6 months |
-| `UpnpClient` `int_port`, `ext_port` and `VlanClient` `vlan_id`: `str` | `int` (announced narrowing) | parameter | next release | next release + 6 months |
-| `IpRouting.traceroute(version)`: `str` (`""` or `"6"`) | `IpFamily \| None` (announced narrowing) | parameter | next release | next release + 6 months |
-| `IpInterface.is_link_up(pattern)` | `is_link_admin_up` for the administrative state; at removal `pattern` goes | parameter | next release | next release + 6 months |
-| `NetemController.set_impairment_profile` / `set_interface_profile(profile)` as a `dict` | `ImpairmentProfile` (narrows to it) | parameter | next release | next release + 6 months |
-| `MulticastClient.send_mldv2_report` records as plain tuples | `GroupRecord` (narrows to `Sequence[GroupRecord]`) | parameter | next release | next release + 6 months |
-| `HeldPrefixes.hold(address)`: `str` | `IPv4Interface \| IPv6Interface` (announced narrowing) | parameter | next release | next release + 6 months |
-| `PacketFilter.get_default_policy` return `str` | `DefaultAction` (announced narrowing) | member | next release | next release + 6 months |
-| `WifiRadio.list_radios` and `get_bandwidth` returns (`list[str]`, `int`) | `list[WifiBand]`, `ChannelWidth` (announced) | member | next release | next release + 6 months |
-| `RadiusServer.get_status` return `str` | `ServiceStatus` (announced narrowing) | member | next release | next release + 6 months |
-| `SipServer.verify_sip_message(since)`: `Any` | `datetime \| None` (announced narrowing) | parameter | next release | next release + 6 months |
-| `HwConsole.get_console` and `get_interactive_consoles` returns `Any`, `dict[str, Any]` | `Console`, `Mapping[str, Console]` (announced narrowing; a console lacking a `Console` member stops conforming then) | member | next release | next release + 6 months |
-| `FirewallRule.dst_port` (port text, required) | `dst_ports`; at removal the text field goes and `dst_ports` becomes required | field | next release | next release + 6 months |
-| `NatRule.dst_port` and `translated_port` (port text, released default `""`) | `dst_ports`, `translated_ports`; at removal the text fields go and the typed fields default to `()` (the typed form of the released default `""`) | field | next release | next release + 6 months |
-| `L3Rule.src_port` and `dst_port` (port text, released default `"any"`) | `src_ports`, `dst_ports`; at removal the text fields go and the typed fields default to `()` (the typed form of the released default `"any"`) | field | next release | next release + 6 months |
-| `SecurityEvent.ts` (ISO-8601 text, required) | `timestamp`; at removal `ts` goes and `timestamp` becomes required (`None`: no time reported) | field | next release | next release + 6 months |
-| `QosRule.match` (classifier text, required) | `classifier`; at removal `match` goes and `classifier` becomes required (`None`: every frame) | field | next release | next release + 6 months |
-| `FirewallRule.action` / `protocol`: `FirewallRuleAction \| str`, `RuleProtocol \| str` | the enums (narrows from `E \| str` to `E`) | field | next release | next release + 6 months |
-| `NatRule.mode` / `protocol`: `NatMode \| str`, `RuleProtocol \| str` | the enums (narrows from `E \| str` to `E`) | field | next release | next release + 6 months |
-| `PortMapping.protocol`, `Connection.protocol`: `PortMappingProtocol \| str`, `RuleProtocol \| str` | the enums (narrows from `E \| str` to `E`) | field | next release | next release + 6 months |
-| `LinkStatus.state`, `LinkHealthReport.state`: `UplinkState \| str` | `UplinkState` (narrows from `E \| str` to `E`) | field | next release | next release + 6 months |
-| Wi-Fi fields: `band` of `WifiBssConfig`, `WifiStation`, `WifiNeighbor`, `WifiChannelUtilization`, `WifiRadioStats`, `WifiMeshLink`; `WifiBssConfig.security_mode` / `mfp`; `WifiAcl.mode`; `role` of `WifiMeshStatus`, `WifiMeshNode` | `WifiBand`, `WifiSecurityMode`, `MfpMode`, `WifiAclMode`, `MeshRole` (narrows from `E \| str` to `E`) | field | next release | next release + 6 months |
-| `MeasurementSpec.tool` / `completion`, `TrafficSpec.protocol` | `QoeTool`, `QoeCompletion \| PageCompletion`, `TransportProtocol` (narrows from `E \| str` to `E`) | field | next release | next release + 6 months |
-| `NatRule.src_cidr`, `dst_cidr`, `translated_src`, `translated_dst` (`""`: absent) | `str \| None`, `None` absent (announced) | field | next release | next release + 6 months |
-| `L3Rule.src_cidr`, `dst_cidr` (`"any"`), `UplinkStatus.ip`, `gateway`, `public_ip`, `primary_dns` and `NetworkAttachment.segment` (`""`) | `str \| None`, `None` unconstrained or not reported (announced) | field | next release | next release + 6 months |
-| `LinkStatus.ip_address` (`""`: no address) | `str \| None` (announced) | field | next release | next release + 6 months |
-
-**testoperations**
-
-| item | replacement | kind | deprecated in | earliest removal |
-| --- | --- | --- | --- | --- |
-| `testoperations.segmentation:build_deny_rule(scope, proto)` as a plain `str` | `DenyScope`, `RuleProtocol` (narrows to the enum) | parameter | next release | next release + 6 months |
-| `testoperations.netem_controller:apply_preset(preset_name)` as a plain `str` | `NetemPreset` (narrows to the enum) | parameter | next release | next release + 6 months |
-| `testoperations.throughput:NonCompletion(which_side, what)` as a plain `str` | `NonCompletionSide`, `NonCompletionKind` (narrows to the enum) | parameter | next release | next release + 6 months |
-| `testoperations.iperf_generator:saturate_link(protocol)` as a plain `str` | `TransportProtocol` (narrows to the enum) | parameter | next release | next release + 6 months |
-| reading `IperfSession`, `HomeVerification` or `FlowPair` as the released dict (indexing, `get`, `in`, `len`, `keys`, `items`, `values`, iteration, `==` a dict, `as_dict()`) | the record's fields; the mapping access is removed | member | next release | next release + 6 months |
+The deprecations this change makes are rows of the repo-wide deprecation register,
+`packages/testprotocols/DEPRECATIONS.md`, one row per deprecated item in `testprotocols`
+and in `testoperations`, each with its replacement and earliest removal; the CHANGELOG
+*Deprecated* sections list exactly those rows. For a text/typed pair (C3) or an `E | str`
+annotation (C4) a row's replacement names the removal step: the text field goes and the
+typed field becomes required, or `E | str` becomes `E`.
 
 Notes:
 

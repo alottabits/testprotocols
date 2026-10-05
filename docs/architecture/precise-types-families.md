@@ -18,16 +18,20 @@ switch domains keep the lists their own design documents record.
 
 Two bars apply, as recorded elsewhere:
 
-- **A device-under-test contract** (Wi-Fi, voice, device management, content filtering)
-  is checked against representative, independent, documentation-published families,
-  standards first where a standard data model exists.
+- **A device-under-test contract** (Wi-Fi, voice, content filtering) is checked against
+  representative, independent, documentation-published families, standards first where a
+  standard data model exists.
 - **A host-substrate instrument** (the host network tools, SNMP and NTP clients, traffic
-  generation, impairment, QoE) proves its neutrality by tool universality, not by a
-  cross-vendor sweep: `packet-injection-substrate-design.md` §2 records that every
+  generation, impairment, QoE, and device management) proves its neutrality by tool
+  universality, not by a cross-vendor sweep: `packet-injection-substrate-design.md` §2 records that every
   substrate tool in the class of `NmapScanner`, `PcapCapture`, `NetemController`,
   `IperfGenerator` and `NetworkProbe` landed as a single-substrate host-tool wrapper. The
   same document still records a substrate survey with a vendor-free reference, and so do
-  sections 5 and 6 here.
+  sections 5 and 6 here. Device management is in this class: `DeviceManagement` is host
+  access (uptime, load, memory, processes, logs; `precise-types-design.md`, "Vocabulary
+  and boundary decisions"), composed only by `CpeDevice`, and `GAPS.md` (2026-06-11,
+  "appliance health / online capability") records it as Linux-host-shaped. One substrate
+  clears this bar, so section 7 gives it one.
 
 Product and tool names appear in this document as the concept check only, never in a
 protocol, model or enum name.
@@ -49,6 +53,10 @@ compared with the reference from its public material.
 | Aruba (AOS 8 and AOS 10, Instant, Central) | A controller- and cloud-managed enterprise family; per-SSID HT/VHT/HE switches, `opmode` plus transition mode, MAC authentication and a client deny list. |
 | Airties (mesh controller and agent on gateways and extenders, including prplOS-based gateways; cloud management) | An EasyMesh mesh family; it publishes no field-level API of its own, so its evidence is Data Elements (served with `X_AIRTIES_` extensions) and EasyMesh. |
 | A Linux station using wpa_supplicant | The client side: key management, `ieee80211w` and the nl80211 channel list. |
+
+hostapd and wpa_supplicant are the access-point and station sides of one upstream
+project: two roles, which is why both rows belong, but one source. The list holds five
+independent sources, and the next change in the domain counts them as five.
 
 Differences resolve as recorded in `precise-types-design.md` ("Wi-Fi vocabularies"): a
 spelling, unit or encoding difference is a driver mapping; a value or source a family
@@ -141,9 +149,13 @@ the measurement around it, stated in the member's docstring.
 
 ## 7. Device management, content filtering and consoles
 
+Device management is a host-substrate instrument (section 1), so one substrate clears its
+bar; content filtering is a device-under-test contract and is checked against the appliance
+families; consoles are the objects released implementers return (section 8).
+
 | Family | Concern | Rationale |
 | --- | --- | --- |
-| Linux hosts and gateways (procps `ps`, `free`, BSD syslog) | device management | The released implementers' family: `MemoryUtilization` holds the columns of `free -b`, `ProcessInfo` those of `ps -A`, `EventLogEntry` an RFC 3164 line with its severity derived by the RFC 5424 table. |
+| Linux hosts and gateways (procps `ps`, `free`, BSD syslog) | device management (host substrate, section 1) | The released implementers' substrate, which clears the host-substrate bar on its own: `MemoryUtilization` holds the columns of `free -b`, `ProcessInfo` those of `ps -A`, `EventLogEntry` an RFC 3164 line with its severity derived by the RFC 5424 table. |
 | The SD-WAN appliance families of `sdwan-appliance-protocol-design.md` | content filtering | The appliance list already recorded. `UrlRules` (`allowed`, `blocked`) is the shape of Meraki MX (`allowedUrlPatterns`, `blockedUrlPatterns`) and FortiGate (URL filter entries with allow or block actions); Catalyst SD-WAN, Prisma SD-WAN and VeloCloud were not checked for this record and are the first to check when the member next changes. |
 | pexpect-based consoles (serial, SSH, telnet) | consoles | The console objects released implementers return; a type-checked test confirms that a `pexpect.spawn` subclass with `execute_command` and `start_interactive_session` satisfies `Console`. |
 
@@ -162,5 +174,5 @@ and `start_interactive_session`. It is not a capability:
 So the capability-only-archetypes rule (`capability-only-archetypes.md`) is untouched: an
 archetype still composes capabilities only. `HwConsole` keeps its released `Any` returns
 under the compatibility exemption; the docstrings state that the returned objects satisfy
-`Console`, and the narrowing of the returns to `Console` is announced in the Deprecations
-table of `precise-types-design.md`.
+`Console`, and the narrowing of the returns to `Console` is announced in the deprecation
+register, `packages/testprotocols/DEPRECATIONS.md`.

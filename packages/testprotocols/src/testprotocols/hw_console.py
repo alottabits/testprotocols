@@ -60,8 +60,7 @@ class HwConsole(Protocol):
 
         The returned object satisfies :class:`Console`. The released return annotation
         (``Any``) is kept: implementers declare their own console types. Its narrowing to
-        ``Console`` is announced (see ``docs/architecture/precise-types-design.md``,
-        "Deprecations").
+        ``Console`` is announced (see ``packages/testprotocols/DEPRECATIONS.md``).
         """
         ...
 
@@ -71,7 +70,7 @@ class HwConsole(Protocol):
         Each console satisfies :class:`Console`. The released return annotation
         (``dict[str, Any]``) is kept: implementers declare their own console types. Its
         narrowing to ``Mapping[str, Console]`` is announced (see
-        ``docs/architecture/precise-types-design.md``, "Deprecations").
+        ``packages/testprotocols/DEPRECATIONS.md``).
         """
         ...
 

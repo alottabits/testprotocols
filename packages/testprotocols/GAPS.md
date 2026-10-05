@@ -260,10 +260,16 @@ keys; plugins map to vendor app-ids), grown on evidence; `L7Rule.value` for
 > `RadiusAccountingRecord.record_type` stay `str`; `VPNPeerStatus` /
 > `TrafficShapingRule` are deprecated with no successor. Each retype is a deprecation
 > (widen, then narrow); see `docs/architecture/precise-types-design.md`. The notes below
-> are the original 2026-06-11 assessment, left as written: where they name `LinkState`,
-> `TrafficShapingRule.priority`, or say `Connection.state` or
-> `MeasurementSpec.completion` stay `str`, they are superseded. The gaps the retype left
-> open are in the next entry.
+> are the original 2026-06-11 assessment, left as written: where they name `LinkState` or
+> `TrafficShapingRule.priority`, or defer `WifiBssConfig.security_mode` (now
+> `WifiSecurityMode`) or `MeasurementSpec.completion` (now `QoeCompletion |
+> PageCompletion`) until a test needs them, they are superseded; those two deferrals are
+> lifted. Their "leave as `str`" for `Connection.state` is upheld, not superseded. The
+> gating (A)-vs-(B) decision is settled as (A): annotation and checker only, with no
+> `__post_init__` coercion or validation in a record (`precise-types-design.md`, "The
+> contract model", C1, C4 and C5). The `ALERT`-vs-`LOG` reconciliation went to `ALERT`:
+> `FirewallRuleAction` carries an `ALERT` member for the undocumented `"alert"` action,
+> and no implementer has to change to `LOG`. The gaps the retype left open are in the next entry.
 >
 > **Update (2026-10-05, the precise-types change):** the fields of this entry that remain
 > bare `str` afterwards: `Zone.default_input`, `default_forward` and `default_output` and
@@ -406,8 +412,21 @@ specification table or a maintainer decision), not more code.
 package, so the width question arises only for a model that carries an integer content
 type.
 
-**Cross-references:** `docs/architecture/precise-types-design.md` ("Retypes",
-"Deprecations"), `models/wifi.py`, `models/switch.py`.
+**Trigger to act:** The trigger each bullet names: a second implementer, a specification
+table or a maintainer decision for that gap; for a deprecated option string, the release
+that would remove it (a typed successor or a decision to drop it is due before then).
+
+**Out of scope right now because:** Each gap needs evidence the precise-types change did
+not have, and a vocabulary guessed now would be a contract change to undo later; the
+change typed only what evidence supported.
+
+**Design notes (when picked up):** follow the deprecation shapes of
+`docs/architecture/precise-types-design.md` (a typed successor beside the released form,
+then a period); take a specification's vocabulary first where one exists; close a
+compatibility exemption only with the typing ratchet's count lowered in the same change.
+
+**Cross-references:** `docs/architecture/precise-types-design.md` ("Retypes"),
+`packages/testprotocols/DEPRECATIONS.md`, `models/wifi.py`, `models/switch.py`.
 
 ---
 
