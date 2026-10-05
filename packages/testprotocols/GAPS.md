@@ -474,6 +474,31 @@ read can return), returned by new members beside the text ones (shape 5).
 
 ---
 
+## 2026-10-05 — QoE completions a measurement family cannot express [priority: low]
+
+**Signal:** `MeasurementSpec.completion` is typed `QoeCompletion | str` (its deferral in
+the 2026-06-11 bare-`str` entry is lifted by the precise-types proposal). Not every
+reviewed family has every member: an independent browser-automation family has no form for
+`COMMIT`, and its own `networkidle2` (at most two connections for 500 ms) has no member.
+Values with no member stay readable as text during the deprecation period; a driver raises
+for a member its tool cannot wait for.
+
+**Trigger to act:** A test that needs a completion no member names, or a second
+implementer family whose completions differ from the released one's.
+
+**Out of scope right now because:** The four page-load states come from the released
+implementers' family and the HTML standard's load events; adding a member for one
+family's extra state would put that tool's vocabulary into the contract.
+
+**Design notes (when picked up):** a new `QoeCompletion` member only when two families
+share the state; otherwise the driver maps or raises, as now.
+
+**Cross-references:** `models/qoe.py` (`PageCompletion`, `QoeCompletion`),
+`docs/architecture/precise-types-families.md` (6, "Traffic generation, impairment and
+QoE"), `docs/proposals/2026-10-05-precise-types.md` (P10).
+
+---
+
 ## 2026-06-11 — appliance health / online capability [priority: medium]
 
 **Signal:** Composing `SdwanApplianceDevice` wanted an online/uptime check, but the
