@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass, field
-from typing import Any
 
 from testprotocols.models.networking import IPAddresses
 
@@ -47,19 +46,28 @@ class DhcpLeaseObservation:
 
 @dataclass
 class DHCPTraceData:
-    """Holds a captured DHCPv4 packet with source/destination addresses and message type."""
+    """Holds a captured DHCPv4 packet with source/destination addresses and message type.
+
+    *dhcp_packet* is the decoded packet as a read-only mapping of the decoder's field names
+    to values (nested mappings and lists for the decoder's own structure); it has no fixed
+    typed shape, so a reader narrows each value it uses.
+    """
 
     source: IPAddresses
     destination: IPAddresses
-    dhcp_packet: dict[str, Any]
+    dhcp_packet: Mapping[str, object]  # object: open value: the contract does not enumerate it
     dhcp_message_type: int
 
 
 @dataclass
 class DHCPV6TraceData:
-    """Holds a captured DHCPv6 packet with source/destination addresses and message type."""
+    """Holds a captured DHCPv6 packet with source/destination addresses and message type.
+
+    *dhcpv6_packet* is the decoded packet as a read-only mapping, as for
+    :class:`DHCPTraceData`.
+    """
 
     source: IPAddresses
     destination: IPAddresses
-    dhcpv6_packet: dict[str, Any]
+    dhcpv6_packet: Mapping[str, object]  # object: open value: the contract does not enumerate it
     dhcpv6_message_type: int

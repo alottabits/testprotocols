@@ -41,6 +41,7 @@ PROTOCOLS = [
             "get_tx_power",
             "set_mode",
             "get_mode",
+            "get_modes",
             # Regulatory domain
             "set_country",
             "get_country",

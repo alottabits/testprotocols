@@ -78,6 +78,7 @@ def test_path_classifiers() -> None:
     assert is_decision_file("packages/testprotocols/GAPS.md")
     assert is_decision_file("packages/testprotocols/SPLITS.md")
     assert is_decision_file("packages/testprotocols/LEVELS.md")
+    assert is_decision_file("packages/testprotocols/DEPRECATIONS.md")
     assert not is_decision_file("docs/proposals/2026-01-01-x.md")
     assert not is_decision_file("docs/architecture/notes/x.md")
 
@@ -767,6 +768,7 @@ def test_archetype_allows_code_tests_changelog_and_tracking_files(tmp_path: Path
         FileChange("packages/testprotocols/SPLITS.md", "modified"),
         FileChange("packages/testprotocols/LEVELS.md", "modified"),
         FileChange("packages/testprotocols/GAPS.md", "modified"),
+        FileChange("packages/testprotocols/DEPRECATIONS.md", "modified"),
     )
     assert check_archetype(archetype_pr(*files), main_root, head_root) == []
 

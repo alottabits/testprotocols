@@ -33,7 +33,11 @@ class HeldPrefixes(Protocol):
         """Hold *address* (``"host/prefixlen"``, e.g. ``"203.0.113.1/24"``) on an
         interface of the device's own — a loopback-class interface the device
         allocates — so the prefix becomes connected/local. Idempotent on the
-        normalized address: holding an address already held is a no-op."""
+        normalized address: holding an address already held is a no-op.
+
+        *address* stays ``str`` because released implementers declare ``str``; it narrows to
+        ``IPv4Interface | IPv6Interface`` in a later release (a caller holding one passes
+        ``str(interface)``, which is the same text)."""
         ...
 
     def release(self, address: str) -> None:

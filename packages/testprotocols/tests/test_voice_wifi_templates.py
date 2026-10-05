@@ -85,12 +85,14 @@ PROTOCOLS = [
             # Call state
             "get_active_calls",
             "get_rtpengine_stats",
+            "read_rtp_relay_stats",
             "verify_sip_message",
             # Voicemail
             "get_voicemail_count",
             "clear_voicemail",
             # MWI
             "get_mwi_status",
+            "read_mwi_status",
             "set_mwi_status",
             # Presence
             "get_user_presence",
@@ -99,6 +101,7 @@ PROTOCOLS = [
             # Offline MESSAGE
             "send_offline_message",
             "get_offline_messages",
+            "read_offline_messages",
             "clear_offline_messages",
         },
     ),
@@ -115,6 +118,7 @@ PROTOCOLS = [
             "list_wifi_ssids",
             "set_wlan_scan_channel",
             "iwlist_supported_channels",
+            "supported_channels",
             "change_wifi_region",
             "enable_monitor_mode",
             "disable_monitor_mode",

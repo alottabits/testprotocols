@@ -13,6 +13,7 @@ from dataclasses import dataclass, field
 from enum import StrEnum
 
 from testprotocols.models.l2_common import StpGuard
+from testprotocols.models.ports import PortRange
 from testprotocols.models.sdwan_appliance import RuleAction, RuleProtocol
 
 
@@ -106,6 +107,13 @@ class StormControlType(StrEnum):
     BROADCAST = "broadcast"
     MULTICAST = "multicast"
     UNKNOWN_UNICAST = "unknown_unicast"
+
+
+class StormControlUnit(StrEnum):
+    """The unit of a storm-control threshold: percent of line rate, or packets per second."""
+
+    PERCENT = "percent"
+    PPS = "pps"
 
 
 class QosTrustMode(StrEnum):
@@ -204,12 +212,15 @@ class AccessPolicy:
 class StormControlConfig:
     """Per-port storm-control thresholds, keyed by traffic type.
 
-    Threshold units are driver-normalized (percent of line rate or pps); the
-    plugin maps the product's representation.
+    *unit* is the :class:`StormControlUnit` every threshold is in; ``None`` means "as the
+    driver reads it": the driver reports the product's own unit, and a writer that leaves
+    it ``None`` gets the driver's default. A driver that cannot honour the requested unit
+    raises ``ValueError``.
     """
 
     port: str
     thresholds: dict[StormControlType, float] = field(default_factory=dict[StormControlType, float])
+    unit: StormControlUnit | None = None
 
 
 @dataclass
@@ -258,19 +269,56 @@ class PortStatusEntry:
     tx_discards: int = 0
 
 
+@dataclass(frozen=True)
+class QosClassifier:
+    """What a QoS rule selects: a VLAN, a protocol and source and destination ports.
+
+    Every field that is left out places no restriction: ``vlan`` and ``protocol``
+    are ``None``, the port tuples are empty (any port). A rule selects the traffic
+    that satisfies all of the fields it sets. ``vlan`` is ``1`` to ``4094``;
+    ``protocol`` is a :class:`~testprotocols.models.RuleProtocol`; the ports are tuples
+    of :class:`~testprotocols.models.PortRange`. A classifier of a :class:`QosRule`
+    holds at most one source and one destination range, as the released text could
+    spell only that.
+    """
+
+    vlan: int | None = None
+    protocol: RuleProtocol | None = None
+    src_ports: tuple[PortRange, ...] = ()
+    dst_ports: tuple[PortRange, ...] = ()
+
+
 @dataclass
 class QosRule:
-    """A QoS classification rule (match -> DSCP/CoS marking).
+    """A QoS classification rule (classifier -> DSCP/CoS marking).
 
-    ``match`` holds a vendor-neutral traffic-classifier expression (e.g. by
-    VLAN, protocol, or port) that the driver maps to its product's QoS
-    classifier; ``dscp`` and ``cos`` are the resulting mark values.
+    The selected traffic has two forms. ``classifier`` is a :class:`QosClassifier`
+    (VLAN, protocol, source and destination port), or ``None`` for every frame or for
+    a selection a classifier cannot express. ``match`` is the released text form, a
+    vendor-neutral classifier expression (``""`` for every frame), deprecated. The
+    released contract gave the text no grammar: free text is legal. The neutral
+    spelling of a classifier is a comma list of ``key=value`` terms: ``vlan``,
+    ``protocol``, ``srcPort`` / ``srcPortRange`` and ``dstPort`` / ``dstPortRange`` (a
+    port or an ``a-b`` range). A driver fills either field, or both; when both are
+    filled they describe the same traffic. ``match`` stays required, and a driver that
+    fills only ``classifier`` passes ``match=None``. ``classifier=None`` is itself a value
+    ("every frame"), so a rule with both fields ``None`` is read as every frame, not as
+    an unfilled pair. At removal, ``match`` goes and ``classifier`` becomes required.
+
+    A rule also flows into a driver (``SwitchQos.set_rules``). A caller building one for
+    a write member fills both forms until removal: a driver not yet updated reads only
+    ``match``. A driver implementing a write member reads ``classifier`` when it is
+    filled, else ``match``.
+
+    The driver maps the selection to its product's QoS classifier; ``dscp`` and
+    ``cos`` are the resulting mark values.
     """
 
     name: str
-    match: str
+    match: str | None
     dscp: int | None = None
     cos: int | None = None
+    classifier: QosClassifier | None = field(default=None, kw_only=True)
 
 
 @dataclass

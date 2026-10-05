@@ -20,10 +20,14 @@ import json
 import time
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, replace
-from typing import Any, Literal, cast
+from enum import StrEnum
+from typing import Protocol, cast
 
 from testprotocols.iperf_client import IperfClient
 from testprotocols.iperf_server import IperfServer
+
+from testoperations._compat import coerce_enum
+from testoperations._renamed import start_receiver_session, start_sender_session
 
 # A finished iperf3 session is flushed to the --logfile when the sender
 # disconnects; allow a grace window after the nominal duration for that flush
@@ -115,7 +119,27 @@ class FlowThroughput:
     retransmits: int | None = None
 
 
-JsonObj = Mapping[str, object]
+class MeasureFn(Protocol):
+    """A concurrent-throughput measurement, as the path operations call their ``measure``
+    parameter: the flows, then the three keyword-only timings they always pass.
+    :func:`measure_concurrent_throughput` (the default) fits it; so does a stand-in that
+    takes those keywords."""
+
+    def __call__(
+        self,
+        flows: Sequence[ThroughputFlow],
+        *,
+        duration_s: int,
+        result_timeout_s: float,
+        poll_interval_s: float,
+    ) -> list[FlowThroughput]: ...
+
+
+type JsonValue = None | bool | int | float | str | list[JsonValue] | dict[str, JsonValue]
+"""A parsed JSON value, as ``json.loads`` returns it."""
+
+JsonObj = Mapping[str, JsonValue]
+"""A parsed JSON object (a ``Mapping`` over :data:`JsonValue`)."""
 
 # iperf3's --json log is untrusted input: a document may be truncated, or a
 # field may be absent or of an unexpected shape. These three narrowers turn any
@@ -140,16 +164,16 @@ def _num(value: object) -> float | None:
     return float(value)
 
 
-def iter_json_docs(text: str) -> list[Any]:
+def iter_json_docs(text: str) -> list[dict[str, JsonValue]]:
     """Parse the top-level JSON documents concatenated in *text*, in order.
 
     iperf3 appends one pretty-printed JSON document per session to its
     ``--logfile``; a restarted server appends to the same per-port file, so a
     log may hold several documents (and a trailing, still-open one while a
     session is running). Documents are extracted with a string-aware brace
-    scanner; only complete, parseable documents are returned.
+    scanner; only complete, parseable documents are returned, each a JSON object.
     """
-    docs: list[Any] = []
+    docs: list[dict[str, JsonValue]] = []
     depth = 0
     start = -1
     in_string = False
@@ -331,12 +355,14 @@ def measure_concurrent_throughput(
     senders: list[tuple[IperfClient, int, str]] = []  # (sender, pid, log) per flow
     try:
         for flow in flows:
-            receiver_pid, receiver_log = flow.receiver.start_traffic_receiver(flow.port)
+            rx_process = start_receiver_session(flow.receiver, flow.port)
+            receiver_pid, receiver_log = rx_process.pid, rx_process.log_file
             prior_sessions = count_sessions(flow.receiver.get_iperf_logs(receiver_log))
             started.append((flow, receiver_pid, receiver_log, prior_sessions))
 
         for flow, _, _, _ in started:
-            sender_pid, sender_log = flow.sender.start_traffic_sender(
+            tx_process = start_sender_session(
+                flow.sender,
                 flow.dest_host,
                 flow.port,
                 bandwidth=flow.bandwidth_mbps,
@@ -350,7 +376,7 @@ def measure_concurrent_throughput(
                 json_output=True,
                 window=flow.window,
             )
-            senders.append((flow.sender, sender_pid, sender_log))
+            senders.append((flow.sender, tx_process.pid, tx_process.log_file))
 
         # Omitted slow-start seconds extend the wall clock beyond duration_s.
         sleep(float(duration_s + max((f.omit_s for f in flows), default=0)))
@@ -371,8 +397,8 @@ def measure_concurrent_throughput(
             )
             if rx is None:
                 raise NonCompletion(
-                    which_side="local_receiver",
-                    what="no_completed_session",
+                    which_side=NonCompletionSide.LOCAL_RECEIVER,
+                    what=NonCompletionKind.NO_COMPLETED_SESSION,
                     detail=(
                         f"iperf receiver on port {flow.port} produced no completed "
                         f"session within {result_timeout_s}s after the "
@@ -393,8 +419,8 @@ def measure_concurrent_throughput(
             if flow.reverse:
                 if tx is None:
                     raise NonCompletion(
-                        which_side="local_receiver",
-                        what="no_completed_session",
+                        which_side=NonCompletionSide.LOCAL_RECEIVER,
+                        what=NonCompletionKind.NO_COMPLETED_SESSION,
                         detail=(
                             f"reverse flow on port {flow.port}: the initiating "
                             f"(data-receiving) side produced no completed session "
@@ -597,7 +623,7 @@ def _probe_flow(
     duration_s: int = DEFAULT_PROBE_DURATION_S,
     result_timeout_s: float = DEFAULT_RESULT_TIMEOUT_S,
     poll_interval_s: float = DEFAULT_POLL_INTERVAL_S,
-    measure: Callable[..., list[FlowThroughput]] = measure_concurrent_throughput,
+    measure: MeasureFn = measure_concurrent_throughput,
 ) -> FlowThroughput:
     """One rate-capped probe flow's facts.
 
@@ -633,7 +659,7 @@ def measure_path_rtt(
     duration_s: int = DEFAULT_PROBE_DURATION_S,
     result_timeout_s: float = DEFAULT_RESULT_TIMEOUT_S,
     poll_interval_s: float = DEFAULT_POLL_INTERVAL_S,
-    measure: Callable[..., list[FlowThroughput]] = measure_concurrent_throughput,
+    measure: MeasureFn = measure_concurrent_throughput,
 ) -> tuple[float | None, float | None]:
     """The path's unloaded ``(min, mean)`` RTT via one rate-capped probe flow.
 
@@ -670,7 +696,7 @@ def measure_one_direction(
     parallel: int | None = None,
     result_timeout_s: float = DEFAULT_RESULT_TIMEOUT_S,
     poll_interval_s: float = DEFAULT_POLL_INTERVAL_S,
-    measure: Callable[..., list[FlowThroughput]] = measure_concurrent_throughput,
+    measure: MeasureFn = measure_concurrent_throughput,
 ) -> FlowThroughput:
     """Measure a single saturating flow in one direction (forward or reverse).
 
@@ -739,9 +765,19 @@ class ExternalFlow:
     window: str | None = None
 
 
-# Closed provenance vocabularies for NonCompletion fields
-NonCompletionSide = Literal["endpoint", "local_receiver", "unknown"]
-NonCompletionKind = Literal["error_document", "no_completed_session"]
+class NonCompletionSide(StrEnum):
+    """From where a non-completion's evidence was read (provenance, not fault)."""
+
+    ENDPOINT = "endpoint"
+    LOCAL_RECEIVER = "local_receiver"
+    UNKNOWN = "unknown"
+
+
+class NonCompletionKind(StrEnum):
+    """What a non-completion was."""
+
+    ERROR_DOCUMENT = "error_document"
+    NO_COMPLETED_SESSION = "no_completed_session"
 
 
 class NonCompletion(RuntimeError):
@@ -755,11 +791,14 @@ class NonCompletion(RuntimeError):
     test verdict*.
 
     Fields are provenance, from WHERE the evidence was read, not who is at fault:
-      which_side: "endpoint"        the remote endpoint's log carried an error
-                  "local_receiver"  our own testbed rig produced no session
-                  "unknown"         a stall the library cannot attribute
-      what:       "error_document"       the log carried an iperf ``error`` string
-                  "no_completed_session" nothing completed within the window
+      which_side: a :class:`NonCompletionSide` (a plain string naming one is deprecated and
+                  warns; the members compare equal to their text)
+                  ENDPOINT        the remote endpoint's log carried an error
+                  LOCAL_RECEIVER  our own testbed rig produced no session
+                  UNKNOWN         a stall the library cannot attribute
+      what:       a :class:`NonCompletionKind`
+                  ERROR_DOCUMENT        the log carried an iperf ``error`` string
+                  NO_COMPLETED_SESSION  nothing completed within the window
       detail:     the raw text, verbatim — never parsed for meaning here
       port:       the port this attempt used
     """
@@ -767,11 +806,13 @@ class NonCompletion(RuntimeError):
     def __init__(
         self,
         *,
-        which_side: NonCompletionSide,
-        what: NonCompletionKind,
+        which_side: NonCompletionSide | str,
+        what: NonCompletionKind | str,
         detail: str,
         port: int,
     ) -> None:
+        which_side = coerce_enum(NonCompletionSide, which_side, what="NonCompletion(which_side)")
+        what = coerce_enum(NonCompletionKind, what, what="NonCompletion(what)")
         super().__init__(f"iperf flow did not complete ({which_side}/{what}): {detail}")
         self.which_side = which_side
         self.what = what
@@ -801,18 +842,20 @@ def _await_client_session(
 
     The client launch truncates its own log (shell redirect), so the first
     completed document is this session. An ``error`` document raises
-    :class:`NonCompletion` (``which_side="endpoint"``, ``what="error_document"``,
-    the raw text as ``detail``); a log that never completes raises
-    :class:`NonCompletion` (``which_side="unknown"``, ``what="no_completed_session"``)
-    when *deadline* passes. Classifying either as retryable is the caller's
-    policy, not this function's.
+    :class:`NonCompletion` (``ENDPOINT`` / ``ERROR_DOCUMENT``, the raw text as ``detail``);
+    a log that never completes raises :class:`NonCompletion` (``UNKNOWN`` /
+    ``NO_COMPLETED_SESSION``) when *deadline* passes. Classifying either as retryable is
+    the caller's policy, not this function's.
     """
     while True:
         text = read_log(log_path)
         error = last_session_error(text)
         if error is not None:
             raise NonCompletion(
-                which_side="endpoint", what="error_document", detail=error, port=port
+                which_side=NonCompletionSide.ENDPOINT,
+                what=NonCompletionKind.ERROR_DOCUMENT,
+                detail=error,
+                port=port,
             )
         if count_sessions(text) > 0:
             mbps = last_session_mbps(text)
@@ -820,8 +863,8 @@ def _await_client_session(
                 return (text, mbps)
         if monotonic() >= deadline:
             raise NonCompletion(
-                which_side="unknown",
-                what="no_completed_session",
+                which_side=NonCompletionSide.UNKNOWN,
+                what=NonCompletionKind.NO_COMPLETED_SESSION,
                 detail=(
                     f"external iperf session toward {log_path!r} produced no "
                     f"completed client-side result before the timeout"
@@ -852,7 +895,8 @@ def measure_external_flow(
     ``poll_interval_s`` is the cadence between log reads while waiting — the
     caller's pacing decision, not a library constant.
     """
-    sender_pid, sender_log = flow.sender.start_traffic_sender(
+    tx_process = start_sender_session(
+        flow.sender,
         flow.dest_host,
         flow.port,
         bandwidth=flow.bandwidth_mbps,
@@ -863,6 +907,7 @@ def measure_external_flow(
         window=flow.window,
         parallel=flow.parallel,
     )
+    sender_pid, sender_log = tx_process.pid, tx_process.log_file
     try:
         sleep(float(duration_s + flow.omit_s))
         text, mbps = _await_client_session(
@@ -968,6 +1013,20 @@ def _measure_rounds(
             return findings
 
 
+class _FlowMeasurer(Protocol):
+    """The shape of :func:`measure_external_flow`, for a caller that fakes it."""
+
+    def __call__(
+        self,
+        flow: ExternalFlow,
+        /,
+        *,
+        duration_s: int,
+        result_timeout_s: float,
+        poll_interval_s: float,
+    ) -> FlowThroughput: ...
+
+
 def measure_external_path_until(
     *,
     sender: IperfClient,
@@ -985,7 +1044,7 @@ def measure_external_path_until(
     on_round: Callable[[PathMeasurement], None] | None = None,
     on_retry: Callable[[Exception, int], None] | None = None,
     retry_when: Callable[[NonCompletion], bool] | None = None,
-    measure_flow: Callable[..., FlowThroughput] = measure_external_flow,
+    measure_flow: _FlowMeasurer = measure_external_flow,
     monotonic: Callable[[], float] = time.monotonic,
     sleep: Callable[[float], None] = time.sleep,
     busy_backoff_s: float = DEFAULT_BUSY_BACKOFF_S,
@@ -1087,7 +1146,7 @@ def measure_path_until(
     on_round: Callable[[PathMeasurement], None] | None = None,
     on_retry: Callable[[Exception, int], None] | None = None,
     retry_when: Callable[[NonCompletion], bool] | None = None,
-    measure: Callable[..., list[FlowThroughput]] = measure_concurrent_throughput,
+    measure: MeasureFn = measure_concurrent_throughput,
     monotonic: Callable[[], float] = time.monotonic,
     sleep: Callable[[float], None] = time.sleep,
     busy_backoff_s: float = DEFAULT_BUSY_BACKOFF_S,

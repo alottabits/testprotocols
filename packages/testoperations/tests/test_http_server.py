@@ -19,7 +19,7 @@ class TestStartHttpServer:
 
         with start_http_server(srv, port="8080") as pid:
             assert pid == "pid123"
-            srv.start_http_service.assert_called_once_with("8080", "ipv4")
+            srv.start_http_service.assert_called_once_with("8080", "4")
 
         srv.stop_http_service.assert_called_once_with("8080")
 
@@ -28,12 +28,12 @@ class TestStartHttpServer:
         srv.start_http_service.return_value = "pid456"
 
         with pytest.raises(ValueError):
-            with start_http_server(srv, port="9090", ip_version="ipv6"):
+            with start_http_server(srv, port="9090", ip_version="6"):
                 raise ValueError("test error")
 
         srv.stop_http_service.assert_called_once_with("9090")
 
     def test_passes_ip_version(self) -> None:
         srv = MagicMock()
-        with start_http_server(srv, port="80", ip_version="ipv6"):
-            srv.start_http_service.assert_called_once_with("80", "ipv6")
+        with start_http_server(srv, port="80", ip_version="6"):
+            srv.start_http_service.assert_called_once_with("80", "6")

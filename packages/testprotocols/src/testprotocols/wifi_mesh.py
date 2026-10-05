@@ -22,7 +22,7 @@ from __future__ import annotations
 
 from typing import Protocol, runtime_checkable
 
-from testprotocols.models.wifi import WifiMeshStatus, WifiMeshTopology
+from testprotocols.models.wifi import WifiBand, WifiMeshStatus, WifiMeshTopology
 
 
 @runtime_checkable
@@ -61,9 +61,10 @@ class WifiMesh(Protocol):
 
     # --- Backhaul control (agent-side) ---
 
-    def set_backhaul_band(self, band: str | None) -> None:
-        """Force the backhaul radio to *band* (e.g. ``"5GHz"``), or pass None to
-        release the constraint.
+    def set_backhaul_band(self, band: WifiBand | str | None) -> None:
+        """Force the backhaul radio to *band* (a :class:`~testprotocols.models.wifi.WifiBand`),
+        or pass None to release the constraint. A plain ``str`` naming a band is
+        deprecated.
 
         Releasing returns the device to whatever band-selection policy
         the mesh controller / driver default uses. Drivers without
@@ -245,6 +246,11 @@ class WifiMeshWhiteBox(WifiMesh, Protocol):
         ``"Topology-Notification"``), returns only TLVs from messages of
         that type. Format is driver-dependent (often hex-encoded TLV with
         a parsed annotation per line).
+
+        *message_type* stays ``str``: no local source lists the message names the
+        controller stacks use (the spelling differs between them), and an enum
+        built from memory would guess. It becomes an enum when the names are taken
+        from the specification and a reference driver.
         """
         ...
 

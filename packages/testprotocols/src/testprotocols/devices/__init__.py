@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import importlib
+import sys
 from dataclasses import dataclass
-from typing import Any, cast, get_type_hints
+from typing import Protocol, cast, get_type_hints
 
 _registry: dict[str, DeviceTypeSpec] = {}
 
@@ -13,17 +14,33 @@ _registry: dict[str, DeviceTypeSpec] = {}
 IDENTITY_MEMBERS = frozenset({"device_name", "device_type"})
 
 
+class _HasProtocolAttrs(Protocol):
+    """A ``typing.Protocol`` class as CPython 3.12 builds it: its member names."""
+
+    __protocol_attrs__: frozenset[str]
+
+
+if sys.version_info >= (3, 13):
+    from typing import get_protocol_members as _protocol_members
+else:
+
+    def _protocol_members(tp: type) -> frozenset[str]:
+        """The member names of the ``typing.Protocol`` class *tp*, as 3.13's
+        ``typing.get_protocol_members`` returns them."""
+        return frozenset(cast(_HasProtocolAttrs, tp).__protocol_attrs__)
+
+
 def non_capability_members(protocol: type) -> frozenset[str]:
     """Members of *protocol* that are neither capability Protocols nor identity.
 
     A capability member is annotated with a ``typing.Protocol`` class. Scalar
     annotations (``str``, ``bool``, ``tuple``…) and property-declared members
-    (which carry no annotation at all) are both offenders. ``__protocol_attrs__``
-    is the CPython 3.12 runtime detail ``typing.get_protocol_members``
-    supersedes in 3.13; one cast keeps that knowledge here.
+    (which carry no annotation at all) are both offenders. The members come from
+    ``typing.get_protocol_members`` on Python 3.13 and later, and on 3.12 from
+    ``__protocol_attrs__``, the CPython detail that function reads.
     """
     hints = get_type_hints(protocol)
-    members: frozenset[str] = frozenset(cast("Any", protocol).__protocol_attrs__)
+    members = _protocol_members(protocol)
     return frozenset(
         member
         for member in members - IDENTITY_MEMBERS

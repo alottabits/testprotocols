@@ -134,7 +134,14 @@ def test_shaping_rule_uses_normalized_vocabulary() -> None:
 
 def test_uplink_state_and_status() -> None:
     assert issubclass(UplinkState, StrEnum)
-    assert {s.value for s in UplinkState} == {"up", "degraded", "down", "standby", "not_connected"}
+    assert {s.value for s in UplinkState} == {
+        "up",
+        "degraded",
+        "down",
+        "standby",
+        "not_connected",
+        "unknown",
+    }
     up = UplinkStatus(name="wan1", state=UplinkState.UP, ip="203.0.113.5")
     assert up.state == "up"
 
@@ -163,7 +170,7 @@ def test_threat_prevention_vocabularies() -> None:
     evt = SecurityEvent(
         ts="2026-06-11T10:00:00Z",
         src_ip="10.0.0.5",
-        dst_ip="1.2.3.4",
+        dst_ip="198.51.100.4",
         protocol=RuleProtocol.TCP,
         action=SecurityAction.BLOCKED,
         category=ThreatCategory.MALWARE,

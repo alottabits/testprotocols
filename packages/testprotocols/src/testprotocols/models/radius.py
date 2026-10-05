@@ -3,6 +3,15 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from enum import StrEnum
+
+
+class ServiceStatus(StrEnum):
+    """The state of a daemon a test controls (``RadiusServer.get_status``)."""
+
+    RUNNING = "running"
+    STOPPED = "stopped"
+    ERROR = "error"
 
 
 @dataclass
@@ -25,6 +34,9 @@ class RadiusUser:
     """A provisioned RADIUS user, as seen from the server side.
 
     *password* is intentionally absent — same reasoning as RadiusServerConfig.
+
+    *eap_methods* are the server's own method words, stored as given (for example
+    ``PEAP-MSCHAPv2``, ``TTLS-PAP``, ``EAP-TLS``).
     """
 
     username: str
@@ -48,7 +60,13 @@ class RadiusSession:
 
 @dataclass
 class RadiusAccountingRecord:
-    """A single accounting log entry."""
+    """A single accounting log entry.
+
+    *record_type* and *terminate_cause* are the server's own words, stored as given:
+    *record_type* is for example ``Start``, ``Interim-Update`` or ``Stop``, and
+    *terminate_cause* (present on Stop only) for example ``User-Request`` or
+    ``Idle-Timeout``.
+    """
 
     timestamp: float  # Unix timestamp the record was received
     session_id: str

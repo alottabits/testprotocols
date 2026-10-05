@@ -2,18 +2,37 @@
 
 from __future__ import annotations
 
+from testprotocols.models.device_management import (
+    EventLogEntry,
+    MemoryUtilization,
+    ProcessInfo,
+    SyslogSeverity,
+)
 from testprotocols.models.dhcp import DhcpLeaseObservation, DHCPTraceData, DHCPV6TraceData
 from testprotocols.models.emission import EmitResult, ReplayResult
 from testprotocols.models.firewall import (
+    Chain,
     Connection,
     ConntrackStats,
+    DefaultAction,
     FirewallRule,
+    FirewallRuleAction,
+    NatMode,
     NatRule,
     PortMapping,
+    PortMappingProtocol,
+    RuleCounters,
     Zone,
     ZonePolicy,
 )
-from testprotocols.models.impairment import ImpairmentProfile
+from testprotocols.models.impairment import (
+    Blackout,
+    Brownout,
+    ImpairmentProfile,
+    LatencySpike,
+    PacketStorm,
+    TransientEvent,
+)
 from testprotocols.models.l2_common import (
     MacTableEntry,
     StpGuard,
@@ -21,19 +40,45 @@ from testprotocols.models.l2_common import (
     StpPortState,
 )
 from testprotocols.models.multicast import (
+    GroupRecord,
     McastGroup,
     McastSource,
     MulticastGroupRecord,
     MulticastGroupRecordType,
 )
-from testprotocols.models.networking import HTTPResult, ICMPPacketData, IPAddresses
+from testprotocols.models.networking import (
+    ArpEntry,
+    DnsRecord,
+    DnsRecordType,
+    HTTPResult,
+    HttpScheme,
+    ICMPPacketData,
+    IPAddresses,
+    IpFamily,
+    IpVersion,
+    LinkAdminState,
+    NmapPort,
+    NmapPortState,
+    NmapResult,
+    PingResult,
+    SnmpValueType,
+)
 from testprotocols.models.packets import RIPv2PacketData
-from testprotocols.models.qoe import MeasurementSpec, QoEResult
+from testprotocols.models.ports import PortRange
+from testprotocols.models.qoe import (
+    MeasurementSpec,
+    PageCompletion,
+    QoeCompletion,
+    QoEResult,
+    QoeScenario,
+    QoeTool,
+)
 from testprotocols.models.radius import (
     RadiusAccountingRecord,
     RadiusServerConfig,
     RadiusSession,
     RadiusUser,
+    ServiceStatus,
 )
 from testprotocols.models.sdwan_appliance import (
     ApplicationCategory,
@@ -76,6 +121,7 @@ from testprotocols.models.sdwan_appliance import (
     UplinkSelectionRule,
     UplinkState,
     UplinkStatus,
+    UrlRules,
     VlanConfig,
     VpnHub,
     VpnPeerState,
@@ -104,10 +150,12 @@ from testprotocols.models.switch import (
     PortAdminState,
     PortMode,
     PortStatusEntry,
+    QosClassifier,
     QosRule,
     QosTrustMode,
     StormControlConfig,
     StormControlType,
+    StormControlUnit,
     StpPortConfig,
     SwitchAclRule,
     SwitchPort,
@@ -124,8 +172,19 @@ from testprotocols.models.switch_routing import (
     RoutedInterface,
 )
 from testprotocols.models.tr069 import CpeConnectionStatus
-from testprotocols.models.traffic import TrafficResult, TrafficSpec
-from testprotocols.models.wan_edge import (
+from testprotocols.models.traffic import (
+    IperfProcess,
+    TrafficResult,
+    TrafficSpec,
+    TransportProtocol,
+)
+from testprotocols.models.voice import (
+    MwiStatus,
+    OfflineMessage,
+    PhoneState,
+    RtpStats,
+)
+from testprotocols.models.wan_edge import (  # type: ignore[deprecated]  # re-exported as released
     AppFlow,
     LinkHealthReport,
     LinkStatus,
@@ -133,11 +192,17 @@ from testprotocols.models.wan_edge import (
     RouteEntry,
     RouteOrigin,
     SLAPolicy,
-    TrafficShapingRule,
-    VPNPeerStatus,
+    Telemetry,
+    TrafficShapingRule,  # pyright: ignore[reportDeprecated]  # re-exported as released
+    VPNPeerStatus,  # pyright: ignore[reportDeprecated]  # re-exported as released
 )
 from testprotocols.models.wifi import (
+    ChannelWidth,
+    MeshRole,
+    MfpMode,
     WifiAcl,
+    WifiAclMode,
+    WifiBand,
     WifiBssConfig,
     WifiCaptiveConfig,
     WifiChannelUtilization,
@@ -147,7 +212,9 @@ from testprotocols.models.wifi import (
     WifiMeshStatus,
     WifiMeshTopology,
     WifiNeighbor,
+    WifiPhyMode,
     WifiRadioStats,
+    WifiSecurityMode,
     WifiStation,
     WifiTransitionConfig,
 )
@@ -162,11 +229,16 @@ __all__ = [
     "AppFlow",
     # sdwan_appliance
     "ApplicationCategory",
+    "ArpEntry",
     "BgpConfig",
     "BgpNeighbor",
     "BgpPeerStatus",
     "BgpSessionState",
     "BindingSource",
+    "Blackout",
+    "Brownout",
+    "Chain",
+    "ChannelWidth",
     # firewall
     "Connection",
     "ConntrackStats",
@@ -176,6 +248,7 @@ __all__ = [
     # dhcp
     "DHCPTraceData",
     "DHCPV6TraceData",
+    "DefaultAction",
     "DhcpLease",
     "DhcpLeaseObservation",
     "DhcpMode",
@@ -183,16 +256,22 @@ __all__ = [
     "DhcpOptionType",
     "DhcpReservation",
     "DiscoveryProtocol",
+    "DnsRecord",
+    "DnsRecordType",
     "Duplex",
     # emission
     "EmitResult",
+    "EventLogEntry",
     "FhsBinding",
     "FhsScope",
     "FhsTrustState",
     "FirewallRule",
+    "FirewallRuleAction",
     "FlowMatch",
     # networking
+    "GroupRecord",
     "HTTPResult",
+    "HttpScheme",
     "ICMPPacketData",
     "IPAddresses",
     # impairment
@@ -203,9 +282,14 @@ __all__ = [
     "IntrusionConfig",
     "IntrusionMode",
     "IntrusionSensitivity",
+    "IpFamily",
+    "IpVersion",
+    "IperfProcess",
     "L3Rule",
     "L7MatchType",
     "L7Rule",
+    "LatencySpike",
+    "LinkAdminState",
     "LinkAggregationGroup",
     "LinkHealthReport",
     "LinkState",
@@ -220,26 +304,47 @@ __all__ = [
     "McastSource",
     # qoe
     "MeasurementSpec",
+    "MemoryUtilization",
+    "MeshRole",
+    "MfpMode",
     "MulticastGroupRecord",
     "MulticastGroupRecordType",
+    # voice
+    "MwiStatus",
     "NatInboundAllow",
+    "NatMode",
     "NatRule",
+    "NmapPort",
+    "NmapPortState",
+    "NmapResult",
     "NtpServer",
+    "OfflineMessage",
     "OneToManyNatRule",
     "OneToOneNatRule",
     "OspfConfig",
     "OspfInterfaceSettings",
     "OspfVersion",
+    "PacketStorm",
+    "PageCompletion",
     "PathMetrics",
+    "PhoneState",
+    "PingResult",
     "PoePortStatus",
     "PoePriority",
     "PoeStatus",
     "PortAdminState",
     "PortForwardRule",
     "PortMapping",
+    "PortMappingProtocol",
     "PortMode",
+    "PortRange",
     "PortStatusEntry",
+    "ProcessInfo",
     "QoEResult",
+    "QoeCompletion",
+    "QoeScenario",
+    "QoeTool",
+    "QosClassifier",
     "QosRule",
     "QosTrustMode",
     # packets
@@ -256,18 +361,23 @@ __all__ = [
     "RouteEntry",
     "RouteOrigin",
     "RoutedInterface",
+    "RtpStats",
     "RuleAction",
+    "RuleCounters",
     "RuleProtocol",
     "SLAPolicy",
     "SecurityAction",
     "SecurityEvent",
+    "ServiceStatus",
     "ShapingPriority",
     "ShapingRule",
     "SiteToSiteVpnConfig",
+    "SnmpValueType",
     "StaticRoute",
     "SteeringScope",
     "StormControlConfig",
     "StormControlType",
+    "StormControlUnit",
     "StpGuard",
     "StpMode",
     "StpPortConfig",
@@ -276,14 +386,19 @@ __all__ = [
     "SwitchPort",
     "SyslogRole",
     "SyslogServer",
+    "SyslogSeverity",
+    "Telemetry",
     "ThreatCategory",
     # traffic
     "TrafficResult",
     "TrafficShapingRule",
     "TrafficSpec",
+    "TransientEvent",
+    "TransportProtocol",
     "UplinkSelectionRule",
     "UplinkState",
     "UplinkStatus",
+    "UrlRules",
     "VPNPeerStatus",
     "VlanConfig",
     "VlanDef",
@@ -294,6 +409,8 @@ __all__ = [
     "VpnSubnet",
     # wifi
     "WifiAcl",
+    "WifiAclMode",
+    "WifiBand",
     "WifiBssConfig",
     "WifiCaptiveConfig",
     "WifiChannelUtilization",
@@ -303,7 +420,9 @@ __all__ = [
     "WifiMeshStatus",
     "WifiMeshTopology",
     "WifiNeighbor",
+    "WifiPhyMode",
     "WifiRadioStats",
+    "WifiSecurityMode",
     "WifiStation",
     "WifiTransitionConfig",
     "Zone",

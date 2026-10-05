@@ -8,6 +8,13 @@ from __future__ import annotations
 
 from typing import Any, Protocol, runtime_checkable
 
+from testprotocols._compat import deprecated
+from testprotocols.models.voice import (
+    MwiStatus,
+    OfflineMessage,
+    RtpStats,
+)
+
 
 @runtime_checkable
 class SipServer(Protocol):
@@ -95,11 +102,25 @@ class SipServer(Protocol):
         """
         ...
 
-    def get_rtpengine_stats(self) -> dict[str, Any]:
-        """Return RTPEngine statistics as a dictionary."""
+    @deprecated(
+        "Deprecated: use read_rtp_relay_stats. Removal not before the first release 6 "
+        "months after the release that deprecates it.",
+        category=None,
+    )
+    def get_rtpengine_stats(self) -> dict[str, Any]:  # type: ignore[explicit-any]  # released signature kept until removal
+        """Return the fields of ``read_rtp_relay_stats()`` (keys ``engaged``, ``sessions``).
+
+        Deprecated: use :meth:`read_rtp_relay_stats`. Removal not before the first release 6 months
+        after the release that deprecates it.
+        """
         ...
 
-    def verify_sip_message(
+    def read_rtp_relay_stats(self) -> RtpStats:
+        """Return the media relay's statistics: whether it is engaged on any call and
+        how many sessions it holds."""
+        ...
+
+    def verify_sip_message(  # type: ignore[explicit-any]  # released signature kept until removal
         self,
         message_type: str,
         since: Any = None,
@@ -107,21 +128,24 @@ class SipServer(Protocol):
     ) -> bool:
         """Verify that a SIP message of *message_type* was received.
 
-        Implementations MUST consult an authoritative log channel (e.g.
-        the sipcenter's ``/var/log/kamailio/kamailio.log`` written by
-        rsyslog, or the merged testbed log at ``raikou/logs/sip-testbed.log``).
-        The pre-v0.2.0 ``journalctl``-based probe is dead — the image does
-        not run systemd — and any driver still relying on it must switch
-        to the authoritative file path.
+        Implementations MUST consult an authoritative log channel: the log the
+        SIP server itself writes, or a testbed log that collects it. A probe of
+        a service journal that the server's host does not run is not such a
+        channel.
 
         Parameters
         ----------
         message_type:
-            The SIP method (``INVITE``, ``MESSAGE``, ``NOTIFY``, ...) or
-            response code (``200``, ``486``, ...) to match.
+            The SIP method (``INVITE``, ``MESSAGE``, ``NOTIFY``, an extension method), a
+            response code as text such as ``"486"``, or a log marker, matched as the word the
+            log carries. An ``int`` response code
+            is announced, not yet accepted: it joins the annotation in a later
+            release, once implementers have widened their own parameter.
         since:
-            Optional timestamp or marker; only messages after this point
-            are considered.
+            Optional point in time; only messages after it are considered, and
+            ``None`` considers the whole log. A ``datetime`` is the contract value. The
+            released annotation (``Any``) is kept; its narrowing to ``datetime | None``
+            is announced (see ``packages/testprotocols/DEPRECATIONS.md``).
         timeout:
             Seconds to wait for the expected message.
         """
@@ -147,14 +171,23 @@ class SipServer(Protocol):
     # MWI — Message Waiting Indication (v0.2.0+)
     # ------------------------------------------------------------------
 
-    def get_mwi_status(self, user: str) -> dict[str, Any]:
-        """Return the current MWI status for *user*.
+    @deprecated(
+        "Deprecated: use read_mwi_status. Removal not before the first release 6 "
+        "months after the release that deprecates it.",
+        category=None,
+    )
+    def get_mwi_status(self, user: str) -> dict[str, Any]:  # type: ignore[explicit-any]  # released signature kept until removal
+        """Return the fields of ``read_mwi_status(user)`` (keys ``waiting``, ``new``,
+        ``old``).
 
-        Returns a dict with keys:
-            - ``waiting`` (bool): True if the waiting flag is set.
-            - ``new`` (int): count of new (unheard) messages.
-            - ``old`` (int): count of old (heard but retained) messages.
+        Deprecated: use :meth:`read_mwi_status`. Removal not before the first release 6 months after
+        the release that deprecates it.
         """
+        ...
+
+    def read_mwi_status(self, user: str) -> MwiStatus:
+        """Return the current MWI status for *user*: the waiting flag and the counts
+        of new (unheard) and old (heard but retained) messages."""
         ...
 
     def set_mwi_status(self, user: str, waiting: bool) -> None:
@@ -182,7 +215,11 @@ class SipServer(Protocol):
         ...
 
     def notify_presence(self, user: str, status: str) -> None:
-        """Publish presence *status* for *user* to all current subscribers."""
+        """Publish presence *status* for *user* to all current subscribers.
+
+        *status* is the provider's own word (typically ``online``, ``busy``, ``away``,
+        ``offline``), published as given.
+        """
         ...
 
     # ------------------------------------------------------------------
@@ -198,14 +235,25 @@ class SipServer(Protocol):
         """
         ...
 
-    def get_offline_messages(self, user: str) -> list[dict[str, Any]]:
-        """Return the list of pending offline messages addressed to *user*.
+    @deprecated(
+        "Deprecated: use read_offline_messages. Removal not before the first release "
+        "6 months after the release that deprecates it.",
+        category=None,
+    )
+    def get_offline_messages(self, user: str) -> list[dict[str, Any]]:  # type: ignore[explicit-any]  # released signature kept until removal
+        """Return the entries as dicts (keys ``from``, ``body``, ``timestamp``): the fields of
+        each ``read_offline_messages(user)`` record (``timestamp`` as
+        ``"YYYY-MM-DD HH:MM:SS"``, space-separated) or, unchanged, the text the driver
+        read from its store.
 
-        Each entry is a dict with keys:
-            - ``from`` (str): sender URI.
-            - ``body`` (str): message body.
-            - ``timestamp`` (str): ISO-8601 timestamp of when stored.
+        Deprecated: use :meth:`read_offline_messages`. Removal not before the first release 6 months
+        after the release that deprecates it.
         """
+        ...
+
+    def read_offline_messages(self, user: str) -> list[OfflineMessage]:
+        """Return the pending offline messages addressed to *user*: each has the
+        sender URI, the body and when it was stored."""
         ...
 
     def clear_offline_messages(self, user: str) -> None:

@@ -8,6 +8,7 @@ import pytest
 from testoperations.segmentation import (
     DECOY_RANGE,
     DecoyDerivation,
+    DenyScope,
     NoEligibleSelectionError,
     RoleAssignment,
     SpokeCandidate,
@@ -123,35 +124,43 @@ _ARGS: _Endpoints = {
 
 class TestBuildDenyRule:
     def test_host_scope_uses_slash32_hosts(self) -> None:
-        r = build_deny_rule(scope="host", proto="icmp", **_ARGS)
+        r = build_deny_rule(scope=DenyScope.HOST, proto=RuleProtocol.ICMP, **_ARGS)
         assert r.src_cidr == "10.1.40.50/32"
         assert r.dst_cidr == "10.1.41.50/32"
 
     def test_subnet_scope_uses_subnets(self) -> None:
-        r = build_deny_rule(scope="subnet", proto="any", **_ARGS)
+        r = build_deny_rule(scope=DenyScope.SUBNET, proto=RuleProtocol.ANY, **_ARGS)
         assert r.src_cidr == "10.1.40.0/24"
         assert r.dst_cidr == "10.1.41.0/24"
 
     def test_action_is_deny_and_syslog_on_by_default(self) -> None:
-        r = build_deny_rule(scope="host", proto="icmp", **_ARGS)
+        r = build_deny_rule(scope=DenyScope.HOST, proto=RuleProtocol.ICMP, **_ARGS)
         assert r.action is RuleAction.DENY
         assert r.syslog_enabled is True
 
     def test_protocol_maps_from_string(self) -> None:
-        assert build_deny_rule(scope="host", proto="udp", **_ARGS).protocol is RuleProtocol.UDP
-        assert build_deny_rule(scope="subnet", proto="any", **_ARGS).protocol is RuleProtocol.ANY
+        assert (
+            build_deny_rule(scope=DenyScope.HOST, proto=RuleProtocol.UDP, **_ARGS).protocol
+            is RuleProtocol.UDP
+        )
+        assert (
+            build_deny_rule(scope=DenyScope.SUBNET, proto=RuleProtocol.ANY, **_ARGS).protocol
+            is RuleProtocol.ANY
+        )
 
     def test_comment_passthrough(self) -> None:
-        r = build_deny_rule(scope="host", proto="tcp", comment="segmentation-deny", **_ARGS)
+        r = build_deny_rule(
+            scope=DenyScope.HOST, proto=RuleProtocol.TCP, comment="segmentation-deny", **_ARGS
+        )
         assert r.comment == "segmentation-deny"
 
     def test_unknown_scope_raises(self) -> None:
         with pytest.raises(ValueError, match="scope"):
-            build_deny_rule(scope="vlan", proto="icmp", **_ARGS)
+            build_deny_rule(scope="vlan", proto=RuleProtocol.ICMP, **_ARGS)
 
     def test_invalid_protocol_raises(self) -> None:
         with pytest.raises(ValueError):
-            build_deny_rule(scope="host", proto="sctp", **_ARGS)
+            build_deny_rule(scope=DenyScope.HOST, proto="sctp", **_ARGS)
 
 
 # --- find_matching_deny ------------------------------------------------------

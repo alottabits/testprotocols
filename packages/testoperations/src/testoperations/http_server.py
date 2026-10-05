@@ -15,11 +15,12 @@ from testprotocols.http_server import HttpServer
 def start_http_server(
     http_server: HttpServer,
     port: str,
-    ip_version: str = "ipv4",
+    ip_version: str = "4",
 ) -> Generator[str, None, None]:
     """Context manager that starts an HTTP service and stops it on exit.
 
-    Yields the handle returned by *start_http_service* (typically a PID string).
+    *ip_version* is ``"4"`` or ``"6"``, as ``HttpServer.start_http_service`` takes it. Yields
+    the handle returned by *start_http_service* (typically a PID string).
     """
     handle = http_server.start_http_service(port, ip_version)
     try:

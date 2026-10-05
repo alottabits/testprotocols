@@ -14,6 +14,7 @@ def test_ip_routing_protocol_shape() -> None:
     """IpRouting declares the expected method set."""
     expected = {
         "ping",
+        "ping_stats",
         "traceroute",
         "add_route",
         "delete_route",

@@ -16,7 +16,10 @@ payload, or vendor-specific vocabulary ever appears in this module.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from datetime import datetime
 from enum import StrEnum
+
+from testprotocols.models.ports import PortRange
 
 
 class RuleAction(StrEnum):
@@ -41,10 +44,28 @@ class L3Rule:
     """A single ordered L3 firewall rule — 5-tuple match plus an action.
 
     A managed appliance evaluates its L3 policy as a flat, ordered list of these
-    (not as netfilter INPUT/OUTPUT/FORWARD chains). The CIDR and port fields take
-    ``"any"`` when unconstrained; ports may be a single port, a range
-    (``"8000-8100"``), or a comma list — always a string so the contract stays
-    transport- and vendor-agnostic.
+    (not as netfilter INPUT/OUTPUT/FORWARD chains). The CIDR fields take
+    ``"any"`` when unconstrained.
+
+    The ports have two forms each. ``src_ports`` and ``dst_ports`` are tuples of
+    :class:`PortRange`, the empty tuple meaning any port. ``src_port`` and
+    ``dst_port`` are the released text forms (``"any"``, a port, a range such as
+    ``"8000-8100"``, or a comma list), deprecated. A driver fills either field of a
+    pair, or both; when both are filled they describe the same ports. The text fields
+    keep their released default ``"any"``; a driver that fills only the typed form may
+    pass ``None`` for the text, which reads as that default. At removal, the text fields
+    go and the typed fields default to ``()``, the typed form of the released default, so
+    a rule that never sets them keeps its meaning.
+
+    A rule also flows into a driver (the ``L3Firewall.set_*_rules`` members). A caller
+    building one for a write member fills both forms until removal: a driver not yet
+    updated reads only the text. A driver implementing a write member reads the typed
+    form when it is filled, else the text. A caller that fills only the typed form leaves
+    the text at its released default ``"any"``, and a driver not yet updated acts on
+    that: any port.
+
+    ``src_cidr`` and ``dst_cidr`` ``"any"`` will become ``str | None``, with
+    ``None`` meaning unconstrained; ``"any"`` means unconstrained until then.
 
     ``syslog_enabled`` is per-rule intent. Products whose firewall logging is
     only list- or segment-scoped approximate it in the driver (enable scoped
@@ -55,11 +76,13 @@ class L3Rule:
     action: RuleAction
     protocol: RuleProtocol = RuleProtocol.ANY
     src_cidr: str = "any"
-    src_port: str = "any"
+    src_port: str | None = "any"
     dst_cidr: str = "any"
-    dst_port: str = "any"
+    dst_port: str | None = "any"
     comment: str = ""
     syslog_enabled: bool = False
+    src_ports: tuple[PortRange, ...] | None = field(default=None, kw_only=True)
+    dst_ports: tuple[PortRange, ...] | None = field(default=None, kw_only=True)
 
 
 class L7MatchType(StrEnum):
@@ -131,6 +154,17 @@ class ContentCategory(StrEnum):
     WEB_BASED_EMAIL = "web_based_email"
 
 
+@dataclass(frozen=True)
+class UrlRules:
+    """A content filter's explicit URL-pattern lists: *allowed* and *blocked*.
+
+    Patterns are free strings (host or glob patterns), as the appliance holds them.
+    """
+
+    allowed: tuple[str, ...] = ()
+    blocked: tuple[str, ...] = ()
+
+
 class ApplicationCategory(StrEnum):
     """Normalized application categories for L7 (application-aware) policy.
 
@@ -140,6 +174,9 @@ class ApplicationCategory(StrEnum):
     application-category id; add members on evidence. (Individual application
     identifiers — a far larger, more divergent catalog — are deliberately not
     seeded here; add an ``Application`` registry if/when a test needs one.)
+
+    ``AppFlow.category`` is the product's own word as text, so a flow whose
+    category this set does not list is still reported.
     """
 
     ADVERTISING = "advertising"
@@ -247,7 +284,9 @@ class UplinkState(StrEnum):
 
     ``DEGRADED`` covers vendor states reporting a link that is forwarding but
     impaired (unstable / lossy / connecting) — normalized here so drivers do
-    not collapse such states into ``UP``.
+    not collapse such states into ``UP``. ``UNKNOWN`` is a state the product could
+    not determine (for example a link with no health data yet), distinct from
+    ``DOWN``.
     """
 
     UP = "up"
@@ -255,11 +294,17 @@ class UplinkState(StrEnum):
     DOWN = "down"
     STANDBY = "standby"
     NOT_CONNECTED = "not_connected"
+    UNKNOWN = "unknown"
 
 
 @dataclass
 class UplinkStatus:
-    """Current status of a single WAN uplink (read-only observation)."""
+    """Current status of a single WAN uplink (read-only observation).
+
+    ``ip``, ``gateway``, ``public_ip`` and ``primary_dns`` are ``""`` when the
+    product does not report them; they will become ``str | None``, with ``None``
+    meaning not reported, and ``""`` means not reported until then.
+    """
 
     name: str
     state: UplinkState
@@ -356,17 +401,27 @@ class SecurityEvent:
     """A normalized security event (the deferred-API-augmentation surface).
 
     Carries only normalized fields for portable assertions — vendor signature
-    ids and raw payloads are deliberately not modelled. ``ts`` is an ISO-8601
-    UTC timestamp string.
+    ids and raw payloads are deliberately not modelled.
+
+    The time of the event has two forms. ``timestamp`` is when the event happened, a
+    :class:`~datetime.datetime`, or ``None`` when the product reports no time; a
+    timezone-naive value stays naive (no zone is assumed). ``ts`` is the released text
+    form, an ISO-8601 timestamp string (``""`` for none), deprecated. A driver fills
+    either field, or both; when both are filled they describe the same instant. ``ts``
+    stays required, and a driver that fills only ``timestamp`` passes ``ts=None``.
+    ``timestamp=None`` is itself a value ("no time reported"), so an event with both
+    fields ``None`` is read as no time reported, not as an unfilled pair. At removal,
+    ``ts`` goes and ``timestamp`` becomes required.
     """
 
-    ts: str
+    ts: str | None
     src_ip: str
     dst_ip: str
     protocol: RuleProtocol
     action: SecurityAction
     category: ThreatCategory
     description: str = ""
+    timestamp: datetime | None = field(default=None, kw_only=True)
 
 
 # --- LAN VLANs + DHCP ---

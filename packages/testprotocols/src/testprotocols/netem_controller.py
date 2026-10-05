@@ -6,23 +6,33 @@ control on device interfaces.
 
 from __future__ import annotations
 
-from typing import Any, Protocol, runtime_checkable
+from typing import Protocol, runtime_checkable
 
-from testprotocols.models.impairment import ImpairmentProfile
+from testprotocols._compat import deprecated
+from testprotocols.models.impairment import ImpairmentProfile, TransientEvent
 
 
 @runtime_checkable
 class NetemController(Protocol):
     """Abstract contract for netem-based network impairment control."""
 
-    def set_impairment_profile(self, profile: ImpairmentProfile | dict[str, Any]) -> None:
-        """Apply *profile* as the default impairment on all managed interfaces."""
+    def set_impairment_profile(  # object: deprecated form kept until removal
+        self, profile: ImpairmentProfile | dict[str, object]
+    ) -> None:
+        """Apply *profile* as the default impairment on all managed interfaces.
+
+        A ``dict`` of the profile's field names is deprecated. The annotation narrows to
+        ``ImpairmentProfile`` in a later release.
+        """
         ...
 
-    def set_interface_profile(
-        self, interface: str, profile: ImpairmentProfile | dict[str, Any]
+    def set_interface_profile(  # object: deprecated form kept until removal
+        self, interface: str, profile: ImpairmentProfile | dict[str, object]
     ) -> None:
-        """Apply *profile* as the impairment on a specific *interface*."""
+        """Apply *profile* as the impairment on a specific *interface*.
+
+        A ``dict`` is deprecated, as for :meth:`set_impairment_profile`.
+        """
         ...
 
     def get_interface_profile(self, interface: str) -> ImpairmentProfile:
@@ -37,6 +47,32 @@ class NetemController(Protocol):
         """Remove all active impairments from all managed interfaces."""
         ...
 
+    @deprecated(
+        "Deprecated: use inject_event. Removal not before the first release 6 months "
+        "after the release that deprecates it.",
+        category=None,
+    )
     def inject_transient(self, event: str, duration_ms: int, **kwargs: float | int) -> None:
-        """Inject a transient impairment *event* lasting *duration_ms* milliseconds."""
+        """Inject a transient impairment *event* (``"blackout"``, ``"brownout"``,
+        ``"latency_spike"`` or ``"packet_storm"``) lasting *duration_ms* milliseconds, with
+        the event's keyword options.
+
+        Each word is the ``event_name`` of a :data:`~testprotocols.models.TransientEvent`.
+
+        Deprecated: use :meth:`inject_event`. Removal not before the first release 6 months after
+        the release that deprecates it.
+        """
+        ...
+
+    def inject_event(self, event: TransientEvent, duration_ms: int) -> None:
+        """Apply *event* to every managed interface for *duration_ms* milliseconds, then
+        restore each interface's previous profile; returns at once (the restore is
+        scheduled). An event field left ``None`` takes the driver's default; a field the
+        driver cannot apply raises ``ValueError`` before anything changes.
+
+        A lever: a transient impairment leaves no state to read back once it is restored.
+        Its confirming observation is the impairment seen on the path by the measurement
+        around it (the loss, latency or outage a ``testoperations`` measurement records
+        during the event window), as for the released ``inject_transient``.
+        """
         ...

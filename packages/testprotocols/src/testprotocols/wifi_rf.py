@@ -9,7 +9,9 @@ power, mode, country, DFS state) lives in WifiRadio. Per-frame 802.11
 spectrum analysis (FFT, CleanAir, spectral_scan) is deferred to a future
 WifiSpectrum template, given the low cross-vendor uniformity.
 
-Per-radio identity is band-keyed, matching WifiRadio.
+Per-radio identity is band-keyed, matching WifiRadio: every *band* parameter is a
+:class:`~testprotocols.models.wifi.WifiBand`, and a plain ``str`` naming one is
+deprecated.
 """
 
 from __future__ import annotations
@@ -17,6 +19,7 @@ from __future__ import annotations
 from typing import Protocol, runtime_checkable
 
 from testprotocols.models.wifi import (
+    WifiBand,
     WifiChannelUtilization,
     WifiNeighbor,
     WifiRadioStats,
@@ -29,7 +32,7 @@ class WifiRf(Protocol):
 
     # --- Scan ---
 
-    def scan(self, band: str, timeout: float = 30.0) -> list[WifiNeighbor]:
+    def scan(self, band: WifiBand | str, timeout: float = 30.0) -> list[WifiNeighbor]:
         """Trigger an off-channel scan on *band* and return the neighbour BSSes found.
 
         Blocks until scan results are available or *timeout* seconds elapse.
@@ -44,7 +47,7 @@ class WifiRf(Protocol):
         """
         ...
 
-    def get_neighbors(self, band: str) -> list[WifiNeighbor]:
+    def get_neighbors(self, band: WifiBand | str) -> list[WifiNeighbor]:
         """Return the most recent neighbour-BSS list for *band* without triggering a new scan.
 
         Returns whatever the driver has cached from prior background scans
@@ -54,7 +57,7 @@ class WifiRf(Protocol):
 
     # --- Channel telemetry ---
 
-    def get_channel_utilization(self, band: str) -> WifiChannelUtilization:
+    def get_channel_utilization(self, band: WifiBand | str) -> WifiChannelUtilization:
         """Return current channel utilization breakdown for *band*.
 
         All percentages are 0-100. Drivers that don't separate TX/RX/interference
@@ -62,13 +65,13 @@ class WifiRf(Protocol):
         """
         ...
 
-    def get_noise_floor(self, band: str) -> int:
+    def get_noise_floor(self, band: WifiBand | str) -> int:
         """Return the current noise floor on *band* in dBm (typically negative, e.g. -95)."""
         ...
 
     # --- Cumulative per-radio counters ---
 
-    def get_radio_stats(self, band: str) -> WifiRadioStats:
+    def get_radio_stats(self, band: WifiBand | str) -> WifiRadioStats:
         """Return cumulative per-radio TX/RX/retry counters for *band*.
 
         Counters are since the radio came up (typically boot or last

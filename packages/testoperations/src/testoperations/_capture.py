@@ -13,15 +13,34 @@ from __future__ import annotations
 
 import time
 from collections.abc import Sequence
+from dataclasses import dataclass
 
 from testprotocols.pcap_capture import PcapCapture
 
 
+@dataclass(frozen=True)
+class CaptureSpec:
+    """One capture of a shared window: start *pcap* on *interface*, into *capture_file*."""
+
+    pcap: PcapCapture
+    interface: str
+    capture_file: str
+
+
+@dataclass(frozen=True)
+class FieldRead:
+    """One tshark read of a finished capture: *display_filter* selects the frames,
+    *field_args* names the fields to print."""
+
+    display_filter: str
+    field_args: str
+
+
 def capture_shared_window(
-    captures: Sequence[tuple[PcapCapture, str, str]],
+    captures: Sequence[CaptureSpec],
     window_s: float,
 ) -> None:
-    """Capture every ``(pcap, interface, capture_file)`` for ONE shared window.
+    """Capture every :class:`CaptureSpec` for ONE shared window.
 
     All starts precede the wait and all stops follow it — no capture stops
     before another starts, so every file describes the same observation
@@ -29,8 +48,13 @@ def capture_shared_window(
     releases every started capture.
     """
     started: list[tuple[PcapCapture, str]] = []
-    for pcap, interface, capture_file in captures:
-        started.append((pcap, pcap.start_tcpdump(interface, None, output_file=capture_file)))
+    for spec in captures:
+        started.append(
+            (
+                spec.pcap,
+                spec.pcap.start_tcpdump(spec.interface, None, output_file=spec.capture_file),
+            )
+        )
     try:
         time.sleep(window_s)
     finally:
@@ -41,10 +65,10 @@ def capture_shared_window(
 def read_fields(
     pcap: PcapCapture,
     capture_file: str,
-    reads: Sequence[tuple[str, str]],
+    reads: Sequence[FieldRead],
     remove_on_last: bool = True,
 ) -> list[list[str]]:
-    """One tshark read of *capture_file* per ``(display_filter, field_args)``.
+    """One tshark read of *capture_file* per :class:`FieldRead`.
 
     Returns the non-empty output lines per read, in order; the capture file
     is removed on the last read (the finished window has been fully
@@ -52,11 +76,11 @@ def read_fields(
     concern — callers of the public API never see them.
     """
     outputs: list[list[str]] = []
-    for index, (display_filter, field_args) in enumerate(reads):
+    for index, read in enumerate(reads):
         last = index == len(reads) - 1
         out = pcap.tshark_read_pcap(
             capture_file,
-            additional_args=f'-Y "{display_filter}" {field_args}',
+            additional_args=f'-Y "{read.display_filter}" {read.field_args}',
             rm_pcap=remove_on_last and last,
         )
         outputs.append([line for line in out.splitlines() if line.strip()])

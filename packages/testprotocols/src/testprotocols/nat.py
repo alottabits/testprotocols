@@ -22,7 +22,8 @@ from __future__ import annotations
 
 from typing import Protocol, runtime_checkable
 
-from testprotocols.models.firewall import NatRule
+from testprotocols._compat import deprecated
+from testprotocols.models.firewall import NatMode, NatRule, RuleCounters
 
 
 @runtime_checkable
@@ -34,11 +35,11 @@ class Nat(Protocol):
     def add_nat_rule(self, rule: NatRule) -> None:
         """Install a NAT rule.
 
-        Validates that *rule.mode* is one of ``"snat"``, ``"dnat"``,
-        ``"1to1"`` and that the per-mode field invariants hold (see
+        Validates that *rule.mode* is a :class:`~testprotocols.models.NatMode`
+        (``snat``, ``dnat``, ``1to1``) and that the per-mode field invariants hold (see
         ``NatRule`` docstring). Raises ValueError on a duplicate
         ``rule.name``, on an unknown mode, or on mode/field
-        inconsistency (e.g. *translated_src* set with ``mode="dnat"``).
+        inconsistency (e.g. *translated_src* set with ``mode=NatMode.DNAT``).
         """
         ...
 
@@ -49,12 +50,12 @@ class Nat(Protocol):
         """
         ...
 
-    def list_nat_rules(self, mode: str | None = None) -> list[NatRule]:
+    def list_nat_rules(self, mode: NatMode | str | None = None) -> list[NatRule]:
         """Return installed NAT rules, optionally filtered by *mode*.
 
-        *mode* is one of ``None`` (all), ``"snat"``, ``"dnat"``,
-        ``"1to1"``. Raises ValueError if *mode* is set but not one of
-        the recognized values.
+        *mode* is ``None`` (all) or a :class:`~testprotocols.models.NatMode`. A
+        plain ``str`` naming one is deprecated. Raises ValueError if *mode* is
+        set but not one of the recognized values.
         """
         ...
 
@@ -78,10 +79,29 @@ class Nat(Protocol):
 
     # --- Counters ---
 
+    def get_nat_rule_counter_values(self, name: str) -> RuleCounters:
+        """Return what the rule has matched since it was added, as
+        :class:`~testprotocols.models.RuleCounters`.
+
+        Raises KeyError if no rule with that name exists.
+        Drivers without per-rule counter support raise ``NotSupportedError`` (the stub the
+        extend rule of ``docs/proposals/README.md`` gives a new member; the deprecated
+        member's ``NotImplementedError`` stays as released).
+        """
+        ...
+
+    @deprecated(
+        "Deprecated: use get_nat_rule_counter_values. Removal not before the first "
+        "release 6 months after the release that deprecates it.",
+        category=None,
+    )
     def get_nat_rule_counters(self, name: str) -> tuple[int, int]:
         """Return ``(packets, bytes)`` matched by the rule since it was added.
 
         Raises KeyError if no rule with that name exists.
         Drivers without per-rule counter support raise NotImplementedError.
+
+        Deprecated: use :meth:`get_nat_rule_counter_values`. Removal not before the first release 6
+        months after the release that deprecates it.
         """
         ...

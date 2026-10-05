@@ -7,37 +7,35 @@ from __future__ import annotations
 
 from collections.abc import Generator
 from contextlib import contextmanager
-from typing import Any
 
 from testprotocols.pcap_capture import PcapCapture
 
 
 @contextmanager
 def tcpdump(
-    pcap_capture: Any,
+    pcap_capture: PcapCapture,
     fname: str,
     interface: str,
     filters: str | None = None,
 ) -> Generator[None, None, None]:
     """Context manager that starts a tcpdump capture and stops it on exit.
 
-    The capture is written to *fname* on the device.  An optional BPF *filters*
-    string is forwarded to the underlying template.
+    The capture is written to *fname* on the device. An optional BPF *filters* string is
+    forwarded as the protocol's ``additional_filters``. The stop uses the process identifier
+    the start returned.
 
-    *pcap_capture* is typed ``Any`` because the existing call shape passes
-    arguments that do not match the :class:`PcapCapture` protocol's
-    ``start_tcpdump`` signature (filters is forwarded as a BPF string while the
-    protocol expects ``dict[str, Any] | None``). Pre-existing tech debt; logic
-    is not modified here.
+    The released operation passed *fname* and *interface* in the wrong order for
+    :meth:`~testprotocols.pcap_capture.PcapCapture.start_tcpdump` (``interface`` first, the
+    file as ``output_file``) and stopped the capture by *fname*; it now makes the protocol's
+    calls.
     """
-    if filters is not None:
-        pcap_capture.start_tcpdump(fname, interface, filters=filters)
-    else:
-        pcap_capture.start_tcpdump(fname, interface)
+    process_id = pcap_capture.start_tcpdump(
+        interface, None, output_file=fname, additional_filters=filters or ""
+    )
     try:
         yield
     finally:
-        pcap_capture.stop_tcpdump(fname)
+        pcap_capture.stop_tcpdump(process_id)
 
 
 def read_tcpdump(

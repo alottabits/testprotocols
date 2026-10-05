@@ -10,6 +10,40 @@ from typing import Any, Protocol, runtime_checkable
 
 
 @runtime_checkable
+class Console(Protocol):
+    """An interactive text console: run a command, or send a line and read what came before.
+
+    Only the members that callers of the consoles ``HwConsole`` returns were seen to use
+    and that a ``pexpect.spawn`` subclass can satisfy without this package depending on
+    pexpect (see ``docs/architecture/precise-types-design.md``, "HwConsole"). A pexpect-based
+    console satisfies it without inheriting from it. Pattern matching (``expect``,
+    ``expect_exact``) is not here: a console's own pattern types cannot be matched by one
+    contract type, so a caller that matches patterns keeps the concrete console type.
+    """
+
+    def execute_command(self, command: str, /, timeout: int = -1) -> str:
+        """Run *command* in the console's shell and return its output.
+
+        ``timeout`` is in seconds; ``-1`` means the console's own default.
+        """
+        ...
+
+    def sendline(self, text: str = "", /) -> int:
+        """Send *text* followed by a line end and return the number of bytes written (as
+        ``pexpect.spawn.sendline`` does)."""
+        ...
+
+    @property
+    def before(self) -> str | bytes | None:
+        """The output received before the last match (``None`` before any match)."""
+        ...
+
+    def start_interactive_session(self) -> None:
+        """Hand the terminal to the console until the user leaves it."""
+        ...
+
+
+@runtime_checkable
 class HwConsole(Protocol):
     """Abstract contract for hardware console and power management operations."""
 
@@ -21,12 +55,23 @@ class HwConsole(Protocol):
         """Disconnect from all hardware consoles."""
         ...
 
-    def get_console(self, console_name: str) -> Any:
-        """Return the console object identified by *console_name*."""
+    def get_console(self, console_name: str) -> Any:  # type: ignore[explicit-any]  # released return kept: implementers return their own types
+        """Return the console object identified by *console_name*.
+
+        The returned object satisfies :class:`Console`. The released return annotation
+        (``Any``) is kept: implementers declare their own console types. Its narrowing to
+        ``Console`` is announced (see ``packages/testprotocols/DEPRECATIONS.md``).
+        """
         ...
 
-    def get_interactive_consoles(self) -> dict[str, Any]:
-        """Return a mapping of console names to interactive console objects."""
+    def get_interactive_consoles(self) -> dict[str, Any]:  # type: ignore[explicit-any]  # released return kept: implementers return their own types
+        """Return a mapping of console names to interactive console objects.
+
+        Each console satisfies :class:`Console`. The released return annotation
+        (``dict[str, Any]``) is kept: implementers declare their own console types. Its
+        narrowing to ``Mapping[str, Console]`` is announced (see
+        ``packages/testprotocols/DEPRECATIONS.md``).
+        """
         ...
 
     def power_cycle(self) -> None:
@@ -37,12 +82,20 @@ class HwConsole(Protocol):
         """Block until the hardware has completed its boot sequence."""
         ...
 
-    def flash_via_bootloader(
+    def flash_via_bootloader(  # type: ignore[explicit-any]  # released parameter kept: implementers declare their own types
         self,
         image: str,
         tftp_devices: dict[str, Any],
         termination_sys: Any = None,
         method: str | None = None,
     ) -> None:
-        """Flash the given image to the device via the bootloader."""
+        """Flash the given image to the device via the bootloader.
+
+        ``tftp_devices`` (LAN-side TFTP servers by name) and ``termination_sys`` (the
+        line-termination system, for example a CMTS) are framework device objects the
+        driver is handed; no implementer was seen to call a member on either, and implementers
+        declare the framework's own types (for example ``dict[str, <TFTP type>]``, which an
+        invariant ``dict`` parameter cannot accept any other way), so the released ``Any``
+        annotations are kept.
+        """
         ...

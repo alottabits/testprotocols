@@ -129,7 +129,7 @@ SLA policy, and application-flow visibility:
 
 ```python
 class SdwanPolicyManager(Protocol):
-    def apply_policy(self, policy: dict[str, Any]) -> None: ...   # generic escape hatch
+    def apply_policy(self, policy: dict[str, object]) -> None: ...   # generic escape hatch (deprecated, no successor; precise-types-design.md)
     def remove_policy(self, name: str) -> None: ...
     def configure_sla_policy(self, policy: SLAPolicy) -> None: ...
     def remove_sla_policy(self, name: str) -> None: ...
@@ -158,10 +158,15 @@ asked to do*, not how any product's API spells it. Models live in
 
 ### `traffic_shaping: TrafficShaping`
 Per-uplink and global per-client bandwidth caps plus an ordered list of shaping
-rules (whole-list replace). Reuses `wan_edge.TrafficShapingRule` (match, DSCP
-tag, bandwidth limit, priority), covering DSCP marking and per-application
+rules (whole-list replace). Uses `ShapingRule` (match, DSCP
+tag, bandwidth limit, priority; `wan_edge.TrafficShapingRule` is deprecated, see
+`precise-types-design.md`), covering DSCP marking and per-application
 shaping. Cross-vendor: per-link + per-app shaping and DSCP marking exist on
 every reviewed appliance.
+
+(Correction of the record: the protocol has taken `ShapingRule` since it landed;
+the released text, which said it reused `wan_edge.TrafficShapingRule`, was wrong. PR #73.
+This is not a design change.)
 
 ### `l3_firewall: L3Firewall`
 An appliance L3 policy is a **flat ordered list replaced whole**, with separate
@@ -375,6 +380,13 @@ states — previously collapsed into `UP`); and `get_dhcp_leases` is now
 documented as a best-effort read (only one reviewed family publishes a
 true lease table).
 
+`UplinkState` later gained `UNKNOWN` (the precise-types change, PR #73):
+`LinkStatus.state` and `LinkHealthReport.state` now take this vocabulary,
+and the reference implementer reports `"unknown"` for a link with no
+health data yet — a value the released string contract did not forbid, so
+it must keep working, and one distinct from `DOWN` (a link known to be
+down). See `precise-types-design.md` (WAN-edge models).
+
 ### Data-model neutrality — vocabulary in commons, mappings in the plugin
 
 `testprotocols` is **completely vendor-agnostic — a model must not name, encode,
@@ -392,12 +404,18 @@ Concretely:
 - **Every value vocabulary is a normalized `StrEnum` in `testprotocols`** —
   e.g. `RuleAction{ALLOW,DENY}`, `IntrusionMode{DISABLED,DETECTION,PREVENTION}`,
   `IntrusionSensitivity{LOW,MEDIUM,HIGH}`,
-  `UplinkState{UP,DOWN,STANDBY,NOT_CONNECTED}`,
+  `UplinkState{UP,DEGRADED,DOWN,STANDBY,NOT_CONNECTED,UNKNOWN}`,
   `DhcpMode{SERVER,RELAY,DISABLED}`, `ShapingPriority{LOW,NORMAL,HIGH}`,
   `L7MatchType{APPLICATION,APPLICATION_CATEGORY,HOST,PORT,IP_RANGE,URL_PATTERN}`,
   `SecurityAction{ALLOWED,BLOCKED,DETECTED}`, `ThreatCategory{…}`,
   `SyslogRole{…}`. Enums grow by adding members **on test evidence**, never per
   vendor.
+
+  (Correction of the record: the `UplinkState` list above read
+  `{UP,DOWN,STANDBY,NOT_CONNECTED}`, but `DEGRADED` was already a member, added by
+  the cross-vendor review recorded earlier in this document, so the old list was
+  wrong. Only `UNKNOWN` is new, from the precise-types change, PR #73. Listing
+  `DEGRADED` is not a design change.)
 - **Taxonomies are normalized key sets owned by `testprotocols`** —
   `ContentCategory` and `ApplicationCategory`. A test blocks
   `ContentCategory.GAMBLING` or an `ApplicationCategory` member — **never a
@@ -410,7 +428,8 @@ Concretely:
   clean.
 - **Read models carry only normalized fields.** e.g. `SecurityEvent(ts, src_ip,
   dst_ip, protocol, action: SecurityAction, category: ThreatCategory,
-  description)`; `UplinkStatus(name, state: UplinkState, ip, gateway,
+  description, *, timestamp)` (`ts` is the deprecated text, widened to `str | None`;
+  `timestamp` is keyword-only; see `precise-types-design.md`); `UplinkStatus(name, state: UplinkState, ip, gateway,
   public_ip)`. **No `native` bucket.** If a test needs a vendor-only datum with
   no normalized field, that is the signal to **add a normalized field on
   evidence** — not to smuggle a dict.

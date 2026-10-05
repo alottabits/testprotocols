@@ -1,8 +1,86 @@
-"""WiFi-domain data models."""
+"""WiFi-domain data models and vocabularies.
+
+The closed vocabularies are enums (``WifiBand``, ``WifiSecurityMode``, ``MfpMode``,
+``WifiAclMode``, ``WifiPhyMode``, ``ChannelWidth``, ``MeshRole``); every member equals
+the string the released contract used (``WifiBand.GHZ_5 == "5GHz"``). A model field
+that holds one is typed ``E | str``: a plain string naming a member is deprecated and
+is stored as given, and each field narrows to its enum when the plain ``str`` form is
+removed. ``WifiStation.capability_flags`` stays ``list[str]``, the device's own words.
+"""
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from enum import IntEnum, StrEnum
+
+
+class WifiBand(StrEnum):
+    """A radio band. Identifies a radio on a device (one radio per band)."""
+
+    GHZ_2_4 = "2.4GHz"
+    GHZ_5 = "5GHz"
+    GHZ_6 = "6GHz"
+
+
+class WifiSecurityMode(StrEnum):
+    """The security of a BSS (the access-point side)."""
+
+    OPEN = "Open"
+    OWE = "OWE"
+    WPA2_PSK = "WPA2-PSK"
+    WPA2_EAP = "WPA2-EAP"
+    WPA3_SAE = "WPA3-SAE"
+    WPA3_EAP = "WPA3-EAP"
+    WPA3_EAP_192 = "WPA3-EAP-192"  # WPA3-Enterprise 192-bit mode (CNSA suite, Suite B)
+    WPA2_WPA3_PSK_MIXED = "WPA2-WPA3-PSK-Mixed"
+    WPA2_WPA3_EAP_MIXED = "WPA2-WPA3-EAP-Mixed"
+
+
+class MfpMode(StrEnum):
+    """Management-frame protection (IEEE 802.11w)."""
+
+    OFF = "off"
+    OPTIONAL = "optional"
+    REQUIRED = "required"
+
+
+class WifiAclMode(StrEnum):
+    """How a BSS's MAC access-control list is applied."""
+
+    DISABLED = "disabled"  # no MAC filtering; the list is ignored
+    ALLOW = "allow"  # allow-list: only listed MACs may associate
+    DENY = "deny"  # deny-list: listed MACs are blocked
+
+
+class WifiPhyMode(StrEnum):
+    """An IEEE 802.11 PHY generation (amendment) a radio operates in."""
+
+    A = "a"
+    B = "b"
+    G = "g"
+    N = "n"
+    AC = "ac"
+    AX = "ax"
+    BE = "be"
+
+
+class ChannelWidth(IntEnum):
+    """A channel bandwidth in MHz. The value is the number: ``ChannelWidth(80) == 80``."""
+
+    MHZ_20 = 20
+    MHZ_40 = 40
+    MHZ_80 = 80
+    MHZ_160 = 160
+    MHZ_320 = 320
+
+
+class MeshRole(StrEnum):
+    """A mesh participant's role."""
+
+    CONTROLLER = "controller"
+    AGENT = "agent"
+    CONTROLLER_AND_AGENT = "controller-and-agent"
+    UNCOMMISSIONED = "uncommissioned"  # about to be onboarded as an agent
 
 
 @dataclass
@@ -32,17 +110,20 @@ class WifiBssConfig:
     """Configuration of a single BSS, as returned by WifiBss read methods.
 
     *passphrase* is intentionally absent — write-only across the contract.
+    *band*, *security_mode* and *mfp* are :class:`WifiBand`, :class:`WifiSecurityMode`
+    and :class:`MfpMode`; a plain string naming a member is deprecated and stored as
+    given, and each field narrows to its enum when the plain ``str`` form is removed.
     """
 
     name: str  # stable logical handle
-    band: str
+    band: WifiBand | str
     ssid: str  # broadcast SSID string
     bssid: str  # MAC address assigned to this BSS
     enabled: bool
     broadcast_enabled: bool
-    security_mode: str
+    security_mode: WifiSecurityMode | str
     radius_server_name: str | None  # references RadiusClient registry; None when not Enterprise
-    mfp: str  # "off" | "optional" | "required"
+    mfp: MfpMode | str
     vlan_id: int | None
     max_clients: int | None
     dtim_period: int
@@ -55,11 +136,18 @@ class WifiStation:
 
     Stats are point-in-time snapshots; cumulative counters (bytes, packets,
     retries) are since the start of the current association.
+
+    *band* is a :class:`WifiBand`; a plain string naming one is deprecated and stored
+    as given, and the field narrows to :class:`WifiBand` when the plain ``str`` form is
+    removed.
+
+    *capability_flags* are the device's own words, stored as given and in order (for
+    example ``["HT", "VHT", "HE"]``, or ``["EHT", "MLO"]`` for Wi-Fi 7).
     """
 
     mac: str  # canonical: lowercase colon-separated
     bss_name: str  # logical BSS handle the station is associated to
-    band: str  # "2.4GHz" / "5GHz" / "6GHz"
+    band: WifiBand | str
     ip_address: str | None  # station's IP if known to the AP (e.g. via DHCP snooping)
     associated_since: float  # Unix timestamp
     rssi_dbm: int
@@ -72,26 +160,30 @@ class WifiStation:
     rx_packets: int
     tx_retries: int
     capability_flags: list[str] = field(default_factory=list[str])
-    # capability_flags examples: ["HT", "VHT", "HE"], or ["EHT", "MLO"] for Wi-Fi 7
 
 
 @dataclass
 class WifiAcl:
-    """Per-BSS MAC access-control list state."""
+    """Per-BSS MAC access-control list state. *mode* is a :class:`WifiAclMode`."""
 
     bss_name: str
-    mode: str  # "disabled" | "allow" | "deny"
+    mode: WifiAclMode | str
     # MACs, canonical lowercase colon-separated
     entries: list[str] = field(default_factory=list[str])
 
 
 @dataclass
 class WifiNeighbor:
-    """A neighbour BSS observed by an off-channel scan."""
+    """A neighbour BSS observed by an off-channel scan.
+
+    *band* is a :class:`WifiBand`. *security_mode* stays free text: it is a
+    best-effort identification of a foreign network and may name a scheme no
+    :class:`WifiSecurityMode` lists.
+    """
 
     bssid: str  # MAC, canonical lowercase colon-separated
     ssid: str  # may be empty for hidden SSIDs
-    band: str  # the band the scanner observed it on
+    band: WifiBand | str  # the band the scanner observed it on
     channel: int  # operating channel of the neighbour
     rssi_dbm: int
     security_mode: str  # best-effort identification
@@ -104,10 +196,10 @@ class WifiChannelUtilization:
 
     All fields are 0-100. ``busy_pct`` is always populated; the
     component splits (tx/rx/interference) are populated only on drivers
-    that report them separately.
+    that report them separately. *band* is a :class:`WifiBand`.
     """
 
-    band: str
+    band: WifiBand | str
     busy_pct: int  # total channel occupancy
     tx_pct: int | None  # own transmissions
     rx_pct: int | None  # all reception (own BSS + neighbours)
@@ -116,15 +208,19 @@ class WifiChannelUtilization:
 
 @dataclass
 class WifiRadioStats:
-    """Cumulative per-radio TX/RX/retry counters."""
+    """Cumulative per-radio TX/RX/retry counters. *band* is a :class:`WifiBand`.
 
-    band: str
+    ``tx_retries`` and ``tx_failed`` are ``None`` when the device reports no per-radio
+    count (TR-181 and Wi-Fi Data Elements define none); ``0`` is never a stand-in.
+    """
+
+    band: WifiBand | str
     tx_bytes: int
     rx_bytes: int
     tx_packets: int
     rx_packets: int
-    tx_retries: int  # retransmitted frames
-    tx_failed: int  # frames the driver gave up on (max retries exceeded)
+    tx_retries: int | None  # retransmitted frames; None: no per-radio count reported
+    tx_failed: int | None  # frames given up on (max retries exceeded); None: not reported
 
 
 @dataclass
@@ -141,9 +237,9 @@ class WifiTransitionConfig:
 
 @dataclass
 class WifiMeshLink:
-    """A wireless backhaul link between mesh agents."""
+    """A wireless backhaul link between mesh agents. *band* is a :class:`WifiBand`."""
 
-    band: str  # "2.4GHz" / "5GHz" / "6GHz"
+    band: WifiBand | str
     channel: int
     rssi_dbm: int  # signal strength on the link
     capacity_mbps: float  # estimated PHY-rate capacity in Mbps
@@ -151,10 +247,9 @@ class WifiMeshLink:
 
 @dataclass
 class WifiMeshStatus:
-    """A mesh participant's local status snapshot."""
+    """A mesh participant's local status snapshot. *role* is a :class:`MeshRole`."""
 
-    # "controller" | "agent" | "controller-and-agent" | "uncommissioned"
-    role: str
+    role: MeshRole | str
     enabled: bool
     parent_mac: str | None  # MAC of this agent's parent; None for the controller / root
     hop_count: int  # 0 for the controller; N for an agent N hops away
@@ -163,10 +258,10 @@ class WifiMeshStatus:
 
 @dataclass
 class WifiMeshNode:
-    """Identity and position of a mesh agent in the topology."""
+    """Identity and position of a mesh agent in the topology. *role* is a :class:`MeshRole`."""
 
     mac: str  # canonical lowercase colon-separated
-    role: str  # "controller" | "agent" | "controller-and-agent"
+    role: MeshRole | str
     parent_mac: str | None  # None for the controller / root
     hop_count: int
 

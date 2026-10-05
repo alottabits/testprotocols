@@ -8,18 +8,27 @@ from __future__ import annotations
 
 from typing import Protocol, runtime_checkable
 
+from testprotocols._compat import deprecated
+from testprotocols.models.networking import IpFamily
+from testprotocols.models.traffic import IperfProcess
+
 
 @runtime_checkable
 class IperfClient(Protocol):
     """Abstract contract for iperf client (traffic sender) operations."""
 
+    @deprecated(
+        "Deprecated: use start_sender_session. Removal not before the first release 6 "
+        "months after the release that deprecates it.",
+        category=None,
+    )
     def start_traffic_sender(
         self,
         host: str,
         traffic_port: int,
         bandwidth: int | None = None,
         bind_to_ip: str | None = None,
-        ip_version: int | None = None,
+        ip_version: IpFamily | int | None = None,
         udp_protocol: bool = False,
         time: int = 10,
         client_port: int | None = None,
@@ -33,6 +42,15 @@ class IperfClient(Protocol):
         report_interval_s: int | None = None,
     ) -> tuple[int, str]:
         """Start an iperf traffic sender towards *host* on *traffic_port*.
+
+        Returns the ``(pid, log_file)`` of ``start_sender_session(...)``; *window* is the
+        size text (``"8M"``) that ``window_bytes`` gives in bytes. The parameters below keep
+        their released meaning.
+
+        *ip_version* is an :class:`~testprotocols.models.IpFamily` (``V4 = 4``, ``V6 = 6``) or
+        ``None`` to leave the version to the tool. An ``IpFamily`` is an ``int``, so a driver
+        that formats it as ``-<ip_version>`` is unchanged; a plain ``int`` is the released
+        spelling and narrows to ``IpFamily`` in a later release.
 
         Typed option parameters (each defaults to "absent": no flag emitted):
 
@@ -63,6 +81,42 @@ class IperfClient(Protocol):
           accordingly.
 
         Returns a tuple of (pid, log_file_path).
+
+        Deprecated: use :meth:`start_sender_session`. Removal not before the first release 6 months
+        after the release that deprecates it.
+        """
+        ...
+
+    def start_sender_session(
+        self,
+        host: str,
+        traffic_port: int,
+        *,
+        bandwidth: int | None = None,
+        bind_to_ip: str | None = None,
+        ip_version: IpFamily | None = None,
+        udp_protocol: bool = False,
+        time: int = 10,
+        client_port: int | None = None,
+        udp_only: bool | None = None,
+        reverse: bool = False,
+        omit_s: int | None = None,
+        json_output: bool = False,
+        window_bytes: int | None = None,
+        parallel: int | None = None,
+        datagram_bytes: int | None = None,
+        report_interval_s: int | None = None,
+    ) -> IperfProcess:
+        """Start an iperf traffic sender towards *host* on *traffic_port* and return the
+        started process (its pid and log file).
+
+        The options mean what they mean for :meth:`start_traffic_sender`, except:
+
+        - ``ip_version`` is an :class:`~testprotocols.models.IpFamily` or ``None`` (the
+          tool's choice);
+        - ``window_bytes`` pins the socket buffer, in bytes (``-w <n>``), on both ends;
+          ``None`` leaves the tool's autotuning on. It replaces the size text ``window``
+          (``"8M"``).
         """
         ...
 

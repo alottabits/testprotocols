@@ -25,7 +25,11 @@ class SwitchQos(Protocol):
         ...
 
     def set_rules(self, rules: list[QosRule]) -> None:
-        """Replace the ordered QoS classification rule list."""
+        """Replace the ordered QoS classification rule list.
+
+        A write that fails at any step, rejected or not verified, leaves the as-found
+        state: the rule list as it was before the call.
+        """
         ...
 
     def get_rules(self) -> list[QosRule]:

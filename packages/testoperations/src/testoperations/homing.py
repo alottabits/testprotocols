@@ -21,7 +21,9 @@ results. No vendor SDK is imported here.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
+from typing import override
 
 from testprotocols.appliance_vlans import ApplianceVlans
 from testprotocols.devices.sdwan import SdwanApplianceDevice
@@ -32,6 +34,52 @@ from testprotocols.models.sdwan_appliance import (
     VpnSubnet,
 )
 from testprotocols.site_to_site_vpn import SiteToSiteVpn
+
+from testoperations._released import ReleasedMapping
+
+
+@dataclass(frozen=True)
+class HomeDetails:
+    """What :func:`verify_home` read: the VLAN's *defined_subnet* and *defined_gateway* (each
+    ``None`` when the VLAN is not defined on the appliance) and the overlay's *peer_states*
+    by peer name."""
+
+    defined_subnet: str | None
+    defined_gateway: str | None
+    peer_states: Mapping[str, VpnPeerState]
+
+    def released_form(self) -> dict[str, object]:  # object: deprecated form kept until removal
+        """The released ``details`` dict."""
+        return {
+            "defined_subnet": self.defined_subnet,
+            "defined_gateway": self.defined_gateway,
+            "peer_states": {name: state.value for name, state in self.peer_states.items()},
+        }
+
+
+@dataclass(frozen=True, eq=False)
+class HomeVerification(ReleasedMapping):
+    """The facts :func:`verify_home` read: *vlan_defined*, *subnet_advertised*,
+    *peers_reachable* and the *details* behind them.
+
+    Deprecated: reading the record like the released dict (``v["vlan_defined"]``,
+    :meth:`as_dict`) still works and warns. The released ``"details"`` entry is a dict with the
+    keys of :class:`HomeDetails` and the peer states as their text values.
+    """
+
+    vlan_defined: bool
+    subnet_advertised: bool
+    peers_reachable: bool
+    details: HomeDetails
+
+    @override
+    def _released(self) -> dict[str, object]:
+        return {
+            "vlan_defined": self.vlan_defined,
+            "subnet_advertised": self.subnet_advertised,
+            "peers_reachable": self.peers_reachable,
+            "details": self.details.released_form(),
+        }
 
 
 def _delete_if_present(lan: ApplianceVlans, vlan_id: int) -> None:
@@ -106,7 +154,7 @@ def verify_home(
     vlan: VlanConfig,
     target_lan: ApplianceVlans,
     target_vpn: SiteToSiteVpn,
-) -> dict[str, object]:
+) -> HomeVerification:
     """MX-side verification that *vlan* is homed on the target appliance.
 
     Reads (no writes): the VLAN is defined with the expected subnet/gateway, its
@@ -114,7 +162,12 @@ def verify_home(
     ``peers_reachable`` is observational — empty peer list (no overlay) reads as
     False. The in-guest half (gateway reachability from the test namespace) is
     the plugin's ``verify_homing``; the caller composes the two vantage points.
+
+    Returns a :class:`HomeVerification`. The released dict (keys ``vlan_defined``,
+    ``subnet_advertised``, ``peers_reachable``, ``details``) still reads through the record
+    with a ``DeprecationWarning``.
     """
+    defined: VlanConfig | None
     try:
         defined = target_lan.get_vlan(vlan.vlan_id)
         vlan_defined = defined.subnet == vlan.subnet and defined.appliance_ip == vlan.appliance_ip
@@ -128,16 +181,16 @@ def verify_home(
     peers = target_vpn.get_vpn_peers()
     peers_reachable = bool(peers) and all(p.state is VpnPeerState.REACHABLE for p in peers)
 
-    return {
-        "vlan_defined": vlan_defined,
-        "subnet_advertised": subnet_advertised,
-        "peers_reachable": peers_reachable,
-        "details": {
-            "defined_subnet": getattr(defined, "subnet", None),
-            "defined_gateway": getattr(defined, "appliance_ip", None),
-            "peer_states": {p.name: p.state.value for p in peers},
-        },
-    }
+    return HomeVerification(
+        vlan_defined=vlan_defined,
+        subnet_advertised=subnet_advertised,
+        peers_reachable=peers_reachable,
+        details=HomeDetails(
+            defined_subnet=None if defined is None else defined.subnet,
+            defined_gateway=None if defined is None else defined.appliance_ip,
+            peer_states={p.name: p.state for p in peers},
+        ),
+    )
 
 
 def home_client(

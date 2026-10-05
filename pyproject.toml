@@ -4,9 +4,10 @@ members = ["packages/*"]
 [dependency-groups]
 dev = [
     "pytest>=8.0",
-    "mypy>=1.10",
+    "mypy>=1.17",
     "pyright>=1.1.350",
     "ruff>=0.4",
+    "types-pexpect>=4.9.0.20260518",
 ]
 
 [tool.ruff]
@@ -31,12 +32,28 @@ quote-style = "double"
 [tool.mypy]
 strict = true
 python_version = "3.12"
+enable_error_code = ["explicit-override", "exhaustive-match", "deprecated"]
+# Also implied by `strict`; packages/testprotocols/tests/typing/deprecated_usage.py relies on it.
+warn_unused_ignores = true
+warn_unreachable = true
 # `scripts/` holds top-level modules the tests under `scripts/tests/` import.
 mypy_path = "scripts"
+
+[[tool.mypy.overrides]]
+# Every remaining explicit `Any` is a released signature, exempted line by line in
+# two classes (deprecation period, compatibility); see
+# docs/architecture/precise-types-design.md.
+module = ["testprotocols.*", "testoperations.*"]
+disallow_any_explicit = true
 
 [tool.pyright]
 typeCheckingMode = "strict"
 pythonVersion = "3.12"
+# Using a member marked `@deprecated` is an error. An intentional use carries
+# `# type: ignore[deprecated]`. mypy suppresses only that code; pyright treats it
+# as a blanket ignore of every diagnostic on the line (it does not read the code in
+# brackets). `# pyright: ignore[reportDeprecated]` is the rule-scoped pyright form.
+reportDeprecated = "error"
 # Type-check the workspace packages from source rather than through whatever
 # copy the selected interpreter happens to expose (a stale non-editable install
 # would otherwise win). Third-party deps still come from the environment, so

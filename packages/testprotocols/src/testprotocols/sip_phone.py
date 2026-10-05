@@ -8,6 +8,8 @@ from __future__ import annotations
 
 from typing import Protocol, runtime_checkable
 
+from testprotocols.models.voice import PhoneState
+
 
 @runtime_checkable
 class SipPhone(Protocol):
@@ -179,10 +181,14 @@ class SipPhone(Protocol):
         """Send a hook-flash signal."""
         ...
 
-    def wait_for_state(self, state: str, timeout: int = 10) -> bool:
+    def wait_for_state(self, state: PhoneState | str, timeout: int = 10) -> bool:
         """Wait up to *timeout* seconds for the phone to reach *state*.
 
-        Returns True if the state was reached within the timeout.
+        Returns True if the state was reached within the timeout. *state* is a
+        :class:`~testprotocols.models.voice.PhoneState`, one member per ``is_*``
+        predicate. A plain string naming a member is deprecated. A word that names no
+        member raises
+        ``ValueError``. The annotation narrows to ``PhoneState`` in a later release.
         """
         ...
 
@@ -217,8 +223,9 @@ class SipPhone(Protocol):
     def set_presence(self, status: str) -> None:
         """Publish the local presence *status* for this phone.
 
-        Typical values: ``"online"``, ``"busy"``, ``"away"``, ``"offline"``.
-        Implementers emit a SIP PUBLISH with a ``presence`` event package.
+        Typical values: ``online``, ``busy``, ``away``, ``offline``; a provider may use
+        other words, which are passed on to the device as given. Implementers emit a SIP
+        PUBLISH with a ``presence`` event package.
         """
         ...
 

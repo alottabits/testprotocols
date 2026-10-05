@@ -3,11 +3,56 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from enum import StrEnum
+
+
+class QoeTool(StrEnum):
+    """The tool a :class:`MeasurementSpec` measures with: the four the released
+    implementers dispatch on."""
+
+    BROWSER = "browser"
+    HTTP_CLIENT = "http_client"
+    WEBRTC = "webrtc"
+    TCP_PROBE = "tcp_probe"
+
+
+class PageCompletion(StrEnum):
+    """The page-load event a browser measurement waits for (``wait_until``)."""
+
+    LOAD = "load"
+    DOMCONTENTLOADED = "domcontentloaded"
+    NETWORKIDLE = "networkidle"
+    COMMIT = "commit"
+
+
+class QoeCompletion(StrEnum):
+    """When a :class:`MeasurementSpec` measurement is complete: a
+    :class:`PageCompletion` event; ``DURATION`` (run for ``duration_s``, as the streaming and
+    conferencing measurements do); ``RESPONSE`` (the HTTP response arrived, for the
+    ``http_client`` tool) or ``CONNECT`` (the connection opened, for ``tcp_probe``)."""
+
+    LOAD = "load"
+    DOMCONTENTLOADED = "domcontentloaded"
+    NETWORKIDLE = "networkidle"
+    COMMIT = "commit"
+    DURATION = "duration"
+    RESPONSE = "response"
+    CONNECT = "connect"
+
+
+class QoeScenario(StrEnum):
+    """What ``QoeBrowser.measure_productivity`` measures. Grows on evidence."""
+
+    PAGE_LOAD = "page_load"
 
 
 @dataclass
 class QoEResult:
-    """Holds QoE metrics measured during a test (latency, jitter, MOS, etc.)."""
+    """Holds QoE metrics measured during a test (latency, jitter, MOS, etc.).
+
+    *protocol* is the negotiated HTTP version as the device reports it (for example
+    ``h2``, ``h3``, ``http/1.1``), stored as given, or ``None`` when not reported.
+    """
 
     ttfb_ms: float | None = None
     load_time_ms: float | None = None
@@ -23,10 +68,16 @@ class QoEResult:
 
 @dataclass
 class MeasurementSpec:
-    """Holds parameters controlling how a QoE measurement is performed."""
+    """Holds parameters controlling how a QoE measurement is performed.
 
-    tool: str = "browser"
-    completion: str = "networkidle"
+    *tool* is a :class:`QoeTool` and *completion* a :class:`QoeCompletion` (a
+    :class:`PageCompletion` has the same words). A plain ``str`` naming a member is
+    deprecated and stored as given (a member compares equal to its text); each field
+    narrows to its enum when the plain ``str`` form is removed.
+    """
+
+    tool: QoeTool | str = "browser"
+    completion: QoeCompletion | PageCompletion | str = "networkidle"
     timeout_ms: int = 30000
     duration_s: int | None = None
     force_quic: bool = True

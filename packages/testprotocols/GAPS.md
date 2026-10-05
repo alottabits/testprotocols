@@ -251,6 +251,44 @@ keys; plugins map to vendor app-ids), grown on evidence; `L7Rule.value` for
 
 ## 2026-06-11 — migrate legacy bare-`str` value fields to typed vocabularies [priority: low]
 
+> **Status (precise-types work): done for the fields below.** The firewall, NAT and
+> conntrack vocabularies, `LinkStatus.state` / `LinkHealthReport.state` (now
+> `UplinkState`, the shared vocabulary, not a separate `LinkState`), the Wi-Fi
+> vocabularies (`WifiBand`, `WifiSecurityMode`, `MfpMode`, `WifiAclMode`,
+> `WifiPhyMode`, `MeshRole`), `TrafficSpec.protocol` and
+> `MeasurementSpec.completion` are enums; `Connection.state` and
+> `RadiusAccountingRecord.record_type` stay `str`; `VPNPeerStatus` /
+> `TrafficShapingRule` are deprecated with no successor. Each retype is a deprecation
+> (widen, then narrow); see `docs/architecture/precise-types-design.md`. The notes below
+> are the original 2026-06-11 assessment, left as written: where they name `LinkState` or
+> `TrafficShapingRule.priority`, or defer `WifiBssConfig.security_mode` (now
+> `WifiSecurityMode`) or `MeasurementSpec.completion` (now `QoeCompletion |
+> PageCompletion`) until a test needs them, they are superseded; those two deferrals are
+> lifted. Their "leave as `str`" for `Connection.state` is upheld, not superseded, and so
+> is their deferral of `QoEResult.protocol`: it stays `str | None`, the HTTP version as the
+> device reports it. The
+> gating (A)-vs-(B) decision is settled as (A): annotation and checker only, with no
+> `__post_init__` coercion or validation in a record (`precise-types-design.md`, "The
+> contract model", C1, C4 and C5). The `ALERT`-vs-`LOG` reconciliation went to `ALERT`:
+> `FirewallRuleAction` carries an `ALERT` member for the undocumented `"alert"` action,
+> and no implementer has to change to `LOG`. The gaps the retype left open are in the next entry.
+>
+> **Update (2026-10-05, the precise-types change):** the fields of this entry that remain
+> bare `str` afterwards: `Zone.default_input`, `default_forward` and `default_output` and
+> `ZonePolicy.action` (the closed set `accept` / `drop` / `reject`, the words of
+> `DefaultAction`, which `PacketFilter.set_default_policy` already takes);
+> `FirewallRule.application_category` (`str | None`, whose common values are those of
+> `ApplicationCategory`); `FlowMatch.src_port` / `dst_port` (`str = "any"`, port text
+> that `PortRange` could type, as `L3Rule`'s typed `src_ports` / `dst_ports` now do); and
+> `TrafficShapingRule.priority` / `match`, which go with the deprecated class at its
+> removal and are not retyped. The trigger above still applies to the first three:
+> retype them (shape 3, `DefaultAction | str`; `ApplicationCategory | str`) when
+> `firewall_zones` or the firewall models are next touched. `FlowMatch`'s ports are
+> retyped (a typed `tuple[PortRange, ...]` beside the released text, as `L3Rule` has)
+> when the steering models (`FlowMatch`, `UplinkSelectionRule`) are next touched. The
+> design note "one capability per change" was departed from once, for the precise-types
+> change, because each of its family items is separable and separately mechanised.
+
 **Signal:** The SD-WAN appliance models (`models/sdwan_appliance.py`) express their
 normalized value vocabularies as `StrEnum`s (static + runtime checking). The
 pre-existing models — e.g. `models/wan_edge.py`'s `LinkStatus.state`,
@@ -334,6 +372,160 @@ linux_firewall / frr_router impls, unit tests).
 
 ---
 
+## 2026-10-05 — precise types: gaps left open [priority: low]
+
+**Signal:** The precise-types retype (`docs/architecture/precise-types-design.md`) typed
+every field and parameter that evidence supported and left the following open on
+purpose, rather than guess a vocabulary. Each needs evidence (a second implementer, a
+specification table or a maintainer decision), not more code.
+
+- **Tool option strings without a typed successor.** `dns_lookup(opts)`, an `nmap(opts)`
+  other than `-F` (which `fast` replaces) and a non-default
+  `get_running_processes(ps_options)` are deprecated, and the typed
+  readers (`resolve`, `scan_ports`, `read_running_processes`) take no option. A caller
+  that forwards options to `dig` (for example `+short` or `@server`) or to `ps` has no
+  typed form. Needed before removal: typed `dns_lookup` options derived from callers, or
+  a decision to drop them. `ping` and `traceroute` `options` are in the same position
+  (no caller evidence for typed numeric parameters).
+- **`WifiClient.wifi_client_connect(security_mode)` stays `str | None`.** The
+  implementer passes a client key-management word (`NONE`, `WPA-PSK`, `WPA-EAP`), not an
+  access-point `WifiSecurityMode`. A key-management vocabulary (probably its own enum,
+  open) needs a second implementer or a supplicant specification table.
+  `WifiClient.iwlist_supported_channels(wifi_band)` and `WifiRadio.get_mode` (replaced by
+  `get_modes`, a set of `WifiPhyMode`) are deprecated; `WifiNeighbor.security_mode` stays text.
+  `WifiMeshWhiteBox.get_raw_easymesh_tlvs(message_type)` waits for the EasyMesh message
+  names from a specification.
+- **`QosRule.match` text that does not parse stays untyped.** The released contract
+  defined no grammar. The `testoperations` reader gives no classifier (`None`) for text
+  it cannot parse, and `match` keeps the text as given; a classifier holds at most one
+  source and one destination port range. Widening needs a producer that writes more.
+- **"Packet storm" meaning.** The released implementers apply a loss burst; the name could
+  also mean packet duplication. `PacketStorm` keeps the released meaning (`duplicate_percent`
+  is optional, `None` means not requested). The contract's meaning awaits a maintainer decision.
+- **Compatibility exemptions.** `flash_via_bootloader` and `start_tcpdump(filters)` keep
+  `Any` because implementers declare framework or dict types the contract cannot accept
+  (parameter contravariance, `dict` invariance); `HwConsole.get_console` and
+  `get_interactive_consoles` keep their released `Any` returns, their narrowing to
+  `Console` announced. The open values `DhcpServer.provision_cpe` options and the DHCP
+  trace packets keep `object`, counted by the typing ratchet. Closing them needs a
+  maintainer to decide whether implementers change their declarations, or a typed shape
+  with a second implementer's evidence.
+- **`Console` has no `expect` / `expect_exact`.** A console that satisfies the protocol
+  statically cannot carry pexpect's own pattern type without the package depending on
+  pexpect. Callers that match patterns keep the concrete console type.
+
+**Not a gap here:** DHCP integer option width per code. `DhcpOption.value` is text in this
+package, so the width question arises only for a model that carries an integer content
+type.
+
+**Trigger to act:** The trigger each bullet names: a second implementer, a specification
+table or a maintainer decision for that gap; for a deprecated option string, the release
+that would remove it (a typed successor or a decision to drop it is due before then).
+
+**Out of scope right now because:** Each gap needs evidence the precise-types change did
+not have, and a vocabulary guessed now would be a contract change to undo later; the
+change typed only what evidence supported.
+
+**Design notes (when picked up):** follow the deprecation shapes of
+`docs/architecture/precise-types-design.md` (a typed successor beside the released form,
+then a period); take a specification's vocabulary first where one exists; close a
+compatibility exemption only with the typing ratchet's count lowered in the same change.
+
+**Cross-references:** `docs/architecture/precise-types-design.md` ("Retypes"),
+`packages/testprotocols/DEPRECATIONS.md`, `models/wifi.py`, `models/switch.py`.
+`docs/proposals/2026-10-05-precise-types.md`; PR #73.
+
+---
+
+## 2026-10-05 — Wi-Fi: concepts the reviewed families have and the contract cannot express [priority: low]
+
+**Signal:** Comparing the Wi-Fi contract with its reviewed families
+(`docs/architecture/precise-types-families.md`, "Wi-Fi"; the reference is Wi-Fi Data
+Elements v3.0, Wi-Fi EasyMesh v6.1 and TR-181 Device:2.21) found concepts that a family
+reports or configures and no member or vocabulary value holds. A driver raises
+`NotSupportedError` for a write, or keeps the plain `str` form of a read while the field
+accepts it.
+
+- **A radio per 5 GHz sub-band.** `WifiRadio` holds one radio per band; a dual-5 GHz
+  device (Data Elements reports the UNII sub-bands) has no form.
+- **Channel widths.** 80+80 MHz reads back as 160; the two 320 MHz channelisations
+  (TR-181 `320MHz-1` / `320MHz-2`) collapse into one; an automatic width (TR-181 `Auto`,
+  a cloud-managed family's `auto`) can be neither set nor read, like automatic channel.
+- **Security modes with no member.** The WPA2/WPA3-Enterprise transition on a driver that
+  speaks only TR-181 (which has no such value), per-client PSKs, DPP key management
+  (`dpp`, `dpp+sae`), TR-181 `WPA3-Personal-Compatibility`, legacy WPA and WEP.
+- **Wired mesh backhaul.** An EasyMesh backhaul may be Ethernet, MoCA or G.hn (Data
+  Elements `LinkType`); `WifiMeshLink` holds a Wi-Fi link only, and `backhaul_link=None`
+  reads as "no uplink".
+- **The mesh root on a cloud- or virtually-managed family.** Its root node (a gateway, a
+  mesh portal) has no `MeshRole` member; hop count 0 still identifies it.
+- **The Wi-Fi share of channel utilisation.** A family that reports only total and
+  non-Wi-Fi shares fills `busy_pct` and `interference_pct`; the Wi-Fi share has no field.
+- **MAC ACL mode.** `DENY` has no standard TR-181 form, and on a cloud-managed family with
+  no per-SSID MAC list `ALLOW` is unsupported and `DENY` is network-wide.
+
+**Trigger to act:** A test that needs one of these concepts on a family that has it.
+
+**Out of scope right now because:** Each needs a member or a vocabulary value that no test
+asks for yet; the precise-types change typed what the released contract already carried.
+
+**Design notes (when picked up):** take the standard data model's form first (Data
+Elements, TR-181), as the precise-types Wi-Fi vocabularies did; a value a family lacks
+stays a `NotSupportedError` cell.
+
+**Cross-references:** `docs/architecture/precise-types-families.md` ("Wi-Fi"),
+`docs/architecture/precise-types-design.md` ("Wi-Fi vocabularies"), `wifi_radio.py`,
+`wifi_bss.py`, `wifi_mesh.py`, `models/wifi.py`.
+
+---
+
+## 2026-10-05 — `SnmpClient` typed varbind return [priority: low]
+
+**Signal:** The typed SNMP members (`snmp_get`, `snmp_walk`, `snmp_set`,
+`snmp_bulk_get`) take typed parameters but return the tool's output text, as the released
+`execute_snmp_command` did. A test parses the varbinds itself.
+
+**Trigger to act:** A second SNMP client implementer whose output parse can be compared
+with the first, or a test that asserts on a varbind's type or value.
+
+**Out of scope right now because:** One client family's output text is the only evidence;
+a varbind record built from it would fix that tool's rendering into the contract.
+
+**Design notes (when picked up):** a frozen `SnmpVarbind(oid, value_type, value)` record
+whose `value_type` is the RFC 2578 SMI type (`SnmpValueType` plus the counter types a
+read can return), returned by new members beside the text ones (shape 5).
+
+**Cross-references:** `snmp_client.py`, `models/networking.py` (`SnmpValueType`),
+`docs/architecture/precise-types-families.md` ("SNMP and NTP").
+`docs/proposals/2026-10-05-precise-types.md`; PR #73.
+
+---
+
+## 2026-10-05 — QoE completions a measurement family cannot express [priority: low]
+
+**Signal:** `MeasurementSpec.completion` is typed `QoeCompletion | str` (its deferral in
+the 2026-06-11 bare-`str` entry is lifted by the precise-types proposal). Not every
+reviewed family has every member: an independent browser-automation family has no form for
+`COMMIT`, and its own `networkidle2` (at most two connections for 500 ms) has no member.
+Values with no member stay readable as text during the deprecation period; a driver raises
+for a member its tool cannot wait for.
+
+**Trigger to act:** A test that needs a completion no member names, or a second
+implementer family whose completions differ from the released one's.
+
+**Out of scope right now because:** The four page-load states come from the released
+implementers' family and the HTML standard's load events; adding a member for one
+family's extra state would put that tool's vocabulary into the contract.
+
+**Design notes (when picked up):** a new `QoeCompletion` member only when two families
+share the state; otherwise the driver maps or raises, as now.
+
+**Cross-references:** `models/qoe.py` (`PageCompletion`, `QoeCompletion`),
+`docs/architecture/precise-types-families.md` (6, "Traffic generation, impairment and
+QoE"), `docs/proposals/2026-10-05-precise-types.md` (P10).
+
+---
+
 ## 2026-06-11 — appliance health / online capability [priority: medium]
 
 **Signal:** Composing `SdwanApplianceDevice` wanted an online/uptime check, but the
@@ -345,6 +537,11 @@ reshape removed (conntrack / pcap / ip_interface / nat), so it was **left off**.
 
 **Trigger to act:** First test that needs to assert an appliance is reachable /
 report uptime / reboot it through the typed contract.
+
+**Update (2026-10-05):** `Router.read_telemetry() -> Telemetry` (the precise-types change)
+reaches `SdwanApplianceDevice` through `routing: Router`. Its `Telemetry.uptime_seconds`
+is `float | None`, the shape this entry's design note gives, so a cloud-managed appliance
+that reports no uptime fills `None`; the rest of this entry stands.
 
 **Out of scope right now because:** No current test needs it; `ApplianceUplinks`
 status already implies reachability, and provisioning/health checks can use a

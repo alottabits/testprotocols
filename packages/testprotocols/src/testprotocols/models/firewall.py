@@ -9,6 +9,66 @@ nftables / pf / TR-069 / vendor CLI as appropriate.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from enum import StrEnum
+
+from testprotocols.models.ports import PortRange
+from testprotocols.models.sdwan_appliance import RuleProtocol
+
+
+class DefaultAction(StrEnum):
+    """What a zone or zone pair does with traffic no rule decides."""
+
+    ACCEPT = "accept"
+    DROP = "drop"
+    REJECT = "reject"
+
+
+class Chain(StrEnum):
+    """A packet-filter chain: the path a packet takes through the device."""
+
+    INPUT = "INPUT"
+    OUTPUT = "OUTPUT"
+    FORWARD = "FORWARD"
+
+
+class FirewallRuleAction(StrEnum):
+    """What a packet-filter rule does with a matching packet."""
+
+    ALLOW = "allow"
+    DENY = "deny"
+    REJECT = "reject"
+    LOG = "log"
+    ALERT = "alert"
+    """Raise an alert for a matching packet. A released implementer reports this value."""
+
+
+class NatMode(StrEnum):
+    """The translation a NAT rule performs."""
+
+    SNAT = "snat"
+    DNAT = "dnat"
+    ONE_TO_ONE = "1to1"
+
+
+class PortMappingProtocol(StrEnum):
+    """The transport a port mapping forwards."""
+
+    TCP = "tcp"
+    UDP = "udp"
+    TCP_UDP = "tcp-udp"
+
+
+@dataclass(frozen=True)
+class RuleCounters:
+    """What a rule has matched since it was added.
+
+    *packets* and *bytes* are non-negative ints. Returned by
+    ``PacketFilter.get_rule_counter_values`` and
+    ``Nat.get_nat_rule_counter_values``.
+    """
+
+    packets: int
+    bytes: int
 
 
 @dataclass
@@ -19,29 +79,49 @@ class FirewallRule:
     rule lists). The IPv4 / IPv6 split is not a contract dimension
     — each rule's address family is inferred from its CIDR fields.
 
-    *action* is one of ``"allow"``, ``"deny"``, ``"reject"``, ``"log"``.
-    *protocol* is one of ``"tcp"``, ``"udp"``, ``"icmp"``, ``"any"``.
-    *dst_port* is a port number, a range like ``"1024-65535"``, or ``"any"``.
+    *action* is a :class:`FirewallRuleAction` (``allow``, ``deny``, ``reject``,
+    ``log``) and *protocol* a :class:`~testprotocols.models.RuleProtocol`
+    (``tcp``, ``udp``, ``icmp``, ``any``; also ``icmp6``). A plain ``str`` naming
+    one is accepted and stored as given (a member compares equal to its text); each
+    field narrows to its enum when the plain ``str`` form is removed.
+
+    The destination ports have two forms. *dst_ports* is a tuple of
+    :class:`~testprotocols.models.PortRange`, the empty tuple meaning any port.
+    *dst_port* is the released text form (a port number, a range like
+    ``"1024-65535"``, a comma list, or ``"any"``), deprecated. A driver fills either
+    field, or both; when both are filled they describe the same ports. At least one
+    is filled: *dst_port* stays required, and a driver that fills only *dst_ports*
+    passes ``dst_port=None``. At removal, *dst_port* goes and *dst_ports* becomes required.
+
+    A rule also flows into a driver (``PacketFilter.add_rule``). A caller building one
+    for a write member fills both forms until removal: a driver not yet updated reads
+    only *dst_port*. A driver implementing a write member reads *dst_ports* when it is
+    filled, else *dst_port*.
+
     *application* / *application_category* are L7 classifiers used by
     SD-WAN policy; they are ignored by simple packet-filter drivers.
     """
 
     name: str
-    action: str
-    protocol: str
+    action: FirewallRuleAction | str
+    protocol: RuleProtocol | str
     src_cidr: str
     dst_cidr: str
-    dst_port: str
+    dst_port: str | None
     application: str | None = None
     application_category: str | None = None
     log: bool = True
+    dst_ports: tuple[PortRange, ...] | None = field(default=None, kw_only=True)
 
 
 @dataclass
 class NatRule:
     """A NAT translation rule.
 
-    Three modes are supported via the *mode* discriminator:
+    Three modes are supported via the *mode* discriminator, a :class:`NatMode`.
+    *protocol* is a :class:`~testprotocols.models.RuleProtocol`. For each, a plain
+    ``str`` naming a member is accepted and stored as given; the field narrows to its
+    enum when the plain ``str`` form is removed.
 
     - ``"snat"`` — source-NAT (rewrite source on egress). Requires
       *translated_src* (or empty string to fall back to the egress
@@ -54,22 +134,45 @@ class NatRule:
       an outside and inside address). Requires *translated_dst* (the
       inside address). Port fields must be empty.
 
+    The ports have two forms each: *dst_ports* (the match) and *translated_ports*
+    (the rewrite) are tuples of :class:`~testprotocols.models.PortRange`, the empty
+    tuple meaning no port (any, for the match). *dst_port* and *translated_port*
+    are the released text forms (``""`` for no port, also ``"any"``, a port number,
+    a range, or a comma list), deprecated. A driver fills either field of a pair, or
+    both; when both are filled they describe the same ports. *dst_port* and
+    *translated_port* keep their released default ``""`` (no port); a driver that fills
+    only the typed form may pass ``None`` for the text, which reads as that default. At
+    removal, the text fields go and the typed fields default to ``()``, the typed form of
+    the released default, so a rule that never sets them keeps its meaning.
+
+    A rule also flows into a driver (``Nat.add_nat_rule``). A caller building one for a
+    write member fills both forms until removal: a driver not yet updated reads only the
+    text. A driver implementing a write member reads the typed form when it is filled,
+    else the text. A caller that fills only the typed form leaves the text at its
+    released default ``""``, and a driver not yet updated acts on that: no port.
+
+    ``src_cidr`` / ``dst_cidr`` ``""`` and ``translated_src`` / ``translated_dst``
+    ``""`` will become ``str | None``, with ``None`` meaning absent; ``""`` means
+    absent until then.
+
     Match criteria default to ``""`` meaning "any". *interface* is the
     egress interface for snat / 1to1, the ingress interface for dnat;
     drivers may also accept a logical name resolved via ``IpInterface``.
     """
 
     name: str
-    mode: str
+    mode: NatMode | str
     interface: str
-    protocol: str = "any"
+    protocol: RuleProtocol | str = "any"
     src_cidr: str = ""
     dst_cidr: str = ""
-    dst_port: str = ""
+    dst_port: str | None = ""
     translated_src: str = ""
     translated_dst: str = ""
-    translated_port: str = ""
+    translated_port: str | None = ""
     enabled: bool = True
+    dst_ports: tuple[PortRange, ...] | None = field(default=None, kw_only=True)
+    translated_ports: tuple[PortRange, ...] | None = field(default=None, kw_only=True)
 
 
 @dataclass
@@ -81,7 +184,9 @@ class PortMapping:
     UPnP-IGD / PCP entry, or a vendor port-forward CLI — tests never
     need to know which.
 
-    *protocol* is one of ``"tcp"``, ``"udp"``, ``"tcp-udp"``.
+    *protocol* is a :class:`PortMappingProtocol` (``tcp``, ``udp``,
+    ``tcp-udp``). A plain ``str`` naming one is accepted and stored as given; the
+    field narrows to :class:`PortMappingProtocol` when the plain ``str`` form is removed.
     *external_interface* of ``None`` means "all external interfaces".
     *src_cidr* may restrict the mapping to a specific source range
     (firewall hardening); the default ``"0.0.0.0/0"`` accepts any source.
@@ -89,7 +194,7 @@ class PortMapping:
 
     name: str
     external_port: int
-    protocol: str
+    protocol: PortMappingProtocol | str
     internal_host: str
     internal_port: int
     external_interface: str | None = None
@@ -106,19 +211,22 @@ class Connection:
     the original direction; *bytes_reply* / *packets_reply* count the
     reverse path.
 
-    *state* is protocol-specific:
+    *protocol* is a :class:`~testprotocols.models.RuleProtocol`, never ``ANY``: a
+    flow has one transport. A plain ``str`` naming a member is accepted and stored as
+    given; the field narrows to :class:`~testprotocols.models.RuleProtocol` when the
+    plain ``str`` form is removed. *state* is the device's own word and is stored as
+    given. It is protocol-specific, for example:
 
-    - TCP: ``"SYN_SENT"``, ``"SYN_RECV"``, ``"ESTABLISHED"``,
-      ``"FIN_WAIT"``, ``"CLOSE_WAIT"``, ``"LAST_ACK"``, ``"TIME_WAIT"``,
-      ``"CLOSE"``, ``"LISTEN"``.
-    - UDP / ICMP / other: ``"UNREPLIED"``, ``"ASSURED"``, or
-      driver-specific values.
+    - TCP: ``SYN_SENT``, ``SYN_RECV``, ``ESTABLISHED``, ``FIN_WAIT``,
+      ``CLOSE_WAIT``, ``LAST_ACK``, ``TIME_WAIT``, ``CLOSE``, ``LISTEN``.
+    - UDP / ICMP / other: ``UNREPLIED``, ``ASSURED``, or a driver-specific
+      state.
 
     *translated_src* / *translated_dst* are populated (non-None) when NAT
     is altering this flow. *src_port* / *dst_port* are ``None`` for ICMP.
     """
 
-    protocol: str
+    protocol: RuleProtocol | str
     src_ip: str
     dst_ip: str
     src_port: int | None

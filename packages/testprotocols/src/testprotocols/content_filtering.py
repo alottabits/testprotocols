@@ -18,7 +18,8 @@ from __future__ import annotations
 
 from typing import Protocol, runtime_checkable
 
-from testprotocols.models.sdwan_appliance import ContentCategory
+from testprotocols._compat import deprecated
+from testprotocols.models.sdwan_appliance import ContentCategory, UrlRules
 
 
 @runtime_checkable
@@ -39,9 +40,26 @@ class ContentFiltering(Protocol):
         *allowed* takes precedence over both *blocked* and category blocks, per
         the usual content-filter precedence; the driver maps that intent to its
         product's allow/deny-list semantics.
+
+        A write that fails at any step, rejected or not verified, leaves the
+        as-found state: the URL rules as they were before the call.
         """
         ...
 
+    @deprecated(
+        "Deprecated: use read_url_rules. Removal not before the first release 6 "
+        "months after the release that deprecates it.",
+        category=None,
+    )
     def get_url_rules(self) -> tuple[list[str], list[str]]:
-        """Return ``(allowed, blocked)`` URL-pattern lists."""
+        """Return the ``(allowed, blocked)`` URL-pattern lists, the fields of
+        ``read_url_rules()`` as lists.
+
+        Deprecated: use :meth:`read_url_rules`. Removal not before the first release 6 months after
+        the release that deprecates it.
+        """
+        ...
+
+    def read_url_rules(self) -> UrlRules:
+        """Return the explicit allow / block URL-pattern lists."""
         ...

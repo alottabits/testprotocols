@@ -2,14 +2,17 @@
 
 from __future__ import annotations
 
+import inspect
+import warnings
 from unittest.mock import MagicMock
 
 import pytest
 from testoperations.iperf_generator import (
+    FlowPair,
     saturate_link,
     stop_all_generators,
 )
-from testprotocols.models.traffic import TrafficResult
+from testprotocols.models.traffic import TrafficResult, TransportProtocol
 
 
 def _peer(server_ip: str, flow_id: str) -> MagicMock:
@@ -34,7 +37,8 @@ class TestSaturateLink:
 
         peer_a.start_traffic.assert_called_once()
         peer_b.start_traffic.assert_called_once()
-        assert result == {"a_to_b": "flow-a", "b_to_a": "flow-b"}
+        assert result == FlowPair(a_to_b="flow-a", b_to_a="flow-b")
+        assert (result.a_to_b, result.b_to_a) == ("flow-a", "flow-b")
 
     def test_each_peer_targets_the_other_peers_server_ip(self) -> None:
         peer_a = _peer("PEER_A_ADDR", "flow-a")
@@ -82,13 +86,41 @@ class TestSaturateLink:
             a_to_b_mbps=50.0,
             dscp=46,
             duration_s=30,
-            protocol="tcp",
+            protocol=TransportProtocol.TCP,
         )
 
         a_spec = peer_a.start_traffic.call_args[0][0]
         assert a_spec.dscp == 46
         assert a_spec.duration_s == 30
         assert a_spec.protocol == "tcp"
+
+    def test_plain_protocol_text_warns_at_the_caller_and_converts(self) -> None:
+        peer_a = _peer("PEER_A_ADDR", "flow-a")
+        peer_b = _peer("PEER_B_ADDR", "flow-b")
+
+        with pytest.warns(DeprecationWarning, match="saturate_link.protocol") as record:
+            saturate_link(peer_a, peer_b, a_to_b_mbps=5.0, protocol="tcp")
+
+        assert record[0].filename == __file__
+        assert peer_a.start_traffic.call_args[0][0].protocol is TransportProtocol.TCP
+
+    def test_the_released_default_is_udp_and_does_not_warn(self) -> None:
+        default = inspect.signature(saturate_link).parameters["protocol"].default
+        assert default == "udp" and repr(default) == "'udp'"  # the released default
+        peer_a = _peer("PEER_A_ADDR", "flow-a")
+        peer_b = _peer("PEER_B_ADDR", "flow-b")
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+            saturate_link(peer_a, peer_b, a_to_b_mbps=5.0)
+        assert peer_a.start_traffic.call_args[0][0].protocol is TransportProtocol.UDP
+
+    def test_an_explicit_plain_udp_still_warns(self) -> None:
+        with pytest.warns(DeprecationWarning, match="saturate_link.protocol"):
+            saturate_link(_peer("A", "a"), _peer("B", "b"), a_to_b_mbps=5.0, protocol="udp")
+
+    def test_unknown_protocol_text_is_refused(self) -> None:
+        with pytest.raises(ValueError, match="icmp"):
+            saturate_link(_peer("A", "a"), _peer("B", "b"), a_to_b_mbps=5.0, protocol="icmp")
 
     def test_rejects_peers_resolving_to_same_ip(self) -> None:
         peer_a = _peer("PEER_A_ADDR", "flow-a")
@@ -129,3 +161,23 @@ class TestStopAllGenerators:
 
         result = stop_all_generators([gen1])
         assert result[0] == {"flow-a": r1}
+
+
+class TestFlowPairReleasedAccess:
+    def _pair(self) -> FlowPair:
+        return saturate_link(_peer("A", "flow-a"), _peer("B", "flow-b"), a_to_b_mbps=1.0)
+
+    def test_indexing_unpacking_and_equality_with_the_released_dict_still_work(self) -> None:
+        pair = self._pair()
+        with pytest.warns(DeprecationWarning):
+            assert pair["a_to_b"] == "flow-a"
+            assert pair["b_to_a"] == "flow-b"
+            assert pair == {"a_to_b": "flow-a", "b_to_a": "flow-b"}
+            assert dict(pair) == {"a_to_b": "flow-a", "b_to_a": "flow-b"}
+            assert pair.as_dict() == {"a_to_b": "flow-a", "b_to_a": "flow-b"}
+
+    def test_the_fields_never_warn(self) -> None:
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+            pair = self._pair()
+            assert pair.a_to_b == "flow-a"

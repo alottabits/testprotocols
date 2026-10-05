@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import warnings
 from unittest.mock import MagicMock
 
 from testoperations.tr069_server import is_cpe_online
@@ -26,3 +27,15 @@ class TestIsCpeOnline:
         acs.GPV.side_effect = Exception("unreachable")
         result = is_cpe_online(acs, "cpe-001")
         assert result is False
+
+
+def test_tr069_operations_call_the_released_rpcs() -> None:
+    acs = MagicMock(spec=["GPV"])  # an ACS with the released RPCs only
+    acs.GPV.return_value = [{"key": "InternetGatewayDevice.DeviceInfo.UpTime", "value": "42"}]
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        assert is_cpe_online(acs, "cpe-1") is True
+    acs.GPV.assert_called_once_with("InternetGatewayDevice.DeviceInfo.UpTime", cpe_id="cpe-1")
+
+    acs.GPV.side_effect = TimeoutError
+    assert is_cpe_online(acs, "cpe-1") is False

@@ -26,6 +26,7 @@ PROTOCOLS = [
             "set_default_policy",
             "get_default_policy",
             "get_rule_counters",
+            "get_rule_counter_values",
         },
     ),
     (
@@ -41,6 +42,7 @@ PROTOCOLS = [
             "set_default_policy",
             "get_default_policy",
             "get_rule_counters",
+            "get_rule_counter_values",
             # Port-forwarding additions
             "add_port_mapping",
             "remove_port_mapping",
@@ -62,6 +64,7 @@ PROTOCOLS = [
             "set_nat_rule_enabled",
             "flush_nat_rules",
             "get_nat_rule_counters",
+            "get_nat_rule_counter_values",
         },
     ),
     (

@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import Any
+
+from testprotocols._compat import deprecated
+from testprotocols.models.sdwan_appliance import UplinkState
 
 
 @dataclass
@@ -20,10 +23,18 @@ class PathMetrics:
 
 @dataclass
 class LinkStatus:
-    """Holds the current operational state and IP address of a WAN link."""
+    """Holds the current operational state and IP address of a WAN link.
+
+    *state* is an :class:`~testprotocols.models.UplinkState`; every member is
+    accepted (``up``, ``down`` and ``degraded`` are the common ones). A plain
+    ``str`` naming one is accepted and stored as given; the field narrows to
+    :class:`~testprotocols.models.UplinkState` when the plain ``str`` form is removed.
+    ``ip_address`` is ``""`` when the link has none; it will become
+    ``str | None``, and ``""`` means none until then.
+    """
 
     name: str
-    state: str  # "up" | "down" | "degraded"
+    state: UplinkState | str
     ip_address: str
 
 
@@ -38,6 +49,24 @@ class RouteOrigin(StrEnum):
     OSPF = "ospf"
     BGP = "bgp"
     LOCAL = "local"
+
+
+@dataclass(frozen=True)
+class Telemetry:
+    """A device's resource telemetry: uptime, CPU load and memory use.
+
+    *uptime_seconds* is the time since the device started, or ``None`` when the device
+    reports no uptime (a cloud-managed appliance's management API may not; see
+    ``GAPS.md``, 2026-06-11, "appliance health / online capability", whose recorded shape
+    for an uptime read is ``float | None``). It is required: a driver states ``None``
+    rather than leaving it out. *cpu_load_percent* and *mem_used_percent* are ``None``
+    when the device does not report them. Each value given is finite and not negative.
+    Returned by ``Router.read_telemetry``.
+    """
+
+    uptime_seconds: float | None
+    cpu_load_percent: float | None = None
+    mem_used_percent: float | None = None
 
 
 @dataclass
@@ -68,9 +97,16 @@ class SLAPolicy:
 
 @dataclass
 class LinkHealthReport:
-    """Holds a summary of link health including state, routing, metrics, and SLA compliance."""
+    """Holds a summary of link health including state, routing, metrics, and SLA compliance.
 
-    state: str
+    *state* is an :class:`~testprotocols.models.UplinkState`: ``up``, ``down``,
+    ``degraded``, or ``unknown`` when the product has no health data for the
+    link. A plain ``str`` naming one is accepted and stored as given; the field
+    narrows to :class:`~testprotocols.models.UplinkState` when the plain ``str`` form
+    is removed.
+    """
+
+    state: UplinkState | str
     route_installed: bool
     avg_rtt_ms: float | None
     jitter_ms: float | None
@@ -81,7 +117,11 @@ class LinkHealthReport:
 
 @dataclass
 class AppFlow:
-    """Holds per-application flow data observed on a WAN interface."""
+    """Holds per-application flow data observed on a WAN interface.
+
+    *category* is the product's own word, stored as given; the common ones are the
+    values of :class:`~testprotocols.models.ApplicationCategory`.
+    """
 
     application: str
     category: str
@@ -92,9 +132,21 @@ class AppFlow:
     bytes_received: int
 
 
+@deprecated(
+    "Deprecated, with no successor. Removal not before the first release 6 months after "
+    "the release that deprecates it.",
+    category=None,
+)
 @dataclass
 class VPNPeerStatus:
-    """Holds the reachability and uplink state of a VPN peer."""
+    """Holds the reachability and uplink state of a VPN peer.
+
+    No capability returns it. The site-to-site VPN capability reports
+    ``testprotocols.models.VpnPeerStatus``.
+
+    Deprecated, with no successor. Removal not before the first release 6 months after the
+    release that deprecates it.
+    """
 
     peer_id: str
     peer_name: str
@@ -102,15 +154,26 @@ class VPNPeerStatus:
     uplink: str
 
 
+@deprecated(
+    "Deprecated, with no successor. Removal not before the first release 6 months after "
+    "the release that deprecates it.",
+    category=None,
+)
 @dataclass
 class TrafficShapingRule:
     """Holds a traffic shaping rule.
 
     Includes match criteria and optional DSCP, bandwidth, or priority.
+
+    No capability takes or returns it. Traffic shaping uses
+    ``testprotocols.models.ShapingRule``.
+
+    Deprecated, with no successor. Removal not before the first release 6 months after the
+    release that deprecates it.
     """
 
     name: str
-    match: dict[str, Any]
+    match: Mapping[str, object]  # object: deprecated form kept until removal
     dscp_tag: int | None = None
     bandwidth_limit_kbps: int | None = None
     priority: str | None = None

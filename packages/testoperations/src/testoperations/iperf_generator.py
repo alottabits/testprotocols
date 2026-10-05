@@ -7,8 +7,31 @@ are deleted — step definitions call the template method directly.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+from typing import override
+
 from testprotocols.iperf_generator import IperfGenerator
-from testprotocols.models.traffic import TrafficResult, TrafficSpec
+from testprotocols.models.traffic import TrafficResult, TrafficSpec, TransportProtocol
+
+from testoperations._compat import ReleasedDefault, coerce_enum
+from testoperations._released import ReleasedMapping
+
+
+@dataclass(frozen=True, eq=False)
+class FlowPair(ReleasedMapping):
+    """The two flow ids :func:`saturate_link` started: *a_to_b* on the first peer, *b_to_a*
+    on the second.
+
+    Deprecated: reading the record like the released dict (``pair["a_to_b"]``,
+    :meth:`as_dict`, ``dict(pair)``) still works and warns.
+    """
+
+    a_to_b: str
+    b_to_a: str
+
+    @override
+    def _released(self) -> dict[str, object]:
+        return {"a_to_b": self.a_to_b, "b_to_a": self.b_to_a}
 
 
 def _assert_distinct_peers(peer_a: IperfGenerator, peer_b: IperfGenerator) -> None:
@@ -32,7 +55,7 @@ def _flow_spec(
     bandwidth_mbps: float,
     dscp: int,
     duration_s: int,
-    protocol: str,
+    protocol: TransportProtocol | str,
 ) -> TrafficSpec:
     """Build a TrafficSpec whose destination is *destination_peer*'s server_ip."""
     return TrafficSpec(
@@ -44,6 +67,10 @@ def _flow_spec(
     )
 
 
+_UDP = ReleasedDefault("udp")
+"""``saturate_link``'s released ``protocol`` default."""
+
+
 def saturate_link(
     peer_a: IperfGenerator,
     peer_b: IperfGenerator,
@@ -51,8 +78,8 @@ def saturate_link(
     b_to_a_mbps: float | None = None,
     dscp: int = 0,
     duration_s: int = 120,
-    protocol: str = "udp",
-) -> dict[str, str]:
+    protocol: TransportProtocol | str = _UDP,
+) -> FlowPair:
     """Saturate the network path between two peer generators with bidirectional traffic.
 
     The caller passes two generator objects; each generator is asked to send
@@ -77,16 +104,21 @@ def saturate_link(
         *a_to_b_mbps* for symmetric load.
     :param dscp: DSCP code point for both flows (default 0 = best-effort).
     :param duration_s: Flow duration in seconds (default 120).
-    :param protocol: ``"udp"`` (default) or ``"tcp"``.
-    :return: ``{"a_to_b": <flow_id_on_peer_a>, "b_to_a": <flow_id_on_peer_b>}``.
+    :param protocol: a :class:`~testprotocols.models.traffic.TransportProtocol` (default
+        ``"udp"``, the released default, which does not warn); a plain ``"udp"`` / ``"tcp"``
+        passed by the caller is deprecated and warns.
+    :return: a :class:`FlowPair`: ``a_to_b`` is the flow id on *peer_a*, ``b_to_a`` the flow id on
+        *peer_b*. (The released dict, keyed ``"a_to_b"`` / ``"b_to_a"``, still reads through
+        the record with a ``DeprecationWarning``.)
     :raises ValueError: if ``peer_a.server_ip == peer_b.server_ip``.
     """
     _assert_distinct_peers(peer_a, peer_b)
+    protocol = coerce_enum(TransportProtocol, protocol, what="saturate_link(protocol)")
     if b_to_a_mbps is None:
         b_to_a_mbps = a_to_b_mbps
     a_to_b = peer_a.start_traffic(_flow_spec(peer_b, a_to_b_mbps, dscp, duration_s, protocol))
     b_to_a = peer_b.start_traffic(_flow_spec(peer_a, b_to_a_mbps, dscp, duration_s, protocol))
-    return {"a_to_b": a_to_b, "b_to_a": b_to_a}
+    return FlowPair(a_to_b=a_to_b, b_to_a=b_to_a)
 
 
 def stop_all_generators(

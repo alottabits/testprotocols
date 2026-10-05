@@ -12,11 +12,13 @@ from __future__ import annotations
 
 from typing import Any, Protocol, runtime_checkable
 
+from testprotocols._compat import deprecated
 from testprotocols.models.wan_edge import (
     LinkHealthReport,
     LinkStatus,
     PathMetrics,
     RouteEntry,
+    Telemetry,
 )
 
 
@@ -44,8 +46,24 @@ class Router(Protocol):
         """Return a comprehensive health report for the named WAN link."""
         ...
 
-    def get_telemetry(self) -> dict[str, Any]:
-        """Return a dict of current device telemetry data."""
+    def read_telemetry(self) -> Telemetry:
+        """Return the device's current resource telemetry: uptime, CPU load and
+        memory use (:class:`~testprotocols.models.Telemetry`)."""
+        ...
+
+    @deprecated(
+        "Deprecated: use read_telemetry. Removal not before the first release 6 "
+        "months after the release that deprecates it.",
+        category=None,
+    )
+    def get_telemetry(self) -> dict[str, Any]:  # type: ignore[explicit-any]  # released signature kept until removal
+        """Return a dict of current device telemetry data: the keys ``uptime_seconds``,
+        ``cpu_load_percent`` and ``mem_used_percent`` (a key is absent when the device
+        does not report it), the reported fields of ``read_telemetry()``.
+
+        Deprecated: use :meth:`read_telemetry`. Removal not before the first release 6 months after
+        the release that deprecates it.
+        """
         ...
 
     def get_routing_table(self) -> list[RouteEntry]:

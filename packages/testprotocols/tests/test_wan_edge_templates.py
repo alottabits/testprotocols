@@ -20,6 +20,7 @@ PROTOCOLS = [
             "get_wan_path_metrics",
             "get_link_health",
             "get_telemetry",
+            "read_telemetry",
             "get_routing_table",
         },
     ),

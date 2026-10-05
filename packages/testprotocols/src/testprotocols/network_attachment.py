@@ -47,7 +47,10 @@ class NetworkAttachment(Protocol):
         """Declared segment LABEL of a guest attachment — a stable role name
         (e.g. ``"provider-vpn"``), never an address — empty for managed homing
         or when undeclared. Lets tests resolve "the endpoint on segment X" by
-        declaration when address facts are foreign-owned or discovered late."""
+        declaration when address facts are foreign-owned or discovered late.
+
+        Announced only: ``""`` means undeclared today and becomes ``str | None``,
+        with ``None`` meaning undeclared, in a later release."""
         ...
 
     @property

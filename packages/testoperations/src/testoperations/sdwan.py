@@ -11,8 +11,11 @@ from __future__ import annotations
 
 import time
 
+from testprotocols.models.impairment import Blackout
 from testprotocols.netem_controller import NetemController
 from testprotocols.router import Router
+
+from testoperations._renamed import inject
 
 
 def measure_failover_convergence(
@@ -24,9 +27,11 @@ def measure_failover_convergence(
     """Inject a blackout on *netem_controller* and measure how long it takes for
     *router* to switch away from *impaired_wan*.
 
-    Returns elapsed milliseconds until the active WAN interface changes.
+    Returns elapsed milliseconds until the active WAN interface changes. The blackout is
+    ``inject_event(Blackout(), timeout_ms)``; a driver without ``inject_event`` gets the
+    released ``inject_transient("blackout", timeout_ms)``.
     """
-    netem_controller.inject_transient("blackout", timeout_ms)
+    inject(netem_controller, Blackout(), timeout_ms, {})
 
     start = time.monotonic()
     while True:
