@@ -410,6 +410,12 @@ Concretely:
   `SecurityAction{ALLOWED,BLOCKED,DETECTED}`, `ThreatCategory{…}`,
   `SyslogRole{…}`. Enums grow by adding members **on test evidence**, never per
   vendor.
+
+  (Correction of the record: the `UplinkState` list above read
+  `{UP,DOWN,STANDBY,NOT_CONNECTED}`, but `DEGRADED` was already a member, added by
+  the cross-vendor review recorded earlier in this document, so the old list was
+  wrong. Only `UNKNOWN` is new, from the precise-types change, PR #73. Listing
+  `DEGRADED` is not a design change.)
 - **Taxonomies are normalized key sets owned by `testprotocols`** —
   `ContentCategory` and `ApplicationCategory`. A test blocks
   `ContentCategory.GAMBLING` or an `ApplicationCategory` member — **never a

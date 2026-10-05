@@ -137,7 +137,10 @@ operations of one concern into one capability, never one capability per verb.
   there at run time; a `testoperations` operation's own released form
   warns at its caller (`_compat.coerce_enum`, `_released.ReleasedMapping`).
   A consumer reads a text/typed field pair
-  through the public `testoperations.pairs` readers.
+  through the public `testoperations.pairs` readers. A released record
+  field may be widened to `… | None` without a period only under the
+  no-period exception, whose two conditions are stated in
+  `docs/architecture/precise-types-design.md` ("The no-period exception").
 - **Operations honour the period.** A published `testoperations` operation
   that calls a renamed or retyped member keeps working with a driver that has
   only the old form, for the whole period: it uses the new form when the

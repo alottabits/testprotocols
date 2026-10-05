@@ -348,6 +348,9 @@ retyped member accepts a driver with only the old form until the old form
 is removed. `testprotocols` carries no runtime transition code, so nothing
 warns there at run time; a `testoperations` operation's own released form
 warns at its caller (`_compat.coerce_enum`, `_released.ReleasedMapping`).
+A released record field may be widened to `… | None` without a period only
+under the no-period exception, whose two conditions are stated in
+`docs/architecture/precise-types-design.md` ("The no-period exception").
 How a rename or a retype keeps both forms alive is in
 `docs/proposals/README.md` ("The placement ladder", rung 5).
 

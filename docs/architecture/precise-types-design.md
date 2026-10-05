@@ -65,7 +65,17 @@ neither a twin field (C3) nor a rename-then-reclaim keeps the released form usab
 twin would leave the released field required and still unfillable). The change is
 recorded under *Breaking for driver authors* with its migration line. The one instance:
 `WifiRadioStats.tx_retries` and `tx_failed` (`int` to `int | None`). TR-181 gives retry
-counters per SSID, not per radio; Wi-Fi Data Elements has no radio counters; one
+counters per SSID, not per radio; Wi-Fi Data Elements has no radio counters (checked
+against TR-181 Issue 2 Amendment 21, data model `Device:2.21`, file
+`tr-181-2-21-0-usp-full.xml` at `https://usp-data-models.broadband-forum.org/`):
+`Device.WiFi.SSID.{i}.Stats.` holds `RetransCount`, `FailedRetransCount`, `RetryCount`
+and `MultipleRetryCount` (as does `Device.WiFi.AccessPoint.{i}.AssociatedDevice.{i}.Stats.`,
+per station); `Device.WiFi.Radio.{i}.Stats.` holds no retry or failed-retransmission
+counter (its `ErrorsSent` and `DiscardPacketsSent` count packets not sent because of
+errors or discards, not retries); and the Data Elements radio object,
+`Device.WiFi.DataElements.Network.Device.{i}.Radio.{i}.`, holds no frame counter, only
+channel-time shares (`Utilization`, `Transmit`, `ReceiveSelf`, `ReceiveOther`), with
+retries reported per station (`...Radio.{i}.BSS.{i}.STA.{i}.RetransCount`). One
 reviewed access-point family gives no retries and another no radio counters
 (`precise-types-families.md`, "Wi-Fi"). The released `int` therefore forces a driver for
 those families to report `0`, a false fact, and a twin field would keep that required
@@ -365,7 +375,7 @@ where one exists, also records its retype.
   driver's own `str`, and may leave the radio operating further modes as well.
   `get_mode -> str` is shape 5: a radio operates a set of modes at once (TR-181
   `Device.WiFi.Radio.{i}.OperatingStandards` is a list), so the new mandatory member
-  `get_modes(band) -> frozenset[WifiPhyMode]` replaces it (breaking for driver authors)
+  `get_modes(band: WifiBand) -> frozenset[WifiPhyMode]` replaces it (breaking for driver authors)
   and `get_mode` keeps its released `str`; `testoperations` does not call either.
   `list_radios` and `get_bandwidth` returns are announced (shape 6).
   `WifiSecurityMode.WPA3_EAP_192` is the WPA3-Enterprise 192-bit mode (CNSA suite,
