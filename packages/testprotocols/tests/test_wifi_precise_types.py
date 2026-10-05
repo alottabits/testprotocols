@@ -261,3 +261,19 @@ def test_client_channel_is_int_or_str_and_supported_channels_is_new() -> None:
 
 def test_easymesh_message_type_stays_str() -> None:
     assert _hints(WifiMeshWhiteBox.get_raw_easymesh_tlvs)["message_type"] == str | None
+
+
+def test_radio_stats_retry_counts_may_be_unreported() -> None:
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        stats = WifiRadioStats(WifiBand.GHZ_5, 1, 2, 3, 4, None, None)
+    assert stats.tx_retries is None
+    assert stats.tx_failed is None
+    fields = dataclasses.fields(WifiRadioStats)
+    assert [f.name for f in fields[5:7]] == ["tx_retries", "tx_failed"]
+    h = _hints(WifiRadioStats)
+    assert h["tx_retries"] == int | None
+    assert h["tx_failed"] == int | None
+    for f in fields[5:7]:
+        assert f.default is dataclasses.MISSING
+        assert f.default_factory is dataclasses.MISSING

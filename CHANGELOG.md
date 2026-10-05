@@ -136,6 +136,13 @@ their tags and PR history.
   `WifiBssConfig.security_mode` / `mfp`, `WifiAcl.mode` and the `role` of
   `WifiMeshStatus` and `WifiMeshNode` — now `E | str` (the enum or its released word,
   stored as given), so a reader sees `E | str`. Design `docs/architecture/precise-types-design.md`; PR pending.
+- **fields** `testprotocols.models:WifiRadioStats.tx_retries` and `tx_failed` — now
+  `int | None` (released: `int`), still required and in their released positions; `None` when
+  the device reports no per-radio count (TR-181 and Wi-Fi Data Elements define none, and not
+  every access-point API reports one), never `0` as a stand-in. A reader now sees `int | None`
+  and handles `None`. A type change of a released field, with no deprecation period. Migration:
+  readers check for `None`; a driver whose device reports no per-radio count fills `None`.
+  Design `docs/architecture/precise-types-design.md` (Wi-Fi vocabularies); PR pending.
 - **model** `testprotocols.models:HTTPResult` — now a frozen dataclass (released: a plain
   class). Its attributes are read-only, so assigning one raises `FrozenInstanceError`, and
   equality is by value (released: by identity). A driver that assigns attributes of a result,

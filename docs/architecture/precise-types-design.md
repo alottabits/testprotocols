@@ -311,7 +311,11 @@ where one exists, also records its retype.
   Suite B). `WifiBss.create_bss` and `set_security` state that the WPA3-only modes
   (`WPA3_SAE`, `WPA3_EAP`, `WPA3_EAP_192`), `OWE` and any BSS on 6 GHz require
   management-frame protection, so a driver applies `REQUIRED` whatever `mfp` says
-  and the read-back reports `REQUIRED`. `WifiStation.capability_flags`
+  and the read-back reports `REQUIRED`. `WifiRadioStats.tx_retries` and `tx_failed`
+  become `int | None` (no deprecation shape: a released field's type widens at once,
+  breaking for driver authors; still required, in their released positions): TR-181 and
+  Wi-Fi Data Elements define no per-radio retry or failed count and not every
+  access-point API reports one, so `None` means not reported, never `0` as a stand-in. `WifiStation.capability_flags`
   stays `list[str]`: the device's own words (`HT`, `VHT`, `HE`, `EHT`, `MLO` and
   whatever else the driver reports), listed in the docstring.
   `WifiClient.iwlist_supported_channels -> list[str]` is shape 5: the new mandatory

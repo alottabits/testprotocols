@@ -208,15 +208,19 @@ class WifiChannelUtilization:
 
 @dataclass
 class WifiRadioStats:
-    """Cumulative per-radio TX/RX/retry counters. *band* is a :class:`WifiBand`."""
+    """Cumulative per-radio TX/RX/retry counters. *band* is a :class:`WifiBand`.
+
+    ``tx_retries`` and ``tx_failed`` are ``None`` when the device reports no per-radio
+    count (TR-181 and Wi-Fi Data Elements define none); ``0`` is never a stand-in.
+    """
 
     band: WifiBand | str
     tx_bytes: int
     rx_bytes: int
     tx_packets: int
     rx_packets: int
-    tx_retries: int  # retransmitted frames
-    tx_failed: int  # frames the driver gave up on (max retries exceeded)
+    tx_retries: int | None  # retransmitted frames; None: no per-radio count reported
+    tx_failed: int | None  # frames given up on (max retries exceeded); None: not reported
 
 
 @dataclass
