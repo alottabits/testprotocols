@@ -5,7 +5,7 @@
 | Date | 2026-10-05 |
 | Use case | `—` (maintainer-originated, no consumer use-case id) — static conformance checking of driver implementations against the capability protocols |
 | Round | 2 |
-| Status | `under review` |
+| Status | `accepted with conditions` |
 
 ## Scope
 
@@ -31,7 +31,10 @@ precise types, without breaking a caller or a driver in one step:
 The release that carries it is a MINOR release: it adds 26 mandatory protocol members
 (listed per item and under *Breaking for driver authors* in the changelog). An
 implementer that cannot support one yet adds a one-line stub raising
-`NotSupportedError`.
+`NotSupportedError`. The same section records, each with its migration line, the other
+changes an implementer must follow without a period: the new keyword-only parameters on
+three released members (P8), the widened `send_mldv2_report` parameter (P8) and P1's one
+no-period field widening (P6).
 
 Item P1 is cross-cutting (the contract model and its enforcement); P2 to
 P11 are grouped by capability family; P12 is the `testoperations` side. Member and field names are exact, so the `feat:` PR can be checked
@@ -99,8 +102,9 @@ Two further needs follow from the rule.
   after the release that deprecates it.", and `@deprecated("<the same sentence>",
   category=None)`, imported from the internal `testprotocols._compat` (see "The marker
   without a dependency" below). The type checkers report each use: pyright in strict
-  mode, and mypy with `enable_error_code = deprecated`, which this workspace's
-  `pyproject.toml` enables. Nothing warns at run time. A deprecated parameter or field
+  mode, and mypy with the `deprecated` error code, which this workspace's
+  `pyproject.toml` enables (see "The checker configuration" below). Nothing warns at run
+  time. A deprecated parameter or field
   cannot carry the marker; its docstring states it. A released plain attribute
   (`HTTPResult.code`, P8) cannot carry it either, because a property in its place would
   make it read-only; its docstring and the Deprecations table state it, and the checkers
@@ -154,6 +158,13 @@ Two further needs follow from the rule.
   change is recorded under *Breaking for driver authors* with its migration line. The one
   instance is `WifiRadioStats.tx_retries` / `tx_failed` (P6).
 
+C4 and C5 settle the gating question that GAPS 2026-06-11 ("migrate legacy bare-`str`
+value fields to typed vocabularies") records to "decide before writing code": (A)
+annotation plus checker only, as `models/sdwan_appliance.py` already does, or (B)
+`__post_init__` coercion in every record. This item decides (A): a typed vocabulary is an
+annotation the checkers enforce, a record converts and validates nothing at run time, and a
+driver converts once at its boundary.
+
 Every deprecation is one row of a Deprecations table (item, replacement, kind,
 deprecated in, earliest removal) in `docs/architecture/precise-types-design.md`; the
 changelog *Deprecated* sections list exactly those rows. Removal is in the first release
@@ -194,14 +205,17 @@ declares no dependency, and checks which marker is in use on each Python version
   become call protocols (P12).
 - `Any` exemptions are released signatures only, marked on the `def` line, in two
   classes.
-  - **(a) Deprecation period, 9 lines**, marker `# type: ignore[explicit-any]  # released
+  - **(a) Deprecation period, 10 lines**, marker `# type: ignore[explicit-any]  # released
     signature kept until removal`: the deprecated forms whose released `dict[str, Any]` /
     `list[Any]` output stays readable until removal: `IpRouting.ping`
     (`json_output=True`), `DnsClient.dns_lookup`, `NmapScanner.nmap`,
     `DeviceManagement.get_running_processes`, `DeviceManagement.read_event_logs`,
     `SipServer.get_rtpengine_stats`, `get_mwi_status`, `get_offline_messages` and
-    `Router.get_telemetry` (deprecated in P4, P7, P8 and P11). Each line goes with its
-    member at removal, and the pinned count drops with it.
+    `Router.get_telemetry` (deprecated in P4, P7, P8 and P11); and the released parameter
+    `SipServer.verify_sip_message(since: Any = None)`, whose narrowing to `datetime | None`
+    is announced (P7; marked on the `def` line that opens the multi-line signature). Each
+    line goes with its member, form or narrowing at removal, and the pinned count drops
+    with it.
   - **(b) Compatibility, 16 lines**, live members, not tied to a removal.
     `HwConsole.flash_via_bootloader` (two framework-object parameters) and
     `PcapCapture.start_tcpdump(filters: dict[str, Any])`, marker `# released parameter
@@ -227,9 +241,27 @@ declares no dependency, and checks which marker is in use on each Python version
     3 lines in `testprotocols` (`DhcpServer.provision_cpe`, `DHCPTraceData.dhcp_packet`,
     `DHCPV6TraceData.dhcpv6_packet`), 0 in `testoperations`.
   - Replaced rather than marked, because a precise type exists: `Console.sendline` returns
-    `int` (P11), and `iter_json_docs` returns `list[dict[str, JsonValue]]` (P12).
+    `int` (P11), `iter_json_docs` returns `list[dict[str, JsonValue]]`, and the released
+    public alias `testoperations.throughput.JsonObj` keeps its name as
+    `Mapping[str, JsonValue]` (was `Mapping[str, object]`) (P12).
+- Removed rather than exempted: the one explicit `Any` outside a signature, the
+  `cast("Any", protocol)` with which the device registry (`testprotocols.devices`) read a
+  protocol's member names. It reads them with `typing.get_protocol_members` on Python 3.13
+  and later, and on 3.12 through a cast to a one-member private protocol over
+  `__protocol_attrs__`, the attribute that function reads; the member sets are identical
+  on both versions.
+- The counts per package, as the ratchet pins them: `testprotocols` has 10 class (a) and
+  16 class (b) `Any` lines and no other explicit `Any`, and 4 class (a) and 3 class (b)
+  `object` lines; `testoperations` has no `Any` line and 6 class (a) `object` lines.
 - If `start_tcpdump` is later deprecated in favour of a renamed member, its exemption
   moves to class (a).
+
+*The checker configuration.* The workspace `pyproject.toml` runs pyright in strict mode
+with `reportDeprecated = "error"`, and mypy in strict mode with `enable_error_code =
+["explicit-override", "exhaustive-match", "deprecated"]` and `disallow_any_explicit` for
+both packages. The dev group requires `mypy>=1.17` (was `>=1.10`): `deprecated` came in
+mypy 1.14 and `exhaustive-match` in 1.17, and an unknown code in `enable_error_code` fails
+the run. `CONTRIBUTING.md` and the design record state the floor.
 
 **Mechanism**: deprecate
 P1 adds no protocol member. It amends the rung-5 deprecation procedure
@@ -245,8 +277,8 @@ deprecate them.
 `docs/proposals/README.md` (rung-5 text: Rename, Retype values going in, The deprecation
 period) and `docs/architecture/precise-types-design.md` (the rules, the no-period
 exception, the four findings, the exemption policy); `testprotocols._compat`; the checker
-configuration in the workspace `pyproject.toml` (no explicit `Any`; the `deprecated` error
-code); the ratchet test in `testprotocols` and the markers on the exempt lines. The
+configuration in the workspace `pyproject.toml` (no explicit `Any`; the `deprecated` and
+`exhaustive-match` error codes; the dev group's `mypy>=1.17`); the ratchet test in `testprotocols` and the markers on the exempt lines. The
 `feat:` PR touches decision files and takes the second review that implies.
 
 **Affected**: every consumer that pins the next MINOR (type checkers report each use of a
@@ -265,8 +297,9 @@ public signature fails the ratchet (and, for `Any`, the checker).
   The marker is the standard one (PEP 702, `warnings.deprecated` from Python 3.13,
   backported in `typing_extensions`, whose stubs the type checkers bundle). pyright
   reports it under `reportDeprecated` (an error by default in strict mode); mypy reports
-  it under the `deprecated` error code, which is not on by default (not under strict
-  either) and which this workspace enables. The stack-level failure cited under Need was
+  it under the `deprecated` error code (mypy 1.14 and later), which is not on by default
+  (not under strict either) and which this workspace enables. mypy's `exhaustive-match`
+  error code is mypy 1.17 and later. The stack-level failure cited under Need was
   observed on CPython 3.12 against 3.13.
 - TR-069 (Broadband Forum CWMP): the RPC methods carry parameter names from the TR-098 /
   TR-181 data models, which explicitly allow vendor-specific objects and parameters
@@ -297,7 +330,7 @@ transport and is reused; no other existing model holds a port range or a counter
 **Proposed design**:
 
 - New enums in `testprotocols.models`: `Chain` (`INPUT`, `OUTPUT`, `FORWARD`),
-  `FirewallRuleAction` (`ALLOW`, `DENY`, `REJECT`, `LOG`), `NatMode` (`SNAT`, `DNAT`,
+  `FirewallRuleAction` (`ALLOW`, `DENY`, `REJECT`, `LOG`, `ALERT`), `NatMode` (`SNAT`, `DNAT`,
   `ONE_TO_ONE = "1to1"`), `PortMappingProtocol` (`TCP`, `UDP`, `TCP_UDP = "tcp-udp"`),
   `DefaultAction` (`ACCEPT`, `DROP`, `REJECT`). Every value is the released spelling.
 - `FirewallRuleAction` is a vocabulary of its own, not the existing `RuleAction`
@@ -309,7 +342,16 @@ transport and is reused; no other existing model holds a port range or a counter
   `set_default_policy` takes as released), not what a rule does. `SecurityAction`
   (`allowed`, `blocked`, `detected`) is what the appliance did about a security event, an
   observation rather than a rule action. Each enum's values are the released spellings of
-  the fields it types.
+  the fields it types. The separate enums follow the line GAPS 2026-06-11 ("migrate legacy
+  bare-`str` value fields to typed vocabularies") already records: "Do not unify the
+  action vocabularies: `FirewallRule.action` (…), `Zone`/`ZonePolicy.action` (…), and
+  appliance `RuleAction` (…) are three distinct sets — keep separate enums."
+- `FirewallRuleAction.ALERT` settles the reconciliation the same GAPS entry records: a
+  released implementer emits an undocumented `"alert"` for `FirewallRule.action`, and "a
+  strict enum must include `ALERT` or [the implementer] must change to `LOG`". The enum
+  includes it, with a docstring line saying a released implementer reports this value, so
+  the value stays valid when `FirewallRuleAction | str` narrows to `FirewallRuleAction`;
+  no implementer has to change its output.
 - New records: `PortRange(first: int, last: int)` (frozen, inclusive, `1 <= first <= last
   <= 65535` stated; `PortRange.single(port)`); `RuleCounters(packets: int, bytes: int)`
   (frozen, not negative).
@@ -530,7 +572,8 @@ the two orphan deprecations; `GAPS.md` updates the two 2026-06-11 entries.
 reader that compares against named members is unchanged, the released `UplinkState` had
 no unknown member (so a released driver that type-checks does not produce one there), and
 an `UplinkState` member is still its string. A reader that matches every member exhaustively (mypy's
-`exhaustive-match` error code, which this workspace enables, or a pyright exhaustiveness
+`exhaustive-match` error code, mypy 1.17 and later, which this workspace enables and whose
+version the dev group's `mypy>=1.17` floor guarantees (P1), or a pyright exhaustiveness
 check) is told statically to handle the new case. `testoperations` calls neither
 `get_telemetry` nor the orphans, and reads no `UplinkState`.
 
@@ -649,6 +692,19 @@ covers any of them.
 - Fields (shape 3): `band` of `WifiBssConfig`, `WifiStation`, `WifiNeighbor`,
   `WifiChannelUtilization`, `WifiRadioStats`, `WifiMeshLink`; `WifiBssConfig.security_mode`
   / `mfp`; `WifiAcl.mode`; `role` of `WifiMeshStatus`, `WifiMeshNode`.
+- `WifiBssConfig.security_mode` lifts a recorded deferral. GAPS 2026-06-11 ("migrate
+  legacy bare-`str` value fields to typed vocabularies") lists it among the
+  "vendor-divergent / undocumented fields … not enum-safe … defer until a test needs
+  them". The lift is argued on three points. The entry's own trigger is met: "touching a
+  given legacy capability for other reasons", and this item retypes the `WifiBss`
+  parameters that write the same value (`create_bss(security_mode)`, `set_security(mode)`)
+  and the other fields of the same record. `WifiSecurityMode | str` leaves every unmatched
+  value readable: a mode no member names stays the driver's own `str`, stored as given,
+  and only the narrowing step (after the period) needs a member for it. The modes with no
+  member are recorded as gaps (the security-mode line of "Known gaps" below, in `GAPS.md`
+  2026-10-05), so the narrowing is decided on that record, not assumed.
+  `WifiNeighbor.security_mode`, a best-effort identification of a foreign network, stays
+  deferred (left as text, below).
 - Management-frame protection forced by the security mode (a docstring rule on
   `WifiBss.create_bss` and `set_security`): `WPA3_SAE`, `WPA3_EAP`, `WPA3_EAP_192` (the
   WPA3-only modes), `OWE`, and any security mode on a BSS on 6 GHz require MFP. For these a
@@ -845,7 +901,8 @@ and the contract cannot express"):
 **Need**: `SipPhone.wait_for_state` takes a free `str` over the closed set of call states
 its own `is_*` predicates define. `SipServer.get_rtpengine_stats`, `get_mwi_status` and
 `get_offline_messages` return dicts, the last with a time stamp as text.
-`SipServer.verify_sip_message(since: Any)`. No existing model covers any of them.
+`SipServer.verify_sip_message(since: Any)` is documented as a timestamp or marker. No
+existing model covers any of them.
 
 **Proposed design**:
 
@@ -866,10 +923,14 @@ its own `is_*` predicates define. `SipServer.get_rtpengine_stats`, `get_mwi_stat
   `read_offline_messages(user: str) -> list[OfflineMessage]`. The three old names are
   deprecated; a driver keeps them, returning the record's fields as the released dict
   (`get_offline_messages` may keep returning the stored time text unchanged).
-- `SipServer.verify_sip_message(message_type: str, since: datetime | None)` (was
-  `since: Any`; an implementer may keep `Any`, which still conforms). Its docstring no
-  longer names a product's log path or a testbed's log path: the channel is the log the
-  SIP server itself writes, or a testbed log that collects it.
+- `SipServer.verify_sip_message(message_type: str, since: Any = None)` keeps its
+  released parameter annotation under exemption class (a) of P1, as `HwConsole.get_console`
+  keeps its released return (P11). The narrowing to `datetime | None` is announced (shape
+  6): a docstring line and a Deprecations table row, earliest removal the first release 6
+  months after the release that deprecates it. Until then a caller passing a text marker
+  and an implementer declaring a narrower or other type both still type-check. Its
+  docstring no longer names a product's log path or a testbed's log path: the channel is
+  the log the SIP server itself writes, or a testbed log that collects it.
 - Left as `str` on evidence: presence statuses (`set_presence`, `notify_presence`,
   `get_user_presence`) and `verify_sip_message(message_type)` (SIP methods, response codes
   and log markers): the provider's own words, listed in the docstrings. An `int` for a
@@ -877,16 +938,18 @@ its own `is_*` predicates define. `SipServer.get_rtpengine_stats`, `get_mwi_stat
   declaring `str` fail to conform.
 
 **Mechanism**: extend
-Three new mandatory members. The `PhoneState` and `since` retypes are rung-5 `deprecate`
-changes in the same release.
+Three new mandatory members. The `PhoneState` retype and the announced `since` narrowing
+are rung-5 `deprecate` changes in the same release; nothing in this item changes a
+released signature without a period.
 
 **Placement**: promote (maintainer change; implementation on `feat/precise-types`) —
 `testprotocols.sip_phone`, `testprotocols.sip_server`, `testprotocols.models`
 (`voice.py`).
 
 **Affected**: implementers of `SipServer` (three new members); callers of
-`wait_for_state`; a caller that passed a text marker as `since` (outside the typed
-contract; no longer type-checks). `testoperations` calls none of these members.
+`wait_for_state`; at the announced narrowing (not now), a caller that passes a text
+marker as `since` and an implementer whose declared `since` does not accept
+`datetime | None`. `testoperations` calls none of these members.
 
 **Neutrality evidence**: No reviewed-family list was recorded for the voice domain before
 this proposal; the reviewed-family list it records, in
@@ -999,7 +1062,14 @@ ARP entry.
 **Mechanism**: extend
 Five new mandatory members and new keyword-only parameters on three members (a
 declaration without them is reported by the checkers), and the widened `send_mldv2_report`
-parameter, which an implementer declaring `list` widens too. The vocabulary, option-string
+parameter, which an implementer declaring `list` widens too. The keyword-only parameters
+take no period: every released implementer of `HttpClient.curl`, `http_get` or
+`NmapScanner.nmap` stops conforming statically on upgrade. They are recorded under
+*Breaking for driver authors*, in the style of the `send_mldv2_report` entry, with the
+exact parameters (`curl` and `http_get`: `no_proxy: bool = False`, `insecure: bool =
+False`, `follow_redirects: bool = False`; `nmap`: `fast: bool = False`) and the migration
+line "add the keyword-only parameters to the implementation's signature (with the
+protocol's defaults); a declaration without them is reported by the checkers". The vocabulary, option-string
 and placeholder changes are rung-5 `deprecate` changes in the same release.
 
 **Placement**: promote (maintainer change; implementation on `feat/precise-types`) —
@@ -1009,7 +1079,8 @@ and placeholder changes are rung-5 `deprecate` changes in the same release.
 `multicast.py`).
 
 **Affected**: implementers of `DnsClient`, `IpRouting`, `NmapScanner`, `ArpClient`,
-`IpInterface` (new members) and of `HttpClient` / `NmapScanner` (new parameters);
+`IpInterface` (new members) and of `HttpClient` / `NmapScanner` (new keyword-only
+parameters, breaking for their declarations; *Breaking for driver authors*);
 implementers of `MulticastClient` that declare `list` (widen to `Sequence`); readers of
 `HTTPResult` (`status` and `body` added; `HTTPResult` itself unchanged);
 `testoperations.http_server` (P12).
@@ -1161,6 +1232,18 @@ profile's typed form.
   `MeasurementSpec.tool: QoeTool | str`, `completion: QoeCompletion | PageCompletion |
   str`; the defaults stay the released words (`"udp"`, `"browser"`, `"networkidle"`).
   `QoEResult.protocol` stays `str` (the HTTP version as reported).
+- `MeasurementSpec.completion` lifts a recorded deferral. GAPS 2026-06-11 ("migrate legacy
+  bare-`str` value fields to typed vocabularies") lists it among the "vendor-divergent /
+  undocumented fields … not enum-safe … defer until a test needs them". The lift is argued
+  as for `WifiBssConfig.security_mode` (P6). The entry's own trigger is met ("touching a
+  given legacy capability for other reasons"): this item retypes `MeasurementSpec.tool`
+  and `QoeBrowser.measure_productivity(wait_until)`, which carries the same completion
+  words, in the same change. `QoeCompletion | PageCompletion | str` leaves every unmatched
+  value readable: a completion no member names stays the driver's own `str`, stored as
+  given. The completions with no member, or no form on a reviewed family, are recorded
+  (Families §6: Puppeteer's `networkidle2` has no `PageCompletion` counterpart, and
+  `commit` has no Puppeteer form), so the narrowing is decided on that record.
+  `QoEResult.protocol`, deferred by the same line, stays `str`.
 - Lever: `inject_event` has no state to read back; the observation that confirms it is the
   impairment seen on the path (the `testoperations` measurement around it), as for the
   released member. The member's docstring states this.
@@ -1287,6 +1370,12 @@ pexpect-based consoles (serial, SSH, telnet) for `Console`.
   actions; the two lists are the shared shape. Catalyst SD-WAN, Prisma SD-WAN and VeloCloud
   URL filtering were not checked for this item and are the first to check when the member
   next changes.
+- Forward note, not a change of this item: `ContentFiltering.set_url_rules` replaces two
+  pattern lists, which a reviewed appliance family realises in more than one device step.
+  It wants the failure-outcome sentence P3 and P5 give their list replaces (a write
+  failing at any step, rejected or not verified, leaves the as-found state). This item
+  changes only the read side (`read_url_rules`), so the sentence is added when the write
+  is next touched.
 - `Console`: the members the callers of returned consoles were seen to use
   (`execute_command`, `sendline`, `before`, `start_interactive_session`) in a released
   implementer framework's CPE libraries and the released example implementers; a
@@ -1350,6 +1439,10 @@ released form for the whole period.
 - `iter_json_docs -> list[dict[str, JsonValue]]` (was `list[Any]`): each document is a
   JSON object, and `JsonValue` (new and public in `testoperations.throughput`) is the
   recursive type of a parsed JSON value; `sender_life_record(iperf_client: IperfClient)`.
+  The released public alias `JsonObj` (`Mapping[str, object]`, a module-level `object`
+  that P1 counts) keeps its name and becomes `Mapping[str, JsonValue]`: `JsonValue` types
+  it precisely, so it needs no exemption. A value of the alias still passes where
+  `Mapping[str, object]` is expected (recorded under *Changed*).
 
 **Mechanism**: deprecate
 The released `str` parameters and dict returns are retyped with a deprecation period
@@ -1446,6 +1539,49 @@ is. "Design" is `docs/architecture/precise-types-design.md`; "Families" is
 | C30 (P11) | Recorded that `Console` is a returned-object contract, not a capability. | P11; Families §8 |
 | C31 (P12) | `start_iperf`'s required `host=` has a *Consumer action* entry with a migration line. | P12; CHANGELOG *Consumer action* |
 | C32 (P12) | The caller search covers the released implementers only; the closing section is a forward condition on the archetypes that later reach these capabilities. | P12 Neutrality evidence; "Reference implementations and verification" |
+
+## Round 2 — response to the round-two conditions
+
+The round-two review approved with conditions C1–C6. Each is resolved on the branch
+`feat/precise-types` and in the items above, revised in place. "Design" is
+`docs/architecture/precise-types-design.md`; "Families" is
+`docs/architecture/precise-types-families.md`.
+
+| Condition | Resolution | Where |
+| --- | --- | --- |
+| C1 (P1, P12) | Inventory completed. The device registry's `cast("Any", protocol)` is removed: it reads a protocol's members with `typing.get_protocol_members` on Python 3.13 and later and through a cast to a one-member private protocol over `__protocol_attrs__` on 3.12, with identical member sets on both. The released public alias `JsonObj` keeps its name as `Mapping[str, JsonValue]` (was `Mapping[str, object]`), so it needs no exemption. Counts restated per package: `testprotocols` 10 class (a) and 16 class (b) `Any` lines, 4 class (a) and 3 class (b) `object` lines; `testoperations` no `Any` line and 6 class (a) `object` lines (class (a) `Any` is 10 after C4). | P1 exemption policy; P12; `testprotocols/devices/__init__.py`, `testoperations/throughput.py`; `tests/test_typing_ratchet.py`; Design "Exemption policy for explicit `Any` and `object`"; CHANGELOG *Changed* (`JsonObj`) |
+| C2 (P1, P4) | The dev group requires `mypy>=1.17` (was `>=1.10`; `deprecated` is mypy 1.14, `exhaustive-match` 1.17); `enable_error_code` lists `explicit-override`, `exhaustive-match` and `deprecated`, and P1's checker configuration now lists `exhaustive-match`; `uv.lock` updated. | P1 "The checker configuration", Placement, Neutrality evidence; P4 Affected; root `pyproject.toml`, `uv.lock`; `CONTRIBUTING.md`; Design (the rule list) |
+| C3 (P2, P6, P10, P1) | GAPS 2026-06-11 settled where this proposal executes it. `FirewallRuleAction` gains `ALERT` (the value a released implementer reports; a docstring line says so), so no implementer moves to `LOG`. Its "do not unify the action vocabularies" line is cited for the three-enum answer. P1 states that C4/C5 decide the entry's gating (A)-vs-(B) question as (A), annotation and checker only. P6 and P10 argue the lift of the entry's deferral of `WifiBssConfig.security_mode` and `MeasurementSpec.completion`: the entry's own trigger is met, `E \| str` leaves every unmatched value readable, and the values with no member are recorded. | P1 (after the no-period exception); P2 Proposed design; P6 and P10 Proposed design; `models/firewall.py`; `tests/test_firewall_vocabularies.py`; CHANGELOG *Added*; Design (firewall vocabularies) |
+| C4 (P7) | `verify_sip_message` keeps its released `since: Any = None` under exemption class (a), marked on the `def` line of the multi-line signature; the narrowing to `datetime \| None` is announced (shape 6) in a docstring line and a Deprecations table row with the usual earliest removal. The text that narrowed it at once is removed; the docstring keeps the cleanup of the product and testbed log paths. The ratchet pins 10 class (a) lines. | P7; P1 exemption policy; `sip_server.py`; `tests/test_voice_precise_types.py`, `tests/test_typing_ratchet.py`; Design Deprecations table and (Voice vocabularies); CHANGELOG *Deprecated* |
+| C5 (P8) | *Breaking for driver authors* records the keyword-only parameters on `HttpClient.curl` / `http_get` (`no_proxy`, `insecure`, `follow_redirects`, each `bool = False`) and `NmapScanner.nmap` (`fast: bool = False`), in the style of the `send_mldv2_report` entry, with the migration line "add the keyword-only parameters to the implementation's signature (with the protocol's defaults); a declaration without them is reported by the checkers". The Scope paragraph names them beside the 26 new members. | P8 Mechanism and Affected; Scope; CHANGELOG *Breaking for driver authors* |
+| C6 (P6–P11) | Carried to the `feat:` PR: merging it, which takes the decision-file review, ratifies `docs/architecture/precise-types-families.md`. Until then each item's evidence stands on the proposed list. | Families; Scope; the `feat:` PR |
+
+The review's observation on `ContentFiltering.set_url_rules` (a multi-step list replace
+that wants the failure-outcome sentence) is recorded as a forward note in P11, not as a
+change here.
+
+## Outcome
+
+| Item | Decision | Date |
+| --- | --- | --- |
+| P1 | accepted with conditions | 2026-10-05 |
+| P2 | accepted with conditions | 2026-10-05 |
+| P3 | accepted | 2026-10-05 |
+| P4 | accepted with conditions | 2026-10-05 |
+| P5 | accepted | 2026-10-05 |
+| P6 | accepted with conditions | 2026-10-05 |
+| P7 | accepted with conditions | 2026-10-05 |
+| P8 | accepted with conditions | 2026-10-05 |
+| P9 | accepted with conditions | 2026-10-05 |
+| P10 | accepted with conditions | 2026-10-05 |
+| P11 | accepted with conditions | 2026-10-05 |
+| P12 | accepted with conditions | 2026-10-05 |
+
+The conditions of both rounds (round one C1–C32, round two C1–C6) are carried to the
+`feat:` PR, which cites this document's path (`docs/proposals/2026-10-05-precise-types.md`)
+and the item ids P1–P12; the code reviewer checks each implemented item against them.
+
+---
 
 ## Review response (testprotocols review team, 2026-10-05)
 
@@ -1934,3 +2070,361 @@ published data models as far as checked.
   only; and the closing promise that every new mandatory member is implemented
   by a reference driver before the `feat:` PR merges should read as a forward
   condition on the archetypes that later reach these capabilities.
+
+---
+
+## Review response (testprotocols review team, 2026-10-05)
+
+| Item | Decision | Reason |
+| --- | --- | --- |
+| P1 | accept with conditions | The zero-dependency marker, the `object` ratchet and the recorded no-period exception answer round one; the exempt inventory misses two released lines and the checker floor is below the versions the enabled error codes need. |
+| P2 | accept with conditions | The three-enum answer, the `RuleCounters` argument and the `NotSupportedError` statement all land; GAPS 2026-06-11's own reconciliations for these fields are still unsettled. |
+| P3 | accept | Twin fields, announced narrowings and the stated as-found failure outcome for the list replaces. |
+| P4 | accept with conditions | `uptime_seconds: float \| None`, the kept `dict[str, Any]`, the `DeviceManagement` boundary and the `UplinkState` readers are all now recorded; the exhaustiveness claim rests on an error code the workspace does not enable. |
+| P5 | accept | `QosClassifier` is well evidenced, `unit` is correctly rung 3, and `set_rules` states its failure outcome. |
+| P6 | accept with conditions | The no-period retype is now P1's stated exception with both conditions, the MFP change has a migration line and the gaps are entered; a recorded deferral of `WifiBssConfig.security_mode` is lifted without citing it, and the family list is not yet ratified. |
+| P7 | accept with conditions | Records, `PhoneState` and the cleaned docstring are right; the `since` narrowing drops the period that the parallel `HwConsole` case now keeps. |
+| P8 | accept with conditions | `HTTPResult`, `status` and the `Sequence` widening all resolve; the three new keyword-only parameters break implementer conformance with no period and no changelog entry. |
+| P9 | accept with conditions | The substrate survey, the second independent client and the defined `None` answer round one; the survey is recorded only on the branch. |
+| P10 | accept with conditions | The survey and the lever's observation land; `MeasurementSpec.completion` is on the recorded defer list, and the survey is not yet ratified. |
+| P11 | accept with conditions | The Need is corrected, the `HwConsole` returns keep their released form and `Console`'s class is recorded; the family list is not yet ratified. |
+| P12 | accept with conditions | The transition layer, the `host=` migration line and the restated caller search are right; one public `object` alias in the package is outside the pinned inventory. |
+
+This is round two. Round one's C1–C32 are each answered in the document's
+resolution table; I checked every row against `PUBLIC_MAIN` and against the
+published documentation where a claim could be verified. Twenty-nine rows are
+resolved outright. The conditions below are the three that are not yet fully
+discharged (C1/C4 of round one, on inventory completeness; C7, which only the
+`feat:` PR can discharge) and three findings of this round, each a fixable gap
+in a design that is otherwise sound.
+
+### 0. Neutrality
+
+Met. No organisation, customer, site, hostname, address, person or ticket
+identifier appears in the document, and no IP literal appears at all. Vendor
+and tool names stay inside **Neutrality evidence**; the Round 2 resolution
+table adds none. The Use case field is `—` (maintainer-originated), which the
+rule allows.
+
+Two judgement calls carried from round one, unchanged: the Python toolchain
+names in P1 (`typing_extensions`, `warnings`, mypy, pyright) are the
+repository's own build chain, which `CONTRIBUTING.md` names in the open, not
+the device families the contracts abstract; and released public symbols that
+embed a tool name (`NmapScanner.nmap`, `HttpClient.curl`,
+`iwlist_supported_channels`, …) are the contract's own API.
+
+One new one: the round-one response block appended at the end of the document
+carries vendor names outside a Neutrality evidence heading. That block is
+appended verbatim as `docs/proposals/README.md` ("The review response")
+directs, and the names are the review team's own, so it is not this document's
+violation. A formatting nit, not a condition: the README asks for the block to
+follow a `---` rule, and there is none before `## Review response`.
+
+The neutrality defect in the *existing* `SipServer.verify_sip_message`
+docstring — it names a product log path and a named testbed log path in a
+public contract — is confirmed in `PUBLIC_MAIN`
+(`testprotocols/sip_server.py`), and P7 now states that the retyped member's
+docstring drops both. Round-one C20 resolved.
+
+### 1. Recorded decisions
+
+The reopening in P1 is argued as question 1 asks, and round two strengthens it:
+the four findings against runtime transition code in `testprotocols` are now
+recorded in a tracked design document rather than cited to a branch history,
+and the deprecation period itself (one MINOR and six months) and the
+operations-honour-the-period rule are kept. The two GAPS 2026-06-11 entries
+round one asked for are now cited — "appliance health / online capability" in
+P4, with `Telemetry.uptime_seconds` taking that entry's own `float | None`
+shape, and "migrate legacy bare-`str` value fields" in P4's Need and in "Not
+touched". `SdwanApplianceDevice` composes `routing: Router` and only
+`CpeDevice` composes `DeviceManagement`, as P4 states.
+
+What the proposal still does not account for is the rest of the
+"migrate legacy bare-`str` value fields" entry, the single recorded entry this
+proposal most directly executes:
+
+- Its *vocabulary reconciliations to settle* record that a released consumer
+  emits an **undocumented `"alert"`** for `FirewallRule.action`, and that "a
+  strict enum must include `ALERT` or [the consumer] must change to `LOG`".
+  P2's `FirewallRuleAction` has no `ALERT` and the document does not say which
+  way the reconciliation goes. During the period `E | str` carries the value;
+  at the narrowing it fails. Settle it now (C3).
+- The same list records the **gating (A)-vs-(B) decision** — annotation plus
+  checker only, or `__post_init__` coercion — as the thing to "decide before
+  writing code". P1's C4 and C5 decide it as (A), consistently with
+  `models/sdwan_appliance.py`; the document should say that it is deciding that
+  recorded question (C3).
+- The same list defers `WifiBssConfig.security_mode` and
+  `MeasurementSpec.completion` explicitly: "vendor-divergent / undocumented
+  fields … not enum-safe … defer until a test needs them". P6 and P10 retype
+  both. The lift is defensible — the entry's own trigger ("touching a given
+  legacy capability for other reasons") is met, `E | str` leaves every
+  unmatched value readable, and P6 records the modes with no member as gaps —
+  but it is a recorded deferral, and question 1 wants it argued rather than
+  passed over (C3).
+- One line of that entry *supports* the proposal and is worth citing rather
+  than re-deriving: "**Do not unify the action vocabularies**:
+  `FirewallRule.action`, `Zone`/`ZonePolicy.action` and appliance `RuleAction`
+  are three distinct sets — keep separate enums." That is C8's answer, already
+  on the record.
+
+Nothing in `docs/architecture/` is contradicted. SPLITS and LEVELS stay
+untouched by every item.
+
+### 2. Vendor and tool neutrality
+
+Unchanged from round one in substance. P2 and P3 run against the recorded
+SD-WAN appliance list and P5 against the recorded L2 switch list; all three
+checks hold, with the thin cells (appliance port grammars, two unchecked
+event-time formats, Aruba / Omada / UniFi classifier support, three unchecked
+families for `UrlRules`) admitted in the text rather than papered over.
+
+P6–P11 propose lists where none was recorded, which is the right procedure.
+Round two records them in `docs/architecture/precise-types-families.md` with
+one line of rationale per family, and P9 and P10 now cite the recorded
+substrate-tool rule (`packet-injection-substrate-design.md` §2) with a
+vendor-free reference (RFC 3416 / RFC 2578; RFC 6349 / 7679 / 7680 / 3393 and
+the HTML load events) and, for P9, a second independent client family. That
+answers round-one C26 and C27 on substance.
+
+They remain **proposed, not ratified**: the families document lives on
+`feat/precise-types`, and `PUBLIC_MAIN` has no such file. Ratifying it is what
+merging the `feat:` PR does, so round-one C7 is carried forward as C6 rather
+than closed.
+
+### 3. Placement ladder walked
+
+The member counts tally: P2 2, P4 1, P6 2, P7 3, P8 5, P9 6, P10 3, P11 4 —
+26 mandatory members, matching the Scope line and the MINOR claim. Rung 5
+before rung 6 is respected; `Console` is the only new `Protocol` and is
+recorded as a returned-object contract composed by no archetype (C30).
+`testoperations` callers of every renamed member are covered by P12's fallback
+accessors, and each family item states whether `testoperations` calls its
+changed members.
+
+Round one found four retypes with no deprecation procedure. Three are now
+fixed by keeping the released form: `Router.get_telemetry` keeps
+`dict[str, Any]` under exemption class (a) (C14), `HTTPResult` is no longer
+frozen (C22/C24), and `HwConsole.get_console` / `get_interactive_consoles`
+keep their released `Any` with the narrowing announced (C29). The fourth,
+`WifiRadioStats.tx_retries` / `tx_failed`, is now P1's stated no-period
+exception with both conditions spelled out, and the argument holds: the
+released fields are *required*, no reviewed family reports the value, and
+neither a twin nor rename-then-reclaim can keep a required-and-unfillable
+field usable (C17).
+
+Two signature changes still take no period, and both are the same class as the
+four above:
+
+- **P7**, `verify_sip_message(since: Any = None)` → `datetime | None`. Round
+  two notes that an implementer declaring `Any` still conforms, but one
+  declaring a narrower type does not, and a caller passing the "timestamp or
+  marker" the released docstring invites stops type-checking. This is the
+  `HwConsole` case the same document now handles by keeping the released `Any`
+  and announcing the narrowing. C4.
+- **P8**, the new keyword-only parameters on `HttpClient.curl`, `http_get` and
+  `NmapScanner.nmap`. The item is right that "a declaration without them is
+  reported by the checkers" — which is to say every released implementer stops
+  conforming on upgrade, with no period. The ladder's `extend` pays for that
+  with a *Breaking for driver authors* entry and a migration line; the Scope
+  line promises one only for the 26 new members. C5.
+
+No cheaper rung was missed. The `RuleCounters`-versus-`GroupRecord` asymmetry
+round one flagged is now argued on both sides (C9), and the argument is
+correct: narrowing a released `tuple[int, int]` return to a `NamedTuple`
+subtype breaks an implementer that declares the tuple, while a `NamedTuple`
+*passed in* is the released tuple.
+
+### 4. Correct home
+
+Correct throughout, and round two closes the one consequence round one raised:
+pair reading is published `testoperations` surface (`testoperations.pairs`,
+with `__all__`), so a consumer that depends on `testprotocols` alone has a
+supported way to read a text/typed pair without putting conversion code in the
+record (round-one C5). Each reader and parser is scheduled for removal with the
+text field it reads, which is the right lifetime.
+
+### 5. Overlap with capability protocols
+
+Every overlap round one named is answered in the document: `RuleAction` (C8),
+`Zone`'s policy fields (C10 — confirmed present in `models/firewall.py` as
+`default_input` / `default_forward` / `default_output`), the
+`DeviceManagement` boundary (C15) and the `UplinkState.UNKNOWN` widening with
+its appliance-side readers (C16). I re-checked `UplinkState` in
+`models/sdwan_appliance.py`: the released members are `UP`, `DEGRADED`,
+`DOWN`, `STANDBY`, `NOT_CONNECTED`, so `UNKNOWN` is a genuine addition and the
+"a released driver that type-checks does not produce one" argument holds.
+
+No new overlap. `PingResult` against `NetworkProbe`, `UrlRules`, the voice
+records, the host-tool records and `IperfProcess` are each the only carrier of
+their fact.
+
+### 6. Overlap with operations
+
+No duplication. P12 keeps every operation name, and the records it introduces
+(`IperfSession`, `HomeVerification` / `HomeDetails`, `FlowPair`) replace exactly
+the dict-unpacking question 6 asks about — `verify_home` returns
+`dict[str, object]` and `start_iperf` a four-key dict in `PUBLIC_MAIN` today.
+`start_iperf`'s repair is confirmed against the released source: the operation
+calls `start_receiver` / `start_sender`, which no protocol declares, so it
+cannot work with any conforming driver, and it never received the receiver's
+address. The required `host=` is a real fix and now carries a *Consumer action*
+entry with a migration line (C31).
+
+### 7. One consumer, and why now
+
+Unchanged and accepted: every item is a capability-protocol or model item, so
+neutrality evidence across the domain's reviewed-family list is the substitute,
+and it is supplied per item (recorded lists for P2 / P3 / P5; proposed lists
+for P6–P11; the substrate-tool rule for P8 / P9 / P10). P1 and P12 involve no
+device family, and their warrant is the rule set they serve. "Why now" is the
+GAPS 2026-06-11 trigger plus the existence of question 9.
+
+**Corpus impact.** The reference corpus (`main`, commit `fb9343e`) holds no
+reference driver and no capability matrix for any capability this proposal
+touches, so the count is zero for every item and the corpus is not the argument
+here. Round two restates the caller search as covering the released
+implementers only, and the closing section as a forward condition on the
+archetypes that later reach these capabilities, carrying the plugin driver
+shape, verified writes and acknowledged calls `docs/archetypes/README.md`
+requires (C32). Both restatements are accurate; the forward condition stands as
+written and needs no condition of its own.
+
+### 8. Every write verifiable
+
+Re-checked per item against the contract modules. P2, P4, P6, P7, P9, P10 and
+P11 are as in round one: every released write keeps its read, the new members
+are reads, `set_link_state` gains the administrative read it lacked
+(`is_link_admin_up`, distinct from the released operational `is_link_up`),
+`snmp_set` reads back through `snmp_get` and `set_date_time` through
+`read_date`.
+
+The two **met with conditions** rows of round one are now met: P3's
+`L3Firewall.set_outbound_rules` / `set_inbound_rules` / `set_vpn_rules` and
+P5's `SwitchQos.set_rules` state that a write failing at any step, rejected or
+not verified, leaves the as-found state (C12). P10's `inject_event` is a lever
+and its confirming observation moves into the member docstring (C27).
+
+One observation, not a condition: `ContentFiltering.set_url_rules` replaces two
+pattern lists, and a reviewed appliance family realises that in more than one
+device step, so it wants the same failure-outcome sentence. P11 changes only
+the read side (`read_url_rules`), so the rule does not bite here; state it when
+the write is next touched.
+
+### 9. Precise types
+
+The rule set is right, and round two fixes the two places it was
+self-contradictory. `HTTPResult` stays the released parsing class with
+read-only `status -> int | None` and `body -> str` computed from the released
+attributes — no conversion in a record, no `0` sentinel, no freezing, which
+answers C22, C23 and C24 together and is consistent with C1 and C5.
+`send_mldv2_report` now takes `Sequence[tuple[list[McastSource], McastGroup,
+MulticastGroupRecordType]]`; since `GroupRecord` is a `NamedTuple` over those
+field types and `Sequence` is covariant, `list[GroupRecord]` passes, and the
+cost to an implementer declaring the released invariant `list` is recorded
+(C25). `OfflineMessage.stored_at` and `NtpClient.read_date` both define their
+`None` (C21, C26). `Telemetry.uptime_seconds` is `float | None` (C13).
+
+The `object`-for-`Any` substitution is now counted, which was round one's C4,
+and the per-class pinning is the right mechanism. The inventory is two lines
+short of what the stated ceiling needs, both verifiable in `PUBLIC_MAIN`:
+
+- `testprotocols/src/testprotocols/devices/__init__.py:26` —
+  `frozenset(cast("Any", protocol).__protocol_attrs__)`. This is an explicit
+  `Any` in released source and falls in neither exempt class, both of which are
+  defined as "released signatures only". Whether mypy's
+  `--disallow-any-explicit` reaches a `cast` is not settled by its
+  documentation ("explicit `Any` in type positions such as type annotations and
+  generic type parameters"), but the ratchet test is the stated second line of
+  defence and counts the package's non-exempt `Any` against a ceiling of 0, so
+  this line has to be removed (`typing.get_protocol_members` on 3.13 with a
+  3.12 fallback is the obvious route, and the comment there already anticipates
+  it) or given a third exempt class with its own marker and pinned count.
+- `testoperations/src/testoperations/throughput.py:118` —
+  `JsonObj = Mapping[str, object]`, a public module-level type alias, which is
+  precisely one of the three positions P1 says it counts `object` in. It is not
+  among the six pinned `testoperations` lines, and P12 names only
+  `iter_json_docs`. If `JsonValue` subsumes it, say so; otherwise pin it.
+
+Both are C1.
+
+The exemption counts I could check are right: the nine class-(a) `Any` lines
+are exactly the nine released members named, and the sixteen class-(b) lines
+are `flash_via_bootloader`, `start_tcpdump`, the twelve TR-069 RPCs and the two
+`HwConsole` returns, one marker per `def` line. Every other released `Any` in
+either package is retyped by a named item; I enumerated them against the source
+and found no third category beyond the two lines above.
+
+Existing imprecise members the items do not touch are listed under "Not touched
+by this proposal" and the remainder folded into GAPS 2026-06-11 (C10). Noted,
+not blocking.
+
+**Factual checks.** Verified against published documentation, since P1's
+verdict turns on them:
+
+- `warnings.deprecated` is Python 3.13, and `category=None` suppresses the
+  runtime warning while keeping the static diagnostic (Python library docs,
+  `warnings`). The three-step `_compat` scheme — `typing_extensions` under
+  `TYPE_CHECKING` (both checkers resolve it from bundled typeshed stubs),
+  `warnings.deprecated` at run time on 3.13 and later, an identity marker on
+  3.12 — keeps `dependencies = []` on every supported version and is the
+  alternative round one's C3 named. Taken; round one's C1 is moot with it.
+- mypy's `deprecated` error code: introduced in **mypy 1.14** ("Support for
+  `@deprecated` decorator (PEP 702)"; the same release made the note an error,
+  disabled by default), enabled by `--enable-error-code deprecated` (mypy
+  changelog; optional error codes documentation). mypy's `exhaustive-match`:
+  introduced in **mypy 1.17**. The workspace dev group in
+  `PUBLIC_MAIN/pyproject.toml` pins `mypy>=1.10`, and an unknown code in
+  `enable_error_code` makes mypy fail outright, so the floor has to move with
+  the policy; and P4's Affected claims `exhaustive-match` is enabled by this
+  workspace, while P1's Placement lists only the explicit-`Any` rule and the
+  `deprecated` code. C2.
+- `--disallow-any-explicit` exists and enables the `explicit-any` error code,
+  so the suppression marker P1 uses is valid (mypy command-line documentation).
+- pyright reports `reportDeprecated` as an error in strict mode only (round
+  one's check, unchanged).
+
+I did not re-verify P6's TR-181 and Wi-Fi Data Elements claims; the P6 verdict
+does not hinge on them, and they remain consistent with the published data
+models as far as checked.
+
+### Conditions
+
+- C1 (P1, P12): complete the `Any` / `object` inventory the ratchet pins.
+  `cast("Any", protocol)` in `testprotocols/devices/__init__.py` is a
+  non-exempt explicit `Any` in released source, and
+  `JsonObj = Mapping[str, object]` in `testoperations.throughput` is an
+  `object` in a public module-level type alias — one of the positions P1 says
+  it counts. Remove each, or add a third exempt class with its marker and its
+  pinned count, and restate the per-package counts.
+- C2 (P1, P4): raise the workspace's mypy floor to the version that provides
+  the error codes the policy enables. `deprecated` is mypy 1.14 and
+  `exhaustive-match` is mypy 1.17, while the dev group pins `mypy>=1.10`; an
+  unknown code in `enable_error_code` fails the run. Then either add
+  `exhaustive-match` to the checker configuration P1's Placement lists, or drop
+  P4's claim that the workspace enables it.
+- C3 (P2, P6, P10): settle the recorded reconciliations of GAPS 2026-06-11,
+  citing the entry where this proposal lifts it. Say which way the undocumented
+  `"alert"` action goes (an `ALERT` member, or the consumer moves to `LOG`
+  before the narrowing); record that P1's C4/C5 settle that entry's gating
+  (A)-vs-(B) decision as (A), annotation and checker only; and argue the lift
+  of its explicit deferral of `WifiBssConfig.security_mode` (P6) and
+  `MeasurementSpec.completion` (P10) as "not enum-safe … defer until a test
+  needs them". Cite its "do not unify the action vocabularies" line in P2,
+  which already records the three-enum answer.
+- C4 (P7): `verify_sip_message(since: Any)` → `datetime | None` narrows a
+  released parameter with no deprecation period. Keep the released `Any` under
+  exemption class (a) and announce the narrowing (shape 6), as the document now
+  does for `HwConsole.get_console`, or record the break under *Breaking for
+  driver authors* and *Consumer action* with a migration line.
+- C5 (P8): the new keyword-only parameters on `HttpClient.curl`, `http_get` and
+  `NmapScanner.nmap` make every released implementer's declaration
+  non-conforming on upgrade. Record them under *Breaking for driver authors*
+  with a migration line (as round one's C25 does for `send_mldv2_report`), or
+  carry the typed flags on new member names so the released signatures survive
+  the period.
+- C6 (P6, P7, P8, P9, P10, P11): the reviewed-family lists and substrate
+  surveys of `docs/architecture/precise-types-families.md` live on
+  `feat/precise-types` and are proposed, not ratified. Merging the `feat:` PR,
+  which takes the decision-file review, ratifies them; until then each item's
+  evidence stands on a proposed list. (Round one's C7, carried.)
