@@ -403,7 +403,10 @@ def test_every_any_signature_is_exempted_as_a_released_signature() -> None:
     lines = source.splitlines()
     for node in ast.walk(ast.parse(source)):
         if isinstance(node, ast.FunctionDef) and any(
-            isinstance(n, ast.Name) and n.id == "Any" for n in ast.walk(node.returns or node.args)
+            isinstance(n, ast.Name) and n.id == "Any"
+            for part in (node.returns, node.args)
+            if part is not None
+            for n in ast.walk(part)
         ):
             assert lines[node.lineno - 1].endswith(
                 "# type: ignore[explicit-any]  # released signature kept until removal"

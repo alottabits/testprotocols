@@ -138,5 +138,6 @@ def test_hw_console_any_is_only_the_two_flash_parameters() -> None:
     assert len(any_lines) == 2
     assert all(flash.lineno < line < flash.body[0].lineno for line in any_lines)
     assert lines[flash.lineno - 1].endswith(
-        "# type: ignore[explicit-any]  # released signature kept until removal"
+        "# type: ignore[explicit-any]  "
+        "# released parameter kept: implementers declare their own types"
     )

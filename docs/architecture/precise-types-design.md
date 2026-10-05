@@ -201,8 +201,8 @@ where one exists, also records its retype.
   spellings compare unequal on `ts`. `ts` gained a default (`""`, no time) so an event can
   be built from `timestamp` alone; the fields after it keep their released
   positions and take a required-argument placeholder that `__post_init__` refuses,
-  so omitting one still raises `TypeError` (the placeholder reads `<required>`). The `"any"` cidr placeholders of
-  `L3Rule`, the `""` placeholders of `UplinkStatus` and `NetworkAttachment.segment`
+  so omitting one still raises `TypeError` (the placeholder reads `<required>`). The `"any"` cidr placeholders
+  of `L3Rule`, the `""` placeholders of `UplinkStatus` and `NetworkAttachment.segment`
   are announced only (shape 6).
 - **WAN-edge models** (shapes 3, 3o and the orphan deprecation). `LinkStatus.state`
   and `LinkHealthReport.state` are `UplinkState` (shape 3): the released words `up`,
@@ -646,7 +646,7 @@ where one exists, also records its retype.
     `set_parameter_attributes` keeps the released shared flags as `change_notification` and
     `change_access_list`.
   - The released members keep their signatures, exempted from `disallow_any_explicit` on
-    their `def` lines (12 lines; see "Exemption policy"). A narrower annotation would
+    their `def` lines (12 lines, class (a); see "Exemption policy"). A narrower annotation would
     break boardfarm's `dict[str, str | int | bool]` declarations (`dict` is invariant), and the
     returns cannot narrow without breaking callers that index them. The ratchet does not move
     for this module: the new members and records add no `Any`.
@@ -662,7 +662,13 @@ where one exists, also records its retype.
 The last explicit `Any` of `testoperations` goes (ratchet `TESTOPERATIONS_CEILING` 7 to 0; no
 `Any` is kept on a released signature, so nothing in this package is exempted). The two
 `Callable[..., X]` seams that `disallow_any_explicit` also rejects become call protocols
-(`_Member` in `_renamed.py`, `_FlowMeasurer` in `throughput.py`). Evidence: a search of vitro-bdd, boardfarm and the corpus found no caller of
+(`_Member` in `_renamed.py`, `_FlowMeasurer` in `throughput.py`). The second narrows
+the annotation of `measure_external_path_until(measure_flow=)`, which was
+`Callable[..., FlowThroughput]`: a stand-in now takes the flow (positional-only) plus the
+keyword timings `duration_s`, `result_timeout_s` and `poll_interval_s` (recorded in the
+CHANGELOG under *Changed*).
+
+Evidence: a search of vitro-bdd, boardfarm and the corpus found no caller of
 `start_iperf`, `verify_home`, `saturate_link`, `iter_json_docs`, `NonCompletion*` or the
 `_capture` helpers; `apply_preset` is named in prose only (the example's testbed document, whose
 presets are strings from configuration). The consumer gate is unchanged by this task (the
@@ -674,8 +680,9 @@ output equals that of the commit before it).
   .ReleasedMapping`. The mixin keeps the released dict readable: indexing, `get`, `in`,
   iteration, `len`, `keys`, `items`, `values` (so `dict(result)` and `**result` work), `==`
   against the released dict and `as_dict()` all return the released values and warn, once per
-  call (a `dict(result)` or `{**result}` conversion warns once for `keys()` and once per key read); reading a field never warns, and two records
-  compare by field and hash by field when their fields hash (`HomeVerification` does not: its
+  call (a `dict(result)` or `{**result}` conversion warns once for `keys()` and once per
+  key read); reading a field never warns, and
+  two records compare by field and hash by field when their fields hash (`HomeVerification` does not: its
   `peer_states` is a dict). Static types narrow: the records are not a `Mapping`, and `[]` and
   `get` return `object`, so a typed caller that relied on `dict[str, str]` reads the fields or
   calls `as_dict()`. The operation keeps its name (no `*_dict` sibling), so
@@ -711,24 +718,30 @@ output equals that of the commit before it).
 
 `disallow_any_explicit = true` applies to every module of `testprotocols` and
 `testoperations` (a mypy per-module override in `pyproject.toml`). The only exemptions
-are released signatures kept for the deprecation period, 22 `def` lines:
+are released signatures, marked on the `def` line, in two classes: 20 deprecation-period
+exemptions and 2 compatibility exemptions. `tests/test_typing_ratchet.py` pins the number
+of each, so a new exemption needs a reviewed change.
 
+**(a) Deprecation period, 20 lines.** Marker `# type: ignore[explicit-any]  # released
+signature kept until removal`. These are members already deprecated in this release; the
+line is deleted with the member at the removal release, and the pinned count drops with it.
 - the deprecated readers whose released `dict[str, Any]` / `list[Any]` returns or
   parameters stay readable (`ip_routing.ping`, `dns_client.dns_lookup`, `nmap_scanner.nmap`,
-  `pcap_capture.start_tcpdump`, `device_management.get_running_processes` and
-  `read_event_logs`, `sip_server.get_rtpengine_stats`, `get_mwi_status` and
-  `get_offline_messages`);
-- `hw_console.flash_via_bootloader`, whose two framework-object parameters stay `Any`
-  because implementers declare framework types that no precise contract type accepts;
+  `device_management.get_running_processes` and `read_event_logs`,
+  `sip_server.get_rtpengine_stats`, `get_mwi_status` and `get_offline_messages`: 8 lines);
 - the released TR-069 RPCs (`GPV`, `SPV`, `GPA`, `SPA`, `FactoryReset`, `Reboot`,
-  `AddObject`, `DelObject`, `GPN`, `ScheduleInform`, `GetRPCMethods`, `Download`), whose
-  released `dict` annotations are invariant against the implementers' narrower ones.
+  `AddObject`, `DelObject`, `GPN`, `ScheduleInform`, `GetRPCMethods`, `Download`: 12 lines),
+  whose released `dict` annotations are invariant against the implementers' narrower ones.
 
-Each is marked, on the `def` line, `# type: ignore[explicit-any]  # released signature kept
-until removal`. Changing the annotation would break released implementers, so the
-exemption ends with the member: each line is deleted at the removal release, and
-`TESTPROTOCOLS_EXEMPT_LINES` in the ratchet drops with it. A new exemption needs a
-reviewed change to that pinned count.
+**(b) Compatibility, 2 lines.** Marker `# type: ignore[explicit-any]  # released parameter
+kept: implementers declare their own types`. These members are live, not deprecated, and
+the exemption is not tied to a removal. Implementers declare framework or dict types,
+parameters are contravariant and `dict` is invariant, so no precise type accepts those
+declarations.
+- `hw_console.flash_via_bootloader` (two framework-object parameters);
+- `pcap_capture.start_tcpdump` (`filters: dict[str, Any]`; `testoperations.tcpdump` calls
+  it). On the managed-router branch `start_tcpdump` is deprecated (renamed
+  `start_capture`), so it moves to class (a) once that branch is rebased.
 
 ## Effective now
 

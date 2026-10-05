@@ -2,9 +2,10 @@
 
 The only exempt ``Any`` is a released signature kept for the deprecation period; its
 line carries ``EXEMPT_MARKER``. Non-exempt ``Any`` has a ceiling of 0 in both packages,
-and the number of exempted lines is pinned (``TESTPROTOCOLS_EXEMPT_LINES``), so a new
-exemption cannot be added silently: it needs a reviewed change to that constant, which
-only ever goes down, to 0 at the removal release.
+and the number of exempted lines is pinned per class, so a new exemption cannot be added
+silently: it needs a reviewed change to a constant. Class (a), ``DEPRECATED_MARKER``, is a
+deprecated member and goes to 0 at the removal release; class (b), ``COMPATIBILITY_MARKER``,
+is a live released parameter that implementers declare with their own types.
 
 Counts, by AST, every use of ``Any`` as a name (including a name imported under an
 alias, ``from typing import Any as A``) or as an attribute of the ``typing`` /
@@ -25,8 +26,16 @@ from pathlib import Path
 
 TESTPROTOCOLS_CEILING = 0
 TESTOPERATIONS_CEILING = 0
-TESTPROTOCOLS_EXEMPT_LINES = 22
-EXEMPT_MARKER = "# type: ignore[explicit-any]  # released signature kept until removal"
+# (a) a member deprecated in this release: the exemption ends with the member.
+DEPRECATED_MARKER = "# type: ignore[explicit-any]  # released signature kept until removal"
+# (b) a live released member whose implementers declare their own types (contravariant
+#     parameters, invariant ``dict``), so no precise type can accept those declarations.
+COMPATIBILITY_MARKER = (
+    "# type: ignore[explicit-any]  # released parameter kept: implementers declare their own types"
+)
+EXEMPT_MARKERS = (DEPRECATED_MARKER, COMPATIBILITY_MARKER)
+TESTPROTOCOLS_DEPRECATED_EXEMPT_LINES = 20
+TESTPROTOCOLS_COMPATIBILITY_EXEMPT_LINES = 2
 
 _ROOT = Path(__file__).resolve().parents[2]
 _ANY_WORD = re.compile(r"\bAny\b")
@@ -88,6 +97,20 @@ def _any_lines(source: str) -> list[int]:
             and _ANY_WORD.search(node.value)
         ):
             lines.append(node.lineno)
+    # ``Callable[..., X]``: the ``...`` is an implicit ``Any`` (mypy rejects it too)
+    for node in ast.walk(tree):
+        if (
+            isinstance(node, ast.Subscript)
+            and isinstance(node.slice, ast.Tuple)
+            and node.slice.elts
+            and isinstance(node.slice.elts[0], ast.Constant)
+            and node.slice.elts[0].value is Ellipsis
+            and (
+                (isinstance(node.value, ast.Name) and node.value.id == "Callable")
+                or (isinstance(node.value, ast.Attribute) and node.value.attr == "Callable")
+            )
+        ):
+            lines.append(node.lineno)
     return lines
 
 
@@ -107,7 +130,7 @@ def _split(source: str) -> tuple[int, int]:
     exempt = 0
     plain = 0
     for lineno in _any_lines(source):
-        if EXEMPT_MARKER in text[_signature_start(tree, lineno) - 1]:
+        if any(m in text[_signature_start(tree, lineno) - 1] for m in EXEMPT_MARKERS):
             exempt += 1
         else:
             plain += 1
@@ -119,9 +142,9 @@ def count_any(source: str) -> int:
     return _split(source)[0]
 
 
-def _exempt_signature_lines(source: str) -> int:
-    """How many marked ``def`` lines the source holds."""
-    return sum(EXEMPT_MARKER in line for line in source.splitlines())
+def _exempt_signature_lines(source: str, marker: str) -> int:
+    """How many ``def`` lines the source marks with *marker*."""
+    return sum(marker in line for line in source.splitlines())
 
 
 def _sources(package: str) -> list[str]:
@@ -133,8 +156,8 @@ def _count_package(package: str) -> int:
     return sum(count_any(s) for s in _sources(package))
 
 
-def _exempt_lines(package: str) -> int:
-    return sum(_exempt_signature_lines(s) for s in _sources(package))
+def _exempt_lines(package: str, marker: str) -> int:
+    return sum(_exempt_signature_lines(s, marker) for s in _sources(package))
 
 
 def test_count_any_rules() -> None:
@@ -185,15 +208,28 @@ def test_a_marked_signature_exempts_its_any() -> None:
         "def f(\n"
         "    a: Any,\n"
         ") -> None: ...\n"
-        f"def g(a: Any) -> None: ...  {EXEMPT_MARKER}\n"
+        f"def g(a: Any) -> None: ...  {COMPATIBILITY_MARKER}\n"
         f"def h(\n"
         "    a: Any,\n"
         "    b: Any,\n"
         f") -> None: ...\n"
     )
     assert _split(source) == (3, 1)
-    marked = source.replace("def f(\n", f"def f(  {EXEMPT_MARKER}\n")
+    marked = source.replace("def f(\n", f"def f(  {DEPRECATED_MARKER}\n")
     assert _split(marked) == (2, 2)
+
+
+def test_an_ellipsis_callable_counts_as_any() -> None:
+    source = (
+        "from collections.abc import Callable\n"
+        "import collections.abc as c\n"
+        "a: Callable[..., int]\n"
+        "b: c.Callable[..., int]\n"
+        "d: Callable[[int], int]\n"
+        "e: Callable[[...], int]\n"
+    )
+    # a and b count; d is precise; e is not valid typing and is not counted
+    assert count_any(source) == 2
 
 
 def test_testprotocols_has_no_unexempted_explicit_any() -> None:
@@ -205,8 +241,14 @@ def test_testoperations_has_no_unexempted_explicit_any() -> None:
 
 
 def test_testoperations_exempts_nothing() -> None:
-    assert _exempt_lines("testoperations") == 0
+    assert all(_exempt_lines("testoperations", m) == 0 for m in EXEMPT_MARKERS)
 
 
-def test_the_exempted_lines_are_pinned() -> None:
-    assert _exempt_lines("testprotocols") == TESTPROTOCOLS_EXEMPT_LINES
+def test_the_exempted_lines_are_pinned_per_class() -> None:
+    assert (
+        _exempt_lines("testprotocols", DEPRECATED_MARKER) == TESTPROTOCOLS_DEPRECATED_EXEMPT_LINES
+    )
+    assert (
+        _exempt_lines("testprotocols", COMPATIBILITY_MARKER)
+        == TESTPROTOCOLS_COMPATIBILITY_EXEMPT_LINES
+    )

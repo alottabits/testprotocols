@@ -25,10 +25,13 @@ their tags and PR history.
   old-name method that delegates to the new one); typed `object`, not `Any`.
   mypy now runs `disallow_any_explicit` on `testprotocols.*` and
   `testoperations.*` (internal; the contract is unchanged). The only
-  exemptions are 22 released signatures kept for the deprecation period,
-  marked `# type: ignore[explicit-any]  # released signature kept until
-  removal` and removed with their members. `tests/test_typing_ratchet.py`
-  counts the non-exempt `Any` (ceiling 0) and pins the number of exempted
+  exemptions are released signatures, in two classes: 20 deprecation-period
+  exemptions, marked `# type: ignore[explicit-any]  # released signature kept
+  until removal` and removed with their members; and 2 compatibility
+  exemptions (`flash_via_bootloader`, `start_tcpdump`), marked
+  `# released parameter kept: implementers declare their own types`, live
+  members whose implementers declare their own types. `tests/test_typing_ratchet.py`
+  counts the non-exempt `Any` (ceiling 0) and pins each class.
   lines. Migration: none. Design `docs/architecture/precise-types-design.md`; no
   proposal (contract infrastructure); PR pending.
 - **function and constant** `testprotocols.deprecation:coerce_enum` and
@@ -715,6 +718,12 @@ their tags and PR history.
 
 #### Changed
 
+- **operation** `testoperations.throughput:measure_external_path_until` — the
+  `measure_flow` annotation narrows from `Callable[..., FlowThroughput]` to a call
+  protocol: `(flow: ExternalFlow, /, *, duration_s: int, result_timeout_s: float,
+  poll_interval_s: float) -> FlowThroughput`. Migration: a stand-in takes the flow
+  (positional) plus the three keyword timings; the default is unchanged. Design
+  `docs/architecture/precise-types-design.md` (testoperations: typed records); PR pending.
 - **operation** `testoperations.segmentation:build_deny_rule` — `scope` is now
   `DenyScope | str` and `proto` `RuleProtocol | str` (shape 1). A plain string
   naming a member warns (`DeprecationWarning`) and converts. The error for an

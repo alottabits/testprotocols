@@ -1015,6 +1015,7 @@ class _FlowMeasurer(Protocol):
     def __call__(
         self,
         flow: ExternalFlow,
+        /,
         *,
         duration_s: int,
         result_timeout_s: float,
