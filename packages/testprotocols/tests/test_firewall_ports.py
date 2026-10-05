@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import dataclasses
+import typing
 
 import pytest
 from testprotocols.models import (
+    Chain,
     FirewallRule,
     FirewallRuleAction,
     NatMode,
@@ -98,6 +100,11 @@ def test_new_counter_members_exist_and_old_remain() -> None:
     assert callable(PacketFilter.get_rule_counters)  # type: ignore[deprecated]  # the released member under test
     assert callable(Nat.get_nat_rule_counter_values)
     assert callable(Nat.get_nat_rule_counters)  # type: ignore[deprecated]  # the released member under test
+
+
+def test_counter_values_member_takes_the_bare_chain() -> None:
+    hints = typing.get_type_hints(PacketFilter.get_rule_counter_values)
+    assert hints["chain"] is Chain  # a new member keeps no released text form
 
 
 def test_rule_counters_accept_zero_and_large() -> None:

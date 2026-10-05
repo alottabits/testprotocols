@@ -65,10 +65,10 @@ The design records behind the current rows are in
 | `testprotocols.ip_routing:IpRouting.ping(json_output=True)` | `ping_stats`; at removal `ping` returns `bool` | parameter | next release | next release + 6 months |
 | `IpRouting.ping` and `traceroute` `options` | none | parameter | next release | next release + 6 months |
 | `testprotocols.http_client:HttpClient.curl` and `http_get` `options` | keyword-only `no_proxy`, `insecure`, `follow_redirects` | parameter | next release | next release + 6 months |
-| `PacketFilter` `chain` (every member) and `set_default_policy(policy)`: `Chain \| str`, `DefaultAction \| str` | `Chain`, `DefaultAction` (narrows to the enum) | parameter | next release | next release + 6 months |
+| `PacketFilter` `chain` (every member except `get_rule_counter_values`, which takes the bare `Chain`) and `set_default_policy(policy)`: `Chain \| str`, `DefaultAction \| str` | `Chain`, `DefaultAction` (narrows to the enum) | parameter | next release | next release + 6 months |
 | `Nat.list_nat_rules(mode)`: `NatMode \| str \| None` | `NatMode \| None` (narrows to the enum) | parameter | next release | next release + 6 months |
 | `Conntrack` `protocol` (`list_connections`, `count_connections`, `get_connection`, `drop_connection`): `RuleProtocol \| str` | `RuleProtocol` (narrows to the enum) | parameter | next release | next release + 6 months |
-| Wi-Fi `band` (`WifiBss.create_bss`, every `WifiRadio` and `WifiRf` member, `WifiRadioWhiteBox.inject_radar_event`, `WifiMesh.set_backhaul_band`): `WifiBand \| str` | `WifiBand` (narrows to the enum) | parameter | next release | next release + 6 months |
+| Wi-Fi `band` (`WifiBss.create_bss`, every `WifiRadio` and `WifiRf` member except `WifiRadio.get_modes`, `WifiRadioWhiteBox.inject_radar_event`, `WifiMesh.set_backhaul_band`): `WifiBand \| str` | `WifiBand` (narrows to the enum) | parameter | next release | next release + 6 months |
 | `WifiBss.create_bss(security_mode, mfp)` and `set_security(mode, mfp)`: `WifiSecurityMode \| str`, `MfpMode \| str` | `WifiSecurityMode`, `MfpMode` (narrows to the enum) | parameter | next release | next release + 6 months |
 | `WifiBss.set_acl_mode(mode)`: `WifiAclMode \| str` | `WifiAclMode` (narrows to the enum) | parameter | next release | next release + 6 months |
 | `WifiRadio.set_mode(mode)`: `WifiPhyMode \| str` | `WifiPhyMode` (narrows to the enum; a compound mode names no member) | parameter | next release | next release + 6 months |

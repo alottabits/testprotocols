@@ -53,7 +53,7 @@ their tags and PR history.
   (a driver without per-rule counters adds a one-line stub raising `NotSupportedError`) and
   keep `get_rule_counters` / `get_nat_rule_counters`, with their released
   `NotImplementedError` text, until their removal.
-  Proposal `docs/proposals/2026-10-05-precise-types.md` P2;
+  Proposal `docs/proposals/2026-10-05-precise-types.md` P2 (Design delta 2026-10-05);
   design `docs/architecture/precise-types-design.md` (firewall and NAT ports and counters); PR #73.
 - **protocol member** `testprotocols.router:Router.read_telemetry() -> Telemetry` —
   new mandatory member. Migration: implement it, and keep `get_telemetry`, which keeps its
@@ -84,7 +84,7 @@ their tags and PR history.
   802.11 PHY modes at once (TR-181 `Device.WiFi.Radio.{i}.OperatingStandards` is a list), which
   one `str` cannot report. Migration: implement it; keep `get_mode`, returning the released
   `str`, until its removal.
-  Proposal `docs/proposals/2026-10-05-precise-types.md` P6;
+  Proposal `docs/proposals/2026-10-05-precise-types.md` P6 (Design delta 2026-10-05);
   design `docs/architecture/precise-types-design.md` (Wi-Fi
   vocabularies); PR #73.
 - **protocol member** `testprotocols.ip_interface:IpInterface.is_link_admin_up(interface) -> bool`
@@ -668,7 +668,7 @@ their tags and PR history.
   release 6 months after the release that deprecates it.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P8;
   design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR #73.
-- **parameter** `testprotocols.packet_filter:PacketFilter` `chain` (every member) and `set_default_policy(policy)`: `Chain |
+- **parameter** `testprotocols.packet_filter:PacketFilter` `chain` (every member except `get_rule_counter_values`, which takes the bare `Chain`) and `set_default_policy(policy)`: `Chain |
   str`, `DefaultAction | str` — deprecated. Replacement: `Chain`, `DefaultAction` (narrows to the
   enum). Earliest removal: the first release 6 months after the release that deprecates it.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P2;
@@ -684,7 +684,7 @@ their tags and PR history.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P2;
   design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR #73.
 - **parameter** Wi-Fi `band` (`testprotocols.wifi_bss:WifiBss.create_bss`, every
-  `testprotocols.wifi_radio:WifiRadio` and `testprotocols.wifi_rf:WifiRf` member,
+  `testprotocols.wifi_radio:WifiRadio` and `testprotocols.wifi_rf:WifiRf` member except `WifiRadio.get_modes`,
   `testprotocols.wifi_radio:WifiRadioWhiteBox.inject_radar_event`,
   `testprotocols.wifi_mesh:WifiMesh.set_backhaul_band`): `WifiBand | str` —
   deprecated. Replacement: `WifiBand` (narrows to the enum). Earliest removal: the first release 6
@@ -886,6 +886,13 @@ their tags and PR history.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P7;
   design `docs/architecture/precise-types-design.md`;
   register `packages/testprotocols/DEPRECATIONS.md`; PR #73.
+
+#### Fixed
+
+- **records** `PacketFilter.get_rule_counter_values` `chain` and `WifiRadio.get_modes` `band` —
+  the register and the *Deprecated* entries no longer list these two bare-enum members under
+  the `Chain | str` and `WifiBand | str` deprecations; a test pins the `chain` annotation to
+  `Chain`. Proposal `docs/proposals/2026-10-05-precise-types.md` P2/P6; PR pending.
 
 ### testoperations
 
