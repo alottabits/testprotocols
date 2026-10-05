@@ -256,7 +256,7 @@ their tags and PR history.
   `NmapResult` (`up`, `addresses`, `ports`) and `NmapPort` (`port`, `protocol:
   TransportProtocol`, `state`, `service`), `ArpEntry` (`address: IPv4Address`, `hw_type`,
   `hw_address`, `flags`, `interface`) — frozen records for the host-tier readers; a wrong type
-  raises `TypeError`, an out-of-range or inconsistent value `ValueError`. `as_dict()` /
+  raises `TypeError`, an out-of-range, non-finite or inconsistent value `ValueError`. `as_dict()` /
   `as_tuple()` give exactly what the deprecated reader returned for `UrlRules`,
   `MemoryUtilization` (in bytes), `ProcessInfo` (a procps `ps -A` entry, time
   `[DD-]hh:mm:ss`) and `IperfProcess`. `EventLogEntry.as_dict()` is the released entry of a
@@ -282,7 +282,8 @@ their tags and PR history.
   `GroupRecord` (warns), and an iperf size (`"8M"`, binary units) to bytes (`ValueError` for
   text that is not a size). Migration: none. Design `docs/architecture/precise-types-design.md` (Host-tier records); PR pending.
 - **internal module** `testprotocols.models._checks` — the field checks the frozen records
-  share (`TypeError` for a wrong type, `ValueError` out of range; a `bool` is never a number);
+  share (`TypeError` for a wrong type, `ValueError` out of range or not finite; a `bool` is
+  never a number);
   the voice records use it too. Not public API. Migration: none. Design `docs/architecture/precise-types-design.md` (Host-tier records); PR pending.
 - **model** `testprotocols.models:GroupRecord(sources, group, record_type)` — a `NamedTuple`,
   so it is the released `(sources, group, record_type)` tuple and fits the released

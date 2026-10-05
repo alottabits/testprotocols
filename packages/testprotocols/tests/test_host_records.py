@@ -628,6 +628,14 @@ def test_ping_result_refuses_bad_values(kwargs: dict[str, object], error: type[E
     with pytest.raises(error):
         PingResult(**(base | kwargs))  # type: ignore[arg-type]
 
+@pytest.mark.parametrize("value", [float("nan"), float("inf")])
+def test_a_record_number_must_be_finite(value: float) -> None:
+    with pytest.raises(ValueError, match=r"PingResult\.rtt_avg_ms must be a finite number"):
+        PingResult("127.0.0.1", 2, 2, 0.0, rtt_avg_ms=value)
+    with pytest.raises(ValueError, match=r"Brownout\.loss_percent must be a finite number"):
+        Brownout(loss_percent=value)
+
+
 
 @pytest.mark.parametrize(
     ("transmitted", "received", "loss"),

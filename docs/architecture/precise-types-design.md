@@ -440,7 +440,8 @@ where one exists, also records its retype.
   (`read_arp_table`), `datetime | None` (`read_date`) and the transient events
   (`inject_event`). Fields come from the released docstrings and what the released
   implementers return (the tool output they parse: `free`, `ps -A`, BSD syslog, `dig`,
-  `ping`, `nmap -oX`, `arp -n`); a field nothing supports is left out.
+  `ping`, `nmap -oX`, `arp -n`); a field nothing supports is left out. A number field
+  refuses `nan` and `inf` (`ValueError`), as `Telemetry` does.
   - Exact released shapes: `UrlRules.as_tuple()`, `MemoryUtilization.as_dict()` (`total`,
     `used`, `free`, then `shared`, `cache`, `available` when reported, in bytes as the
     released docstring says), `ProcessInfo.as_dict()` (`pid`, `tty`, `time` as procps

@@ -2,11 +2,12 @@
 
 Each check raises ``TypeError`` for a value of the wrong type and ``ValueError`` for a value of
 the right type that is out of range, naming the record and the field. A ``bool`` is never taken
-for a number. Not public API.
+for a number, and a number must be finite (no ``nan`` or ``inf``). Not public API.
 """
 
 from __future__ import annotations
 
+import math
 from collections.abc import Iterable
 from datetime import datetime
 from typing import cast
@@ -27,9 +28,11 @@ def optional_count(owner: str, name: str, value: object) -> None:
 
 
 def number(owner: str, name: str, value: object, *, high: float | None = None) -> None:
-    """A non-negative ``int`` or ``float`` (at most *high* when given)."""
+    """A finite, non-negative ``int`` or ``float`` (at most *high* when given)."""
     if isinstance(value, bool) or not isinstance(value, int | float):
         raise TypeError(f"{owner}.{name} takes a number, not {value!r}")
+    if not math.isfinite(value):
+        raise ValueError(f"{owner}.{name} must be a finite number: {value}")
     if value < 0 or (high is not None and value > high):
         bound = f"0 to {high}" if high is not None else "0 or more"
         raise ValueError(f"{owner}.{name} must be {bound}: {value}")
