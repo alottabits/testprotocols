@@ -269,7 +269,9 @@ same way from its first release under this process. The MAJOR digit stays
 A contract change may deprecate the old form. The deprecation model:
 
 - protocols state a deprecation (docstring, `@deprecated` marker, CHANGELOG) and carry no transition code;
-- a record keeps a released field during a deprecation, widened to `… | None` next to an optional typed twin, so a driver fills either form;
+- a record keeps a released field during a deprecation, widened to `… | None` next to an optional typed twin, so a driver fills either form; a released default stays the released default;
+- reading such a pair: the typed field when filled, else the text, else the released default's meaning (or `ValueError` where the released field was required and the typed field cannot hold `None`; a typed field that holds `None` as a value reads it as that value);
+- writing such a pair: a caller building a record for a write member fills both forms until removal, because a driver not yet updated reads only the text; a driver implementing a write member reads the typed form when filled, else the text. A caller that fills only the typed form leaves the text at its released default, and a driver not yet updated acts on that default;
 - drivers decide how they transition;
 - `testoperations` supports both forms until removal;
 - removal happens in the first release after 6 months, tracked in the Deprecations table of `docs/architecture/precise-types-design.md`.

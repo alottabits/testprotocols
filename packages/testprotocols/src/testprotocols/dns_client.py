@@ -33,8 +33,7 @@ class DnsClient(Protocol):
         cannot be rebuilt from them.
 
         *record_type* is a :class:`~testprotocols.models.DnsRecordType` or its text (``"A"``);
-        a record type the enum does not name yet (``"CAA"``) is passed as text. The annotation
-        narrows to ``DnsRecordType`` at removal.
+        a record type the enum does not name yet (``"CAA"``) is passed as text.
 
         *opts* (extra resolver options) is deprecated with no typed replacement: no caller
         was seen to pass a particular option, and :meth:`resolve` takes none.

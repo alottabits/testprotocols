@@ -24,12 +24,17 @@ form; the deprecation is stated, and the transition belongs to the drivers and t
 - **C3. A released record field that holds a grammar as text** (ports, timestamps, the QoS
   classifier) keeps its name and position during the deprecation, its type widened to
   `<released type> | None`. A field that was required stays required; a field that had a
-  default now defaults to `None`, and the released default's meaning moves into the
-  `testoperations` reader. The typed form is an optional keyword-only field defaulting to
-  `None`. A driver fills either form, or both, describing the same value; for a field that
-  was required, at least one is filled. At removal the text field goes and the typed field
-  becomes required. The record holds no sync, parsing or check: the `testoperations` readers
-  apply the rule at use time. A reader that reads the text field directly sees `… | None`.
+  default keeps its released default text (a producer may pass `None`, which reads as that
+  default). The typed form is an optional keyword-only field defaulting to `None`. A driver
+  fills either form, or both, describing the same value; for a field that was required, at
+  least one is filled. At removal the text field goes and the typed field becomes required.
+  The record holds no sync, parsing or check: the `testoperations` readers apply the rule at
+  use time. A reader that reads the text field directly sees `… | None`. Read a pair: the
+  typed field when filled, else the text, else the released default's meaning. Write a pair
+  (a record passed to a write member): the caller fills both forms until removal, because a
+  driver not yet updated reads only the text; a driver implementing the member reads the
+  typed form when filled, else the text. A caller that fills only the typed form leaves the
+  text at its released default, and a driver not yet updated acts on that default.
 - **C4. A released `str` field or parameter whose values form a closed vocabulary** is
   annotated `E | str` during the deprecation, `E` a `StrEnum` (or `IntEnum`) whose values
   are the released spellings; the docstring announces the narrowing to `E`. Nothing converts
@@ -42,7 +47,7 @@ form; the deprecation is stated, and the transition belongs to the drivers and t
   when the driver has it, else the old one); `_released.py` (`ReleasedMapping`); the readers
   of a text/typed pair (the typed field when filled, else the text parsed, else the released
   default's meaning, or a `ValueError` naming the record and field when the released field
-  was required); the parsers and formatters of the released text forms; and the conversion
+  was required); the parsers of the released text forms; and the conversion
   of its own released string parameters, with a `DeprecationWarning` at its caller.
 
 Each deprecation is a row of the Deprecations table at the end of this document, with its
@@ -149,8 +154,9 @@ The record holds no code for the pair: no sync, no parsing and no check.
 
 - The released text field keeps its name and position; its type widens to
   `<released type> | None`. A field that was required stays required (a driver
-  that fills only the typed form passes `None`); a field that had a default now
-  defaults to `None`, which means what the released default meant.
+  that fills only the typed form passes `None`); a field that had a default keeps
+  its released default text (`"any"` for the `L3Rule` ports, `""` for the `NatRule`
+  ports), and a producer may pass `None`, which reads as that default.
 - The typed field is keyword-only and defaults to `None`.
 - A driver fills either field, or both; when both are filled they describe the
   same value. For a field that was required, at least one is filled. At removal
@@ -159,10 +165,16 @@ The record holds no code for the pair: no sync, no parsing and no check.
   text parsed, else the released default's meaning, or `ValueError` naming the
   record and field when the released field was required. Where the typed field
   holds `None` as a value (`SecurityEvent.timestamp`: no time reported;
-  `QosRule.classifier`: every frame), a record with neither form filled reads
+  `QosRule.classifier`: every frame), a record with both fields `None` reads
   as that `None`, because the typed `None` is a real value; only
-  `FirewallRule.dst_port` raises. The parsers and formatters of the text forms live
-  there too.
+  `FirewallRule.dst_port` raises. The parsers of the text forms live there too.
+- A record also flows into a driver through a write member (`PacketFilter.add_rule`,
+  `Nat.add_nat_rule`, the `L3Firewall.set_*_rules` members, `SwitchQos.set_rules`).
+  A caller building one fills both forms until removal: a driver not yet updated
+  reads only the text. A driver implementing the member reads the typed form when
+  filled, else the text. A caller that fills only the typed form leaves the text at
+  its released default (`"any"`, `""`), and a driver not yet updated acts on it: a
+  rule meant for some ports would apply to any port, or to none.
 - At removal, a pair whose text field had a released default (`NatRule` and `L3Rule`
   ports) may instead give the typed field a `()` default; that is decided at removal.
 - A reader that reads the text field directly sees `… | None`; this is listed
@@ -193,8 +205,8 @@ where one exists, also records its retype.
   gains `dst_ports` and `NatRule` gains `dst_ports` and `translated_ports`, each a
   `tuple[PortRange, ...] | None` beside its deprecated text field (either form).
   `FirewallRule.dst_port` stays required (`str | None`). The released `NatRule`
-  contract used `""` for no port, so an unfilled `NatRule` pair reads as no port
-  (`"any"` reads the same), while `FirewallRule` reads `"any"` as any port. The
+  contract used `""` for no port, which stays the default of the `NatRule` text
+  fields and reads as no port (`"any"` reads the same), while `FirewallRule` reads `"any"` as any port. The
   `NatRule` cidr and translated-address `""`
   placeholders are announced only (shape 6). `RuleCounters(packets, bytes)`
   replaces the `(int, int)` tuple: the new members
@@ -203,7 +215,7 @@ where one exists, also records its retype.
   `testoperations` does not call either old name.
 - **SD-WAN models** (shapes 4(ii) and 6). `L3Rule` gains `src_ports` and
   `dst_ports`, `tuple[PortRange, ...] | None` beside the deprecated `src_port` /
-  `dst_port` text (either form; an unfilled pair reads as the released `"any"`).
+  `dst_port` text (either form; the text keeps its released default `"any"`).
   `SecurityEvent` gains `timestamp: datetime | None` beside the deprecated
   ISO-8601 `ts`, which stays required and in its released position. The text
   parser is `datetime.fromisoformat`; a timezone-naive value stays naive and no
@@ -720,11 +732,15 @@ required, or `E | str` becomes `E`.
 
 Notes:
 
-- Text/typed pairs (C3): with neither form filled, `testoperations` reads
+- Text/typed pairs (C3): with both fields `None`, `testoperations` reads
   `SecurityEvent.ts` / `timestamp` and `QosRule.match` / `classifier` as `None` (no time
   reported; every frame), because the typed `None` is a real value; only
-  `FirewallRule.dst_port` raises (`ValueError` naming the record and field). An unfilled
-  `NatRule` pair reads as no port, an unfilled `L3Rule` pair as any port.
+  `FirewallRule.dst_port` raises (`ValueError` naming the record and field). The
+  `NatRule` text fields keep their released default `""` (no port), the `L3Rule` text
+  fields `"any"` (any port); a text passed as `None` reads as that default.
+- Until removal, a caller passing a pair to a write member fills both forms, because a
+  driver not yet updated reads only the text; filling only the typed form leaves the text
+  at its released default, which such a driver acts on.
 - Released-defaulted pairs (`NatRule`, `L3Rule`): at removal the typed field becomes
   required, or defaults to `()`; that is decided at removal.
 - The gaps left open on purpose (option strings with no typed successor, vocabularies

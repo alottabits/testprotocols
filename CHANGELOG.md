@@ -89,21 +89,39 @@ their tags and PR history.
   `Console` members only. Migration: narrow the declarations. Design
   `docs/architecture/precise-types-design.md` (telemetry and policy; HwConsole); PR pending.
 - **field** `testprotocols.models:FirewallRule.dst_port` — now `str | None`, still required
-  and in its released position; `None` when the driver fills only `dst_ports`. A reader of
-  the field sees `str | None` (read the ports through testoperations, which accepts either
-  form). Design `docs/architecture/precise-types-design.md` (firewall and NAT ports and counters); PR pending.
+  and in its released position; `None` when the producer fills only `dst_ports`. A reader of
+  the field sees `str | None`. Read the pair as: `dst_ports` when filled, else `dst_port`
+  parsed, else `ValueError` (neither form filled). Write: a caller building a rule for
+  `PacketFilter.add_rule` fills both forms until removal, because a driver not yet updated
+  reads only `dst_port`; a driver implementing the member reads `dst_ports` when filled,
+  else `dst_port`. Design `docs/architecture/precise-types-design.md` (firewall and NAT ports and counters); PR pending.
 - **fields** `testprotocols.models:NatRule.dst_port` and `translated_port` — now
-  `str | None`, default `None` (released: `""`, no port); `None` means the same as `""`. A
-  reader sees `str | None`. Design `docs/architecture/precise-types-design.md` (firewall and NAT ports and counters); PR pending.
-- **fields** `testprotocols.models:L3Rule.src_port` and `dst_port` — now `str | None`,
-  default `None` (released: `"any"`); `None` means the same as `"any"`. A reader sees
-  `str | None`. Design `docs/architecture/precise-types-design.md` (SD-WAN models); PR pending.
+  `str | None`; the default stays the released `""` (no port), and `None` passed explicitly
+  reads as `""`. A reader sees `str | None`. Read a pair as: the typed form when filled, else
+  the text, else (text `None`) `""`. Write: a caller building a rule for `Nat.add_nat_rule`
+  fills both forms until removal, because a driver not yet updated reads only the text; a
+  driver implementing the member reads the typed form when filled, else the text. A caller
+  that fills only the typed form leaves the text at `""`, and a driver not yet updated acts
+  on that: no port. Design `docs/architecture/precise-types-design.md` (firewall and NAT ports and counters); PR pending.
+- **fields** `testprotocols.models:L3Rule.src_port` and `dst_port` — now `str | None`; the
+  default stays the released `"any"`, and `None` passed explicitly reads as `"any"`. A reader
+  sees `str | None`. Read a pair as: the typed form when filled, else the text, else (text
+  `None`) `"any"`. Write: a caller building rules for the `L3Firewall.set_*_rules` members
+  fills both forms until removal, because a driver not yet updated reads only the text; a
+  driver implementing the members reads the typed form when filled, else the text. A caller
+  that fills only the typed form leaves the text at `"any"`, and a driver not yet updated
+  acts on that: any port. Design `docs/architecture/precise-types-design.md` (SD-WAN models); PR pending.
 - **field** `testprotocols.models:SecurityEvent.ts` — now `str | None`, still required and in
   its released position; `None` when the driver fills only `timestamp`. A reader sees
-  `str | None`. Design `docs/architecture/precise-types-design.md` (SD-WAN models); PR pending.
+  `str | None`. Read the pair as: `timestamp` when filled, else `ts` parsed (`""`: no time),
+  else `None` (no time reported: the typed form holds `None` as a value). Design `docs/architecture/precise-types-design.md` (SD-WAN models); PR pending.
 - **field** `testprotocols.models:QosRule.match` — now `str | None`, still required and in
-  its released position; `None` when the driver fills only `classifier`. A reader sees
-  `str | None`. Design `docs/architecture/precise-types-design.md` (switch QoS classifier); PR pending.
+  its released position; `None` when the producer fills only `classifier`. A reader sees
+  `str | None`. Read the pair as: `classifier` when filled, else `match` parsed, else `None`
+  (every frame: the typed form holds `None` as a value). Write: a caller building rules for
+  `SwitchQos.set_rules` fills both forms until removal, because a driver not yet updated
+  reads only `match`; a driver implementing the member reads `classifier` when filled, else
+  `match`. Design `docs/architecture/precise-types-design.md` (switch QoS classifier); PR pending.
 - **fields** `testprotocols.models:FirewallRule.action` / `protocol`, `NatRule.mode` /
   `protocol`, `PortMapping.protocol`, `Connection.protocol`, `LinkStatus.state` and
   `LinkHealthReport.state`, `TrafficSpec.protocol`, `MeasurementSpec.tool` /
@@ -112,6 +130,12 @@ their tags and PR history.
   `WifiBssConfig.security_mode` / `mfp`, `WifiAcl.mode` and the `role` of
   `WifiMeshStatus` and `WifiMeshNode` — now `E | str` (the enum or its released word,
   stored as given), so a reader sees `E | str`. Design `docs/architecture/precise-types-design.md`; PR pending.
+- **model** `testprotocols.models:HTTPResult` — now a frozen dataclass (released: a plain
+  class). Its attributes are read-only, so assigning one raises `FrozenInstanceError`, and
+  equality is by value (released: by identity). A driver that assigns attributes of a result,
+  in a subclass or after construction, now fails at run time; a subclass declared as a
+  non-frozen dataclass fails at import. Migration: build the result from its text and do not
+  assign attributes afterwards. Design `docs/architecture/precise-types-design.md` (Host-tool and service vocabularies); PR pending.
 
 #### Added
 
@@ -146,12 +170,14 @@ their tags and PR history.
   and `NatRule.translated_ports` — `tuple[PortRange, ...] | None` (keyword-only,
   default `None`), the empty tuple meaning no port restriction: the typed form of
   the deprecated text fields `dst_port` / `translated_port`. A driver fills either
-  form, or both, describing the same ports. Migration: pass `PortRange` tuples. Design `docs/architecture/precise-types-design.md` (firewall and NAT ports and counters); PR pending.
+  form, or both, describing the same ports. Migration: pass `PortRange` tuples; a caller
+  passing a rule to a write member fills the text form too until removal. Design `docs/architecture/precise-types-design.md` (firewall and NAT ports and counters); PR pending.
 - **fields** `testprotocols.models:L3Rule.src_ports` and `dst_ports` —
   `tuple[PortRange, ...] | None` (keyword-only, default `None`), the empty tuple
   meaning any port: the typed form of the deprecated text fields `src_port` /
   `dst_port`. A driver fills either form, or both, describing the same ports.
-  Migration: pass `PortRange` tuples. Design `docs/architecture/precise-types-design.md` (SD-WAN models); PR pending.
+  Migration: pass `PortRange` tuples; a caller passing a rule to a write member fills the
+  text form too until removal. Design `docs/architecture/precise-types-design.md` (SD-WAN models); PR pending.
 - **field** `testprotocols.models:SecurityEvent.timestamp` — `datetime | None`
   (keyword-only, default `None`; `None`: the product reports no time), the typed
   form of the deprecated ISO-8601 text `ts`. A driver fills either form, or both,
@@ -234,9 +260,10 @@ their tags and PR history.
   before, re-exported by the internal `testprotocols._compat`), with the same sentence as the
   docstring: "Deprecated: use `<new>`. Removal not before the first release 6 months after the
   release that deprecates it." It is passed `category=None`: the deprecation is stated for the
-  type checkers and in the docstring, and nothing warns at run time. mypy (error code
-  `deprecated`) and pyright (`reportDeprecated`) report each use, which consumers see when their
-  checker enables the check. New dependency on Python 3.12: `typing_extensions>=4.6` (the first release that imports on 3.12).
+  type checkers and in the docstring, and nothing warns at run time. pyright in strict mode
+  reports `reportDeprecated` as an error by default, so a consumer on pyright strict gets an
+  error at every use of a deprecated member on upgrade; mypy reports a use only when the
+  `deprecated` error code is enabled. New dependency on Python 3.12: `typing_extensions>=4.6` (the first release that imports on 3.12).
   Migration: none. Design `docs/architecture/precise-types-design.md`; PR pending.
 
 - **protocol** `testprotocols.hw_console:Console` (also `testprotocols.Console`) — the
@@ -602,17 +629,17 @@ their tags and PR history.
 
 #### Added
 
-- **internal module** `testoperations._compat` — reads a record field that has a released
-  text form and a typed form (`FirewallRule`, `NatRule` and `L3Rule` ports,
-  `SecurityEvent` time, `QosRule` classifier) the same way whichever form the driver
-  filled: the typed field, else the text parsed, else the released default's meaning (or
-  `ValueError` naming the record and field when the released field was required and the
-  typed field cannot hold `None` as a value: `FirewallRule.dst_port`). `SecurityEvent` and
-  `QosRule` are the exception: their typed fields hold `None` as a value (no time reported;
-  every frame), so a record with neither form filled reads as `None`. It also holds
-  the parsers of those text forms (ports, timestamps, the QoS classifier text) and of the
-  iperf window size, and `coerce_enum`, which converts an operation's own released `str`
-  parameter to its enum (a plain string naming a member warns at the operation's caller). Not public API. Migration: none. Design
+- **behaviour** the operations read a record field that has a released text form and a
+  typed form (`FirewallRule`, `NatRule` and `L3Rule` ports, `SecurityEvent` time, `QosRule`
+  classifier) the same way whichever form the driver filled, and convert their own released
+  `str` parameters to enums (a plain string naming a member warns at the operation's
+  caller). The readers and parsers are internal, not public API. Anyone reading such a pair
+  directly applies the same rule: the typed field when filled, else the text parsed, else the
+  released default's meaning (`"any"` for `L3Rule` ports, `""`, no port, for `NatRule`
+  ports), or `ValueError` when the released field was required and the typed field cannot
+  hold `None` as a value (`FirewallRule.dst_port`). `SecurityEvent.ts` and `QosRule.match`
+  are the exception: their typed fields hold `None` as a value (no time reported; every
+  frame), so a record with both fields `None` reads as `None`. Migration: none. Design
   `docs/architecture/precise-types-design.md`; PR pending.
 - **enum** `testoperations.segmentation:DenyScope` (`HOST`, `SUBNET`) — how wide
   a deny rule built by `build_deny_rule` matches. Migration: pass the member. Design `docs/architecture/precise-types-design.md` (Segmentation deny scope); PR pending.
