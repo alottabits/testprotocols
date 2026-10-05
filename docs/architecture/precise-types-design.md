@@ -5,22 +5,26 @@
 | Status  | Implemented, unreleased                                               |
 | Author  | rjvisser                                                              |
 | Date    | 2026-10-05                                                            |
-| Related | `docs/proposals/README.md` (question 9, precise types), `CONTRIBUTING.md` (Versioning), `testprotocols._compat`, `testoperations._compat`, `packages/testprotocols/tests/test_typing_ratchet.py` |
+| Related | `docs/proposals/README.md` (question 9, precise types), `CONTRIBUTING.md` (Versioning), `docs/architecture/precise-types-families.md` (the reviewed families and substrate surveys), `testprotocols._compat`, `testoperations.pairs`, `testoperations._compat`, `packages/testprotocols/tests/test_typing_ratchet.py` |
 
 ## The contract model
 
 The capability protocols define the contract. A contract change may deprecate the old
 form; the deprecation is stated, and the transition belongs to the drivers and to
-`testoperations`. Six rules apply.
+`testoperations`. Six rules apply, and one stated exception.
 
 - **C1. No runtime transition code in `testprotocols`.** No `DeprecationWarning`, no
   conversion, no sync and no field validation in a record or a protocol module.
 - **C2. A deprecated protocol member or class** keeps its declaration and gets a docstring
   paragraph, "Deprecated: use `<new>`. Removal not before the first release 6 months after
   the release that deprecates it.", and `@deprecated("<the same sentence>", category=None)`,
-  imported from `testprotocols._compat` (`warnings.deprecated` on Python 3.13 and later,
-  `typing_extensions.deprecated` before). Type checkers report each use; nothing warns at run
-  time. The docstring does not tell a driver how to transition.
+  imported from `testprotocols._compat`. Type checkers resolve the marker as
+  `typing_extensions.deprecated` from their bundled stubs and report each use (pyright in
+  strict mode; mypy with `enable_error_code = deprecated`, as this workspace configures
+  it). At run time Python 3.13 and later supply `warnings.deprecated`, and Python 3.12 an
+  identity marker that returns the object unchanged, so the package keeps no runtime
+  dependency; nothing warns at run time. The docstring does not tell a driver how to
+  transition.
 - **C3. A released record field that holds a grammar as text** (ports, timestamps, the QoS
   classifier) keeps its name and position during the deprecation, its type widened to
   `<released type> | None`. A field that was required stays required; a field that had a
@@ -45,11 +49,47 @@ form; the deprecation is stated, and the transition belongs to the drivers and t
   no `__post_init__` checks and no `__setattr__`. A constraint on a field is stated in its
   docstring.
 - **C6. `testoperations` owns the transition:** the `_renamed.py` accessors (the new member
-  when the driver has it, else the old one); `_released.py` (`ReleasedMapping`); the readers
-  of a text/typed pair (the typed field when filled, else the text parsed, else the released
-  default's meaning, or a `ValueError` naming the record and field when the released field
-  was required); the parsers of the released text forms; and the conversion
-  of its own released string parameters, with a `DeprecationWarning` at its caller.
+  when the driver has it, else the old one); `_released.py` (`ReleasedMapping`); the public
+  readers of a text/typed pair in `testoperations.pairs` (the typed field when filled, else
+  the text parsed, else the released default's meaning, or a `ValueError` naming the record
+  and field when the released field was required), with the parsers of the released text
+  forms, which a consumer that depends on `testprotocols` and reads a pair uses too; and
+  the conversion of its own released string parameters, with a `DeprecationWarning` at its
+  caller (`testoperations._compat`).
+
+**The no-period exception.** A released record field whose values a reviewed family
+cannot report at all, and of which no form can be kept through a period, may be widened
+to `T | None` at once, without a deprecation period. Both conditions must hold: a reviewed
+family reports no value for the field (so a driver for it can only invent one), and
+neither a twin field (C3) nor a rename-then-reclaim keeps the released form usable (a
+twin would leave the released field required and still unfillable). The change is
+recorded under *Breaking for driver authors* with its migration line. The one instance:
+`WifiRadioStats.tx_retries` and `tx_failed` (`int` to `int | None`). TR-181 gives retry
+counters per SSID, not per radio; Wi-Fi Data Elements has no radio counters; one
+reviewed access-point family gives no retries and another no radio counters
+(`precise-types-families.md`, "Wi-Fi"). The released `int` therefore forces a driver for
+those families to report `0`, a false fact, and a twin field would keep that required
+`int` for the whole period, which is the defect itself.
+
+**Why the runtime warning left `testprotocols`.** The released rung-5 rule announced a
+deprecation with a runtime `DeprecationWarning` and normalised an old input form with a
+shared helper that warned. Applied to the records and protocol modules of
+`testprotocols`, it put transition code in the contract package, and a first
+implementation of this change that did so produced four findings, which C1 rests on:
+
+1. Records stopped being plain dataclasses: equality, hashing, `dataclasses.replace`,
+   truthiness and `dict(record)` each needed special handling, and each produced a fix.
+2. The warning's stack level named the wrong caller on one supported Python version: the
+   same test passed on CPython 3.13 and failed on 3.12.
+3. A consumer running its tests with warnings as errors would fail at run time on upgrade,
+   for code that type-checks, before it had a chance to migrate.
+4. The warning cannot tell a driver how to transition anyway: the driver knows its device,
+   the contract does not.
+
+The deprecation period itself (one MINOR release and six months) is kept, and
+`testoperations` keeps the runtime warning for its own operations' released forms (C6),
+where the warning names the operation's caller. The change governs the rung-5 items of
+the retypes below; it adds no protocol member of its own.
 
 Each deprecation is a row of the Deprecations table at the end of this document, with its
 earliest removal: the first release 6 months after the release that deprecates it.
@@ -83,10 +123,13 @@ shapes below are the only ones used.
 - No explicit `Any` in a signature or field. mypy enforces it
   (`disallow_any_explicit` for `testprotocols.*` and `testoperations.*`); the
   exceptions are released signatures, marked line by line (see
-  "Exemption policy for explicit `Any`" below). `tests/test_typing_ratchet.py`
+  "Exemption policy for explicit `Any` and `object`" below). `tests/test_typing_ratchet.py`
   is the second line of defence, because pyright has no such rule: it counts
-  the non-exempt `Any` (ceiling 0) and pins the exempted lines per class (8
-  deprecation-period lines and 14 compatibility lines).
+  the non-exempt `Any` (ceiling 0) and pins the exempted lines per class (9
+  deprecation-period lines and 16 compatibility lines).
+- No `object` as a type in a public signature or field either: it is as imprecise as
+  `Any`, and no checker flags it, so the ratchet is the only defence. It counts `object`
+  the same way (ceiling 0) and pins the exempted lines per class and package.
 
 ## Deprecation shapes
 
@@ -94,16 +137,18 @@ Each retype names one of these shapes. A deprecation is stated, not implemented:
 `testprotocols` carries no code for it. A deprecated protocol member, model or property
 keeps its declaration and gets a docstring paragraph ("Deprecated: use `<new>`. Removal not
 before the first release 6 months after the release that deprecates it.") and the standard
-`@deprecated` marker with the same sentence, imported from `testprotocols._compat`
-(`warnings.deprecated` on Python 3.13 and later, `typing_extensions.deprecated` before).
-The marker is passed `category=None`, so it is seen by the type checkers (mypy's
-`deprecated` error code, pyright's `reportDeprecated`, both enabled here) and nothing warns
-at run time. `packages/testprotocols/tests/typing/deprecated_usage.py` uses every marked
+`@deprecated` marker with the same sentence, imported from `testprotocols._compat` (no
+runtime dependency: see C2). The marker is passed `category=None`, so it is seen by the type
+checkers (pyright's `reportDeprecated`, an error in strict mode; mypy with
+`enable_error_code = deprecated`, as this workspace configures it) and nothing warns at run
+time. `packages/testprotocols/tests/typing/deprecated_usage.py` uses every marked
 name under `# type: ignore[deprecated]`; a missing marker leaves that ignore unused, which
 fails both checkers. A deprecated parameter or field cannot carry the marker: its docstring
-states it. The transition belongs to the drivers and to `testoperations._compat` (the readers
-of either form, the parsers of released text forms, and `coerce_enum` for an operation's own
-released `str` parameter).
+states it. A released plain attribute (`HTTPResult.code`) cannot carry it either: a property
+in its place would change the attribute's released writability. The transition belongs to the
+drivers and to `testoperations` (the public readers of either form and the parsers of
+released text forms in `testoperations.pairs`, and `coerce_enum` in `testoperations._compat`
+for an operation's own released `str` parameter).
 
 - **Shape 1: a released `str` parameter becomes an enum.** The parameter is
   annotated `E | str`. A driver converts it once, at its boundary and before any
@@ -163,8 +208,8 @@ The record holds no code for the pair: no sync, no parsing and no check.
   same value. For a field that was required, at least one is filled. At removal
   the text field goes; the typed field becomes required, or, where the text field
   had a released default, defaults to the typed form of that default.
-- `testoperations._compat` reads a pair: the typed field when filled, else the
-  text parsed, else the released default's meaning, or `ValueError` naming the
+- `testoperations.pairs` reads a pair, for the operations and for any consumer: the typed
+  field when filled, else the text parsed, else the released default's meaning, or `ValueError` naming the
   record and field when the released field was required. Where the typed field
   holds `None` as a value (`SecurityEvent.timestamp`: no time reported;
   `QosRule.classifier`: every frame), a record with both fields `None` reads
@@ -236,8 +281,8 @@ where one exists, also records its retype.
   `TrafficShapingRule` have no capability using them and no successor: both are deprecated with
   the `@deprecated` marker and stay exported from `testprotocols.models` as released, so
   a consumer's type checker reports a use and nothing warns at run time.
-  `TrafficShapingRule.match` is `Mapping[str, object]`. `ShapingRule` is not a
-  drop-in successor: its match is one `(match_type, value)` pair, so it cannot express the
+  `TrafficShapingRule.match` is `Mapping[str, object]` (an exempted line, deprecated
+  form). `ShapingRule` is not a drop-in successor: its match is one `(match_type, value)` pair, so it cannot express the
   dict match (destination prefix, source prefix, protocol, port) a reference
   consumer builds into `TrafficShapingRule`.
 - **Switch QoS classifier** (shape 4(ii)). `QosRule.classifier` is
@@ -254,23 +299,28 @@ where one exists, also records its retype.
   A term given twice raises `ValueError` in the reader. A rule holds one source and one destination range at most, because
   the text spells one range per direction.
 - **Telemetry and policy** (shapes 5 and the no-successor deprecation). `Telemetry`
-  replaces the `dict[str, Any]` that `Router.get_telemetry` returned (shape 5); the old member now returns
-  `Mapping[str, float]`, so an implementer whose declared return is not
-  `float`-valued no longer conforms:
+  replaces the `dict[str, Any]` that `Router.get_telemetry` returned (shape 5):
   `Router.read_telemetry() -> Telemetry` is a new mandatory member, and the old name
-  is deprecated in its favour; a driver returns the reported fields of
-  `read_telemetry()`. The fields come from evidence,
+  is deprecated in its favour. The old member keeps its released `dict[str, Any]` return
+  until its removal (a deprecation-period exemption), as the other deprecated readers do; a
+  driver returns the reported fields of `read_telemetry()`. The fields come from evidence,
   not from design. The released docstring said only "a dict of current device
   telemetry data" and named no key. The only implementer in the consumer examples
   (a Linux router) returns `uptime_seconds`, `cpu_load_percent` and
   `mem_used_percent`, all floats, and omits a CPU key when it cannot read one; so
-  `Telemetry` has exactly those three fields, the last two optional, and no other
-  field (a temperature or load average would be a guess). Each value is a finite,
-  non-negative number, stated in the docstring (the record does not check it). `testoperations` does not
+  `Telemetry` has exactly those three fields and no other (a temperature or load average
+  would be a guess). Each is `None` when the device does not report it, and
+  `uptime_seconds` stays required, so a driver states the absence. The uptime is
+  `float | None`, not `float`: `SdwanApplianceDevice` composes `routing: Router`, and
+  `GAPS.md` 2026-06-11 ("appliance health / online capability") records that host-shaped
+  health was kept off the cloud-managed appliance and that an uptime read there has the
+  shape `float | None`. A required `float` would force a host-shaped read onto that
+  archetype. Each value given is a finite, non-negative number, stated in the docstring
+  (the record does not check it). `testoperations` does not
   call `get_telemetry`, so there is no accessor in `_renamed.py`.
   `SdwanPolicyManager.apply_policy` is deprecated with no successor (the typed
   steering and SLA members cover it) and keeps its name and place; `Any` becomes
-  `object` (`dict[str, object]`). A `Mapping` parameter would be the wider type, but
+  `object` (`dict[str, object]`, an exempted line, deprecated form). A `Mapping` parameter would be the wider type, but
   a protocol parameter wider than an implementer's `dict` parameter makes the
   implementer fail to conform statically, so the parameter stays a `dict`.
 - **Segmentation deny scope** (shape 1, `testoperations`). `build_deny_rule(scope,
@@ -311,10 +361,11 @@ where one exists, also records its retype.
   Suite B). `WifiBss.create_bss` and `set_security` state that the WPA3-only modes
   (`WPA3_SAE`, `WPA3_EAP`, `WPA3_EAP_192`), `OWE` and any BSS on 6 GHz require
   management-frame protection, so a driver applies `REQUIRED` whatever `mfp` says
-  and the read-back reports `REQUIRED`. `WifiRadioStats.tx_retries` and `tx_failed`
-  become `int | None` (no deprecation shape: a released field's type widens at once,
-  breaking for driver authors; still required, in their released positions): TR-181 and
-  Wi-Fi Data Elements define no per-radio retry or failed count and not every
+  and the read-back reports `REQUIRED` (a driver that reported `optional` for such a BSS
+  changes; recorded under *Changed* with its migration line). `WifiRadioStats.tx_retries`
+  and `tx_failed` become `int | None` under the no-period exception (see "The contract
+  model"; breaking for driver authors; still required, in their released positions):
+  TR-181 and Wi-Fi Data Elements define no per-radio retry or failed count and not every
   access-point API reports one, so `None` means not reported, never `0` as a stand-in. `WifiStation.capability_flags`
   stays `list[str]`: the device's own words (`HT`, `VHT`, `HE`, `EHT`, `MLO` and
   whatever else the driver reports), listed in the docstring.
@@ -350,15 +401,16 @@ where one exists, also records its retype.
   implementer returns exactly those two keys and the step definitions read `engaged`.
   `MwiStatus` (`waiting`, `new`, `old`) and `OfflineMessage` (`sender`, `body`,
   `stored_at`): the released docstrings list the keys `waiting`/`new`/`old` and
-  `from`/`body`/`timestamp`; `timestamp` was ISO-8601 text and becomes a `datetime`
-  (`isoformat(sep=" ")` gives `"2026-04-22 10:00:00"`, the form the implementer's database
-  returns), and the deprecated reader may instead keep returning the driver's original
+  `from`/`body`/`timestamp`; `timestamp` was ISO-8601 text and becomes `stored_at:
+  datetime | None` (`None` when the store reports no time; a driver parses the text with
+  `datetime.fromisoformat`, `T` or space separated: `isoformat(sep=" ")` gives
+  `"2026-04-22 10:00:00"`, the form the implementer's database returns), and the deprecated reader may instead keep returning the driver's original
   text unchanged (the implementer returns the database's text unparsed, so it must parse
   it). The records are plain frozen dataclasses. `testoperations` calls none of the three readers.
 - **Host-tool and service vocabularies** (shapes 1, 3, 4p, 5 and 6).
   Evidence for every set, from the released docstrings, the `testoperations` callers, the
   example implementers and the released reference implementers of the host templates
-  (a Linux host device and the boardfarm LAN device):
+  (a Linux host device and the LAN device of a released open-source implementer framework):
   - `start_http_service(ip_version)` is `"4"` / `"6"`: both implementers run the server
     as `-{ip_version}`. It stays `str` (implementers declare `str`) and its narrowing to
     `IpFamily` is announced. The `testoperations` default `"ipv4"` was a pre-existing bug
@@ -372,7 +424,7 @@ where one exists, also records its retype.
     and its test calls `curl(host, protocol="http")`. `HttpScheme` (`http`, `https`).
   - Numbers stay `str` wherever a released implementer declares `str`: `HttpServer`
     `port`, `UpnpClient` `int_port` / `ext_port`, `VlanClient` `vlan_id` (the Linux host
-    device and the boardfarm LAN device declare `str`; `curl` and `nmap` already take
+    device and that framework's LAN device declare `str`; `curl` and `nmap` already take
     `str | int`). Widening to `int | str` would fail static conformance for them, which is
     outside the accepted classes. Their narrowing to `int` is announced.
   - `ip_version` of the iperf members is `IpFamily | int | None`, with `IpFamily` an
@@ -393,7 +445,7 @@ where one exists, also records its retype.
     tools the example implementer dispatches on (`browser`, `http_client`, `webrtc`,
     `tcp_probe`); `completion` is `QoeCompletion`: the four `PageCompletion` events plus
     `DURATION` (the example's streaming and conferencing specs), and `RESPONSE` and `CONNECT`
-    (the boardfarm QoE specification's tool by completion matrix: `http_client` completes on
+    (that framework's QoE specification's tool by completion matrix: `http_client` completes on
     `response` or `duration`, `tcp_probe` on `connect`). A `PageCompletion` has the same
     words. The defaults stay the released words (`"browser"`, `"networkidle"`), so the
     example browser measurement, which embeds `repr(spec.completion)` in a generated
@@ -408,14 +460,17 @@ where one exists, also records its retype.
     registries have an open assignment policy. `add_user(eap_methods: list[str] | None)`
     keeps its type.
   - `StormControlConfig.unit: StormControlUnit | None = None` is an addition.
-  - `HTTPResult` is a frozen dataclass `(status, body, raw)` whose constructor still
-    takes the response text (`init=False`, parameter `response`), so the released
-    `HTTPResult(response)` works. `status` is `0`
-    for a response with no numeric code or one outside 100 to 599. The released `code` is a
-    property returning the text (`""` when absent, the original word when not numeric);
-    `beautified_text` is `body`. Both carry the `@deprecated` marker. The example implementer
-    builds `HTTPResult(response)` and its test reads `result.code == "200"`, which still
-    passes.
+  - `HTTPResult` stays the released class: the released constructor and parser, plain
+    assignable `raw`, `code` and `beautified_text`, identity equality. A frozen dataclass
+    would need conversion code in its constructor (C5 forbids it) and would break attribute
+    assignment and non-frozen subclasses with no period. The typed reads are read-only
+    properties over the released attributes, so they follow an assignment: `status: int |
+    None` (`None` when no status line with a code from 100 to 599 was parsed; a new name has
+    no released form, so no `0` sentinel) and `body: str`. `code` and `beautified_text` are
+    deprecated by docstring and the Deprecations table only: they are plain attributes, and
+    a `@deprecated` property in their place would make them read-only. The example
+    implementer builds `HTTPResult(response)` and its test reads `result.code == "200"`,
+    which is unchanged.
 
 - **Host-tier records** (shapes 5, 1-like converters and 6). New frozen records and the
   mandatory members that return them, each beside its deprecated name: `UrlRules`
@@ -465,12 +520,17 @@ where one exists, also records its retype.
     netem `profile` is `ImpairmentProfile | dict[str, object]` (a `Mapping` would break
     implementers declaring `dict`; the dict is deprecated); `provision_cpe` options are
     `dict[str, dict[str, object]]`, the released shape (service pool to option-name map), not
-    option codes, which the one implementer indexes by pool; `GroupRecord` is a `NamedTuple`,
-    a subtype of the released tuple, so `send_mldv2_report`'s parameter type is unchanged and
-    implementers that unpack the tuple work (a plain tuple is deprecated); `HeldPrefixes.hold(address)` stays `str` (an implementer declares
+    option codes, which the one implementer indexes by pool (an open value: an exempted
+    `object` line); `GroupRecord` is a `NamedTuple`, a subtype of the released tuple, so
+    implementers that unpack the tuple work (a plain tuple is deprecated). Because `list` is
+    invariant, a `list[GroupRecord]` is not a `MulticastGroupRecord`; `send_mldv2_report`'s
+    parameter is widened to `Sequence` of the released tuple, which accepts both. The cost,
+    recorded under *Breaking for driver authors*: an implementer declaring the parameter as
+    `list[...]` must widen its declaration; `HeldPrefixes.hold(address)` stays `str` (an implementer declares
     `str`), its narrowing to `IPv4Interface | IPv6Interface` announced.
   - `DHCPTraceData.dhcp_packet` / `DHCPV6TraceData.dhcpv6_packet` are
-    `Mapping[str, object]`: a decoder's nested bag with no stable typed shape. The device
+    `Mapping[str, object]`: a decoder's nested bag with no stable typed shape (an open value:
+    exempted `object` lines). The device
     registry casts to a one-member Protocol (`__protocol_attrs__`), not `Any`.
   - `testoperations` (`throughput`, `netem_controller`, `sdwan`) call the new names through
     `_renamed.py` (`start_sender_session`, `start_receiver_session`, `inject`); an old-name
@@ -484,19 +544,20 @@ where one exists, also records its retype.
   documented deprecated; with a typed parameter also set a driver raises `ValueError`. Where
   the typed form is turned into the tool's command line is the driver's job: the protocol only
   declares the parameters. Evidence (every option string seen, from `testoperations`
-  on this branch and on `origin/main`, the boardfarm implementers, templates and use cases,
-  downstream implementers, and the vitro-bdd examples):
+  on this branch and on `origin/main`, the implementers, templates and use cases of a released
+  open-source implementer framework, downstream implementers, and the released example
+  implementers):
   - `testoperations` passes no option string to any of these members, so no operation adopts
     the typed parameters and no `_renamed.py` accessor exists. A future operation that does
     must detect a driver from before the typed parameters (`inspect.signature` shows no such
     parameter, or catch the `TypeError` a call raises) and fall back to
     the option string.
-  - `HttpClient.http_get`: the boardfarm use case builds `--noproxy '*'`, `-k` and `-L`, which
+  - `HttpClient.http_get`: that framework's use case builds `--noproxy '*'`, `-k` and `-L`, which
     become `no_proxy`, `insecure`, `follow_redirects`. `curl` takes the same three: no caller
     passes `options` to it, but every implementer builds the same `curl` command line, so the
     flags seen on `http_get` are the ones `curl` can use (same-tool evidence, not a caller of
     `curl`).
-  - `NmapScanner.nmap`: `-F` (the boardfarm `nmap_scan` use case) becomes `fast`, also on the
+  - `NmapScanner.nmap`: `-F` (that framework's `nmap_scan` use case) becomes `fast`, also on the
     unreleased `scan_ports`, so the successor loses nothing. `protocol` keeps its text form.
   - `IpRouting.ping` and `traceroute` `options`: no caller passes one through these members
     (the use case only forwards a caller string; ping options seen on hand-built command lines
@@ -507,11 +568,11 @@ where one exists, also records its retype.
     is no typed parameter. `opts` and a `ps_options` other than the default `"-A"` are
     deprecated with no typed successor (`resolve` and `read_running_processes` take no option);
     the default `"-A"` is not a deprecated spelling. This is a gap before
-    removal: boardfarm's `dns_resolve` use case forwards a caller's `opts` to `dns_lookup`, and
+    removal: that framework's `dns_resolve` use case forwards a caller's `opts` to `dns_lookup`, and
     options such as `+short` and `@server` are used with `dig` by hand, so a typed form (or an
     maintainer decision to drop them) is needed before the strings go.
   - `SnmpClient.execute_snmp_command` takes a whole command line. The command lines seen
-    (boardfarm's SNMP library) are `snmpget`, `snmpwalk`, `snmpset` and `snmpbulkget`, with `-v
+    (that framework's SNMP library) are `snmpget`, `snmpwalk`, `snmpset` and `snmpbulkget`, with `-v
     2c -On -c <community> -t <seconds> -r <retries> <host> <oid>`. The new mandatory members
     `snmp_get`, `snmp_walk`, `snmp_set(value, value_type)` (`value_type` is the `SnmpValueType` enum, not a tool's type letter) and `snmp_bulk_get(non_repeaters,
     max_repetitions)` take `host`, `oid`, `community` and keyword-only `timeout_s`, `retries`
@@ -522,49 +583,50 @@ where one exists, also records its retype.
   - `NtpClient.set_date(opt, date_string)`: the one `opt` seen is `-s`. `set_date_time(value:
     datetime) -> bool` is a new mandatory member and `set_date` is deprecated.
 
-- **HwConsole** (no deprecation shape: a return narrows from `Any`,
-  a parameter is retyped). `HwConsole` returned `Any` consoles and took `dict[str, Any]` /
-  `Any` for the flash arguments. Evidence (callers and implementers of `get_console`,
-  `get_interactive_consoles` and `flash_via_bootloader`, read-only, in boardfarm, the vitro-bdd
-  examples and downstream implementers; `testoperations` never touches a console):
-  - Implementers: boardfarm's CPE hardware classes (`rpirdkb_cpe`, `rpiprplos_cpe`,
-    `prplos_cpe`, `vcpe_ofw`, and the `CPEHW` template) return the pexpect-based
-    `BoardfarmPexpect` from `get_console` and a `dict` of them from `get_interactive_consoles`;
-    the vitro-bdd example devices and downstream implementers return `dict[str, VitroPexpect]`
-    (or their own pexpect subclass) from `get_interactive_consoles`. No vitro-bdd example
-    implements `get_console` or `flash_via_bootloader`.
-  - Callers of a returned console: `execute_command(cmd, timeout=...)` (every use case and
-    device method that reads `hw.get_console("console")`; the dominant member);
-    `sendline` and `before` (the CPE software libraries read `console.before` after a
-    `sendline`/`expect` exchange: `cpe_sw`, `prplos_cpe`, `rpiprplos_cpe`);
+- **HwConsole** (shape 6 for the returns; compatibility exemptions). `HwConsole` returned
+  `Any` consoles and took `dict[str, Any]` / `Any` for the flash arguments. Evidence
+  (callers and implementers of `get_console`, `get_interactive_consoles` and
+  `flash_via_bootloader`, read-only, in a released open-source implementer framework, the
+  released example implementers and downstream implementers; `testoperations` never touches
+  a console):
+  - Implementers: the framework's CPE hardware classes return a pexpect-based console from
+    `get_console` and a `dict` of them from `get_interactive_consoles`; the example devices
+    and downstream implementers return a `dict` of their own pexpect subclass from
+    `get_interactive_consoles`. No example implements `get_console` or
+    `flash_via_bootloader`.
+  - Callers of a returned console: `execute_command(cmd, timeout=...)` (the dominant
+    member); `sendline` and `before` (read after a `sendline` / `expect` exchange);
     `start_interactive_session()` (the interactive shell over `get_interactive_consoles()`);
-    and `expect`, `expect_exact` (boardfarm's networking helpers, typed there by a structural
-    protocol). `before` is a member: the callers read it after `sendline` and `expect`.
-  - Decision: `Console` holds only members a stubbed `pexpect.spawn` subclass can satisfy
-    without this package depending on pexpect, so `expect` and `expect_exact` are NOT
-    members. With real `types-pexpect` stubs, `sendline` returns `int` (the protocol says
-    `object`), and `expect` takes pexpect's own pattern list: a parameter is contravariant
-    and `list` invariant, so only pexpect's exact type would match. Members: `execute_command`,
-    `sendline(...) -> object`, a read-only `before: str | bytes | None`,
-    `start_interactive_session`. A caller that pattern-matches keeps the concrete console type;
-    the trade-off is that a caller of `expect` through `Console` needs a cast. The example consumer
-    environments have no stubs, so the consumer gate cannot show this; a mypy-backed test
-    (`test_console_pexpect_conformance.py`, `types-pexpect` as a dev dependency) checks that a
-    `pexpect.spawn` subclass with `execute_command` and `start_interactive_session` satisfies
-    `Console`. `sendline` is positional-only, so a `Console` cannot be passed to a helper
-    protocol that takes `string` as a named parameter. `timeout` is `int` (every declaration
-    seen); the leading parameter is positional-only so an implementer's name for it does not
-    matter, while `timeout=` stays keyword-callable because callers use it.
+    and `expect`, `expect_exact` (the framework's networking helpers).
+  - Decision: the returns keep their released annotations, `Any` and `dict[str, Any]`
+    (compatibility exemptions, marker `released return kept: implementers return their own
+    types`), and the docstrings state that the returned objects satisfy `Console`. Narrowing
+    them now would break a console lacking a `Console` member with no period; the narrowing
+    to `Console` / `Mapping[str, Console]` is announced in the Deprecations table, at the
+    earliest removal release. `Console` is a returned-object contract, not a capability
+    (`precise-types-families.md`, section 8).
+  - `Console` holds only members a stubbed `pexpect.spawn` subclass can satisfy without
+    this package depending on pexpect, so `expect` and `expect_exact` are NOT members: a
+    parameter is contravariant and `list` invariant, so only pexpect's exact pattern type
+    would match. Members: `execute_command`, `sendline(...) -> int` (the bytes written, as
+    pexpect's `sendline` returns), a read-only `before: str | bytes | None`,
+    `start_interactive_session`. A caller that pattern-matches keeps the concrete console
+    type. A mypy-backed test (`test_console_pexpect_conformance.py`, `types-pexpect` as a
+    dev dependency) checks that a `pexpect.spawn` subclass with `execute_command` and
+    `start_interactive_session` satisfies `Console`. `sendline` is positional-only, so a
+    `Console` cannot be passed to a helper protocol that takes `string` as a named
+    parameter. `timeout` is `int` (every declaration seen); the leading parameter is
+    positional-only so an implementer's name for it does not matter, while `timeout=` stays
+    keyword-callable because callers use it.
   - `flash_via_bootloader`: every implementer seen raises "not supported" and never reads
     `tftp_devices` or `termination_sys`; the arguments are framework device objects passed
     through opaquely. Decision: the released `dict[str, Any]` and `Any` annotations are KEPT
     (a commented exception to the no-`Any` rule). Implementers declare the framework's own
-    types (boardfarm: `dict[str, TFTP]`, `TerminationSystem`); a parameter is contravariant
-    and `dict` invariant, so no contract type narrower than `Any` accepts them without
-    breaking those declarations (`Mapping[str, object]` and `object` were tried and do).
-    The existing `TftpServer` protocol is not used: no member of it is called. The
-    `flash_via_bootloader` line is exempted from `disallow_any_explicit` (see "Exemption
-    policy"). Cost if wrong: two `Any` parameters remain in the contract.
+    types (a dict of TFTP-server objects, a termination-system object); a parameter is
+    contravariant and `dict` invariant, so no contract type narrower than `Any` accepts them
+    without breaking those declarations (`Mapping[str, object]` and `object` were tried and
+    do). The existing `TftpServer` protocol is not used: no member of it is called. Cost if
+    wrong: two `Any` parameters remain in the contract.
 
 ### testoperations: typed records
 
@@ -577,7 +639,7 @@ the annotation of `measure_external_path_until(measure_flow=)`, which was
 keyword timings `duration_s`, `result_timeout_s` and `poll_interval_s` (recorded in the
 CHANGELOG under *Changed*).
 
-Evidence: a search of vitro-bdd, boardfarm and the corpus found no caller of
+Evidence: a search of the released implementers and example consumers found no caller of
 `start_iperf`, `verify_home`, `saturate_link`, `iter_json_docs`, `NonCompletion*` or the
 `_capture` helpers; `apply_preset` is named in prose only (the example's testbed document, whose
 presets are strings from configuration). The consumer gate is unchanged by this change (the
@@ -603,7 +665,8 @@ output equals that of the commit before it).
   / `start_sender_session`, or the released `start_traffic_*` names on a driver that has only
   those (`_renamed` accessors). The sender needs the receiver's address, which the released
   signature never took: `host` is a new required keyword-only parameter (a released signature
-  lacking a new keyword-only parameter; recorded under *Changed* as breaking for callers).
+  lacking a new keyword-only parameter; recorded under *Changed* as breaking for callers,
+  and under *Consumer action* with its migration line).
   `ip_version` is `IpFamily | int` and `udp` maps to the sender's `udp_protocol` and the
   receiver's `udp_only`.
 - **Closed sets.** `NonCompletionSide` and `NonCompletionKind` are `StrEnum` with the released
@@ -612,7 +675,9 @@ output equals that of the commit before it).
   `NetemPreset | str`, shape 1; a test checks the enum and the table agree).
 - **`MeasureFn`** is a Protocol with the call shape the path operations use (flows, then
   keyword-only `duration_s`, `result_timeout_s`, `poll_interval_s`). `iter_json_docs` returns
-  `list[object]`; its callers already narrow through `_obj`, `_seq` and `_num`.
+  `list[dict[str, JsonValue]]` (each document is a JSON object; `JsonValue` is the recursive
+  type of a parsed JSON value); its callers narrow nested values through `_obj`, `_seq` and
+  `_num`.
 - **`CaptureSpec` and `FieldRead`** (frozen, private module) replace the tuple records of
   `_capture.capture_shared_window` and `read_fields`; `marking_observation` and `path_placement`
   construct them.
@@ -623,23 +688,24 @@ output equals that of the commit before it).
 - **`start_http_server`** is as the HTTP-service change left it: `port` stays `str` and
   `ip_version` is the text `"4"` / `"6"`.
 
-## Exemption policy for explicit `Any`
+## Exemption policy for explicit `Any` and `object`
 
 `disallow_any_explicit = true` applies to every module of `testprotocols` and
 `testoperations` (a mypy per-module override in `pyproject.toml`). The only exemptions
-are released signatures, marked on the `def` line, in two classes: 8 deprecation-period
-exemptions and 14 compatibility exemptions. `tests/test_typing_ratchet.py` pins the number
-of each, so a new exemption needs a reviewed change.
+are released signatures, marked on the `def` line (or the field line), in two classes: 9
+deprecation-period exemptions and 16 compatibility exemptions. `tests/test_typing_ratchet.py`
+pins the number of each, so a new exemption needs a reviewed change.
 
-**(a) Deprecation period, 8 lines.** Marker `# type: ignore[explicit-any]  # released
+**(a) Deprecation period, 9 lines.** Marker `# type: ignore[explicit-any]  # released
 signature kept until removal`. These are members, or a deprecated form of a member, whose
 released `dict[str, Any]` / `list[Any]` returns stay readable until removal: `ip_routing.ping`
 (`json_output=True`), `dns_client.dns_lookup`, `nmap_scanner.nmap`,
 `device_management.get_running_processes` and `read_event_logs`,
-`sip_server.get_rtpengine_stats`, `get_mwi_status` and `get_offline_messages`. The line is
-deleted with the member (or form) at the removal release, and the pinned count drops with it.
+`sip_server.get_rtpengine_stats`, `get_mwi_status` and `get_offline_messages`, and
+`router.get_telemetry`. The line is deleted with the member (or form) at the removal
+release, and the pinned count drops with it.
 
-**(b) Compatibility, 14 lines.** These members are live, not deprecated, and the exemption
+**(b) Compatibility, 16 lines.** These members are live, not deprecated, and the exemption
 is not tied to a removal.
 - Marker `# type: ignore[explicit-any]  # released parameter kept: implementers declare
   their own types` (2 lines). Implementers declare framework or dict types, parameters are
@@ -653,6 +719,43 @@ is not tied to a removal.
   `GPA`, `SPA`, `FactoryReset`, `Reboot`, `AddObject`, `DelObject`, `GPN`,
   `ScheduleInform`, `GetRPCMethods`, `Download`). TR-069 RPCs keep their released
   signatures; vendors extend the parameter model, so the contract does not enumerate it.
+- Marker `# type: ignore[explicit-any]  # released return kept: implementers return their
+  own types` (2 lines): `hw_console.get_console` (`Any`) and `get_interactive_consoles`
+  (`dict[str, Any]`). Implementers return their own console types; the returned consoles
+  satisfy `Console`, and the narrowing to `Console` is announced (Deprecations table), so
+  these two lines go at that narrowing.
+
+**`object` used as a type.** `object` in a public signature or field is as imprecise as
+`Any`, and neither checker flags it, so the ratchet counts it with the same discipline. The
+rule, by AST: every `object` name inside a parameter or return annotation of a function or
+method, an annotated assignment at class or module level (a field), or a module-level type
+alias (a `type` statement, or an assignment of a subscripted type), including inside a
+generic (`list[object]`, `Mapping[str, object]`), in a public scope. A scope is private when
+its function name starts with `_` and is not a dunder, when it is inside a class whose name
+starts with `_`, or when it is a module-level function or alias of a module whose name starts
+with `_`; a public class in a private module counts, because a public record can inherit it
+(`ReleasedMapping`). Not counted: the parameter of `__eq__`, `__ne__` and `__contains__` (the
+data model types it `object`), and every `object` outside an annotation (a base class, an
+`isinstance` or `cast` argument, a local variable's annotation). The ceiling of non-exempt
+`object` is 0 in both packages. An exempt line carries a plain comment marker (mypy reports
+no error to ignore) and is pinned per class and package:
+
+| class | marker | `testprotocols` | `testoperations` |
+| --- | --- | ---: | ---: |
+| (a) deprecated form | `# object: deprecated form kept until removal` | 4 | 6 |
+| (b) open value | `# object: open value: the contract does not enumerate it` | 3 | 0 |
+
+- (a) `testprotocols`: `SdwanPolicyManager.apply_policy` (deprecated member),
+  `TrafficShapingRule.match` (deprecated class), `NetemController.set_impairment_profile`
+  and `set_interface_profile` (the deprecated `dict` form of `profile`).
+  `testoperations`: the released-dict reads of `ReleasedMapping` (`as_dict`, `[]`, `get`,
+  `items`, `values`) and `HomeDetails.released_form`, which go with the mapping access at
+  its removal.
+- (b) `testprotocols`: `DhcpServer.provision_cpe` (the option maps of both families, one
+  `def` line; the option values are vendor-extensible), `DHCPTraceData.dhcp_packet` and
+  `DHCPV6TraceData.dhcpv6_packet` (a decoder's nested bag with no stable typed shape).
+- Replaced rather than marked, because a precise type exists: `Console.sendline` returns
+  `int` (pexpect's), and `iter_json_docs` returns `list[dict[str, JsonValue]]`.
 
 ## Deprecations
 
@@ -691,8 +794,8 @@ required, or `E | str` becomes `E`.
 | `testprotocols.ntp_client:NtpClient.set_date` | `set_date_time` | member | next release | next release + 6 months |
 | `testprotocols.netem_controller:NetemController.inject_transient` | `inject_event` | member | next release | next release + 6 months |
 | `testprotocols.snmp_client:SnmpClient.execute_snmp_command` | `snmp_get`, `snmp_walk`, `snmp_set` or `snmp_bulk_get`; any other command has no successor | member | next release | next release + 6 months |
-| `testprotocols.models:HTTPResult.code` (property) | `status` (an `int`) | member | next release | next release + 6 months |
-| `testprotocols.models:HTTPResult.beautified_text` (property) | `body` | member | next release | next release + 6 months |
+| `testprotocols.models:HTTPResult.code` (a plain attribute: docstring only, no marker) | `status` (`int \| None`) | attribute | next release | next release + 6 months |
+| `testprotocols.models:HTTPResult.beautified_text` (a plain attribute: docstring only, no marker) | `body` | attribute | next release | next release + 6 months |
 | `testprotocols.models:VPNPeerStatus` | none (`VpnPeerStatus` for site-to-site peers) | class | next release | next release + 6 months |
 | `testprotocols.models:TrafficShapingRule` | none (`ShapingRule` where a capability needs one) | class | next release | next release + 6 months |
 | `testprotocols.ip_routing:IpRouting.ping(json_output=True)` | `ping_stats`; at removal `ping` returns `bool` | parameter | next release | next release + 6 months |
@@ -721,6 +824,7 @@ required, or `E | str` becomes `E`.
 | `PacketFilter.get_default_policy` return `str` | `DefaultAction` (announced narrowing) | member | next release | next release + 6 months |
 | `WifiRadio.list_radios` and `get_bandwidth` returns (`list[str]`, `int`) | `list[WifiBand]`, `ChannelWidth` (announced) | member | next release | next release + 6 months |
 | `RadiusServer.get_status` return `str` | `ServiceStatus` (announced narrowing) | member | next release | next release + 6 months |
+| `HwConsole.get_console` and `get_interactive_consoles` returns `Any`, `dict[str, Any]` | `Console`, `Mapping[str, Console]` (announced narrowing; a console lacking a `Console` member stops conforming then) | member | next release | next release + 6 months |
 | `FirewallRule.dst_port` (port text, required) | `dst_ports`; at removal the text field goes and `dst_ports` becomes required | field | next release | next release + 6 months |
 | `NatRule.dst_port` and `translated_port` (port text, released default `""`) | `dst_ports`, `translated_ports`; at removal the text fields go and the typed fields default to `()` (the typed form of the released default `""`) | field | next release | next release + 6 months |
 | `L3Rule.src_port` and `dst_port` (port text, released default `"any"`) | `src_ports`, `dst_ports`; at removal the text fields go and the typed fields default to `()` (the typed form of the released default `"any"`) | field | next release | next release + 6 months |
@@ -735,7 +839,6 @@ required, or `E | str` becomes `E`.
 | `NatRule.src_cidr`, `dst_cidr`, `translated_src`, `translated_dst` (`""`: absent) | `str \| None`, `None` absent (announced) | field | next release | next release + 6 months |
 | `L3Rule.src_cidr`, `dst_cidr` (`"any"`), `UplinkStatus.ip`, `gateway`, `public_ip`, `primary_dns` and `NetworkAttachment.segment` (`""`) | `str \| None`, `None` unconstrained or not reported (announced) | field | next release | next release + 6 months |
 | `LinkStatus.ip_address` (`""`: no address) | `str \| None` (announced) | field | next release | next release + 6 months |
-| `HTTPResult.status` `0` (no numeric status code) | `int \| None`, `None` (announced) | field | next release | next release + 6 months |
 
 **testoperations**
 
@@ -749,7 +852,7 @@ required, or `E | str` becomes `E`.
 
 Notes:
 
-- Text/typed pairs (C3): with both fields `None`, `testoperations` reads
+- Text/typed pairs (C3): with both fields `None`, `testoperations.pairs` reads
   `SecurityEvent.ts` / `timestamp` and `QosRule.match` / `classifier` as `None` (no time
   reported; every frame), because the typed `None` is a real value; only
   `FirewallRule.dst_port` raises (`ValueError` naming the record and field). The
