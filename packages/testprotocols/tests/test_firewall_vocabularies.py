@@ -36,7 +36,7 @@ def test_chain_values() -> None:
 
 
 def test_firewall_rule_action_values() -> None:
-    assert _values(FirewallRuleAction) == ["allow", "deny", "reject", "log"]
+    assert _values(FirewallRuleAction) == ["allow", "deny", "reject", "log", "alert"]
 
 
 def test_nat_mode_values() -> None:

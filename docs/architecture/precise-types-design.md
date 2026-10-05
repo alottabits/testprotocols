@@ -240,7 +240,8 @@ where one exists, also records its retype.
 
 - **Firewall, NAT and conntrack vocabularies** (shapes 1, 3 and 6). Four
   enums in `testprotocols.models`: `Chain` (`INPUT`, `OUTPUT`, `FORWARD`),
-  `FirewallRuleAction` (`allow`, `deny`, `reject`, `log`), `NatMode` (`snat`,
+  `FirewallRuleAction` (`allow`, `deny`, `reject`, `log`, `alert`: a released implementer
+  reports `alert`), `NatMode` (`snat`,
   `dnat`, `1to1`) and `PortMappingProtocol` (`tcp`, `udp`, `tcp-udp`). A rule's,
   NAT rule's and connection's transport is the existing
   `RuleProtocol`; a chain default policy is `DefaultAction`. The `chain`,

@@ -38,6 +38,8 @@ class FirewallRuleAction(StrEnum):
     DENY = "deny"
     REJECT = "reject"
     LOG = "log"
+    ALERT = "alert"
+    """Raise an alert for a matching packet. A released implementer reports this value."""
 
 
 class NatMode(StrEnum):

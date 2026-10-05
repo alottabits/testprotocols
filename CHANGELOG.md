@@ -183,8 +183,12 @@ their tags and PR history.
   Migration: none. Design `docs/architecture/precise-types-design.md`;
   PR pending.
 - **enums** `testprotocols.models:Chain` (`INPUT`, `OUTPUT`, `FORWARD`),
-  `FirewallRuleAction` (`ALLOW`, `DENY`, `REJECT`, `LOG`), `NatMode` (`SNAT`,
+  `FirewallRuleAction` (`ALLOW`, `DENY`, `REJECT`, `LOG`, `ALERT`), `NatMode` (`SNAT`,
   `DNAT`, `ONE_TO_ONE`) and `PortMappingProtocol` (`TCP`, `UDP`, `TCP_UDP`).
+  Migration: none. Design `docs/architecture/precise-types-design.md` (firewall, NAT and conntrack vocabularies); PR pending.
+- **member** `testprotocols.models:FirewallRuleAction.ALERT` (`"alert"`) — the action value a
+  released implementer reports for `FirewallRule.action` beside the documented four, so the
+  value stays valid when `FirewallRuleAction | str` narrows to `FirewallRuleAction`.
   Migration: none. Design `docs/architecture/precise-types-design.md` (firewall, NAT and conntrack vocabularies); PR pending.
 - **model** `testprotocols.models:RuleCounters` (`packets`, `bytes`: non-negative
   ints; frozen) —
