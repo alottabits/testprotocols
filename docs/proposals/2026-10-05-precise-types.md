@@ -2434,10 +2434,13 @@ models as far as checked.
 ## Design delta (2026-10-05)
 
 A reshape at the implementation PR (#73), recorded per `docs/proposals/README.md`
-("After the review"). It changes one item's signature (P7), whose CHANGELOG entry carries the
-*proposed as* field, and records where P1's Deprecations table lives.
+("After the review"). It changes the signatures of three items (P7's rename, and the bare-enum parameters of
+P2 and P6), records where P1's Deprecations table lives, and the CHANGELOG entries carry
+the *proposed as* field where a name changed.
 
 | Item | Change | Outcome | Date |
 | --- | --- | --- | --- |
 | P7 | The new mandatory member `SipServer.read_rtpengine_stats() -> RtpStats` is renamed `SipServer.read_rtp_relay_stats() -> RtpStats`, for neutrality, per the PR #73 decision-file review C1: the proposed name carried a reviewed family's product name into a capability named for a standard (`docs/architecture/precise-types-families.md` section 1), and `RtpStats` was already neutral. No other change: the return record, the deprecation of the released `get_rtpengine_stats` (which keeps its name, and whose `@deprecated` sentence and deprecation row now name `read_rtp_relay_stats`) and the other two new members stand as accepted. | accepted (reshaped at the implementation PR) | 2026-10-05 |
 | P1 | Records only: the Deprecations table this document places in `docs/architecture/precise-types-design.md` now lives in its own register, `packages/testprotocols/DEPRECATIONS.md`, beside `GAPS.md`, `SPLITS.md` and `LEVELS.md`, per the PR #73 decision-file review C5; the design document points to it. Rows, wording and the release-checklist rule are unchanged. | accepted (records only) | 2026-10-05 |
+| P2 | `PacketFilter.get_rule_counter_values(chain: Chain | str, …)` becomes `get_rule_counter_values(chain: Chain, …)`: a new member with no released form takes the bare enum (P1, rule C4), per the PR #73 code review. No other change. | accepted (reshaped at the implementation PR) | 2026-10-05 |
+| P6 | `WifiRadio.get_modes(band: WifiBand | str)` becomes `get_modes(band: WifiBand)`, for the same reason and per the same review. No other change. | accepted (reshaped at the implementation PR) | 2026-10-05 |
