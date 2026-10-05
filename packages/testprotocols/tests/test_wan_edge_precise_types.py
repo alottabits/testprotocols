@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import dataclasses
 import importlib
+import sys
 import warnings
 from pathlib import Path
 
@@ -102,7 +103,8 @@ def test_orphan_models_are_marked_and_work_without_a_warning(module: str, name: 
         warnings.simplefilter("error")  # the deprecation is stated, not raised
         cls = getattr(mod, name)
         assert cls.__name__ == name
-        assert "Deprecated, with no successor." in cls.__deprecated__
+        if sys.version_info >= (3, 13):  # 3.12's identity marker records nothing
+            assert "Deprecated, with no successor." in cls.__deprecated__
         assert "Deprecated, with no successor." in (cls.__doc__ or "")
     if name == "VPNPeerStatus":
         v = cls(peer_id="1", peer_name="a", reachability="up", uplink="wan1")
@@ -133,8 +135,8 @@ def test_an_unknown_name_is_a_static_error_but_the_deprecated_ones_are_not(
     tmp_path: Path,
 ) -> None:
     import subprocess
-    import sys
 
+    pytest.importorskip("mypy")  # a runtime-only environment has no type checker
     probe = tmp_path / "probe.py"
     probe.write_text(
         "from testprotocols.models import NoSuchModel\n"

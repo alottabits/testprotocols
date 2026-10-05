@@ -3,7 +3,7 @@ name = "testprotocols"
 version = "0.12.1"
 description = "Common Test Resource Layer — capability and device protocols for telco testing."
 requires-python = ">=3.12"
-dependencies = ['typing_extensions>=4.6; python_version < "3.13"']
+dependencies = []
 readme = "README.md"
 license = "Apache-2.0"
 license-files = ["LICENSE", "NOTICE"]

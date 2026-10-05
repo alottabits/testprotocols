@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import dataclasses
+import sys
 import typing
 import warnings
 from enum import IntEnum
@@ -239,7 +240,9 @@ def test_radio_get_modes_is_new_and_get_mode_is_deprecated() -> None:
     # the released member keeps its signature (shape 5: deprecated, not changed)
     released = WifiRadio.get_mode  # type: ignore[deprecated]
     assert _hints(released)["return"] is str
-    assert "get_modes" in getattr(released, "__deprecated__", "")
+    assert "get_modes" in (released.__doc__ or "")
+    if sys.version_info >= (3, 13):  # 3.12's identity marker records nothing
+        assert "get_modes" in getattr(released, "__deprecated__", "")
 
 
 def test_rf_and_mesh_bands_are_typed() -> None:
