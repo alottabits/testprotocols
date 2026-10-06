@@ -268,6 +268,26 @@ def test_release_versions_and_heading(tmp_path: Path) -> None:
     ]
 
 
+def test_release_fills_in_every_next_release_row(tmp_path: Path) -> None:
+    good = (
+        "# Changelog\n\n## [Unreleased]\n\n## [0.13.0] — 2026-09-21\n\n### testprotocols\n\n"
+        "- **operation** `testoperations.homing:set_subnet_advertised` — "
+        "flip. No proposal; PR #1.\n"
+    )
+    release_head(tmp_path, "0.13.0", "0.13.0", good)
+    head = "# Register\n\nRows read `next release` until released.\n\n**testprotocols**\n\n"
+    rows = "| item | replacement | kind | deprecated in | earliest removal |\n| --- | --- |\n"
+    filled = "| `A.b` | `c` | member | 0.13.0 | 2027-03-21 |\n"
+    unfilled = "| `A.d` | `e` | member | next release | next release + 6 months |\n"
+    write(tmp_path, "packages/testprotocols/DEPRECATIONS.md", head + rows + filled)
+    assert check_release(pr("release: 0.13.0", "CHANGELOG.md"), tmp_path) == []
+    write(tmp_path, "packages/testprotocols/DEPRECATIONS.md", head + rows + filled + unfilled)
+    assert check_release(pr("release: 0.13.0", "CHANGELOG.md"), tmp_path) == [
+        "packages/testprotocols/DEPRECATIONS.md:10: row still reads `next release`; the release "
+        "fills in 0.13.0 and the earliest-removal date (CONTRIBUTING.md, Releases)"
+    ]
+
+
 def test_release_reads_the_project_version_only(tmp_path: Path) -> None:
     # A `version =` key outside [project] must not be taken for the package version.
     changelog = (
@@ -400,8 +420,23 @@ def test_head_paths() -> None:
         "packages/testprotocols/pyproject.toml",
         "packages/testoperations/pyproject.toml",
         "CHANGELOG.md",
+        "packages/testprotocols/DEPRECATIONS.md",
+    ]
+    assert head_paths(pr("release: 0.13.0", "packages/testprotocols/pyproject.toml")) == [
+        "packages/testprotocols/pyproject.toml",
+        "packages/testoperations/pyproject.toml",
+        "CHANGELOG.md",
+        "packages/testprotocols/DEPRECATIONS.md",
     ]
     assert head_paths(pr("feat: x: y", SRC)) == []
+    assert head_paths(pr("feat: x: y", SRC, "CHANGELOG.md")) == [
+        "CHANGELOG.md",
+        "packages/testprotocols/DEPRECATIONS.md",
+    ]
+    assert head_paths(pr("fix: x: y", "packages/testprotocols/DEPRECATIONS.md")) == [
+        "CHANGELOG.md",
+        "packages/testprotocols/DEPRECATIONS.md",
+    ]
     assert head_paths(pr("proposal: x", "docs/proposals/../../etc/passwd", status="added")) == []
 
 

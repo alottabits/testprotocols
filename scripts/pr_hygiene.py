@@ -27,6 +27,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, cast
 
+from changelog_entries import entry_problems, register_problems
 from changelog_section import VERSION_FILES, SectionError, section, version_problems
 from design_doc import (
     ARCH_DIR,
@@ -86,6 +87,7 @@ class PullRequest:
     labels: frozenset[str]
     files: tuple[FileChange, ...]
     author: str = ""
+    number: int = 0
 
     @property
     def paths(self) -> tuple[str, ...]:
@@ -148,10 +150,35 @@ def check_changelog(pr: PullRequest) -> list[str]:
 
 
 PROPOSAL_DIR = "docs/proposals/"
+DEPRECATIONS = "packages/testprotocols/DEPRECATIONS.md"
+CHANGELOG_FILES = (CHANGELOG, DEPRECATIONS)
+
+
+def changes_changelog_files(pr: PullRequest) -> bool:
+    return any(p in CHANGELOG_FILES for p in pr.paths)
+
+
+def check_changelog_entries(pr: PullRequest, main_root: Path, head_root: Path) -> list[str]:
+    """The ``[Unreleased]`` entry format and register parity, on a PR that changes either file.
+
+    Read from the PR head; the PR-number rule compares with ``main``'s
+    ``[Unreleased]`` to tell an added entry from an edited one.
+    """
+    if not changes_changelog_files(pr):
+        return []
+    head = {rel: _read_head(head_root, rel) for rel in CHANGELOG_FILES}
+    missing = [rel for rel, text in head.items() if text is None]
+    if missing:
+        return [f"{rel}: could not read the file from the PR head" for rel in missing]
+    changelog = head[CHANGELOG] or ""
+    problems = entry_problems(changelog, _read_head(main_root, CHANGELOG) or "", pr.number)
+    problems += register_problems(changelog, head[DEPRECATIONS] or "")
+    return problems
+
+
 GAPS = "packages/testprotocols/GAPS.md"
 SPLITS = "packages/testprotocols/SPLITS.md"
 LEVELS = "packages/testprotocols/LEVELS.md"
-DEPRECATIONS = "packages/testprotocols/DEPRECATIONS.md"
 ARCHETYPE_COMPANION_GLOBS = (
     SOURCE_GLOB,
     "packages/*/tests/*",
@@ -470,7 +497,22 @@ def check_release(pr: PullRequest, head_root: Path) -> list[str]:
         section(changelog, version)
     except SectionError as exc:
         problems.append(f"{CHANGELOG}: released section {exc}")
+    problems += unfilled_register_rows(_read_head(head_root, DEPRECATIONS) or "", version)
     return problems
+
+
+def unfilled_register_rows(register: str, version: str) -> list[str]:
+    """Register rows a release leaves at ``next release`` (DEPRECATIONS.md, Adding a row).
+
+    The release that ships a row fills in its version and earliest-removal date.
+    An unreadable register is reported by :func:`check_changelog_entries`.
+    """
+    return [
+        f"{DEPRECATIONS}:{n}: row still reads `next release`; the release fills in "
+        f"{version} and the earliest-removal date (CONTRIBUTING.md, Releases)"
+        for n, line in enumerate(register.splitlines(), 1)
+        if line.startswith("|") and "next release" in line
+    ]
 
 
 def check_gaps_pointers(pr: PullRequest, main_root: Path) -> list[str]:
@@ -533,6 +575,13 @@ def reviewers_for(pr: PullRequest) -> list[str]:
 
 def head_paths(pr: PullRequest) -> list[str]:
     """PR-head files the checks read; the workflow fetches them through the API."""
+    paths = _kind_head_paths(pr)
+    if changes_changelog_files(pr):
+        paths += [p for p in CHANGELOG_FILES if p not in paths]
+    return paths
+
+
+def _kind_head_paths(pr: PullRequest) -> list[str]:
     kind = parse_kind(pr.title)
     if kind == "proposal":
         return [
@@ -541,7 +590,7 @@ def head_paths(pr: PullRequest) -> list[str]:
             if f.status == "added" and _is_proposal_doc(f.path) and _safe_relative(f.path)
         ]
     if kind == "release":
-        return [*VERSION_FILES, CHANGELOG]
+        return [*VERSION_FILES, CHANGELOG, DEPRECATIONS]
     if kind == "charter":
         slug = title_slug(pr)
         return [] if slug is None else [doc_path(slug)]
@@ -556,6 +605,7 @@ def run_checks(pr: PullRequest, main_root: Path, head_root: Path) -> Result:
     scope_problems, set_review = check_kind_scope(pr)
     problems += scope_problems
     problems += check_changelog(pr)
+    problems += check_changelog_entries(pr, main_root, head_root)
     problems += check_proposal_dir(pr)
     problems += check_proposal(pr, head_root)
     problems += check_delta(pr)
@@ -585,7 +635,8 @@ def load_pull_request(pr_json: Path, files_json: Path) -> PullRequest:
     labels = frozenset(str(label["name"]) for label in pr_data.get("labels", []))
     user = cast(dict[str, Any], pr_data.get("user") or {})
     author = str(user.get("login", ""))
-    return PullRequest(str(pr_data["title"]), labels, files, author)
+    number = int(pr_data.get("number") or 0)
+    return PullRequest(str(pr_data["title"]), labels, files, author, number)
 
 
 def main(argv: list[str]) -> int:
