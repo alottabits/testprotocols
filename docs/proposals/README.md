@@ -218,6 +218,14 @@ The review answers these questions, in this order, for every item:
    existing member the item does not touch is noted, not blocking;
    retyping one is a rung-5 `deprecate` (widen, then narrow), named as the
    item's Mechanism.
+10. **Proportionality.** Does each typing or contract change strengthen the
+    static checks enough to justify its maintenance cost? The review flags:
+    an `Enum` with an `OTHER` member, or a raw-word companion beside it; an
+    enum over a vocabulary that vendors extend; runtime transition,
+    coercion or validation code in `testprotocols`; and a precise type
+    forced where an honest `str` (the device's own word, an open value) is
+    the contract. The rules a typing change is held to are C1 to C6 of
+    `docs/architecture/precise-types-design.md` ("The contract model").
 
 When the verdict hinges on a claimed vendor or tool behaviour, the review
 verifies it against published documentation and cites what it checked.
