@@ -28,5 +28,12 @@ class HttpServer(Protocol):
         ...
 
     def stop_http_service(self, port: str) -> None:
-        """Stop the HTTP service listening on *port*."""
+        """Stop the HTTP service listening on *port*.
+
+        *port* is the port number as text (``"8080"``); it stays ``str``, because the released
+        implementers declare ``str``.
+
+        Deprecated: *port* as ``str``; it narrows to ``int``. Removal not before the first
+        release 6 months after the release that deprecates it.
+        """
         ...

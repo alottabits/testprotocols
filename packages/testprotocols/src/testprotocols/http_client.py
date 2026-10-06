@@ -31,11 +31,18 @@ class HttpClient(Protocol):
 
         *protocol* is the URL scheme, an :class:`~testprotocols.models.HttpScheme`
         (``"http"`` or ``"https"``): the released implementers fold it into the target
-        URL as ``<protocol>://<url>``. A plain ``str`` naming a member is deprecated.
+        URL as ``<protocol>://<url>``.
 
         *no_proxy* bypasses any proxy, *insecure* skips certificate verification and
-        *follow_redirects* follows redirects; they replace the released *options* string,
-        which is deprecated; giving it together with a typed parameter raises ``ValueError``.
+        *follow_redirects* follows redirects; they replace the released *options* string.
+        Giving *options* together with a typed parameter raises ``ValueError``.
+
+        Deprecated: the plain ``str`` form of *protocol*; the parameter narrows to
+        :class:`~testprotocols.models.HttpScheme`. Removal not before the first release 6
+        months after the release that deprecates it.
+
+        Deprecated: the *options* string; use *no_proxy*, *insecure* and *follow_redirects*.
+        Removal not before the first release 6 months after the release that deprecates it.
         """
         ...
 
@@ -52,9 +59,12 @@ class HttpClient(Protocol):
         """Perform an HTTP GET request to *url* and return the result.
 
         *no_proxy*, *insecure* and *follow_redirects* are as for :meth:`curl`; they replace
-        the released *options* string, which is deprecated in the same way.
+        the released *options* string.
 
-        The result's *status*, *body* and *raw* are the typed attributes; its released
-        *code* (text) and *beautified_text* are deprecated.
+        The result's *status*, *body* and *raw* are the typed attributes.
+
+        Deprecated: the *options* string, as for :meth:`curl`; and the result's released *code*
+        (text) and *beautified_text*, as for :class:`~testprotocols.models.HTTPResult`. Removal
+        not before the first release 6 months after the release that deprecates it.
         """
         ...

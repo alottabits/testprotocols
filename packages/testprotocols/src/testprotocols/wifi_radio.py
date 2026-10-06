@@ -38,12 +38,16 @@ class WifiRadio(Protocol):
         """Return the bands present on this device (e.g. ``["2.4GHz", "5GHz", "6GHz"]``).
 
         Every *band* parameter of this Protocol is a
-        :class:`~testprotocols.models.wifi.WifiBand`; a plain ``str`` naming one
-        (``"5GHz"``) is deprecated, except for ``get_modes``, which takes the
-        bare enum; any other string raises ``ValueError``.
+        :class:`~testprotocols.models.wifi.WifiBand`, except for ``get_modes``, which takes the
+        bare enum; any string that names no member raises ``ValueError``.
 
-        Announced, not yet changed: the return narrows to ``list[WifiBand]`` in a
-        later release (each element is a ``str`` equal to its ``WifiBand`` today).
+        Deprecated: the plain ``str`` form of *band* (``"5GHz"``), on every *band* parameter of this
+        Protocol except ``get_modes``; each narrows to :class:`~testprotocols.models.wifi.WifiBand`.
+        Removal not before the first release 6 months after the release that deprecates it.
+
+        Deprecated: the return type ``list[str]``; it narrows to ``list[WifiBand]`` (each element is
+        a ``str`` equal to its ``WifiBand`` today). Removal not before the first release 6 months
+        after the release that deprecates it.
         """
         ...
 
@@ -91,8 +95,9 @@ class WifiRadio(Protocol):
     def get_bandwidth(self, band: WifiBand | str) -> int:
         """Return the channel bandwidth currently in use on *band* (MHz).
 
-        Announced, not yet changed: the return narrows to ``ChannelWidth`` in a
-        later release (a ``ChannelWidth`` is an ``int``, so comparisons keep working).
+        Deprecated: the return type ``int``; it narrows to ``ChannelWidth`` (a ``ChannelWidth`` is
+        an ``int``, so comparisons keep working). Removal not before the first release 6 months
+        after the release that deprecates it.
         """
         ...
 
@@ -112,11 +117,14 @@ class WifiRadio(Protocol):
         """Set the 802.11 PHY mode on *band*.
 
         *mode* is a :class:`~testprotocols.models.wifi.WifiPhyMode` (``"a"``, ``"b"``,
-        ``"g"``, ``"n"``, ``"ac"``, ``"ax"``, ``"be"``); a plain ``str`` naming one is
-        deprecated. Drivers may accept compound forms (``"n/ac/ax"``) at their
-        discretion: such a string names no member, so a driver that accepts it
-        handles that ``str`` itself.
+        ``"g"``, ``"n"``, ``"ac"``, ``"ax"``, ``"be"``). Drivers may accept compound forms
+        (``"n/ac/ax"``) at their discretion: such a string names no member, so a driver that
+        accepts it handles that ``str`` itself.
         Raises ValueError if the radio does not support *mode*.
+
+        Deprecated: the plain ``str`` form of *mode*; the parameter narrows to
+        :class:`~testprotocols.models.wifi.WifiPhyMode` (a compound mode names no member).
+        Removal not before the first release 6 months after the release that deprecates it.
 
         The radio may then operate further modes as well, which :meth:`get_modes` reports.
         """

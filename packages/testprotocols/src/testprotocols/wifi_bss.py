@@ -62,8 +62,12 @@ class WifiBss(Protocol):
         :class:`~testprotocols.models.wifi.MfpMode`: ``OFF``, ``OPTIONAL`` or
         ``REQUIRED`` (``"off"``, ``"optional"``, ``"required"``).
 
-        A plain ``str`` naming a member is deprecated; any other string raises
-        ``ValueError`` before any device I/O.
+        Any string that names no member raises ``ValueError`` before any device I/O.
+
+        Deprecated: the plain ``str`` forms of *security_mode* and *mfp*; the parameters narrow
+        to :class:`~testprotocols.models.wifi.WifiSecurityMode` and
+        :class:`~testprotocols.models.wifi.MfpMode`. Removal not before the first release 6
+        months after the release that deprecates it.
 
         Required arguments per security_mode:
         - PSK / SAE / mixed-PSK modes: *passphrase* required
@@ -153,8 +157,11 @@ class WifiBss(Protocol):
         - ``ALLOW`` (``"allow"``) — allow-list (whitelist); only MACs in the ACL may associate
         - ``DENY`` (``"deny"``) — deny-list (blacklist); MACs in the ACL are blocked
 
-        A plain ``str`` naming a member is deprecated; any other string raises
-        ``ValueError``.
+        Any string that names no member raises ``ValueError``.
+
+        Deprecated: the plain ``str`` form of *mode*; the parameter narrows to
+        :class:`~testprotocols.models.wifi.WifiAclMode`. Removal not before the first release 6
+        months after the release that deprecates it.
 
         Raises KeyError if *name* is not registered.
         """

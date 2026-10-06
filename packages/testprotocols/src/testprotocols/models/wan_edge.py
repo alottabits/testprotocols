@@ -104,9 +104,11 @@ class LinkHealthReport:
 
     *state* is an :class:`~testprotocols.models.UplinkState`: ``up``, ``down``,
     ``degraded``, or ``unknown`` when the product has no health data for the
-    link. A plain ``str`` naming one is accepted and stored as given; the field
-    narrows to :class:`~testprotocols.models.UplinkState` when the plain ``str`` form
-    is removed.
+    link. A plain ``str`` naming one is accepted and stored as given.
+
+    Deprecated: the plain ``str`` form of *state*; the field narrows to
+    :class:`~testprotocols.models.UplinkState`. Removal not before the first release 6
+    months after the release that deprecates it.
     """
 
     state: UplinkState | str

@@ -118,8 +118,8 @@ class HTTPResult:
     the status code as an ``int``, or ``None`` when *code* is not a number from 100 to 599
     (no status line was parsed, or its code is not numeric); *body* is *beautified_text*.
 
-    *code* is deprecated: use *status*. *beautified_text* is deprecated: use *body*.
-    Removal not before the first release 6 months after the release that deprecates it.
+    Deprecated: *code*; use *status*. Deprecated: *beautified_text*; use *body*.
+    Removal not before the first release 6 months after the release that deprecates each.
     """
 
     def __init__(self, response: str) -> None:

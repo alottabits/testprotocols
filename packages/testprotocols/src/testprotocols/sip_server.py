@@ -144,8 +144,10 @@ class SipServer(Protocol):
         since:
             Optional point in time; only messages after it are considered, and
             ``None`` considers the whole log. A ``datetime`` is the contract value. The
-            released annotation (``Any``) is kept; its narrowing to ``datetime | None``
-            is announced (see ``packages/testprotocols/DEPRECATIONS.md``).
+            released annotation (``Any``) is kept.
+
+            Deprecated: the annotation ``Any``; it narrows to ``datetime | None``. Removal not
+            before the first release 6 months after the release that deprecates it.
         timeout:
             Seconds to wait for the expected message.
         """

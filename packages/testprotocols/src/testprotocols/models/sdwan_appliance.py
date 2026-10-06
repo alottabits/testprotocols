@@ -50,12 +50,16 @@ class L3Rule:
     The ports have two forms each. ``src_ports`` and ``dst_ports`` are tuples of
     :class:`PortRange`, the empty tuple meaning any port. ``src_port`` and
     ``dst_port`` are the released text forms (``"any"``, a port, a range such as
-    ``"8000-8100"``, or a comma list), deprecated. A driver fills either field of a
+    ``"8000-8100"``, or a comma list). A driver fills either field of a
     pair, or both; when both are filled they describe the same ports. The text fields
     keep their released default ``"any"``; a driver that fills only the typed form may
     pass ``None`` for the text, which reads as that default. At removal, the text fields
     go and the typed fields default to ``()``, the typed form of the released default, so
     a rule that never sets them keeps its meaning.
+
+    Deprecated: *src_port* and *dst_port*, the released text forms; use *src_ports* and
+    *dst_ports*. Removal not before the first release 6 months after the release that
+    deprecates it.
 
     A rule also flows into a driver (the ``L3Firewall.set_*_rules`` members). A caller
     building one for a write member fills both forms until removal: a driver not yet
@@ -64,8 +68,10 @@ class L3Rule:
     the text at its released default ``"any"``, and a driver not yet updated acts on
     that: any port.
 
-    ``src_cidr`` and ``dst_cidr`` ``"any"`` will become ``str | None``, with
-    ``None`` meaning unconstrained; ``"any"`` means unconstrained until then.
+    Deprecated: ``"any"`` as "unconstrained" in *src_cidr* and *dst_cidr*; the fields become
+    ``str | None``, with ``None`` meaning unconstrained, and ``"any"`` means unconstrained
+    until then. Removal not before the first release 6 months after the release that
+    deprecates it.
 
     ``syslog_enabled`` is per-rule intent. Products whose firewall logging is
     only list- or segment-scoped approximate it in the driver (enable scoped
@@ -302,8 +308,11 @@ class UplinkStatus:
     """Current status of a single WAN uplink (read-only observation).
 
     ``ip``, ``gateway``, ``public_ip`` and ``primary_dns`` are ``""`` when the
-    product does not report them; they will become ``str | None``, with ``None``
-    meaning not reported, and ``""`` means not reported until then.
+    product does not report them.
+
+    Deprecated: ``""`` as "not reported" in those fields; they become ``str | None``, with
+    ``None`` meaning not reported, and ``""`` means not reported until then. Removal not
+    before the first release 6 months after the release that deprecates it.
     """
 
     name: str
@@ -406,12 +415,15 @@ class SecurityEvent:
     The time of the event has two forms. ``timestamp`` is when the event happened, a
     :class:`~datetime.datetime`, or ``None`` when the product reports no time; a
     timezone-naive value stays naive (no zone is assumed). ``ts`` is the released text
-    form, an ISO-8601 timestamp string (``""`` for none), deprecated. A driver fills
+    form, an ISO-8601 timestamp string (``""`` for none). A driver fills
     either field, or both; when both are filled they describe the same instant. ``ts``
     stays required, and a driver that fills only ``timestamp`` passes ``ts=None``.
     ``timestamp=None`` is itself a value ("no time reported"), so an event with both
     fields ``None`` is read as no time reported, not as an unfilled pair. At removal,
     ``ts`` goes and ``timestamp`` becomes required.
+
+    Deprecated: *ts*, the released text form; use *timestamp*. Removal not before the first
+    release 6 months after the release that deprecates it.
     """
 
     ts: str | None

@@ -21,7 +21,9 @@ McastSource = str
 McastGroup = str
 MulticastGroupRecord = list[tuple[list[McastSource], McastGroup, MulticastGroupRecordType]]
 """A list of (sources, group, record_type) group records (IGMPv3 / MLDv2). Each entry is a
-:class:`GroupRecord`; a plain tuple is deprecated."""
+:class:`GroupRecord`.
+
+Deprecated: a plain tuple record; see ``MulticastClient.send_mldv2_report``."""
 
 
 class _GroupRecordFields(NamedTuple):

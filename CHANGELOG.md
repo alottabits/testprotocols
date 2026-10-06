@@ -906,11 +906,53 @@ their tags and PR history.
   replacement; the members' signatures are unchanged.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P6 (Design delta 2026-10-05);
   register `packages/testprotocols/DEPRECATIONS.md`; PR #75.
-- **docstrings** `testprotocols.http_server:HttpServer.start_http_service`,
-  `testprotocols.held_prefixes:HeldPrefixes.hold`, `testprotocols.models:PortMapping` and
-  `testprotocols.models:LinkStatus` — the docstrings now state the announced narrowings with
-  "Deprecated:", matching their `DEPRECATIONS.md` rows; text only, no change to a signature.
+- **docstrings** `testprotocols.packet_filter:PacketFilter`, `testprotocols.nat:Nat`, `testprotocols.conntrack:Conntrack`, `testprotocols.firewall:Firewall`, `testprotocols.models:FirewallRule`, `testprotocols.models:NatRule`, `testprotocols.models:PortMapping` and `testprotocols.models:Connection` — each docstring that announced a deprecation or a narrowing in
+  running prose now states it in a separate "Deprecated:" paragraph that matches its
+  `DEPRECATIONS.md` row, and the members a row names that carried no such statement (`Connection.protocol` among them) gain one; text only, no change to a
+  signature, an annotation or a behaviour.
+  Proposal `docs/proposals/2026-10-05-precise-types.md` P2;
+  design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR #77.
+- **docstrings** `testprotocols.models:L3Rule`, `testprotocols.models:SecurityEvent`, `testprotocols.models:UplinkStatus` and `testprotocols.network_attachment:NetworkAttachment` — each docstring that announced a deprecation or a narrowing in
+  running prose now states it in a separate "Deprecated:" paragraph that matches its
+  `DEPRECATIONS.md` row; text only, no change to a signature, an annotation or a behaviour.
+  Proposal `docs/proposals/2026-10-05-precise-types.md` P3;
+  design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR #77.
+- **docstrings** `testprotocols.models:LinkStatus` and `testprotocols.models:LinkHealthReport` — each docstring that announced a deprecation or a narrowing in
+  running prose now states it in a separate "Deprecated:" paragraph that matches its
+  `DEPRECATIONS.md` row, and the members a row names that carried no such statement (`LinkHealthReport.state` among them) gain one; text only, no change to a
+  signature, an annotation or a behaviour.
+  Proposal `docs/proposals/2026-10-05-precise-types.md` P4;
+  design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR #77.
+- **docstrings** `testprotocols.models:QosRule` — each docstring that announced a deprecation or a narrowing in
+  running prose now states it in a separate "Deprecated:" paragraph that matches its
+  `DEPRECATIONS.md` row; text only, no change to a signature, an annotation or a behaviour.
+  Proposal `docs/proposals/2026-10-05-precise-types.md` P5;
+  design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR #77.
+- **docstrings** `testprotocols.wifi_radio:WifiRadio`, `testprotocols.wifi_bss:WifiBss`, `testprotocols.wifi_client:WifiClient`, `testprotocols.wifi_mesh:WifiMesh`, `testprotocols.wifi_rf:WifiRf`, `testprotocols.models:WifiBssConfig` and `testprotocols.models:WifiStation` — each docstring that announced a deprecation or a narrowing in
+  running prose now states it in a separate "Deprecated:" paragraph that matches its
+  `DEPRECATIONS.md` row; text only, no change to a signature, an annotation or a behaviour.
+  Proposal `docs/proposals/2026-10-05-precise-types.md` P6;
+  design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR #77.
+- **docstrings** `testprotocols.sip_phone:SipPhone` and `testprotocols.sip_server:SipServer` — each docstring that announced a deprecation or a narrowing in
+  running prose now states it in a separate "Deprecated:" paragraph that matches its
+  `DEPRECATIONS.md` row; text only, no change to a signature, an annotation or a behaviour.
+  Proposal `docs/proposals/2026-10-05-precise-types.md` P7;
+  design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR #77.
+- **docstrings** `testprotocols.http_server:HttpServer`, `testprotocols.held_prefixes:HeldPrefixes`, `testprotocols.http_client:HttpClient`, `testprotocols.ip_interface:IpInterface`, `testprotocols.ip_routing:IpRouting`, `testprotocols.vlan_client:VlanClient`, `testprotocols.upnp_client:UpnpClient`, `testprotocols.nmap_scanner:NmapScanner`, `testprotocols.multicast_client:MulticastClient`, `testprotocols.models:HTTPResult` and `testprotocols.models:MulticastGroupRecord` — each docstring that announced a deprecation or a narrowing in
+  running prose now states it in a separate "Deprecated:" paragraph that matches its
+  `DEPRECATIONS.md` row, and the members a row names that carried no such statement (`HttpServer.stop_http_service` among them) gain one; text only, no change to a
+  signature, an annotation or a behaviour.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P8;
+  design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR #77.
+- **docstrings** `testprotocols.iperf_client:IperfClient`, `testprotocols.iperf_server:IperfServer`, `testprotocols.netem_controller:NetemController`, `testprotocols.qoe_browser:QoeBrowser`, `testprotocols.models:MeasurementSpec` and `testprotocols.models:TrafficSpec` — each docstring that announced a deprecation or a narrowing in
+  running prose now states it in a separate "Deprecated:" paragraph that matches its
+  `DEPRECATIONS.md` row; text only, no change to a signature, an annotation or a behaviour.
+  Proposal `docs/proposals/2026-10-05-precise-types.md` P10;
+  design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR #77.
+- **docstrings** `testprotocols.hw_console:HwConsole` and `testprotocols.radius_server:RadiusServer` — each docstring that announced a deprecation or a narrowing in
+  running prose now states it in a separate "Deprecated:" paragraph that matches its
+  `DEPRECATIONS.md` row; text only, no change to a signature, an annotation or a behaviour.
+  Proposal `docs/proposals/2026-10-05-precise-types.md` P11;
   design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR #77.
 
 ### testoperations

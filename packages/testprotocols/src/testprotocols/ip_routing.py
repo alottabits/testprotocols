@@ -27,13 +27,17 @@ class IpRouting(Protocol):
     ) -> bool | dict[str, Any]:
         """Send ICMP echo requests to *ping_ip* and return success or parsed output.
 
-        *options* is deprecated with no typed replacement: no caller was seen to pass one
-        through this member.
-
         Returns ``True`` when every request was answered. With ``json_output=True`` it
-        returns the tool's parsed output instead; that form is deprecated: use
-        :meth:`ping_stats`, which returns a typed summary (the released parsed output
-        carries more than the summary holds).
+        returns the tool's parsed output instead.
+
+        Deprecated: the *options* parameter, with no typed replacement: no caller was seen to
+        pass one through this member. Removal not before the first release 6 months after the
+        release that deprecates it.
+
+        Deprecated: ``json_output=True``; use :meth:`ping_stats`, which returns a typed summary
+        (the released parsed output carries more than the summary holds). At removal ``ping``
+        returns ``bool``. Removal not before the first release 6 months after the release that
+        deprecates it.
         """
         ...
 
@@ -57,13 +61,17 @@ class IpRouting(Protocol):
     ) -> str | None:
         """Run a traceroute to *host_ip* and return the output.
 
-        *options* is deprecated with no typed replacement: no caller was seen to pass one.
-
         *version* is the suffix of the command name: ``""`` (the default) runs
         ``traceroute`` and ``"6"`` runs ``traceroute6``. It stays ``str`` because the released
-        implementers declare ``str``; it narrows to
-        :class:`~testprotocols.models.IpFamily` ``| None`` (``None`` for the default) in a
-        later release.
+        implementers declare ``str``.
+
+        Deprecated: the *options* parameter, with no typed replacement: no caller was seen to
+        pass one. Removal not before the first release 6 months after the release that
+        deprecates it.
+
+        Deprecated: *version* as ``str``; it narrows to
+        :class:`~testprotocols.models.IpFamily` ``| None`` (``None`` for the default). Removal
+        not before the first release 6 months after the release that deprecates it.
         """
         ...
 

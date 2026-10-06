@@ -34,8 +34,7 @@ class IperfServer(Protocol):
         Returns the ``(pid, log_file)`` of ``start_receiver_session(...)``.
 
         *ip_version* is an :class:`~testprotocols.models.IpFamily` (``V4 = 4``, ``V6 = 6``) or
-        ``None`` to leave the version to the tool; a plain ``int`` is the released spelling
-        and narrows to ``IpFamily`` in a later release (see ``IperfClient``).
+        ``None`` to leave the version to the tool; a plain ``int`` is the released spelling.
 
         Returns a tuple of (pid, log_file_path).
 

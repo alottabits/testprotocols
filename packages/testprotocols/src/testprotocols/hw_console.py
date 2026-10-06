@@ -59,8 +59,11 @@ class HwConsole(Protocol):
         """Return the console object identified by *console_name*.
 
         The returned object satisfies :class:`Console`. The released return annotation
-        (``Any``) is kept: implementers declare their own console types. Its narrowing to
-        ``Console`` is announced (see ``packages/testprotocols/DEPRECATIONS.md``).
+        (``Any``) is kept: implementers declare their own console types.
+
+        Deprecated: the return annotation ``Any``; it narrows to ``Console``, so a console
+        lacking a ``Console`` member stops conforming then. Removal not before the first
+        release 6 months after the release that deprecates it.
         """
         ...
 
@@ -68,9 +71,12 @@ class HwConsole(Protocol):
         """Return a mapping of console names to interactive console objects.
 
         Each console satisfies :class:`Console`. The released return annotation
-        (``dict[str, Any]``) is kept: implementers declare their own console types. Its
-        narrowing to ``Mapping[str, Console]`` is announced (see
-        ``packages/testprotocols/DEPRECATIONS.md``).
+        (``dict[str, Any]``) is kept: implementers declare their own console types.
+
+        Deprecated: the return annotation ``dict[str, Any]``; it narrows to
+        ``Mapping[str, Console]``, so a console lacking a ``Console`` member stops conforming
+        then. Removal not before the first release 6 months after the release that deprecates
+        it.
         """
         ...
 

@@ -17,11 +17,18 @@ class VlanClient(Protocol):
         """Create a VLAN interface for *vlan_id*.
 
         *vlan_id* is the VLAN number as text (``"100"``); it stays ``str`` because the
-        released implementers declare ``str``, and narrows to ``int`` in a later release.
+        released implementers declare ``str``.
+
+        Deprecated: *vlan_id* as ``str``; it narrows to ``int``. Removal not before the first
+        release 6 months after the release that deprecates it.
         """
         ...
 
     def delete_vlan_interface(self, vlan_id: str) -> None:
         """Delete the VLAN interface for *vlan_id* (text, as for
-        :meth:`add_vlan_interface`)."""
+        :meth:`add_vlan_interface`).
+
+        Deprecated: *vlan_id* as ``str``; it narrows to ``int``. Removal not before the first
+        release 6 months after the release that deprecates it.
+        """
         ...

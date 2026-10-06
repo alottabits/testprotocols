@@ -10,8 +10,11 @@ spectrum analysis (FFT, CleanAir, spectral_scan) is deferred to a future
 WifiSpectrum template, given the low cross-vendor uniformity.
 
 Per-radio identity is band-keyed, matching WifiRadio: every *band* parameter is a
-:class:`~testprotocols.models.wifi.WifiBand`, and a plain ``str`` naming one is
-deprecated.
+:class:`~testprotocols.models.wifi.WifiBand`.
+
+Deprecated: the plain ``str`` form of *band*, on every *band* parameter; each narrows to
+:class:`~testprotocols.models.wifi.WifiBand`. Removal not before the first release 6 months after
+the release that deprecates it.
 """
 
 from __future__ import annotations

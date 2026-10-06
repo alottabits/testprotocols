@@ -21,8 +21,9 @@ class NetemController(Protocol):
     ) -> None:
         """Apply *profile* as the default impairment on all managed interfaces.
 
-        A ``dict`` of the profile's field names is deprecated. The annotation narrows to
-        ``ImpairmentProfile`` in a later release.
+        Deprecated: a ``dict`` of the profile's field names; the annotation narrows to
+        ``ImpairmentProfile``. Removal not before the first release 6 months after the release
+        that deprecates it.
         """
         ...
 
@@ -31,7 +32,9 @@ class NetemController(Protocol):
     ) -> None:
         """Apply *profile* as the impairment on a specific *interface*.
 
-        A ``dict`` is deprecated, as for :meth:`set_impairment_profile`.
+        Deprecated: a ``dict``, as for :meth:`set_impairment_profile`; the annotation narrows
+        to ``ImpairmentProfile``. Removal not before the first release 6 months after the
+        release that deprecates it.
         """
         ...
 

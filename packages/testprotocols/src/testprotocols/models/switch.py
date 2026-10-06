@@ -295,7 +295,7 @@ class QosRule:
     The selected traffic has two forms. ``classifier`` is a :class:`QosClassifier`
     (VLAN, protocol, source and destination port), or ``None`` for every frame or for
     a selection a classifier cannot express. ``match`` is the released text form, a
-    vendor-neutral classifier expression (``""`` for every frame), deprecated. The
+    vendor-neutral classifier expression (``""`` for every frame). The
     released contract gave the text no grammar: free text is legal. The neutral
     spelling of a classifier is a comma list of ``key=value`` terms: ``vlan``,
     ``protocol``, ``srcPort`` / ``srcPortRange`` and ``dstPort`` / ``dstPortRange`` (a
@@ -303,7 +303,11 @@ class QosRule:
     filled they describe the same traffic. ``match`` stays required, and a driver that
     fills only ``classifier`` passes ``match=None``. ``classifier=None`` is itself a value
     ("every frame"), so a rule with both fields ``None`` is read as every frame, not as
-    an unfilled pair. At removal, ``match`` goes and ``classifier`` becomes required.
+    an unfilled pair.
+
+    Deprecated: ``match``, the released text form; use ``classifier``. At removal, ``match``
+    goes and ``classifier`` becomes required. Removal not before the first release 6 months
+    after the release that deprecates it.
 
     A rule also flows into a driver (``SwitchQos.set_rules``). A caller building one for
     a write member fills both forms until removal: a driver not yet updated reads only

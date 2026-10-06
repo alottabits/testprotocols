@@ -29,7 +29,9 @@ class MulticastClient(Protocol):
         driver that unpacks ``(sources, group, record_type)`` keeps working). The parameter
         is a ``Sequence`` of the released tuple (released: the invariant ``list`` of
         :data:`~testprotocols.models.MulticastGroupRecord`), so both the released
-        ``MulticastGroupRecord`` and a ``list[GroupRecord]`` are accepted. A plain tuple is
-        deprecated; the parameter narrows to ``Sequence[GroupRecord]`` in a later release.
+        ``MulticastGroupRecord`` and a ``list[GroupRecord]`` are accepted.
+
+        Deprecated: a plain tuple record; the parameter narrows to ``Sequence[GroupRecord]``.
+        Removal not before the first release 6 months after the release that deprecates it.
         """
         ...

@@ -3,9 +3,11 @@
 The closed vocabularies are enums (``WifiBand``, ``WifiSecurityMode``, ``MfpMode``,
 ``WifiAclMode``, ``WifiPhyMode``, ``ChannelWidth``, ``MeshRole``); every member equals
 the string the released contract used (``WifiBand.GHZ_5 == "5GHz"``). A model field
-that holds one is typed ``E | str``: a plain string naming a member is deprecated and
-is stored as given, and each field narrows to its enum when the plain ``str`` form is
-removed. ``WifiStation.capability_flags`` stays ``list[str]``, the device's own words.
+that holds one is typed ``E | str``: a plain string naming a member is stored as given.
+``WifiStation.capability_flags`` stays ``list[str]``, the device's own words.
+
+Deprecated: the plain ``str`` form of each such field; each narrows to its enum. Removal
+not before the first release 6 months after the release that deprecates it.
 """
 
 from __future__ import annotations
@@ -111,8 +113,11 @@ class WifiBssConfig:
 
     *passphrase* is intentionally absent — write-only across the contract.
     *band*, *security_mode* and *mfp* are :class:`WifiBand`, :class:`WifiSecurityMode`
-    and :class:`MfpMode`; a plain string naming a member is deprecated and stored as
-    given, and each field narrows to its enum when the plain ``str`` form is removed.
+    and :class:`MfpMode`; a plain string naming a member is stored as given.
+
+    Deprecated: the plain ``str`` form of *band*, *security_mode* and *mfp*; each field
+    narrows to its enum. Removal not before the first release 6 months after the release
+    that deprecates it.
     """
 
     name: str  # stable logical handle
@@ -137,9 +142,10 @@ class WifiStation:
     Stats are point-in-time snapshots; cumulative counters (bytes, packets,
     retries) are since the start of the current association.
 
-    *band* is a :class:`WifiBand`; a plain string naming one is deprecated and stored
-    as given, and the field narrows to :class:`WifiBand` when the plain ``str`` form is
-    removed.
+    *band* is a :class:`WifiBand`; a plain string naming one is stored as given.
+
+    Deprecated: the plain ``str`` form of *band*; the field narrows to :class:`WifiBand`.
+    Removal not before the first release 6 months after the release that deprecates it.
 
     *capability_flags* are the device's own words, stored as given and in order (for
     example ``["HT", "VHT", "HE"]``, or ``["EHT", "MLO"]`` for Wi-Fi 7).

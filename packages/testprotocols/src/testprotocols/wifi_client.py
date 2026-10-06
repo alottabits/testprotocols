@@ -60,8 +60,10 @@ class WifiClient(Protocol):
     def set_wlan_scan_channel(self, channel: int | str) -> None:
         """Set the WiFi scan channel to *channel*, a channel number.
 
-        A numeric ``str`` (``"6"``) is deprecated; text that is not a decimal integer raises
-        ``ValueError``.
+        Text that is not a decimal integer raises ``ValueError``.
+
+        Deprecated: a numeric ``str`` (``"6"``); the parameter narrows to ``int``. Removal not
+        before the first release 6 months after the release that deprecates it.
         """
         ...
 

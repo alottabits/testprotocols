@@ -51,10 +51,13 @@ class Conntrack(Protocol):
         Filters compose with AND. *protocol*, when set, is a
         :class:`~testprotocols.models.RuleProtocol` naming a transport the device
         tracks (``tcp``, ``udp``, ``icmp``; ``icmp6`` where tracked) — raises
-        ValueError otherwise, and for ``any``, which is no flow's transport. A
-        plain ``str`` is deprecated. *state*, when set, is the device's own state word (for example
-        ``ESTABLISHED``, ``TIME_WAIT``) and matches flows whose ``state`` equals it.
-        Empty list when no flow matches.
+        ValueError otherwise, and for ``any``, which is no flow's transport. *state*, when
+        set, is the device's own state word (for example ``ESTABLISHED``, ``TIME_WAIT``) and
+        matches flows whose ``state`` equals it. Empty list when no flow matches.
+
+        Deprecated: the plain ``str`` form of *protocol*, here and on every other *protocol*
+        parameter of this protocol; each narrows to :class:`~testprotocols.models.RuleProtocol`.
+        Removal not before the first release 6 months after the release that deprecates it.
         """
         ...
 
@@ -70,6 +73,9 @@ class Conntrack(Protocol):
         ValueError when it is not a tracked transport. Cheaper than
         ``len(list_connections(...))`` on drivers that can ask the
         kernel directly.
+
+        Deprecated: the plain ``str`` form of *protocol*, as for ``list_connections``.
+        Removal not before the first release 6 months after the release that deprecates it.
         """
         ...
 
@@ -83,8 +89,10 @@ class Conntrack(Protocol):
     ) -> Connection:
         """Return the tracked flow exactly matching the supplied 5-tuple.
 
-        *protocol* is a ``RuleProtocol`` (a plain ``str`` is deprecated).
-        *src_port* / *dst_port* are ``None`` for ICMP.
+        *protocol* is a ``RuleProtocol``. *src_port* / *dst_port* are ``None`` for ICMP.
+
+        Deprecated: the plain ``str`` form of *protocol*, as for ``list_connections``.
+        Removal not before the first release 6 months after the release that deprecates it.
 
         Raises KeyError if no flow matches.
         """
@@ -102,8 +110,10 @@ class Conntrack(Protocol):
     ) -> None:
         """Drop the tracked flow exactly matching the supplied 5-tuple.
 
-        *protocol* is a ``RuleProtocol`` (a plain ``str`` is deprecated).
-        *src_port* / *dst_port* are ``None`` for ICMP.
+        *protocol* is a ``RuleProtocol``. *src_port* / *dst_port* are ``None`` for ICMP.
+
+        Deprecated: the plain ``str`` form of *protocol*, as for ``list_connections``.
+        Removal not before the first release 6 months after the release that deprecates it.
 
         Raises KeyError if no flow matches.
         """

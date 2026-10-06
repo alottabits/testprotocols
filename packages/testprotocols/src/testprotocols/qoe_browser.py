@@ -33,7 +33,12 @@ class QoeBrowser(Protocol):
 
         *scenario* is a :class:`~testprotocols.models.QoeScenario` and *wait_until* a
         :class:`~testprotocols.models.PageCompletion` (the page event the load waits
-        for). A plain ``str`` naming a member is deprecated.
+        for).
+
+        Deprecated: the plain ``str`` forms of *scenario* and *wait_until*; the parameters narrow to
+        :class:`~testprotocols.models.QoeScenario` and
+        :class:`~testprotocols.models.PageCompletion`. Removal not before the first release 6 months
+        after the release that deprecates it.
 
         ``force_quic=True`` (default) forces HTTP/3/QUIC, as a QoE measurement
         should. Set ``force_quic=False`` for a reachability/block probe: the
