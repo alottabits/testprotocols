@@ -946,7 +946,10 @@ their tags and PR history.
   design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR #77.
 - **docstrings** `testprotocols.iperf_client:IperfClient`, `testprotocols.iperf_server:IperfServer`, `testprotocols.netem_controller:NetemController`, `testprotocols.qoe_browser:QoeBrowser`, `testprotocols.models:MeasurementSpec` and `testprotocols.models:TrafficSpec` — each docstring that announced a deprecation or a narrowing in
   running prose now states it in a separate "Deprecated:" paragraph that matches its
-  `DEPRECATIONS.md` row; text only, no change to a signature, an annotation or a behaviour.
+  `DEPRECATIONS.md` row; the `ip_version` of the whole-deprecated
+  `IperfClient.start_traffic_sender` and `IperfServer.start_traffic_receiver` no longer
+  claims a narrowing, since it goes with its member; text only, no change to a signature,
+  an annotation or a behaviour.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P10;
   design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR #77.
 - **docstrings** `testprotocols.hw_console:HwConsole` and `testprotocols.radius_server:RadiusServer` — each docstring that announced a deprecation or a narrowing in
