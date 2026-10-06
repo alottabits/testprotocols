@@ -898,11 +898,11 @@ their tags and PR history.
   `PacketFilter` `chain` to `Chain | str`.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P2 (Design delta 2026-10-05);
   register `packages/testprotocols/DEPRECATIONS.md`; PR #75.
-- **parameter** Wi-Fi `band` (`testprotocols.wifi_radio:WifiRadio`) — the register row and the
+- **parameter** Wi-Fi `band` (`testprotocols.wifi_radio:WifiRadio`, `testprotocols.wifi_mesh:WifiMesh`) — the register row and the
   *Deprecated* entry for it no
   longer list the new `testprotocols.wifi_radio:WifiRadio.get_modes`, which takes the bare
   `WifiBand`, under the `WifiBand | str` deprecation, and the same row now gives
-  `WifiMesh.set_backhaul_band` its `WifiBand | str | None` annotation and `WifiBand | None`
+  `testprotocols.wifi_mesh:WifiMesh.set_backhaul_band` its `WifiBand | str | None` annotation and `WifiBand | None`
   replacement; the members' signatures are unchanged.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P6 (Design delta 2026-10-05);
   register `packages/testprotocols/DEPRECATIONS.md`; PR #75.
