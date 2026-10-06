@@ -10,6 +10,12 @@ name: Lint
 # `uv run` puts the synced environment on PATH, which is how pyright resolves
 # third-party deps; the workspace packages themselves come from `extraPaths` in
 # the root pyproject.toml.
+#
+# On a pull request the contract step compares the contract surface of the PR's
+# base (the merge base, extracted with `git archive`) with the checked-out head
+# (scripts/contract_surface.py, CONTRIBUTING.md "The contract checks"). The full
+# history is fetched for it, and for the release tag the contract-rule tests
+# compare with.
 
 on:
   push:
@@ -24,6 +30,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
 
       - name: Install uv
         # Pin to a released version; check for newer at
@@ -53,3 +61,16 @@ jobs:
       - name: pytest
         if: ${{ !cancelled() }}
         run: uv run pytest
+
+      - name: contract surface (base -> head)
+        if: ${{ !cancelled() && github.event_name == 'pull_request' }}
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+          base_tree="$RUNNER_TEMP/contract-base"
+          mkdir -p "$base_tree"
+          git archive "$(git merge-base "$BASE_SHA" HEAD)" packages | tar -x -C "$base_tree"
+          uv run python scripts/contract_surface.py --base "$base_tree" --head . \
+            --format md --check-changelog CHANGELOG.md --check-enum-params \
+            | tee -a "$GITHUB_STEP_SUMMARY"
