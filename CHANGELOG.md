@@ -911,7 +911,7 @@ their tags and PR history.
   `testprotocols.models:LinkStatus` — the docstrings now state the announced narrowings with
   "Deprecated:", matching their `DEPRECATIONS.md` rows; text only, no change to a signature.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P8;
-  design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR #NNN.
+  design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR #77.
 
 ### testoperations
 
@@ -1137,19 +1137,19 @@ their tags and PR history.
   that relied on the default and passed the value on as text sees `"4"`; one that passed
   `"ipv4"` / `"ipv6"` explicitly should pass `"4"` / `"6"`.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P12;
-  design `docs/architecture/precise-types-design.md` (Host-tool and service vocabularies); PR #NNN.
+  design `docs/architecture/precise-types-design.md` (Host-tool and service vocabularies); PR #77.
 - **operation** `testoperations.netem_controller:inject_packet_storm(duplicate_percent)` — the default
   changed from `100.0` to `None` (duplication not requested; see *Added* for `loss_percent`).
   A new-name driver is asked for duplication only when the caller passes it; an old-name
   driver still receives the released `duplicate_percent=100.0`. A caller that relied on the
   released default passes `duplicate_percent=100.0` to ask for duplication.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P12;
-  design `docs/architecture/precise-types-design.md` (Host-tier records); PR #NNN.
+  design `docs/architecture/precise-types-design.md` (Host-tier records); PR #77.
 - **operation** `testoperations.pcap_capture:tcpdump(pcap_capture)` — the parameter is typed
   `PcapCapture` (was `Any`). A caller passing an object that lacks the `PcapCapture` members
   fails type checking; migration: pass a `PcapCapture` implementer.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P12;
-  design `docs/architecture/precise-types-design.md` (testoperations: typed records); PR #NNN.
+  design `docs/architecture/precise-types-design.md` (testoperations: typed records); PR #77.
 - **operation** `testoperations.throughput:measure_path_rtt(measure)`,
   `testoperations.throughput:measure_one_direction(measure)` and
   `testoperations.throughput:measure_path_until(measure)` — the `measure` parameter is typed
@@ -1157,14 +1157,14 @@ their tags and PR history.
   flows and the three keyword-only timings (`duration_s`, `result_timeout_s`,
   `poll_interval_s`) fails type checking; migration: give the stand-in those keywords.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P12;
-  design `docs/architecture/precise-types-design.md` (testoperations: typed records); PR #NNN.
+  design `docs/architecture/precise-types-design.md` (testoperations: typed records); PR #77.
 - **enums** `testoperations.throughput:NonCompletionSide` and
   `testoperations.throughput:NonCompletionKind` — now `StrEnum` classes (were `Literal` aliases
   of the same names), with the same text values. A caller that used either name as an
   annotation for a plain string, or as a `Literal` in its own type, uses `str` or the enum;
   reading `exc.which_side == "endpoint"` still holds. Migration: pass the member.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P12;
-  design `docs/architecture/precise-types-design.md` (testoperations: typed records); PR #NNN.
+  design `docs/architecture/precise-types-design.md` (testoperations: typed records); PR #77.
 
 ## [0.12.1] — 2026-09-09
 
