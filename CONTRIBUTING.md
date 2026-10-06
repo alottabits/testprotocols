@@ -246,6 +246,47 @@ For `docs:`, `chore:`, `ci:` and `test:` PRs that touch no package source
 and no decision file, `hygiene` sets the `review` status itself
 (`no agent review for this kind`), so such a PR needs no `/review`.
 
+## The contract checks
+
+`lint` runs these beside the tests, reading the source with `ast` only:
+
+- **Contract surface.** On a pull request, `scripts/contract_surface.py`
+  compares the contract surface of the PR's merge base with the head:
+  protocols and their members, dataclass and `NamedTuple` fields (order,
+  annotation, default, frozen), enum members, public type aliases and the
+  public `testoperations` functions. It classifies each difference (an
+  added or removed member, a new or removed parameter, a changed
+  annotation, default or field order, a model newly frozen, an enum member
+  removed or revalued, a new `@deprecated` marker) and, where the syntax
+  decides it, whether an annotation widens or narrows. Every breaking
+  change is named by an `[Unreleased]` entry of its package, in
+  `module:Symbol` form before the entry's ` — `, under a subsection it
+  needs: a new protocol member or parameter under *Breaking for driver
+  authors*; a removal, a narrowed parameter or protocol return, a widened
+  return, a changed default, a reordered, retyped or newly required field,
+  a model newly frozen or an enum member removed or revalued under
+  *Breaking for driver authors* or *Consumer action* (or *Deprecated*, for
+  an announced narrowing); a change whose direction the syntax cannot
+  decide may be under *Changed* too. A change on a `@deprecated` member or
+  class with a register row is covered by its *Deprecated* entry. The step
+  fails on each uncovered change, in one line naming the file, the line,
+  the symbol, the classification and the subsections it needs; its
+  checklist is the run's summary. It also fails a protocol member the PR
+  adds that takes `E | str` where `E` is an enum (rule C4 of
+  `docs/architecture/precise-types-design.md`).
+- **Deprecation parity.** `scripts/deprecation_parity.py`, run by the
+  tests: every `@deprecated` sentence equals its docstring's deprecation
+  paragraph (whitespace and `:meth:` markup aside) and a register row names
+  it; every `next release` row names a marked member or class, or, for a
+  parameter, field, attribute, return type or `testoperations` form, a
+  symbol whose docstring states the deprecation or the narrowing. The
+  register and the changelog are matched by `hygiene` (above).
+- **Contract rules.** `packages/testprotocols/tests/test_contract_rules.py`:
+  no `__post_init__`, `__setattr__`, `warnings.warn` or `DeprecationWarning`
+  in `packages/testprotocols/src` (the `_compat` marker stand-in aside);
+  every `@deprecated` passes `category=None`; and a protocol member added
+  since the last release tag takes the bare enum.
+
 ## The conformance check
 
 `conformance` runs on every PR. A PR that changes nothing under
