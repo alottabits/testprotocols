@@ -497,7 +497,22 @@ def check_release(pr: PullRequest, head_root: Path) -> list[str]:
         section(changelog, version)
     except SectionError as exc:
         problems.append(f"{CHANGELOG}: released section {exc}")
+    problems += unfilled_register_rows(_read_head(head_root, DEPRECATIONS) or "", version)
     return problems
+
+
+def unfilled_register_rows(register: str, version: str) -> list[str]:
+    """Register rows a release leaves at ``next release`` (DEPRECATIONS.md, Adding a row).
+
+    The release that ships a row fills in its version and earliest-removal date.
+    An unreadable register is reported by :func:`check_changelog_entries`.
+    """
+    return [
+        f"{DEPRECATIONS}:{n}: row still reads `next release`; the release fills in "
+        f"{version} and the earliest-removal date (CONTRIBUTING.md, Releases)"
+        for n, line in enumerate(register.splitlines(), 1)
+        if line.startswith("|") and "next release" in line
+    ]
 
 
 def check_gaps_pointers(pr: PullRequest, main_root: Path) -> list[str]:
@@ -575,7 +590,7 @@ def _kind_head_paths(pr: PullRequest) -> list[str]:
             if f.status == "added" and _is_proposal_doc(f.path) and _safe_relative(f.path)
         ]
     if kind == "release":
-        return [*VERSION_FILES, CHANGELOG]
+        return [*VERSION_FILES, CHANGELOG, DEPRECATIONS]
     if kind == "charter":
         slug = title_slug(pr)
         return [] if slug is None else [doc_path(slug)]

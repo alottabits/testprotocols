@@ -217,7 +217,7 @@ maintainer change with `no proposal` and its rationale.
   renames the `[Unreleased]` heading to it, with a fresh `[Unreleased]`
   above; the released section has at least one entry, no
   `- no entries yet`, and is not `- no API change (version bump only)`
-  for both packages;
+  for both packages; no `DEPRECATIONS.md` row still reads `next release`;
 - on `proposal:` and `release:` PRs, every merged proposal whose Outcome
   has a keep-local or declined item has a pointer in
   `packages/testprotocols/GAPS.md`;
@@ -359,10 +359,17 @@ Before tagging, remove or carry forward every row of `packages/testprotocols/DEP
    `## [X.Y.Z] — YYYY-MM-DD`, replace a package's `- no entries yet` with
    `- no API change (version bump only)`, and add a fresh empty
    `[Unreleased]` above; commit `release: X.Y.Z`, signed off.
-2. Open the PR `release: X.Y.Z`; `hygiene` checks the mechanics;
+2. On the same branch, replace `next release` in every row of
+   `packages/testprotocols/DEPRECATIONS.md` with `X.Y.Z`, and
+   `next release + 6 months` with the date six months after the release
+   date; `hygiene` fails a `release:` PR that leaves a `next release`
+   row. The register and changelog parity check then stops matching
+   those rows against `[Unreleased]`, by design: their *Deprecated*
+   entries are now in the `X.Y.Z` section.
+3. Open the PR `release: X.Y.Z`; `hygiene` checks the mechanics;
    `/review` runs the release reviewer.
-3. Merge. The merge commit is the release commit.
-4. Tag it `vX.Y.Z` (annotated, message `Release X.Y.Z`) and push the tag;
+4. Merge. The merge commit is the release commit.
+5. Tag it `vX.Y.Z` (annotated, message `Release X.Y.Z`) and push the tag;
    `release.yml` publishes both packages behind the environment approvals,
    then creates the GitHub Release from the version's changelog section,
    the same section `hygiene` checked on the release PR.
