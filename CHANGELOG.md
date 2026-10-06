@@ -940,8 +940,10 @@ their tags and PR history.
   design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR #77.
 - **docstrings** `testprotocols.http_server:HttpServer`, `testprotocols.held_prefixes:HeldPrefixes`, `testprotocols.http_client:HttpClient`, `testprotocols.ip_interface:IpInterface`, `testprotocols.ip_routing:IpRouting`, `testprotocols.vlan_client:VlanClient`, `testprotocols.upnp_client:UpnpClient`, `testprotocols.nmap_scanner:NmapScanner`, `testprotocols.multicast_client:MulticastClient`, `testprotocols.models:HTTPResult` and `testprotocols.models:MulticastGroupRecord` — each docstring that announced a deprecation or a narrowing in
   running prose now states it in a separate "Deprecated:" paragraph that matches its
-  `DEPRECATIONS.md` row, and the members a row names that carried no such statement (`HttpServer.stop_http_service` among them) gain one; text only, no change to a
-  signature, an annotation or a behaviour.
+  `DEPRECATIONS.md` row, and the members a row names that carried no such statement (`HttpServer.stop_http_service` among them) gain one; the *ip_type* and *opts* of the
+  whole-deprecated `NmapScanner.nmap` no longer claim a deprecation of their own, since
+  they go with their member; text only, no change to a signature, an annotation or a
+  behaviour.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P8;
   design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR #77.
 - **docstrings** `testprotocols.iperf_client:IperfClient`, `testprotocols.iperf_server:IperfServer`, `testprotocols.netem_controller:NetemController`, `testprotocols.qoe_browser:QoeBrowser`, `testprotocols.models:MeasurementSpec` and `testprotocols.models:TrafficSpec` — each docstring that announced a deprecation or a narrowing in

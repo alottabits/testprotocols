@@ -47,7 +47,7 @@ class NmapScanner(Protocol):
         (``"-sU"``), not an IP protocol.
 
         *fast* scans fewer ports than the tool's default set. It replaces the released *opts*
-        string, which is deprecated; giving both raises ``ValueError``.
+        string, which goes with this member; giving both raises ``ValueError``.
 
         Deprecated: use :meth:`scan_ports`. Removal not before the first release 6 months after the
         release that deprecates it.
