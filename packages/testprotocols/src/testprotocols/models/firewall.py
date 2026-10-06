@@ -185,8 +185,10 @@ class PortMapping:
     need to know which.
 
     *protocol* is a :class:`PortMappingProtocol` (``tcp``, ``udp``,
-    ``tcp-udp``). A plain ``str`` naming one is accepted and stored as given; the
-    field narrows to :class:`PortMappingProtocol` when the plain ``str`` form is removed.
+    ``tcp-udp``). A plain ``str`` naming one is accepted and stored as given.
+    Deprecated: the plain ``str`` form of *protocol*; the field narrows to
+    :class:`PortMappingProtocol`. Removal not before the first release 6 months after the
+    release that deprecates it.
     *external_interface* of ``None`` means "all external interfaces".
     *src_cidr* may restrict the mapping to a specific source range
     (firewall hardening); the default ``"0.0.0.0/0"`` accepts any source.

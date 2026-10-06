@@ -27,10 +27,13 @@ class LinkStatus:
 
     *state* is an :class:`~testprotocols.models.UplinkState`; every member is
     accepted (``up``, ``down`` and ``degraded`` are the common ones). A plain
-    ``str`` naming one is accepted and stored as given; the field narrows to
-    :class:`~testprotocols.models.UplinkState` when the plain ``str`` form is removed.
-    ``ip_address`` is ``""`` when the link has none; it will become
-    ``str | None``, and ``""`` means none until then.
+    ``str`` naming one is accepted and stored as given. ``ip_address`` is ``""`` when the
+    link has none.
+
+    Deprecated: the plain ``str`` form of *state*; the field narrows to
+    :class:`~testprotocols.models.UplinkState`. Deprecated: ``""`` as "no address" in
+    *ip_address*; the field becomes ``str | None``, and ``""`` means none until then.
+    Removal not before the first release 6 months after the release that deprecates each.
     """
 
     name: str

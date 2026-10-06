@@ -906,6 +906,12 @@ their tags and PR history.
   replacement; the members' signatures are unchanged.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P6 (Design delta 2026-10-05);
   register `packages/testprotocols/DEPRECATIONS.md`; PR #75.
+- **docstrings** `testprotocols.http_server:HttpServer.start_http_service`,
+  `testprotocols.held_prefixes:HeldPrefixes.hold`, `testprotocols.models:PortMapping` and
+  `testprotocols.models:LinkStatus` — the docstrings now state the announced narrowings with
+  "Deprecated:", matching their `DEPRECATIONS.md` rows; text only, no change to a signature.
+  Proposal `docs/proposals/2026-10-05-precise-types.md` P8;
+  design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR #NNN.
 
 ### testoperations
 
@@ -1126,6 +1132,39 @@ their tags and PR history.
   released dict keys. Migration: `start_iperf(client, server, port, host="<receiver address>")`.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P12;
   design `docs/architecture/precise-types-design.md` (testoperations: typed records); PR #73.
+- **operation** `testoperations.http_server:start_http_server(ip_version)` — the default
+  changed from `"ipv4"` to `"4"` (the server command takes `-4` / `-6`; see *Fixed*). A caller
+  that relied on the default and passed the value on as text sees `"4"`; one that passed
+  `"ipv4"` / `"ipv6"` explicitly should pass `"4"` / `"6"`.
+  Proposal `docs/proposals/2026-10-05-precise-types.md` P12;
+  design `docs/architecture/precise-types-design.md` (Host-tool and service vocabularies); PR #NNN.
+- **operation** `testoperations.netem_controller:inject_packet_storm(duplicate_percent)` — the default
+  changed from `100.0` to `None` (duplication not requested; see *Added* for `loss_percent`).
+  A new-name driver is asked for duplication only when the caller passes it; an old-name
+  driver still receives the released `duplicate_percent=100.0`. A caller that relied on the
+  released default passes `duplicate_percent=100.0` to ask for duplication.
+  Proposal `docs/proposals/2026-10-05-precise-types.md` P12;
+  design `docs/architecture/precise-types-design.md` (Host-tier records); PR #NNN.
+- **operation** `testoperations.pcap_capture:tcpdump(pcap_capture)` — the parameter is typed
+  `PcapCapture` (was `Any`). A caller passing an object that lacks the `PcapCapture` members
+  fails type checking; migration: pass a `PcapCapture` implementer.
+  Proposal `docs/proposals/2026-10-05-precise-types.md` P12;
+  design `docs/architecture/precise-types-design.md` (testoperations: typed records); PR #NNN.
+- **operation** `testoperations.throughput:measure_path_rtt(measure)`,
+  `testoperations.throughput:measure_one_direction(measure)` and
+  `testoperations.throughput:measure_path_until(measure)` — the `measure` parameter is typed
+  `MeasureFn` (was `Callable[..., list[FlowThroughput]]`). A stand-in that does not take the
+  flows and the three keyword-only timings (`duration_s`, `result_timeout_s`,
+  `poll_interval_s`) fails type checking; migration: give the stand-in those keywords.
+  Proposal `docs/proposals/2026-10-05-precise-types.md` P12;
+  design `docs/architecture/precise-types-design.md` (testoperations: typed records); PR #NNN.
+- **enums** `testoperations.throughput:NonCompletionSide` and
+  `testoperations.throughput:NonCompletionKind` — now `StrEnum` classes (were `Literal` aliases
+  of the same names), with the same text values. A caller that used either name as an
+  annotation for a plain string, or as a `Literal` in its own type, uses `str` or the enum;
+  reading `exc.which_side == "endpoint"` still holds. Migration: pass the member.
+  Proposal `docs/proposals/2026-10-05-precise-types.md` P12;
+  design `docs/architecture/precise-types-design.md` (testoperations: typed records); PR #NNN.
 
 ## [0.12.1] — 2026-09-09
 
