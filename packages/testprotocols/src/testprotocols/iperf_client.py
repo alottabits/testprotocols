@@ -50,7 +50,7 @@ class IperfClient(Protocol):
         *ip_version* is an :class:`~testprotocols.models.IpFamily` (``V4 = 4``, ``V6 = 6``) or
         ``None`` to leave the version to the tool. An ``IpFamily`` is an ``int``, so a driver
         that formats it as ``-<ip_version>`` is unchanged; a plain ``int`` is the released
-        spelling and narrows to ``IpFamily`` in a later release.
+        spelling.
 
         Typed option parameters (each defaults to "absent": no flag emitted):
 

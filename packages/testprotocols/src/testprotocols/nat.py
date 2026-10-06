@@ -53,9 +53,12 @@ class Nat(Protocol):
     def list_nat_rules(self, mode: NatMode | str | None = None) -> list[NatRule]:
         """Return installed NAT rules, optionally filtered by *mode*.
 
-        *mode* is ``None`` (all) or a :class:`~testprotocols.models.NatMode`. A
-        plain ``str`` naming one is deprecated. Raises ValueError if *mode* is
-        set but not one of the recognized values.
+        *mode* is ``None`` (all) or a :class:`~testprotocols.models.NatMode`. Raises
+        ValueError if *mode* is set but not one of the recognized values.
+
+        Deprecated: the plain ``str`` form of *mode*; the parameter narrows to
+        :class:`~testprotocols.models.NatMode` ``| None``. Removal not before the first
+        release 6 months after the release that deprecates it.
         """
         ...
 

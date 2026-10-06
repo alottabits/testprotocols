@@ -42,13 +42,12 @@ class NmapScanner(Protocol):
         :meth:`scan_ports` cannot reproduce.
 
         *ip_type* is an :class:`~testprotocols.models.IpVersion` (``"ipv4"`` or
-        ``"ipv6"``; a released implementer raises ``ValueError`` for any other word). A
-        plain ``str`` naming a member is deprecated.
+        ``"ipv6"``; a released implementer raises ``ValueError`` for any other word).
         *protocol* stays free text: it is the scan-type option the tool is given
         (``"-sU"``), not an IP protocol.
 
         *fast* scans fewer ports than the tool's default set. It replaces the released *opts*
-        string, which is deprecated; giving both raises ``ValueError``.
+        string, which goes with this member; giving both raises ``ValueError``.
 
         Deprecated: use :meth:`scan_ports`. Removal not before the first release 6 months after the
         release that deprecates it.

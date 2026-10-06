@@ -186,9 +186,10 @@ class SipPhone(Protocol):
 
         Returns True if the state was reached within the timeout. *state* is a
         :class:`~testprotocols.models.voice.PhoneState`, one member per ``is_*``
-        predicate. A plain string naming a member is deprecated. A word that names no
-        member raises
-        ``ValueError``. The annotation narrows to ``PhoneState`` in a later release.
+        predicate. A word that names no member raises ``ValueError``.
+
+        Deprecated: the plain ``str`` form of *state*; the annotation narrows to ``PhoneState``.
+        Removal not before the first release 6 months after the release that deprecates it.
         """
         ...
 

@@ -49,8 +49,9 @@ class NetworkAttachment(Protocol):
         or when undeclared. Lets tests resolve "the endpoint on segment X" by
         declaration when address facts are foreign-owned or discovered late.
 
-        Announced only: ``""`` means undeclared today and becomes ``str | None``,
-        with ``None`` meaning undeclared, in a later release."""
+        Deprecated: ``""`` as "undeclared"; the property becomes ``str | None``, with ``None``
+        meaning undeclared, and ``""`` means undeclared until then. Removal not before the
+        first release 6 months after the release that deprecates it."""
         ...
 
     @property

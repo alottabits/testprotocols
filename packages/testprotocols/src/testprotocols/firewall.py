@@ -43,7 +43,12 @@ class Firewall(PacketFilter, Protocol):
         *external_port* / *internal_port* outside ``1..65535``, or on
         *mapping.protocol* that is not a
         :class:`~testprotocols.models.PortMappingProtocol` (``tcp``, ``udp``,
-        ``tcp-udp``; a plain string naming one is deprecated).
+        ``tcp-udp``).
+
+        Deprecated: a plain ``str`` *mapping.protocol*; the field narrows to
+        :class:`~testprotocols.models.PortMappingProtocol` (see
+        :class:`~testprotocols.models.PortMapping`). Removal not before the first release 6
+        months after the release that deprecates it.
         """
         ...
 

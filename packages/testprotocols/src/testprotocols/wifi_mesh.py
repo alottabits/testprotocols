@@ -63,8 +63,12 @@ class WifiMesh(Protocol):
 
     def set_backhaul_band(self, band: WifiBand | str | None) -> None:
         """Force the backhaul radio to *band* (a :class:`~testprotocols.models.wifi.WifiBand`),
-        or pass None to release the constraint. A plain ``str`` naming a band is
-        deprecated.
+        or pass None to release the constraint.
+
+        Deprecated: the plain ``str`` form of *band*; the parameter narrows to
+        :class:`~testprotocols.models.wifi.WifiBand` ``| None``, the ``None`` releasing the band
+        constraint stays. Removal not before the first release 6 months after the release that
+        deprecates it.
 
         Releasing returns the device to whatever band-selection policy
         the mesh controller / driver default uses. Drivers without

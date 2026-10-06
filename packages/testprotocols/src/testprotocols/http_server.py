@@ -18,12 +18,22 @@ class HttpServer(Protocol):
 
         *port* is the port number as text (``"8080"``). *ip_version* is ``"4"`` or
         ``"6"``: the released implementers pass it to the server command as ``-<ip_version>``.
-        Both stay ``str``, because the released implementers declare ``str``; they narrow to
-        ``int`` and to :class:`~testprotocols.models.IpFamily` (``V4`` / ``V6``, whose
-        values are those numbers) in a later release.
+        Both stay ``str``, because the released implementers declare ``str``.
+
+        Deprecated: *port* as ``str`` and *ip_version* as ``str`` narrow to ``int`` and to
+        :class:`~testprotocols.models.IpFamily` (``V4`` / ``V6``, whose values are those
+        numbers). Removal not before the first release 6 months after the release that
+        deprecates it.
         """
         ...
 
     def stop_http_service(self, port: str) -> None:
-        """Stop the HTTP service listening on *port*."""
+        """Stop the HTTP service listening on *port*.
+
+        *port* is the port number as text (``"8080"``); it stays ``str``, because the released
+        implementers declare ``str``.
+
+        Deprecated: *port* as ``str``; it narrows to ``int``. Removal not before the first
+        release 6 months after the release that deprecates it.
+        """
         ...

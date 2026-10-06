@@ -18,9 +18,11 @@ class TrafficSpec:
     """Holds parameters for a traffic generation run (destination, bandwidth, protocol, etc.).
 
     *protocol* is a :class:`TransportProtocol`. A plain ``str`` naming a member
-    (``"udp"``) is deprecated and stored as given (a member compares equal to its
-    text); the field narrows to :class:`TransportProtocol` when the plain ``str`` form
-    is removed.
+    (``"udp"``) is stored as given (a member compares equal to its text).
+
+    Deprecated: the plain ``str`` form of *protocol*; the field narrows to
+    :class:`TransportProtocol`. Removal not before the first release 6 months after the
+    release that deprecates it.
     """
 
     destination: str

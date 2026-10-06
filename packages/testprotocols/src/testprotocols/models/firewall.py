@@ -82,16 +82,23 @@ class FirewallRule:
     *action* is a :class:`FirewallRuleAction` (``allow``, ``deny``, ``reject``,
     ``log``) and *protocol* a :class:`~testprotocols.models.RuleProtocol`
     (``tcp``, ``udp``, ``icmp``, ``any``; also ``icmp6``). A plain ``str`` naming
-    one is accepted and stored as given (a member compares equal to its text); each
-    field narrows to its enum when the plain ``str`` form is removed.
+    one is accepted and stored as given (a member compares equal to its text).
+
+    Deprecated: the plain ``str`` form of *action* and *protocol*; each field narrows to
+    its enum. Removal not before the first release 6 months after the release that
+    deprecates it.
 
     The destination ports have two forms. *dst_ports* is a tuple of
     :class:`~testprotocols.models.PortRange`, the empty tuple meaning any port.
     *dst_port* is the released text form (a port number, a range like
-    ``"1024-65535"``, a comma list, or ``"any"``), deprecated. A driver fills either
+    ``"1024-65535"``, a comma list, or ``"any"``). A driver fills either
     field, or both; when both are filled they describe the same ports. At least one
     is filled: *dst_port* stays required, and a driver that fills only *dst_ports*
-    passes ``dst_port=None``. At removal, *dst_port* goes and *dst_ports* becomes required.
+    passes ``dst_port=None``.
+
+    Deprecated: *dst_port*, the released text form; use *dst_ports*. At removal, *dst_port*
+    goes and *dst_ports* becomes required. Removal not before the first release 6 months
+    after the release that deprecates it.
 
     A rule also flows into a driver (``PacketFilter.add_rule``). A caller building one
     for a write member fills both forms until removal: a driver not yet updated reads
@@ -120,8 +127,11 @@ class NatRule:
 
     Three modes are supported via the *mode* discriminator, a :class:`NatMode`.
     *protocol* is a :class:`~testprotocols.models.RuleProtocol`. For each, a plain
-    ``str`` naming a member is accepted and stored as given; the field narrows to its
-    enum when the plain ``str`` form is removed.
+    ``str`` naming a member is accepted and stored as given.
+
+    Deprecated: the plain ``str`` form of *mode* and *protocol*; each field narrows to its
+    enum. Removal not before the first release 6 months after the release that deprecates
+    it.
 
     - ``"snat"`` — source-NAT (rewrite source on egress). Requires
       *translated_src* (or empty string to fall back to the egress
@@ -138,12 +148,16 @@ class NatRule:
     (the rewrite) are tuples of :class:`~testprotocols.models.PortRange`, the empty
     tuple meaning no port (any, for the match). *dst_port* and *translated_port*
     are the released text forms (``""`` for no port, also ``"any"``, a port number,
-    a range, or a comma list), deprecated. A driver fills either field of a pair, or
+    a range, or a comma list). A driver fills either field of a pair, or
     both; when both are filled they describe the same ports. *dst_port* and
     *translated_port* keep their released default ``""`` (no port); a driver that fills
     only the typed form may pass ``None`` for the text, which reads as that default. At
     removal, the text fields go and the typed fields default to ``()``, the typed form of
     the released default, so a rule that never sets them keeps its meaning.
+
+    Deprecated: *dst_port* and *translated_port*, the released text forms; use *dst_ports*
+    and *translated_ports*. Removal not before the first release 6 months after the release
+    that deprecates it.
 
     A rule also flows into a driver (``Nat.add_nat_rule``). A caller building one for a
     write member fills both forms until removal: a driver not yet updated reads only the
@@ -151,9 +165,10 @@ class NatRule:
     else the text. A caller that fills only the typed form leaves the text at its
     released default ``""``, and a driver not yet updated acts on that: no port.
 
-    ``src_cidr`` / ``dst_cidr`` ``""`` and ``translated_src`` / ``translated_dst``
-    ``""`` will become ``str | None``, with ``None`` meaning absent; ``""`` means
-    absent until then.
+    Deprecated: ``""`` as "absent" in *src_cidr*, *dst_cidr*, *translated_src* and
+    *translated_dst*; the fields become ``str | None``, with ``None`` meaning absent, and
+    ``""`` means absent until then. Removal not before the first release 6 months after the
+    release that deprecates it.
 
     Match criteria default to ``""`` meaning "any". *interface* is the
     egress interface for snat / 1to1, the ingress interface for dnat;
@@ -185,8 +200,12 @@ class PortMapping:
     need to know which.
 
     *protocol* is a :class:`PortMappingProtocol` (``tcp``, ``udp``,
-    ``tcp-udp``). A plain ``str`` naming one is accepted and stored as given; the
-    field narrows to :class:`PortMappingProtocol` when the plain ``str`` form is removed.
+    ``tcp-udp``). A plain ``str`` naming one is accepted and stored as given.
+
+    Deprecated: the plain ``str`` form of *protocol*; the field narrows to
+    :class:`PortMappingProtocol`. Removal not before the first release 6 months after the
+    release that deprecates it.
+
     *external_interface* of ``None`` means "all external interfaces".
     *src_cidr* may restrict the mapping to a specific source range
     (firewall hardening); the default ``"0.0.0.0/0"`` accepts any source.
@@ -213,9 +232,8 @@ class Connection:
 
     *protocol* is a :class:`~testprotocols.models.RuleProtocol`, never ``ANY``: a
     flow has one transport. A plain ``str`` naming a member is accepted and stored as
-    given; the field narrows to :class:`~testprotocols.models.RuleProtocol` when the
-    plain ``str`` form is removed. *state* is the device's own word and is stored as
-    given. It is protocol-specific, for example:
+    given. *state* is the device's own word and is stored as given. It is protocol-specific,
+    for example:
 
     - TCP: ``SYN_SENT``, ``SYN_RECV``, ``ESTABLISHED``, ``FIN_WAIT``,
       ``CLOSE_WAIT``, ``LAST_ACK``, ``TIME_WAIT``, ``CLOSE``, ``LISTEN``.
@@ -224,6 +242,10 @@ class Connection:
 
     *translated_src* / *translated_dst* are populated (non-None) when NAT
     is altering this flow. *src_port* / *dst_port* are ``None`` for ICMP.
+
+    Deprecated: the plain ``str`` form of *protocol*; the field narrows to
+    :class:`~testprotocols.models.RuleProtocol`. Removal not before the first release 6
+    months after the release that deprecates it.
     """
 
     protocol: RuleProtocol | str

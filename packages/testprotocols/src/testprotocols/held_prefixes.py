@@ -35,9 +35,11 @@ class HeldPrefixes(Protocol):
         allocates — so the prefix becomes connected/local. Idempotent on the
         normalized address: holding an address already held is a no-op.
 
-        *address* stays ``str`` because released implementers declare ``str``; it narrows to
-        ``IPv4Interface | IPv6Interface`` in a later release (a caller holding one passes
-        ``str(interface)``, which is the same text)."""
+        *address* stays ``str`` because released implementers declare ``str``.
+
+        Deprecated: *address* as ``str`` narrows to ``IPv4Interface | IPv6Interface`` (a
+        caller holding one passes ``str(interface)``, which is the same text). Removal not
+        before the first release 6 months after the release that deprecates it."""
         ...
 
     def release(self, address: str) -> None:

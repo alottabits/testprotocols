@@ -39,8 +39,11 @@ class RadiusServer(Protocol):
     def get_status(self) -> str:
         """Return the daemon status. Typical values: ``"running"``, ``"stopped"``, ``"error"``.
 
-        Announced only: the return narrows to :class:`~testprotocols.models.ServiceStatus`
-        (members equal those strings) in a later release; it stays ``str`` today.
+        The return stays ``str`` today.
+
+        Deprecated: the return type ``str``; it narrows to
+        :class:`~testprotocols.models.ServiceStatus` (members equal those strings). Removal not
+        before the first release 6 months after the release that deprecates it.
         """
         ...
 

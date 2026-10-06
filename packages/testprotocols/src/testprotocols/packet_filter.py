@@ -43,10 +43,14 @@ class PacketFilter(Protocol):
         """Insert *rule* into *chain* at *position*.
 
         *chain* is a :class:`~testprotocols.models.Chain` (``INPUT``, ``OUTPUT``,
-        ``FORWARD``); a plain ``str`` naming one is deprecated, as for every
-        other *chain* parameter here except ``get_rule_counter_values``, which
-        takes the bare enum. An unknown string raises ``ValueError``. *position*
-        is 1-based: ``1`` inserts at the top, ``None`` appends at the end.
+        ``FORWARD``); every other *chain* parameter here is the same, except
+        ``get_rule_counter_values``, which takes the bare enum. An unknown string raises
+        ``ValueError``. *position* is 1-based: ``1`` inserts at the top, ``None`` appends at
+        the end.
+
+        Deprecated: the plain ``str`` form of *chain*, on this and every other *chain*
+        parameter here; each narrows to :class:`~testprotocols.models.Chain`. Removal not
+        before the first release 6 months after the release that deprecates it.
 
         Raises ValueError if *chain* is unknown, if a rule named
         ``rule.name`` already exists in *chain*, or if *position* is
@@ -90,20 +94,25 @@ class PacketFilter(Protocol):
         """Set the default action for traffic on *chain* that matches no rule.
 
         *policy* is a :class:`~testprotocols.models.DefaultAction` (``accept``,
-        ``drop``, ``reject``); a plain ``str`` naming one is deprecated. Raises
-        ValueError if
-        *chain* is unknown or *policy* is not a valid value.
+        ``drop``, ``reject``). Raises ValueError if *chain* is unknown or *policy* is not a
+        valid value.
+
+        Deprecated: the plain ``str`` form of *policy*; the parameter narrows to
+        :class:`~testprotocols.models.DefaultAction`. Removal not before the first release 6
+        months after the release that deprecates it.
         """
         ...
 
     def get_default_policy(self, chain: Chain | str) -> str:
         """Return the current default policy of *chain*.
 
-        Deprecated return type: the result is a ``str`` (``"accept"``,
-        ``"drop"``, ``"reject"``) today and narrows to
-        :class:`~testprotocols.models.DefaultAction` in a later release; a
-        ``DefaultAction`` is a ``str``, so a caller that compares with the plain
-        words keeps working. A driver may already return the member.
+        The result is a ``str`` (``"accept"``, ``"drop"``, ``"reject"``). A driver may already
+        return the member.
+
+        Deprecated: the return type ``str``; it narrows to
+        :class:`~testprotocols.models.DefaultAction`. A ``DefaultAction`` is a ``str``, so a
+        caller that compares with the plain words keeps working. Removal not before the first
+        release 6 months after the release that deprecates it.
 
         Raises ValueError if *chain* is unknown.
         """

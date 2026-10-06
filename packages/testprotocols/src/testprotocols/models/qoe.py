@@ -72,8 +72,11 @@ class MeasurementSpec:
 
     *tool* is a :class:`QoeTool` and *completion* a :class:`QoeCompletion` (a
     :class:`PageCompletion` has the same words). A plain ``str`` naming a member is
-    deprecated and stored as given (a member compares equal to its text); each field
-    narrows to its enum when the plain ``str`` form is removed.
+    stored as given (a member compares equal to its text).
+
+    Deprecated: the plain ``str`` form of *tool* and *completion*; each field narrows to
+    its enum. Removal not before the first release 6 months after the release that
+    deprecates it.
     """
 
     tool: QoeTool | str = "browser"
