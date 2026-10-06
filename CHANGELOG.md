@@ -428,7 +428,7 @@ their tags and PR history.
   design `docs/architecture/precise-types-design.md`
   (Wi-Fi vocabularies); PR #73.
 - **protocol members** `testprotocols.packet_filter:PacketFilter` (every `chain`
-  parameter; `set_default_policy(policy)`), `testprotocols.nat:Nat.list_nat_rules(mode)`
+  parameter except `get_rule_counter_values`, which takes the bare `Chain`; `set_default_policy(policy)`), `testprotocols.nat:Nat.list_nat_rules(mode)`
   and `testprotocols.conntrack:Conntrack` (`protocol` on `list_connections`,
   `count_connections`, `get_connection`, `drop_connection`) — now annotated `Chain | str`, `DefaultAction | str`,
   `NatMode | str | None` and `RuleProtocol | str`. A driver converts each once at its boundary. The `state`
@@ -470,7 +470,7 @@ their tags and PR history.
   design `docs/architecture/precise-types-design.md` (Wi-Fi vocabularies); PR #73.
 - **protocol members** `testprotocols.wifi_bss:WifiBss.create_bss` / `set_security` (`band`, `security_mode`,
   `mfp`; the `mfp` default stays `"optional"`),
-  `WifiBss.set_acl_mode`, every `band` of `testprotocols.wifi_radio:WifiRadio` and `testprotocols.wifi_rf:WifiRf`,
+  `WifiBss.set_acl_mode`, every `band` of `testprotocols.wifi_radio:WifiRadio` (except `get_modes`, which takes the bare `WifiBand`) and `testprotocols.wifi_rf:WifiRf`,
   `WifiRadio.set_bandwidth` (`ChannelWidth | int`), `WifiRadio.set_mode`,
   `testprotocols.wifi_mesh:WifiMesh.set_backhaul_band` and `testprotocols.wifi_client:WifiClient.set_wlan_scan_channel` (`int | str`) —
   parameter annotations widen to `E | str`, so every released call still type-checks;
@@ -686,9 +686,10 @@ their tags and PR history.
 - **parameter** Wi-Fi `band` (`testprotocols.wifi_bss:WifiBss.create_bss`, every
   `testprotocols.wifi_radio:WifiRadio` and `testprotocols.wifi_rf:WifiRf` member,
   `testprotocols.wifi_radio:WifiRadioWhiteBox.inject_radar_event`,
-  `testprotocols.wifi_mesh:WifiMesh.set_backhaul_band`; `testprotocols.wifi_radio:WifiRadio.get_modes` is
-  excepted, it takes the bare `WifiBand`): `WifiBand | str` —
-  deprecated. Replacement: `WifiBand` (narrows to the enum). Earliest removal: the first release 6
+  `testprotocols.wifi_mesh:WifiMesh.set_backhaul_band`, annotated `WifiBand | str | None`;
+  `testprotocols.wifi_radio:WifiRadio.get_modes` is excepted, it takes the bare `WifiBand`): `WifiBand | str` —
+  deprecated. Replacement: `WifiBand` (narrows to the enum; `WifiMesh.set_backhaul_band` narrows to
+  `WifiBand | None`, the `None` releasing the band constraint stays). Earliest removal: the first release 6
   months after the release that deprecates it.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P6 (Design delta 2026-10-05);
   design `docs/architecture/precise-types-design.md`;
@@ -890,12 +891,21 @@ their tags and PR history.
 
 #### Fixed
 
-- **protocol members** `testprotocols.packet_filter:PacketFilter.get_rule_counter_values` `chain` and
-  `testprotocols.wifi_radio:WifiRadio.get_modes` `band` —
-  the register and the *Deprecated* entries no longer list these two bare-enum members under
-  the `Chain | str` and `WifiBand | str` deprecations; a test pins the `chain` annotation to
-  `Chain`, and another pins every other `PacketFilter` `chain` to `Chain | str`.
-  Proposal `docs/proposals/2026-10-05-precise-types.md` P2/P6 (Design delta 2026-10-05); PR #75.
+- **parameter** `testprotocols.packet_filter:PacketFilter` `chain` — the register row and the
+  *Deprecated* entry for it no longer list the new
+  `get_rule_counter_values`, which takes the bare `Chain`, under the `Chain | str` deprecation; the
+  members' signatures are unchanged. A test pins that annotation to `Chain` and every other
+  `PacketFilter` `chain` to `Chain | str`.
+  Proposal `docs/proposals/2026-10-05-precise-types.md` P2 (Design delta 2026-10-05);
+  register `packages/testprotocols/DEPRECATIONS.md`; PR #75.
+- **parameter** Wi-Fi `band` (`testprotocols.wifi_radio:WifiRadio`) — the register row and the
+  *Deprecated* entry for it no
+  longer list the new `testprotocols.wifi_radio:WifiRadio.get_modes`, which takes the bare
+  `WifiBand`, under the `WifiBand | str` deprecation, and the same row now gives
+  `WifiMesh.set_backhaul_band` its `WifiBand | str | None` annotation and `WifiBand | None`
+  replacement; the members' signatures are unchanged.
+  Proposal `docs/proposals/2026-10-05-precise-types.md` P6 (Design delta 2026-10-05);
+  register `packages/testprotocols/DEPRECATIONS.md`; PR #75.
 
 ### testoperations
 
