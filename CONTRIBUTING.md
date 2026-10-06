@@ -221,7 +221,26 @@ maintainer change with `no proposal` and its rationale.
 - on `proposal:` and `release:` PRs, every merged proposal whose Outcome
   has a keep-local or declined item has a pointer in
   `packages/testprotocols/GAPS.md`;
+- on a PR that changes `CHANGELOG.md` or
+  `packages/testprotocols/DEPRECATIONS.md`, the changelog and register
+  checks below;
 - a **neutrality scan** over the added lines of the diff (below).
+
+The changelog and register checks read the PR head's `[Unreleased]`
+section only; released sections are history. Every entry there starts
+with a `**kind**` field, names its symbol in merged importable
+`module:Symbol` form before its ` — ` (the exceptions are under The
+changelog), cites the proposal path and item id (`P<n>`) or says
+`no proposal`, and then gives `PR #<n>`. An entry the PR adds (its
+package, subsection, kind and first code span are new to `[Unreleased]`
+on `main`) cites this PR's number. Every register row whose "deprecated in" reads `next release` has
+a *Deprecated* entry in `[Unreleased]` under the same package, and every
+such entry has a row: the two match when the kind is equal and they name
+the same code spans in the same order, read without the
+`package.module:` prefix. A row with a released version belongs to that
+release's section and is not matched. Each failure names the file, the
+line and the rule. The checks run with or without `skip-changelog`; the
+label waives an entry, not the format of one that is written.
 
 For `docs:`, `chore:`, `ci:` and `test:` PRs that touch no package source
 and no decision file, `hygiene` sets the `review` status itself
@@ -309,6 +328,13 @@ migration line); the proposal path and item id, or `no proposal`; the PR
 number; a *proposed as* field naming the old symbol path, only when the
 maintainer reshaped the item at the PR. A `delta:` that changes a contract
 before the release updates the item's existing entry.
+
+The PR number is the PR's own number, `PR #<n>`, known once the PR is
+opened; there is no `PR pending` placeholder. An entry a PR adds cites that
+PR; an entry it edits keeps the number it had and may add its own. An entry
+whose kind names no single public symbol (`behaviour`, `marker`,
+`type checking`) has no path field; a `module` entry gives the dotted
+module path.
 
 *Changed* lists public symbols only; a change to an underscore-prefixed
 symbol gets no entry (apply `skip-changelog` when that is the PR's only

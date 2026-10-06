@@ -400,8 +400,17 @@ def test_head_paths() -> None:
         "packages/testprotocols/pyproject.toml",
         "packages/testoperations/pyproject.toml",
         "CHANGELOG.md",
+        "packages/testprotocols/DEPRECATIONS.md",
     ]
     assert head_paths(pr("feat: x: y", SRC)) == []
+    assert head_paths(pr("feat: x: y", SRC, "CHANGELOG.md")) == [
+        "CHANGELOG.md",
+        "packages/testprotocols/DEPRECATIONS.md",
+    ]
+    assert head_paths(pr("fix: x: y", "packages/testprotocols/DEPRECATIONS.md")) == [
+        "CHANGELOG.md",
+        "packages/testprotocols/DEPRECATIONS.md",
+    ]
     assert head_paths(pr("proposal: x", "docs/proposals/../../etc/passwd", status="added")) == []
 
 

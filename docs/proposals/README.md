@@ -247,6 +247,11 @@ The PR-level verdict, which sets the `review` check, is `approve`,
 `approve with conditions` or `request changes`. Conditions are numbered
 `C1`, `C2`, ... and each names the item it binds.
 
+A review separates **Conditions** (blocking: each must change before the
+merge) from **Notes** (non-blocking: an observation or suggestion that may
+go to a follow-up). The verdict is set by the conditions only; a note never
+moves it. Notes follow the Conditions under their own `### Notes` heading.
+
 The contributor, or a maintainer using *allow edits by maintainers*,
 appends the block verbatim to the document after a `---` rule in the next
 push. The agent never commits to the branch: authorship and sign-off stay
@@ -323,6 +328,15 @@ The verdict is `approve` when every row is `met`, `approve with
 conditions` when none is `not met`, `request changes` otherwise. On a
 `release:` PR only `approve` passes the `review` check; `approve with
 conditions` sets it to failure.
+
+As for proposals, **Conditions** block the merge and **Notes** do not: a
+row is `met with conditions` or `not met` only for a condition, and a note
+(a follow-up suggestion, a style preference) leaves it `met`. The mechanical
+changelog and register format (fields, `module:Symbol` form, citation, PR
+number, register parity) is checked by `hygiene` (CONTRIBUTING.md, "The
+hygiene gate"), not by the reviewers; question 5 reads an entry for its
+content: right package and subsection, accurate behaviour, a migration line
+for a breaking change.
 
 ## Rounds
 
