@@ -44,9 +44,9 @@ class PacketFilter(Protocol):
 
         *chain* is a :class:`~testprotocols.models.Chain` (``INPUT``, ``OUTPUT``,
         ``FORWARD``); a plain ``str`` naming one is deprecated, as for every
-        other *chain* parameter here, and an unknown string raises
-        ``ValueError``. *position* is 1-based: ``1`` inserts at the top,
-        ``None`` appends at the end.
+        other *chain* parameter here except ``get_rule_counter_values``, which
+        takes the bare enum. An unknown string raises ``ValueError``. *position*
+        is 1-based: ``1`` inserts at the top, ``None`` appends at the end.
 
         Raises ValueError if *chain* is unknown, if a rule named
         ``rule.name`` already exists in *chain*, or if *position* is
