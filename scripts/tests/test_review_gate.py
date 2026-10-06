@@ -6,7 +6,7 @@ import json
 from pathlib import Path
 
 import pytest
-from review_gate import full_requested, main, maintainers, refusal
+from review_gate import conclusions, full_requested, main, maintainers, refusal
 
 MAINTAINERS_MD = """# Maintainers
 
@@ -25,6 +25,15 @@ Adding a maintainer is a line here.
 """
 
 GREEN = {"dco": "success", "lint": "success", "hygiene": "success"}
+GREEN_RUNS = [
+    {"id": 1, "name": "dco", "status": "completed", "conclusion": "success"},
+    {"id": 2, "name": "lint", "status": "completed", "conclusion": "success"},
+    {"id": 3, "name": "hygiene", "status": "completed", "conclusion": "success"},
+]
+
+
+def run(run_id: int, name: str, status: str, conclusion: str | None = None) -> dict[str, object]:
+    return {"id": run_id, "name": name, "status": status, "conclusion": conclusion}
 
 
 def ok(**overrides: object) -> str | None:
@@ -88,6 +97,101 @@ def test_gate_refusals(overrides: dict[str, object], reason: str) -> None:
     assert ok(**overrides) == reason
 
 
+@pytest.mark.parametrize(
+    ("hygiene_runs", "state"),
+    [
+        # A body edit's run cancelled the push's run; the later one passed.
+        (
+            [
+                run(10, "hygiene", "completed", "cancelled"),
+                run(11, "hygiene", "completed", "success"),
+            ],
+            "success",
+        ),
+        # Listed out of order: the id decides, not the list position.
+        (
+            [
+                run(11, "hygiene", "completed", "success"),
+                run(10, "hygiene", "completed", "cancelled"),
+            ],
+            "success",
+        ),
+        # A newer run was cancelled after an older one passed.
+        (
+            [
+                run(10, "hygiene", "completed", "success"),
+                run(11, "hygiene", "completed", "cancelled"),
+            ],
+            "cancelled",
+        ),
+        # A run still going beside a finished success: wait for it.
+        (
+            [run(10, "hygiene", "completed", "success"), run(11, "hygiene", "in_progress")],
+            "in_progress",
+        ),
+        ([run(10, "hygiene", "queued"), run(11, "hygiene", "completed", "success")], "queued"),
+        # A re-run of a failed run.
+        (
+            [
+                run(10, "hygiene", "completed", "failure"),
+                run(12, "hygiene", "completed", "success"),
+            ],
+            "success",
+        ),
+        # A re-run of a cancelled run, itself cancelled.
+        (
+            [
+                run(10, "hygiene", "completed", "cancelled"),
+                run(12, "hygiene", "completed", "cancelled"),
+            ],
+            "cancelled",
+        ),
+        ([run(10, "hygiene", "completed", "cancelled")], "cancelled"),
+    ],
+)
+def test_conclusions_pick_the_newest_completed_run(
+    hygiene_runs: list[dict[str, object]], state: str
+) -> None:
+    states = conclusions([*GREEN_RUNS[:2], *hygiene_runs])
+    assert states == {"dco": "success", "lint": "success", "hygiene": state}
+
+
+@pytest.mark.parametrize(
+    ("hygiene_runs", "reason"),
+    [
+        (
+            [
+                run(10, "hygiene", "completed", "cancelled"),
+                run(11, "hygiene", "completed", "success"),
+            ],
+            None,
+        ),
+        (
+            [
+                run(10, "hygiene", "completed", "success"),
+                run(11, "hygiene", "completed", "cancelled"),
+            ],
+            "hygiene is cancelled on the head commit",
+        ),
+        (
+            [run(10, "hygiene", "completed", "success"), run(11, "hygiene", "in_progress")],
+            "hygiene is in_progress on the head commit",
+        ),
+        (
+            [
+                run(10, "hygiene", "completed", "failure"),
+                run(11, "hygiene", "completed", "success"),
+            ],
+            None,
+        ),
+        ([run(10, "hygiene", "completed", "cancelled")], "hygiene is cancelled on the head commit"),
+        ([], "hygiene is missing on the head commit"),
+    ],
+)
+def test_gate_over_check_runs(hygiene_runs: list[dict[str, object]], reason: str | None) -> None:
+    assert ok(checks=conclusions([*GREEN_RUNS[:2], *hygiene_runs])) == reason
+
+
 def test_case_insensitive_handles() -> None:
     assert ok(commenter="OctoCat") is None
 
@@ -100,7 +204,7 @@ def test_cli(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     pr = tmp_path / "pr.json"
     pr.write_text(json.dumps({"draft": False}))
     checks = tmp_path / "checks.json"
-    checks.write_text(json.dumps(GREEN))
+    checks.write_text(json.dumps(GREEN_RUNS))
     argv = [
         "--body",
         str(body),
@@ -128,7 +232,7 @@ def test_cli_full_out(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> Non
     pr = tmp_path / "pr.json"
     pr.write_text(json.dumps({"draft": False}))
     checks = tmp_path / "checks.json"
-    checks.write_text(json.dumps(GREEN))
+    checks.write_text(json.dumps(GREEN_RUNS))
     body = tmp_path / "body.txt"
     full = tmp_path / "full.txt"
     argv = [
