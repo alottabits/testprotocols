@@ -237,23 +237,31 @@ The review team posts one GitHub PR review whose body is:
 ```markdown
 ## Review response (testprotocols review team, YYYY-MM-DD)
 
-| Item | Decision | Reason |
-| --- | --- | --- |
-| P1 | accept / accept with conditions / decline | one line |
+| Item | Decision | Proportionate (Q10) | Reason |
+| --- | --- | --- | --- |
+| P1 | accept / accept with conditions / decline | yes / heavier than needed / no | one line |
 
 ### 0. Neutrality
 ...
 ### 7. One consumer, and why now
 ...
+### 10. Proportionality
+...
 
 ### Conditions
-- C1 ...
+- C1 (P1): ...
+
+### Notes
+- N1 (P1): ...
 ```
 
 Decisions per item are `accept`, `accept with conditions` or `decline`.
-The PR-level verdict, which sets the `review` check, is `approve`,
-`approve with conditions` or `request changes`. Conditions are numbered
-`C1`, `C2`, ... and each names the item it binds.
+The `Proportionate (Q10)` column answers question 10 for the item: `yes`,
+`heavier than needed` or `no`. The PR-level verdict, which sets the
+`review` check, is `approve`, `approve with conditions` or `request
+changes`. Conditions are numbered `C1`, `C2`, ..., notes `N1`, `N2`, ...,
+and each names the item it binds or concerns. `### Conditions` reads
+`None.` when there are none; `### Notes` is left out when there are none.
 
 A review separates **Conditions** (blocking: each must change before the
 merge) from **Notes** (non-blocking: an observation or suggestion that may
@@ -330,6 +338,9 @@ The response body:
 
 ### Conditions
 - C1 (Q4): ...
+
+### Notes
+- N1 (Q3): ...
 ```
 
 The verdict is `approve` when every row is `met`, `approve with
