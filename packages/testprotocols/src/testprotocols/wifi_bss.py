@@ -64,8 +64,9 @@ class WifiBss(Protocol):
 
         Any string that names no member raises ``ValueError`` before any device I/O.
 
-        Deprecated: the plain ``str`` forms of *security_mode* and *mfp*; the parameters narrow
-        to :class:`~testprotocols.models.wifi.WifiSecurityMode` and
+        Deprecated: the plain ``str`` forms of *band*, *security_mode* and *mfp*; the
+        parameters narrow to :class:`~testprotocols.models.wifi.WifiBand`,
+        :class:`~testprotocols.models.wifi.WifiSecurityMode` and
         :class:`~testprotocols.models.wifi.MfpMode`. Removal not before the first release 6
         months after the release that deprecates it.
 
