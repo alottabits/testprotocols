@@ -291,6 +291,11 @@ verdicts of `docs/proposals/README.md`.
     orchestration is broken into thinner members combined by a
     `testoperations` operation when (a)–(d) hold — for a core member, (a)
     means the breakdown keeps every step at the core threshold.
+12. **Composition.** As proposal question 12, over the ratified family
+    list: wherever two capabilities act on the same packets or write the
+    same resource, the design states the combined outcome, independent of
+    call order; a family that cannot give it refuses the combination, and
+    the matrix shows the refusal on both cells.
 
 **Verification** (`archetype:` PR with package source):
 
@@ -324,6 +329,12 @@ verdicts of `docs/proposals/README.md`.
    by family that meets (a)–(d) is noted with the breakdown; an adopted
    breakdown whose combining operation does not clean up on every exit, or
    does not test the abandoned path, is a condition.
+10. **Composition in the corpus.** Design question 12 applied to the
+    reference implementations: each driver gives the stated combined
+    outcome or refuses the combination; a different outcome left to a
+    `lossy:` line, a refusal the matrix does not show, a pair the design
+    does not name, or a stated pair with no test writing both members in
+    both call orders, is a condition.
 
 The posted review cites only public documentation, public protocol symbols
 and the corpus commit it verified against.

@@ -254,6 +254,29 @@ The review answers these questions, in this order, for every item:
     steps, or splits steps a family must commit together, without a stated
     failure outcome is accepted with that outcome, or the whole member, as
     a condition.
+12. **Composition.** The contract specifies each capability on its own,
+    but on the device several capabilities can act on the same packets or
+    write the same resource: an interface's filter slot or filter list
+    (access list, QoS classification, capture filter, VPN or policy
+    steering), a routing table or VRF, address translation, the management
+    plane. A test written against one family is portable only if every
+    combination it can set up means the same on every family. For a member
+    that acts on traffic or writes such a resource, the review names the
+    other capabilities that meet it there and asks that the item state the
+    combined outcome: which acts first, or which outcome holds (for
+    example, "an access list filters every packet entering the interface,
+    including flows the VPN exclusions steer", or "an access list matches
+    the addresses before translation"). The outcome does not depend on the
+    order of the calls. A family that cannot give it refuses the
+    combination with `NotSupportedError` on whichever write completes it,
+    citing its source, and the archetype matrix shows the refusal; it never
+    accepts the combination and behaves otherwise. A `lossy:` line is not
+    enough where families differ in which packets pass, are steered or are
+    translated: every call succeeds and every read-back matches, so the
+    difference is silent at run time. An unstated combined outcome is
+    accepted with the outcome or the refusal as a condition, and the
+    reference drivers then give it, tested in both call orders; a stated
+    outcome that could be sharper is a note.
 
 When the verdict hinges on a claimed vendor or tool behaviour, the review
 verifies it against published documentation and cites what it checked.
@@ -276,6 +299,8 @@ The review team posts one GitHub PR review whose body is:
 ### 10. Proportionality
 ...
 ### 11. Method grain
+...
+### 12. Composition
 ...
 
 ### Conditions
