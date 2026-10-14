@@ -226,6 +226,34 @@ The review answers these questions, in this order, for every item:
     forced where an honest `str` (the device's own word, an open value) is
     the contract. The rules a typing change is held to are C1 to C6 of
     `docs/architecture/precise-types-design.md` ("The contract model").
+11. **Method grain.** Most members are thin: one device operation and the
+    read that shows it. For a member whose mapping on the reviewed families
+    takes many device steps, the review asks which kind of heaviness it is.
+    **Translation** — rendering the neutral model in a family's syntax and
+    parsing it back (rule lists, NAT rules, shaping classes, zones) — stays
+    one member: splitting it moves the logic without removing it, and the
+    families divide such objects differently. Its correctness is shown by
+    driver tests against recorded device output. **Orchestration** — a
+    sequence of steps over time (configure a probe, wait, read, remove it)
+    or an input derived from another capability's state — is broken into
+    thinner members that a `testoperations` operation combines when all
+    four hold:
+    (a) the steps are the same on nearly every reviewed family, so the
+    breakdown adds no unsupported family the whole member did not have;
+    (b) each step has its own read-back or named confirming observation
+    (question 8);
+    (c) every state between steps is safe and meaningful on the device: no
+    window with filtering off, no half-built object another capability
+    reads;
+    (d) no reviewed family needs the steps applied as one atomic commit.
+    The combining operation owns the order of the steps and the cleanup on
+    every exit, an abandoned wait included, and tests that path. A released
+    member that is broken down stays for the products that answer it
+    natively; the new members follow the placement ladder. A missed
+    breakdown is a note; a breakdown that leaves an unsafe state between
+    steps, or splits steps a family must commit together, without a stated
+    failure outcome is accepted with that outcome, or the whole member, as
+    a condition.
 
 When the verdict hinges on a claimed vendor or tool behaviour, the review
 verifies it against published documentation and cites what it checked.
@@ -246,6 +274,8 @@ The review team posts one GitHub PR review whose body is:
 ### 7. One consumer, and why now
 ...
 ### 10. Proportionality
+...
+### 11. Method grain
 ...
 
 ### Conditions
