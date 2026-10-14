@@ -283,6 +283,14 @@ verdicts of `docs/proposals/README.md`.
    added or changed member typed imprecisely is `not met`. An existing
    member the design does not touch is noted, not blocking; retyping one is
    a rung-5 `deprecate` (widen, then narrow) with its manifest row.
+10. **Proportionality.** As proposal question 10: each typing or contract
+    change strengthens the static checks enough to justify its maintenance
+    cost.
+11. **Method grain.** As proposal question 11, over the ratified family
+    list: a heavy member that is translation stays whole; one that is
+    orchestration is broken into thinner members combined by a
+    `testoperations` operation when (a)–(d) hold — for a core member, (a)
+    means the breakdown keeps every step at the core threshold.
 
 **Verification** (`archetype:` PR with package source):
 
@@ -311,6 +319,11 @@ verdicts of `docs/proposals/README.md`.
    corpus's fakes emit each family's rejection output, so the negative path
    is tested.
 8. **Findings folded back** into the matrix, body, manifest and review record.
+9. **Method grain in the corpus.** Design question 11 applied to the
+   reference implementations: an orchestration the drivers repeat family
+   by family that meets (a)–(d) is noted with the breakdown; an adopted
+   breakdown whose combining operation does not clean up on every exit, or
+   does not test the abandoned path, is a condition.
 
 The posted review cites only public documentation, public protocol symbols
 and the corpus commit it verified against.
