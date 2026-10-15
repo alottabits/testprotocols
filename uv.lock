@@ -291,7 +291,7 @@ wheels = [
 
 [[package]]
 name = "testoperations"
-version = "0.12.1"
+version = "0.13.0"
 source = { editable = "packages/testoperations" }
 dependencies = [
     { name = "testprotocols" },
@@ -302,7 +302,7 @@ requires-dist = [{ name = "testprotocols", editable = "packages/testprotocols" }
 
 [[package]]
 name = "testprotocols"
-version = "0.12.1"
+version = "0.13.0"
 source = { editable = "packages/testprotocols" }
 
 [[package]]
