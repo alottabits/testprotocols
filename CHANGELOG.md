@@ -178,7 +178,8 @@ their tags and PR history.
   `WifiChannelUtilization`, `WifiRadioStats` and `WifiMeshLink`,
   `WifiBssConfig.security_mode` / `mfp`, `WifiAcl.mode` and the `role` of
   `WifiMeshStatus` and `WifiMeshNode` — now `E | str` (the enum or its released word,
-  stored as given), so a reader sees `E | str`.
+  stored as given), so a reader sees `E | str`. Migration: pass the members; the *Changed*
+  entries for these models give each enum.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P2, P4, P6 and P10;
   design `docs/architecture/precise-types-design.md`; PR #73.
 - **fields** `testprotocols.models:WifiRadioStats.tx_retries` and `tx_failed` — now
@@ -535,162 +536,139 @@ their tags and PR history.
 #### Deprecated
 
 - **member** `testprotocols.packet_filter:PacketFilter.get_rule_counters` (so also `Firewall`) —
-  deprecated. Replacement: `get_rule_counter_values`. Earliest removal: the first release 6 months
-  after the release that deprecates it.
+  deprecated. Replacement: `get_rule_counter_values`. Earliest removal: the first release on or after 2027-04-15, six months after 0.13.0.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P2;
   design `docs/architecture/precise-types-design.md`;
   register `packages/testprotocols/DEPRECATIONS.md`; PR #73.
 - **member** `testprotocols.nat:Nat.get_nat_rule_counters` — deprecated. Replacement:
-  `get_nat_rule_counter_values`. Earliest removal: the first release 6 months after the release that
-  deprecates it.
+  `get_nat_rule_counter_values`. Earliest removal: the first release on or after 2027-04-15, six months after 0.13.0.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P2;
   design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR #73.
 - **member** `testprotocols.router:Router.get_telemetry` — deprecated. Replacement:
-  `read_telemetry`. Earliest removal: the first release 6 months after the release that deprecates
-  it.
+  `read_telemetry`. Earliest removal: the first release on or after 2027-04-15, six months after 0.13.0.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P4;
   design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR #73.
 - **member** `testprotocols.sdwan_policy_manager:SdwanPolicyManager.apply_policy` — deprecated.
   Replacement: none: the typed steering and SLA members (`configure_sla_policy`,
-  `set_uplink_selection`, `set_default_uplink`, `set_active_active_vpn`). Earliest removal: the
-  first release 6 months after the release that deprecates it.
+  `set_uplink_selection`, `set_default_uplink`, `set_active_active_vpn`). Earliest removal: the first release on or after 2027-04-15, six months after 0.13.0.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P3;
   design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR #73.
 - **member** `testprotocols.wifi_client:WifiClient.iwlist_supported_channels` — deprecated.
-  Replacement: `supported_channels`. Earliest removal: the first release 6 months after the release
-  that deprecates it.
+  Replacement: `supported_channels`. Earliest removal: the first release on or after 2027-04-15, six months after 0.13.0.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P6;
   design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR #73.
 - **member** `testprotocols.wifi_radio:WifiRadio.get_mode` — deprecated. Replacement: `get_modes`.
-  Earliest removal: the first release 6 months after the release that deprecates it.
+  Earliest removal: the first release on or after 2027-04-15, six months after 0.13.0.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P6;
   design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR #73.
 - **member** `testprotocols.sip_server:SipServer.get_rtpengine_stats` — deprecated. Replacement:
-  `read_rtp_relay_stats`. Earliest removal: the first release 6 months after the release that
-  deprecates it.
+  `read_rtp_relay_stats`. Earliest removal: the first release on or after 2027-04-15, six months after 0.13.0.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P7;
   design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR #73.
 - **member** `testprotocols.sip_server:SipServer.get_mwi_status` — deprecated. Replacement:
-  `read_mwi_status`. Earliest removal: the first release 6 months after the release that deprecates
-  it.
+  `read_mwi_status`. Earliest removal: the first release on or after 2027-04-15, six months after 0.13.0.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P7;
   design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR #73.
 - **member** `testprotocols.sip_server:SipServer.get_offline_messages` — deprecated. Replacement:
-  `read_offline_messages`. Earliest removal: the first release 6 months after the release that
-  deprecates it.
+  `read_offline_messages`. Earliest removal: the first release on or after 2027-04-15, six months after 0.13.0.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P7;
   design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR #73.
 - **member** `testprotocols.content_filtering:ContentFiltering.get_url_rules` — deprecated.
-  Replacement: `read_url_rules`. Earliest removal: the first release 6 months after the release that
-  deprecates it.
+  Replacement: `read_url_rules`. Earliest removal: the first release on or after 2027-04-15, six months after 0.13.0.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P11;
   design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR #73.
 - **member** `testprotocols.device_management:DeviceManagement.get_memory_utilization` — deprecated.
-  Replacement: `read_memory_utilization`. Earliest removal: the first release 6 months after the
-  release that deprecates it.
+  Replacement: `read_memory_utilization`. Earliest removal: the first release on or after 2027-04-15, six months after 0.13.0.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P11;
   design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR #73.
 - **member** `testprotocols.device_management:DeviceManagement.get_running_processes` (with
   `ps_options`) — deprecated. Replacement: `read_running_processes`; a `ps_options` other than
-  `"-A"` has no successor. Earliest removal: the first release 6 months after the release that
-  deprecates it.
+  `"-A"` has no successor. Earliest removal: the first release on or after 2027-04-15, six months after 0.13.0.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P11;
   design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR #73.
 - **member** `testprotocols.device_management:DeviceManagement.read_event_logs` — deprecated.
-  Replacement: `read_log_entries`. Earliest removal: the first release 6 months after the release
-  that deprecates it.
+  Replacement: `read_log_entries`. Earliest removal: the first release on or after 2027-04-15, six months after 0.13.0.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P11;
   design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR #73.
 - **member** `testprotocols.dns_client:DnsClient.dns_lookup` (with `opts`) — deprecated.
-  Replacement: `resolve`; `opts` has no successor. Earliest removal: the first release 6 months
-  after the release that deprecates it.
+  Replacement: `resolve`; `opts` has no successor. Earliest removal: the first release on or after 2027-04-15, six months after 0.13.0.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P8;
   design `docs/architecture/precise-types-design.md`;
   register `packages/testprotocols/DEPRECATIONS.md`; PR #73.
 - **member** `testprotocols.iperf_client:IperfClient.start_traffic_sender` — deprecated.
-  Replacement: `start_sender_session`. Earliest removal: the first release 6 months after the
-  release that deprecates it.
+  Replacement: `start_sender_session`. Earliest removal: the first release on or after 2027-04-15, six months after 0.13.0.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P10;
   design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR #73.
 - **member** `testprotocols.iperf_server:IperfServer.start_traffic_receiver` — deprecated.
-  Replacement: `start_receiver_session`. Earliest removal: the first release 6 months after the
-  release that deprecates it.
+  Replacement: `start_receiver_session`. Earliest removal: the first release on or after 2027-04-15, six months after 0.13.0.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P10;
   design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR #73.
 - **member** `testprotocols.nmap_scanner:NmapScanner.nmap` (with `opts`) — deprecated. Replacement:
   `scan_ports`; `fast` replaces `opts="-F"`, any other `opts` has no successor. Earliest removal:
-  the first release 6 months after the release that deprecates it.
+  the first release on or after 2027-04-15, six months after 0.13.0.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P8;
   design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR #73.
 - **member** `testprotocols.arp_client:ArpClient.get_arp_table` — deprecated. Replacement:
-  `read_arp_table`. Earliest removal: the first release 6 months after the release that deprecates
-  it.
+  `read_arp_table`. Earliest removal: the first release on or after 2027-04-15, six months after 0.13.0.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P8;
   design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR #73.
 - **member** `testprotocols.ntp_client:NtpClient.get_date` — deprecated. Replacement: `read_date`.
-  Earliest removal: the first release 6 months after the release that deprecates it.
+  Earliest removal: the first release on or after 2027-04-15, six months after 0.13.0.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P9;
   design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR #73.
 - **member** `testprotocols.ntp_client:NtpClient.set_date` — deprecated. Replacement:
-  `set_date_time`. Earliest removal: the first release 6 months after the release that deprecates
-  it.
+  `set_date_time`. Earliest removal: the first release on or after 2027-04-15, six months after 0.13.0.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P9;
   design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR #73.
 - **member** `testprotocols.netem_controller:NetemController.inject_transient` — deprecated.
-  Replacement: `inject_event`. Earliest removal: the first release 6 months after the release that
-  deprecates it.
+  Replacement: `inject_event`. Earliest removal: the first release on or after 2027-04-15, six months after 0.13.0.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P10;
   design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR #73.
 - **member** `testprotocols.snmp_client:SnmpClient.execute_snmp_command` — deprecated. Replacement:
   `snmp_get`, `snmp_walk`, `snmp_set` or `snmp_bulk_get`; any other command has no successor.
-  Earliest removal: the first release 6 months after the release that deprecates it.
+  Earliest removal: the first release on or after 2027-04-15, six months after 0.13.0.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P9;
   design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR #73.
 - **attribute** `testprotocols.models:HTTPResult.code` — deprecated (docstring and this entry; a
-  plain attribute carries no marker). Replacement: `status` (`int | None`). Earliest removal: the first release 6 months after the release that deprecates it.
+  plain attribute carries no marker). Replacement: `status` (`int | None`). Earliest removal: the first release on or after 2027-04-15, six months after 0.13.0.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P8;
   design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR #73.
 - **attribute** `testprotocols.models:HTTPResult.beautified_text` — deprecated (docstring and this
-  entry; a plain attribute carries no marker). Replacement: `body`. Earliest removal: the first release 6 months after the release that deprecates it.
+  entry; a plain attribute carries no marker). Replacement: `body`. Earliest removal: the first release on or after 2027-04-15, six months after 0.13.0.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P8;
   design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR #73.
-- **class** `testprotocols.models:VPNPeerStatus` — deprecated. Replacement: none (no successor). Earliest removal: the first release 6 months after the release that
-  deprecates it.
+- **class** `testprotocols.models:VPNPeerStatus` — deprecated. Replacement: none (no successor). Earliest removal: the first release on or after 2027-04-15, six months after 0.13.0.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P4;
   design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR #73.
 - **class** `testprotocols.models:TrafficShapingRule` — deprecated. Replacement: none (`ShapingRule`
-  where a capability needs one). Earliest removal: the first release 6 months after the release that
-  deprecates it.
+  where a capability needs one). Earliest removal: the first release on or after 2027-04-15, six months after 0.13.0.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P4;
   design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR #73.
 - **parameter** `testprotocols.ip_routing:IpRouting.ping(json_output=True)` — deprecated.
-  Replacement: `ping_stats`; at removal `ping` returns `bool`. Earliest removal: the first release 6
-  months after the release that deprecates it.
+  Replacement: `ping_stats`; at removal `ping` returns `bool`. Earliest removal: the first release on or after 2027-04-15, six months after 0.13.0.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P8;
   design `docs/architecture/precise-types-design.md`;
   register `packages/testprotocols/DEPRECATIONS.md`; PR #73.
 - **parameter** `testprotocols.ip_routing:IpRouting.ping` and `traceroute` `options` — deprecated. Replacement: none.
-  Earliest removal: the first release 6 months after the release that deprecates it.
+  Earliest removal: the first release on or after 2027-04-15, six months after 0.13.0.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P8;
   design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR #73.
 - **parameter** `testprotocols.http_client:HttpClient.curl` and `http_get` `options` — deprecated.
-  Replacement: keyword-only `no_proxy`, `insecure`, `follow_redirects`. Earliest removal: the first
-  release 6 months after the release that deprecates it.
+  Replacement: keyword-only `no_proxy`, `insecure`, `follow_redirects`. Earliest removal: the first release on or after 2027-04-15, six months after 0.13.0.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P8;
   design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR #73.
 - **parameter** `testprotocols.packet_filter:PacketFilter` `chain` (every member; `get_rule_counter_values` is excepted, it takes the bare `Chain`) and `set_default_policy(policy)`: `Chain |
   str`, `DefaultAction | str` — deprecated. Replacement: `Chain`, `DefaultAction` (narrows to the
-  enum). Earliest removal: the first release 6 months after the release that deprecates it.
+  enum). Earliest removal: the first release on or after 2027-04-15, six months after 0.13.0.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P2 (Design delta 2026-10-05);
   design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR #73.
 - **parameter** `testprotocols.nat:Nat.list_nat_rules(mode)`: `NatMode | str | None` — deprecated. Replacement:
-  `NatMode | None` (narrows to the enum). Earliest removal: the first release 6 months after the
-  release that deprecates it.
+  `NatMode | None` (narrows to the enum). Earliest removal: the first release on or after 2027-04-15, six months after 0.13.0.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P2;
   design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR #73.
 - **parameter** `testprotocols.conntrack:Conntrack` `protocol` (`list_connections`, `count_connections`, `get_connection`,
   `drop_connection`): `RuleProtocol | str` — deprecated. Replacement: `RuleProtocol` (narrows to the
-  enum). Earliest removal: the first release 6 months after the release that deprecates it.
+  enum). Earliest removal: the first release on or after 2027-04-15, six months after 0.13.0.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P2;
   design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR #73.
 - **parameter** Wi-Fi `band` (`testprotocols.wifi_bss:WifiBss.create_bss`, every
@@ -699,159 +677,137 @@ their tags and PR history.
   `testprotocols.wifi_mesh:WifiMesh.set_backhaul_band`, annotated `WifiBand | str | None`;
   `testprotocols.wifi_radio:WifiRadio.get_modes` is excepted, it takes the bare `WifiBand`): `WifiBand | str` —
   deprecated. Replacement: `WifiBand` (narrows to the enum; `WifiMesh.set_backhaul_band` narrows to
-  `WifiBand | None`, the `None` releasing the band constraint stays). Earliest removal: the first release 6
-  months after the release that deprecates it.
+  `WifiBand | None`, the `None` releasing the band constraint stays). Earliest removal: the first release on or after 2027-04-15, six months after 0.13.0.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P6 (Design delta 2026-10-05);
   design `docs/architecture/precise-types-design.md`;
   register `packages/testprotocols/DEPRECATIONS.md`; PR #73.
 - **parameter** `testprotocols.wifi_bss:WifiBss.create_bss(security_mode, mfp)` and `set_security(mode, mfp)`:
   `WifiSecurityMode | str`, `MfpMode | str` — deprecated. Replacement: `WifiSecurityMode`, `MfpMode`
-  (narrows to the enum). Earliest removal: the first release 6 months after the release that
-  deprecates it.
+  (narrows to the enum). Earliest removal: the first release on or after 2027-04-15, six months after 0.13.0.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P6;
   design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR #73.
 - **parameter** `testprotocols.wifi_bss:WifiBss.set_acl_mode(mode)`: `WifiAclMode | str` — deprecated. Replacement:
-  `WifiAclMode` (narrows to the enum). Earliest removal: the first release 6 months after the
-  release that deprecates it.
+  `WifiAclMode` (narrows to the enum). Earliest removal: the first release on or after 2027-04-15, six months after 0.13.0.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P6;
   design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR #73.
 - **parameter** `testprotocols.wifi_radio:WifiRadio.set_mode(mode)`: `WifiPhyMode | str` — deprecated. Replacement:
-  `WifiPhyMode` (narrows to the enum; a compound mode names no member). Earliest removal: the first
-  release 6 months after the release that deprecates it.
+  `WifiPhyMode` (narrows to the enum; a compound mode names no member). Earliest removal: the first release on or after 2027-04-15, six months after 0.13.0.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P6;
   design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR #73.
 - **parameter** `testprotocols.wifi_client:WifiClient.set_wlan_scan_channel(channel)`: `int | str` — deprecated. Replacement:
-  `int`. Earliest removal: the first release 6 months after the release that deprecates it.
+  `int`. Earliest removal: the first release on or after 2027-04-15, six months after 0.13.0.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P6;
   design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR #73.
 - **parameter** `testprotocols.sip_phone:SipPhone.wait_for_state(state)`: `PhoneState | str` — deprecated. Replacement:
-  `PhoneState` (narrows to the enum). Earliest removal: the first release 6 months after the release
-  that deprecates it.
+  `PhoneState` (narrows to the enum). Earliest removal: the first release on or after 2027-04-15, six months after 0.13.0.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P7;
   design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR #73.
 - **parameter** `testprotocols.http_client:HttpClient.curl(protocol)`: `HttpScheme | str` — deprecated. Replacement:
-  `HttpScheme` (narrows to the enum). Earliest removal: the first release 6 months after the release
-  that deprecates it.
+  `HttpScheme` (narrows to the enum). Earliest removal: the first release on or after 2027-04-15, six months after 0.13.0.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P8;
   design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR #73.
 - **parameter** `testprotocols.ip_interface:IpInterface.set_link_state(state)`: `LinkAdminState | str` — deprecated.
-  Replacement: `LinkAdminState` (narrows to the enum). Earliest removal: the first release 6 months
-  after the release that deprecates it.
+  Replacement: `LinkAdminState` (narrows to the enum). Earliest removal: the first release on or after 2027-04-15, six months after 0.13.0.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P8;
   design `docs/architecture/precise-types-design.md`;
   register `packages/testprotocols/DEPRECATIONS.md`; PR #73.
 - **parameter** `testprotocols.upnp_client:UpnpClient.create_upnp_rule(protocol)` and `delete_upnp_rule(protocol)`:
   `PortMappingProtocol | str` — deprecated. Replacement: `PortMappingProtocol` (narrows to the
-  enum). Earliest removal: the first release 6 months after the release that deprecates it.
+  enum). Earliest removal: the first release on or after 2027-04-15, six months after 0.13.0.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P8;
   design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR #73.
 - **parameter** `testprotocols.qoe_browser:QoeBrowser.measure_productivity(scenario, wait_until)`: `QoeScenario | str`,
   `PageCompletion | str` — deprecated. Replacement: `QoeScenario`, `PageCompletion` (narrows to the
-  enum). Earliest removal: the first release 6 months after the release that deprecates it.
+  enum). Earliest removal: the first release on or after 2027-04-15, six months after 0.13.0.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P10;
   design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR #73.
 - **parameter** `testprotocols.http_server:HttpServer.start_http_service` / `stop_http_service(port)` and
   `start_http_service(ip_version)`: `str` — deprecated. Replacement: `int`, `IpFamily` (announced
-  narrowing). Earliest removal: the first release 6 months after the release that deprecates it.
+  narrowing). Earliest removal: the first release on or after 2027-04-15, six months after 0.13.0.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P8;
   design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR #73.
 - **parameter** `testprotocols.upnp_client:UpnpClient` `int_port`, `ext_port` and `testprotocols.vlan_client:VlanClient` `vlan_id`: `str` — deprecated.
-  Replacement: `int` (announced narrowing). Earliest removal: the first release 6 months after the
-  release that deprecates it.
+  Replacement: `int` (announced narrowing). Earliest removal: the first release on or after 2027-04-15, six months after 0.13.0.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P8;
   design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR #73.
 - **parameter** `testprotocols.ip_routing:IpRouting.traceroute(version)`: `str` (`""` or `"6"`) — deprecated. Replacement:
-  `IpFamily | None` (announced narrowing). Earliest removal: the first release 6 months after the
-  release that deprecates it.
+  `IpFamily | None` (announced narrowing). Earliest removal: the first release on or after 2027-04-15, six months after 0.13.0.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P8;
   design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR #73.
 - **parameter** `testprotocols.ip_interface:IpInterface.is_link_up(pattern)` — deprecated. Replacement: `is_link_admin_up` for
-  the administrative state; at removal `pattern` goes. Earliest removal: the first release 6 months
-  after the release that deprecates it.
+  the administrative state; at removal `pattern` goes. Earliest removal: the first release on or after 2027-04-15, six months after 0.13.0.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P8;
   design `docs/architecture/precise-types-design.md`;
   register `packages/testprotocols/DEPRECATIONS.md`; PR #73.
 - **parameter** `testprotocols.netem_controller:NetemController.set_impairment_profile` / `set_interface_profile(profile)` as a
-  `dict` — deprecated. Replacement: `ImpairmentProfile` (narrows to it). Earliest removal: the first
-  release 6 months after the release that deprecates it.
+  `dict` — deprecated. Replacement: `ImpairmentProfile` (narrows to it). Earliest removal: the first release on or after 2027-04-15, six months after 0.13.0.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P10;
   design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR #73.
 - **parameter** `testprotocols.multicast_client:MulticastClient.send_mldv2_report` records as plain tuples — deprecated.
-  Replacement: `GroupRecord` (narrows to `Sequence[GroupRecord]`). Earliest removal: the first
-  release 6 months after the release that deprecates it.
+  Replacement: `GroupRecord` (narrows to `Sequence[GroupRecord]`). Earliest removal: the first release on or after 2027-04-15, six months after 0.13.0.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P8;
   design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR #73.
 - **parameter** `testprotocols.held_prefixes:HeldPrefixes.hold(address)`: `str` — deprecated. Replacement: `IPv4Interface |
-  IPv6Interface` (announced narrowing). Earliest removal: the first release 6 months after the
-  release that deprecates it.
+  IPv6Interface` (announced narrowing). Earliest removal: the first release on or after 2027-04-15, six months after 0.13.0.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P8;
   design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR #73.
 - **member** `testprotocols.packet_filter:PacketFilter.get_default_policy` return `str` — deprecated. Replacement:
-  `DefaultAction` (announced narrowing). Earliest removal: the first release 6 months after the
-  release that deprecates it.
+  `DefaultAction` (announced narrowing). Earliest removal: the first release on or after 2027-04-15, six months after 0.13.0.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P2;
   design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR #73.
 - **member** `testprotocols.wifi_radio:WifiRadio.list_radios` and `get_bandwidth` returns (`list[str]`, `int`) —
-  deprecated. Replacement: `list[WifiBand]`, `ChannelWidth` (announced). Earliest removal: the
-  first release 6 months after the release that deprecates it.
+  deprecated. Replacement: `list[WifiBand]`, `ChannelWidth` (announced). Earliest removal: the first release on or after 2027-04-15, six months after 0.13.0.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P6;
   design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`;
   PR #73.
 - **member** `testprotocols.radius_server:RadiusServer.get_status` return `str` — deprecated. Replacement: `ServiceStatus`
-  (announced narrowing). Earliest removal: the first release 6 months after the release that
-  deprecates it.
+  (announced narrowing). Earliest removal: the first release on or after 2027-04-15, six months after 0.13.0.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P11;
   design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR #73.
 - **field** `testprotocols.models:FirewallRule.dst_port` (port text, required) — deprecated. Replacement: `dst_ports`; at
-  removal the text field goes and `dst_ports` becomes required. Earliest removal: the first release
-  6 months after the release that deprecates it.
+  removal the text field goes and `dst_ports` becomes required. Earliest removal: the first release on or after 2027-04-15, six months after 0.13.0.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P2;
   design `docs/architecture/precise-types-design.md`;
   register `packages/testprotocols/DEPRECATIONS.md`; PR #73.
 - **field** `testprotocols.models:NatRule.dst_port` and `translated_port` (port text, released default `""`) —
   deprecated. Replacement: `dst_ports`, `translated_ports`; at removal the text fields go and the
   typed fields default to `()`, the typed form of the released default `""`, so a rule that never
-  sets them keeps its meaning. Earliest removal: the first
-  release 6 months after the release that deprecates it.
+  sets them keeps its meaning. Earliest removal: the first release on or after 2027-04-15, six months after 0.13.0.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P2;
   design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR #73.
 - **field** `testprotocols.models:L3Rule.src_port` and `dst_port` (port text, released default `"any"`) — deprecated.
   Replacement: `src_ports`, `dst_ports`; at removal the text fields go and the typed fields default to
   `()`, the typed form of the released default `"any"`, so a rule that never sets them keeps its
-  meaning. Earliest removal: the first release 6 months
-  after the release that deprecates it.
+  meaning. Earliest removal: the first release on or after 2027-04-15, six months after 0.13.0.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P3;
   design `docs/architecture/precise-types-design.md`;
   register `packages/testprotocols/DEPRECATIONS.md`; PR #73.
 - **field** `testprotocols.models:SecurityEvent.ts` (ISO-8601 text, required) — deprecated. Replacement: `timestamp`; at
   removal `ts` goes and `timestamp` becomes required (`None`: no time reported). Earliest removal:
-  the first release 6 months after the release that deprecates it.
+  the first release on or after 2027-04-15, six months after 0.13.0.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P3;
   design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR #73.
 - **field** `testprotocols.models:QosRule.match` (classifier text, required) — deprecated. Replacement: `classifier`; at
   removal `match` goes and `classifier` becomes required (`None`: every frame). Earliest removal:
-  the first release 6 months after the release that deprecates it.
+  the first release on or after 2027-04-15, six months after 0.13.0.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P5;
   design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR #73.
 - **field** `testprotocols.models:FirewallRule.action` / `protocol`: `FirewallRuleAction | str`, `RuleProtocol | str` —
-  deprecated. Replacement: the enums (narrows from `E | str` to `E`). Earliest removal: the first
-  release 6 months after the release that deprecates it.
+  deprecated. Replacement: the enums (narrows from `E | str` to `E`). Earliest removal: the first release on or after 2027-04-15, six months after 0.13.0.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P2;
   design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR #73.
 - **field** `testprotocols.models:NatRule.mode` / `protocol`: `NatMode | str`, `RuleProtocol | str` — deprecated.
-  Replacement: the enums (narrows from `E | str` to `E`). Earliest removal: the first release 6
-  months after the release that deprecates it.
+  Replacement: the enums (narrows from `E | str` to `E`). Earliest removal: the first release on or after 2027-04-15, six months after 0.13.0.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P2;
   design `docs/architecture/precise-types-design.md`;
   register `packages/testprotocols/DEPRECATIONS.md`; PR #73.
 - **field** `testprotocols.models:PortMapping.protocol`, `testprotocols.models:Connection.protocol`: `PortMappingProtocol | str`,
   `RuleProtocol | str` — deprecated. Replacement: the enums (narrows from `E | str` to `E`).
-  Earliest removal: the first release 6 months after the release that deprecates it.
+  Earliest removal: the first release on or after 2027-04-15, six months after 0.13.0.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P2;
   design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR #73.
 - **field** `testprotocols.models:LinkStatus.state`, `testprotocols.models:LinkHealthReport.state`: `UplinkState | str` — deprecated.
-  Replacement: `UplinkState` (narrows from `E | str` to `E`). Earliest removal: the first release 6
-  months after the release that deprecates it.
+  Replacement: `UplinkState` (narrows from `E | str` to `E`). Earliest removal: the first release on or after 2027-04-15, six months after 0.13.0.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P4;
   design `docs/architecture/precise-types-design.md`;
   register `packages/testprotocols/DEPRECATIONS.md`; PR #73.
@@ -859,42 +815,39 @@ their tags and PR history.
   `testprotocols.models:WifiChannelUtilization`, `testprotocols.models:WifiRadioStats`, `testprotocols.models:WifiMeshLink`; `WifiBssConfig.security_mode` / `mfp`;
   `testprotocols.models:WifiAcl.mode`; `role` of `testprotocols.models:WifiMeshStatus`, `testprotocols.models:WifiMeshNode` — deprecated. Replacement: `WifiBand`,
   `WifiSecurityMode`, `MfpMode`, `WifiAclMode`, `MeshRole` (narrows from `E | str` to `E`). Earliest
-  removal: the first release 6 months after the release that deprecates it.
+  removal: the first release on or after 2027-04-15, six months after 0.13.0.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P6;
   design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR #73.
 - **field** `testprotocols.models:MeasurementSpec.tool` / `completion`, `testprotocols.models:TrafficSpec.protocol` — deprecated. Replacement:
   `QoeTool`, `QoeCompletion | PageCompletion`, `TransportProtocol` (narrows from `E | str` to `E`).
-  Earliest removal: the first release 6 months after the release that deprecates it.
+  Earliest removal: the first release on or after 2027-04-15, six months after 0.13.0.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P10;
   design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR #73.
 - **field** `testprotocols.models:NatRule.src_cidr`, `dst_cidr`, `translated_src`, `translated_dst` (`""`: absent) —
-  deprecated. Replacement: `str | None`, `None` absent (announced). Earliest removal: the first
-  release 6 months after the release that deprecates it.
+  deprecated. Replacement: `str | None`, `None` absent (announced). Earliest removal: the first release on or after 2027-04-15, six months after 0.13.0.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P2;
   design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR #73.
 - **field** `testprotocols.models:L3Rule.src_cidr`, `dst_cidr` (`"any"`), `testprotocols.models:UplinkStatus.ip`, `gateway`, `public_ip`,
   `primary_dns` and `testprotocols.network_attachment:NetworkAttachment.segment` (`""`) — deprecated. Replacement: `str | None`,
-  `None` unconstrained or not reported (announced). Earliest removal: the first release 6 months
-  after the release that deprecates it.
+  `None` unconstrained or not reported (announced). Earliest removal: the first release on or after 2027-04-15, six months after 0.13.0.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P3;
   design `docs/architecture/precise-types-design.md`;
   register `packages/testprotocols/DEPRECATIONS.md`; PR #73.
 - **field** `testprotocols.models:LinkStatus.ip_address` (`""`: no address) — deprecated. Replacement: `str | None`
-  (announced). Earliest removal: the first release 6 months after the release that deprecates it.
+  (announced). Earliest removal: the first release on or after 2027-04-15, six months after 0.13.0.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P4;
   design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR #73.
 - **member** `testprotocols.hw_console:HwConsole.get_console` and `get_interactive_consoles`
   returns `Any`, `dict[str, Any]` — deprecated. Replacement: `Console`, `Mapping[str, Console]`
   (announced narrowing; a console lacking a `Console` member stops conforming then). Earliest
-  removal: the first release 6 months after the release that deprecates it.
+  removal: the first release on or after 2027-04-15, six months after 0.13.0.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P11;
   design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR #73.
 - **parameter** `testprotocols.sip_server:SipServer.verify_sip_message(since)` as `Any` —
   deprecated. Replacement: `datetime | None` (announced narrowing; a caller passing a text
   marker, and an implementer whose declared parameter does not accept `datetime | None`, stop
   type-checking then). The released annotation is kept until then,
-  and `message_type` stays `str`. Earliest removal: the first release 6 months after the
-  release that deprecates it.
+  and `message_type` stays `str`. Earliest removal: the first release on or after 2027-04-15, six months after 0.13.0.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P7;
   design `docs/architecture/precise-types-design.md`;
   register `packages/testprotocols/DEPRECATIONS.md`; PR #73.
@@ -1130,31 +1083,27 @@ their tags and PR history.
 #### Deprecated
 
 - **parameter** `testoperations.segmentation:build_deny_rule(scope, proto)` as a plain `str` —
-  deprecated. Replacement: `DenyScope`, `RuleProtocol` (narrows to the enum). Earliest removal: the
-  first release 6 months after the release that deprecates it.
+  deprecated. Replacement: `DenyScope`, `RuleProtocol` (narrows to the enum). Earliest removal: the first release on or after 2027-04-15, six months after 0.13.0.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P12;
   design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR #73.
 - **parameter** `testoperations.netem_controller:apply_preset(preset_name)` as a plain `str` —
-  deprecated. Replacement: `NetemPreset` (narrows to the enum). Earliest removal: the first release
-  6 months after the release that deprecates it.
+  deprecated. Replacement: `NetemPreset` (narrows to the enum). Earliest removal: the first release on or after 2027-04-15, six months after 0.13.0.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P12;
   design `docs/architecture/precise-types-design.md`;
   register `packages/testprotocols/DEPRECATIONS.md`; PR #73.
 - **parameter** `testoperations.throughput:NonCompletion(which_side, what)` as a plain `str` —
   deprecated. Replacement: `NonCompletionSide`, `NonCompletionKind` (narrows to the enum). Earliest
-  removal: the first release 6 months after the release that deprecates it.
+  removal: the first release on or after 2027-04-15, six months after 0.13.0.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P12;
   design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR #73.
 - **parameter** `testoperations.iperf_generator:saturate_link(protocol)` as a plain `str` —
-  deprecated. Replacement: `TransportProtocol` (narrows to the enum). Earliest removal: the first
-  release 6 months after the release that deprecates it.
+  deprecated. Replacement: `TransportProtocol` (narrows to the enum). Earliest removal: the first release on or after 2027-04-15, six months after 0.13.0.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P12;
   design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR #73.
 - **member** reading `testoperations.iperf_client:IperfSession`, `testoperations.homing:HomeVerification`
   or `testoperations.iperf_generator:FlowPair` as the released dict
   (indexing, `get`, `in`, `len`, `keys`, `items`, `values`, iteration, `==` a dict, `as_dict()`) —
-  deprecated. Replacement: the record's fields; the mapping access is removed. Earliest removal: the
-  first release 6 months after the release that deprecates it.
+  deprecated. Replacement: the record's fields; the mapping access is removed. Earliest removal: the first release on or after 2027-04-15, six months after 0.13.0.
   Proposal `docs/proposals/2026-10-05-precise-types.md` P12;
   design `docs/architecture/precise-types-design.md`; register `packages/testprotocols/DEPRECATIONS.md`; PR #73.
 
