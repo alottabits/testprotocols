@@ -17,6 +17,16 @@ their tags and PR history.
 
 ### testprotocols
 
+- no entries yet
+
+### testoperations
+
+- no entries yet
+
+## [0.13.0] — 2026-10-15
+
+### testprotocols
+
 #### Breaking for driver authors
 
 - **protocol members** `testprotocols.snmp_client:SnmpClient.snmp_get(host, oid, community, *,
