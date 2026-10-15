@@ -287,15 +287,8 @@ verdicts of `docs/proposals/README.md`.
     change strengthens the static checks enough to justify its maintenance
     cost.
 11. **Method grain.** As proposal question 11, over the ratified family
-    list: a heavy member that is translation stays whole; one that is
-    orchestration is broken into thinner members combined by a
-    `testoperations` operation when (a)–(d) hold — for a core member, (a)
-    means the breakdown keeps every step at the core threshold.
-12. **Composition.** As proposal question 12, over the ratified family
-    list: wherever two capabilities act on the same packets or write the
-    same resource, the design states the combined outcome, independent of
-    call order; a family that cannot give it refuses the combination, and
-    the matrix shows the refusal on both cells.
+    list and the capabilities every archetype composing the design's
+    capabilities holds.
 
 **Verification** (`archetype:` PR with package source):
 
@@ -326,15 +319,18 @@ verdicts of `docs/proposals/README.md`.
 8. **Findings folded back** into the matrix, body, manifest and review record.
 9. **Method grain in the corpus.** Design question 11 applied to the
    reference implementations: an orchestration the drivers repeat family
-   by family that meets (a)–(d) is noted with the breakdown; an adopted
-   breakdown whose combining operation does not clean up on every exit, or
-   does not test the abandoned path, is a condition.
-10. **Composition in the corpus.** Design question 12 applied to the
-    reference implementations: each driver gives the stated combined
-    outcome or refuses the combination; a different outcome left to a
-    `lossy:` line, a refusal the matrix does not show, a pair the design
-    does not name, or a stated pair with no test writing both members in
-    both call orders, is a condition.
+   by family is noted with its breakdown; a combining operation that does
+   not clean up on every exit, or does not test the abandoned path, is a
+   condition.
+10. **Atomicity and orthogonality in the corpus.** A driver whose write
+    leaves a window inside the call is a condition where the family's
+    documentation, or a comparable reference driver, shows a mechanism
+    that avoids it (building a second generation and swapping the
+    binding), otherwise a `lossy:` line with its source. A driver whose
+    write disturbs another member's concern instead of refusing is a
+    condition. A device resource the drivers find two members writing,
+    which the design does not show as split or refused, is a condition
+    folded back into the design.
 
 The posted review cites only public documentation, public protocol symbols
 and the corpus commit it verified against.
