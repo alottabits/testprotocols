@@ -226,57 +226,55 @@ The review answers these questions, in this order, for every item:
     forced where an honest `str` (the device's own word, an open value) is
     the contract. The rules a typing change is held to are C1 to C6 of
     `docs/architecture/precise-types-design.md` ("The contract model").
-11. **Method grain.** Most members are thin: one device operation and the
-    read that shows it. For a member whose mapping on the reviewed families
-    takes many device steps, the review asks which kind of heaviness it is.
-    **Translation** — rendering the neutral model in a family's syntax and
-    parsing it back (rule lists, NAT rules, shaping classes, zones) — stays
-    one member: splitting it moves the logic without removing it, and the
-    families divide such objects differently. Its correctness is shown by
-    driver tests against recorded device output. **Orchestration** — a
-    sequence of steps over time (configure a probe, wait, read, remove it)
-    or an input derived from another capability's state — is broken into
-    thinner members that a `testoperations` operation combines when all
-    four hold:
-    (a) the steps are the same on nearly every reviewed family, so the
-    breakdown adds no unsupported family the whole member did not have;
-    (b) each step has its own read-back or named confirming observation
-    (question 8);
-    (c) every state between steps is safe and meaningful on the device: no
-    window with filtering off, no half-built object another capability
-    reads;
-    (d) no reviewed family needs the steps applied as one atomic commit.
-    The combining operation owns the order of the steps and the cleanup on
-    every exit, an abandoned wait included, and tests that path. A released
-    member that is broken down stays for the products that answer it
-    natively; the new members follow the placement ladder. A missed
-    breakdown is a note; a breakdown that leaves an unsafe state between
-    steps, or splits steps a family must commit together, without a stated
-    failure outcome is accepted with that outcome, or the whole member, as
-    a condition.
-12. **Composition.** The contract specifies each capability on its own,
-    but on the device several capabilities can act on the same packets or
-    write the same resource: an interface's filter slot or filter list
-    (access list, QoS classification, capture filter, VPN or policy
-    steering), a routing table or VRF, address translation, the management
-    plane. A test written against one family is portable only if every
-    combination it can set up means the same on every family. For a member
-    that acts on traffic or writes such a resource, the review names the
-    other capabilities that meet it there and asks that the item state the
-    combined outcome: which acts first, or which outcome holds (for
-    example, "an access list filters every packet entering the interface,
-    including flows the VPN exclusions steer", or "an access list matches
-    the addresses before translation"). The outcome does not depend on the
-    order of the calls. A family that cannot give it refuses the
-    combination with `NotSupportedError` on whichever write completes it,
-    citing its source, and the archetype matrix shows the refusal; it never
-    accepts the combination and behaves otherwise. A `lossy:` line is not
-    enough where families differ in which packets pass, are steered or are
-    translated: every call succeeds and every read-back matches, so the
-    difference is silent at run time. An unstated combined outcome is
-    accepted with the outcome or the refusal as a condition, and the
-    reference drivers then give it, tested in both call orders; a stated
-    outcome that could be sharper is a note.
+11. **Method grain.** Each member means one transition from one stable
+    state to another: the device holds the end state without further
+    driver action, the member's read-back reports it (question 8), and it
+    is the same state on every family that implements the member. The
+    review applies four checks to each added or changed member, and to
+    each existing member an added one overlaps.
+    **Atomic.** No window inside the call: no in-between state, made by
+    the driver's sequencing of device commands, that traffic or another
+    management session can observe and the read-back cannot report (an
+    access list replaced in place while bound; unbind, change, rebind;
+    remove-then-re-add of a route or NAT rule). What the device itself
+    does after one atomic change, such as a protocol reconverging, is the
+    member's documented behaviour, not a window. A window a family's
+    documented mechanism avoids (a second generation and a binding swap;
+    one commit of a candidate configuration) is a condition; one the
+    family cannot avoid is a `lossy:` line with its source.
+    **Orthogonal.** No member writes a concern another member of the
+    archetypes composing the capability writes. A member whose transition
+    includes a concern another member writes is split there, one member
+    per shared concern, the unshared remainder staying whole; a member
+    none of whose parts another member writes stays whole, however many
+    device steps it takes. Translation — rendering the neutral model in a
+    family's syntax and parsing it back (rule lists, NAT rules, shaping
+    classes, zones) — is one concern, shown correct by driver tests
+    against recorded device output. Where a family cannot write a member's
+    concern without disturbing another's (one filter slot shared by an
+    access list and a QoS classifier), the write refuses with
+    `NotSupportedError`.
+    **Covered.** Each member resulting from a split is core when it meets
+    the core threshold, otherwise a tier member. If most ratified families
+    cannot hold the intermediate states, the unsplit member stays core and
+    the split members are a tier. A family left with no route to the end
+    state is a GAPS pointer; a coarser member defined by the split members
+    (the same end state and read-back as calling them in sequence) is
+    added only when a consumer needs that family to reach it.
+    **Orchestration.** A sequence of steps over time (configure a probe,
+    wait, read, remove it), or an input derived from another capability's
+    state, is broken into thinner members that a `testoperations`
+    operation combines; the operation owns the order and the cleanup on
+    every exit, an abandoned wait included, and tests that path.
+    The contract states no combined outcome of members and prescribes no
+    call order: what a member does may depend on the state earlier calls
+    left, and combining members, two on one interface included, is the
+    test designer's choice. An avoidable window, an overlap left unsplit
+    in an added or changed member, or an added member that overlaps an
+    existing one without its split, is a condition; an overlap in a
+    released member is split through rung 5 of the placement ladder. A
+    split that adds members no other member overlaps is a note under
+    question 10.
 
 When the verdict hinges on a claimed vendor or tool behaviour, the review
 verifies it against published documentation and cites what it checked.
@@ -299,8 +297,6 @@ The review team posts one GitHub PR review whose body is:
 ### 10. Proportionality
 ...
 ### 11. Method grain
-...
-### 12. Composition
 ...
 
 ### Conditions
