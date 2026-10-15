@@ -107,6 +107,19 @@ def test_a_parameter_row_needs_the_docstring_to_state_it(tmp_path: Path) -> None
     assert len(found) == 1 and "Gauge.set_value" in found[0]
 
 
-def test_a_released_row_is_not_checked(tmp_path: Path) -> None:
-    register = REGISTER + "| `Gauge.gone` | none | member | 0.1.0 | 0.2.0 |\n"
+def test_a_released_row_is_checked_too(tmp_path: Path) -> None:
+    register = REGISTER.replace("next release | later", "0.1.0 | 2026-01-01")
     assert problems(write_tree(tmp_path, register=register)) == []
+    register += "| `Gauge.get_unit` | none | member | 0.1.0 | 2026-01-01 |\n"
+    found = problems(write_tree(tmp_path / "unmarked", register=register))
+    assert found == [
+        "packages/testprotocols/DEPRECATIONS.md:9: member row names `Gauge.get_unit`, "
+        "which carries no @deprecated (precise-types-design.md, rule C2)"
+    ]
+
+
+def test_a_released_parameter_row_needs_the_docstring_to_state_it(tmp_path: Path) -> None:
+    gauge = GAUGE.replace(" *value* as text is deprecated: pass an int.", "")
+    register = REGISTER.replace("next release | later", "0.1.0 | 2026-01-01")
+    found = problems(write_tree(tmp_path, gauge=gauge, register=register))
+    assert len(found) == 1 and "Gauge.set_value" in found[0]

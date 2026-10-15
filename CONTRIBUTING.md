@@ -277,7 +277,7 @@ and no decision file, `hygiene` sets the `review` status itself
 - **Deprecation parity.** `scripts/deprecation_parity.py`, run by the
   tests: every `@deprecated` sentence equals its docstring's deprecation
   paragraph (whitespace and `:meth:` markup aside) and a register row names
-  it; every `next release` row names a marked member or class, or, for a
+  it; every row, released or not, names a marked member or class, or, for a
   parameter, field, attribute, return type or `testoperations` form, a
   symbol whose docstring states the deprecation or the narrowing. The
   register and the changelog are matched by `hygiene` (above).

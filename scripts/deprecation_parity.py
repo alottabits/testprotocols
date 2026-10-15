@@ -14,7 +14,8 @@ imported):
   dropped;
 - a register row names every ``@deprecated`` site (a ``member`` row its
   ``Class.member``, a ``class`` row its class);
-- every ``next release`` row names a symbol of its package's source: in
+- every row names a symbol of its package's source, released or not (a row stays
+  until the release that removes its item): in
   ``testprotocols`` a ``member`` or ``class`` row names one that carries ``@deprecated``,
   except a row about a member's return type (its item says ``return``), which no marker
   can state; every other row (a parameter, field or attribute, which cannot carry the
@@ -36,7 +37,7 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 
-from changelog_entries import DEPRECATIONS, NEXT_RELEASE, Row, register_rows
+from changelog_entries import DEPRECATIONS, Row, register_rows
 from contract_surface import Member, Surface, Symbol, read_surface
 
 _RULE_MARKER = "(precise-types-design.md, rule C2)"
@@ -163,8 +164,6 @@ def problems(root: Path) -> list[str]:
                 f"{where} @deprecated but no row of {DEPRECATIONS} names it {_RULE_REGISTER}"
             )
     for row in rows:
-        if row.deprecated_in != NEXT_RELEASE:
-            continue
         where = f"{DEPRECATIONS}:{row.line}: {row.kind} row"
         targets = _targets(row, surface)
         if not targets:
