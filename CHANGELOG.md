@@ -17,7 +17,17 @@ their tags and PR history.
 
 ### testprotocols
 
-- no entries yet
+#### Fixed
+
+- **docstrings** `testprotocols.l3_firewall:L3Firewall`, `testprotocols.switch_qos:SwitchQos` and `testprotocols.content_filtering:ContentFiltering` — the five
+  list-replacing writes (`set_outbound_rules`, `set_inbound_rules`, `set_vpn_rules`, `set_rules`,
+  `set_url_rules`) stated their failure outcome as "a write that fails at any step, rejected or
+  not verified, leaves the as-found state"; they now say "a write rejected at any step leaves
+  the as-found state", the form design question 8 took when a write's promise became its
+  acknowledgement (PRs #88 and #89): a driver reports the device's acceptance or rejection and
+  does not read the state back, so "not verified" no longer names a driver outcome. Text
+  only, no change to a signature, an annotation or a behaviour; no proposal (a wording
+  alignment with the reviewer's questions, not a contract change); PR #90.
 
 ### testoperations
 

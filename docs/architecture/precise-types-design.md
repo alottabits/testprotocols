@@ -520,7 +520,9 @@ where one exists, also records its retype.
     (one letter from `read_event_logs`) and `scan_ports` (`WifiRf.scan` exists).
   - `ContentFiltering.set_url_rules` replaces two lists in more than one device step, and
     states, as the `L3Firewall.set_*_rules` members and `SwitchQos.set_rules` do, that a write
-    that fails at any step, rejected or not verified, leaves the as-found state.
+    rejected at any step leaves the as-found state. (Until 2026-10-16 the five said "rejected
+    or not verified"; the "not verified" branch went when a write's promise became its
+    acknowledgement and a driver stopped reading the state back, design question 8.)
   - `EventLogEntry.timestamp` stays the device's text: the BSD syslog date has no year, and a
     `datetime` would invent one. `severity` is derived from `priority` (`SyslogSeverity`, RFC
     5424, closed). `DnsRecord.record_type` is `str`, the resolver's own word: an answer can
