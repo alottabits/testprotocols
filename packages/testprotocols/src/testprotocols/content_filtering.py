@@ -41,8 +41,9 @@ class ContentFiltering(Protocol):
         the usual content-filter precedence; the driver maps that intent to its
         product's allow/deny-list semantics.
 
-        A write rejected at any step leaves the as-found state: the URL rules
-        as they were before the call.
+        A write rejected at any step raises naming the step; the driver puts
+        nothing back. The state is then the as-found URL rules where the family
+        commits atomically, otherwise the steps applied before the rejection.
         """
         ...
 
