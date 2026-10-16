@@ -28,6 +28,16 @@ their tags and PR history.
   does not read the state back, so "not verified" no longer names a driver outcome. Text
   only, no change to a signature, an annotation or a behaviour; no proposal (a wording
   alignment with the reviewer's questions, not a contract change); PR #90.
+- **docstrings** `testprotocols.l3_firewall:L3Firewall`, `testprotocols.switch_qos:SwitchQos` and `testprotocols.content_filtering:ContentFiltering` — the same five
+  list-replacing writes stated "A write rejected at any step leaves the as-found state: the
+  <object> as it was before the call."; they now say "A write rejected at any step raises naming
+  the step; the driver puts nothing back. The state is then the as-found <object> where the
+  family commits atomically, otherwise the steps applied before the rejection.", the form that
+  follows the review rule that a write promises its acknowledgement and a driver never puts
+  anything back on a failure path (PR #91). Text only, no change to a signature, an annotation
+  or a behaviour; design `docs/architecture/precise-types-design.md`; no proposal (a wording
+  alignment with the reviewer's question 8 after docs PR #91, not a contract change; the
+  contract-surface lint reports no change); PR #92.
 
 ### testoperations
 

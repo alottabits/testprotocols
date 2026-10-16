@@ -27,8 +27,9 @@ class SwitchQos(Protocol):
     def set_rules(self, rules: list[QosRule]) -> None:
         """Replace the ordered QoS classification rule list.
 
-        A write rejected at any step leaves the as-found state: the rule list
-        as it was before the call.
+        A write rejected at any step raises naming the step; the driver puts
+        nothing back. The state is then the as-found rule list where the family
+        commits atomically, otherwise the steps applied before the rejection.
         """
         ...
 
