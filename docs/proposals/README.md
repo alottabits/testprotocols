@@ -215,9 +215,15 @@ The review answers these questions, in this order, for every item:
    knowledge; a normalisation the item leaves unstated is a condition.
    For each write a reviewed family realises in more than one device step
    (a list replace, delete-then-create, an ordered restore), the contract
-   states its failure outcome: a write rejected at any step leaves the
-   as-found state. A multi-step write with no stated failure outcome is
-   `met with conditions`.
+   states its failure outcome: a write rejected at any step raises naming
+   the step, and the driver writes nothing on the failure path. The state
+   is then the as-found state where the family's own mechanism gives it
+   (one commit of a candidate configuration, a transaction), and otherwise
+   the steps applied before the rejection; which it is, is a per-family
+   fact in the matrix or a `lossy:` line, never something the driver puts
+   back. A multi-step write with no stated failure outcome, or one whose
+   docstring promises the as-found state on every family, is `met with
+   conditions`.
    A member whose effect a family applies to the device asynchronously (a
    controller that stores the change and pushes it later) promises the
    controller's acknowledgement; the item names the read that shows the

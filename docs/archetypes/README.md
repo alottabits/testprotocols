@@ -197,8 +197,15 @@ them and a design that makes them impossible is wrong:
   (ordering, filled defaults, a mode it forces) is stated in the
   contract's docstring, as the management-frame-protection rule is, so
   the test author compares with that knowledge. A removal promises the
-  same: the acknowledgement of the delete, not the absence. A lever names
-  the observation that confirms it. Where the family applies the change
+  same: the acknowledgement of the delete, not the absence. A rejection
+  partway through a multi-step write raises naming the step, and the
+  driver writes nothing on the failure path: putting the as-found state
+  back would make a non-transactional family look transactional, with a
+  second multi-step write that can itself fail. The state after a
+  rejection is the as-found state where the family commits atomically,
+  otherwise the steps applied before the rejection; the driver documents
+  which, and a test that continues after a rejection reads it. A lever
+  names the observation that confirms it. Where the family applies the change
   to the device asynchronously (a controller or dashboard), the
   acknowledgement is the controller's, and the device-side effect is a
   `testoperations` wait, never a wait inside the driver. A write the
@@ -216,8 +223,8 @@ them and a design that makes them impossible is wrong:
   fails when it is missing; silence counts as success only where the
   vendor documents a silent success, and the driver cites that source. A
   read whose output does not parse fails; it never returns an empty
-  result. A rejection partway through a multi-step write restores the
-  as-found state.
+  result. A rejection partway through a multi-step write raises naming
+  the step and writes nothing more.
 - **Precise types.** Vendor responses are parsed into typed records at the
   session boundary; `Any` appears only where a third-party signature forces
   it and is narrowed at once; a closed set the driver compares on is an
@@ -299,9 +306,15 @@ verdicts of `docs/proposals/README.md`.
    knowledge; a normalisation the item leaves unstated is a condition.
    For each write a reviewed family realises in more than one device step
    (a list replace, delete-then-create, an ordered restore), the contract
-   states its failure outcome: a write rejected at any step leaves the
-   as-found state. A multi-step write with no stated failure outcome is
-   `met with conditions`.
+   states its failure outcome: a write rejected at any step raises naming
+   the step, and the driver writes nothing on the failure path. The state
+   is then the as-found state where the family's own mechanism gives it
+   (one commit of a candidate configuration, a transaction), and otherwise
+   the steps applied before the rejection; which it is, is a per-family
+   fact in the matrix or a `lossy:` line, never something the driver puts
+   back. A multi-step write with no stated failure outcome, or one whose
+   docstring promises the as-found state on every family, is `met with
+   conditions`.
    A member whose effect a family applies to the device asynchronously (a
    controller that stores the change and pushes it later) promises the
    controller's acknowledgement; the item names the read that shows the
@@ -343,13 +356,18 @@ verdicts of `docs/proposals/README.md`.
 5. **Driver shape.** Every reference driver has the plugin driver shape
    above, and the type checker verifies its conformance statically.
 6. **Write outcome.** No state write reads the state back inside the
-   driver; a device-reported failure fails the write; every lever names
-   its confirming observation; and every normalisation the family applies
-   on a write is stated in the contract's docstring, or is a condition.
+   driver, and no write puts anything back on a failure path; a
+   device-reported failure fails the write naming the step; every lever
+   names its confirming observation; every normalisation the family
+   applies on a write is stated in the contract's docstring, or is a
+   condition; and the matrix or a `lossy:` line says, per family, whether
+   a rejected multi-step write leaves the as-found state or the steps
+   before the rejection.
 7. **Acknowledged calls.** Every call checks the device's immediate response
    as above: a rejection raises its own error, a published acknowledgement is
    required, a silent success cites its source, an unparsable read fails,
-   and a rejection partway through a write restores the as-found state. The
+   and a rejection partway through a write raises naming the step and
+   writes nothing more. The
    corpus's fakes emit each family's rejection output, so the negative path
    is tested.
 8. **Findings folded back** into the matrix, body, manifest and review record.
