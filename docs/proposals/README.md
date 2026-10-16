@@ -192,7 +192,7 @@ The review answers these questions, in this order, for every item:
    promoted on condition that every reference driver implements it before
    the `feat:` PR merges; below it, the item is a tier or optional member,
    or keep-local, and the count is the argument. Those implementations have
-   the plugin driver shape, verify their writes and acknowledge every call
+   the plugin driver shape and acknowledge every call
    (`docs/archetypes/README.md`, "The reference corpus").
 8. **Every write verifiable.** Each member that changes device state has a
    read in the contract that shows the effect — `set_x` beside `get_x`, an
@@ -202,23 +202,25 @@ The review answers these questions, in this order, for every item:
    **lever**, and the item names the observation that confirms it (the boot
    wait, the uptime, the session or lease state). A write-only member with
    neither is `not met`: no driver could ever show that it worked.
-   The member promises an **outcome**, not a mechanism: the call returns
-   normally only when the device holds the intended state, as far as the
-   family can tell without waiting; it raises a rejection error when the
-   device refused the write, and a distinct difference error when the
-   device accepted the write but holds a state other than the one asked
-   for. How a driver establishes that is the family's evidence, on the
-   ladder of `docs/archetypes/README.md` ("Verified writes"); the review
-   does not require a read-back where the family's acknowledgement already
-   proves the state, and does not accept a read-back that needs a wait.
+   The member promises its **acknowledgement**, not the device's resulting
+   state: the call returns normally only when the family acknowledged the
+   write, and raises a rejection error when the device refused it. Whether
+   the device then holds the state asked for is what the paired read is
+   for: the test confirms it, directly or through a `testoperations`
+   operation, when its own assertion would not reveal the failure. A
+   driver does not read the state back after a write
+   (`docs/archetypes/README.md`, "Write outcome"). What the device
+   normalises on a write (ordering, filled defaults, a mode it forces) is
+   stated in the member's docstring, so the test compares with that
+   knowledge; a normalisation the item leaves unstated is a condition.
    For each write a reviewed family realises in more than one device step
    (a list replace, delete-then-create, an ordered restore), the contract
-   states its failure outcome: a write that fails at any step, rejected or
-   not verified, leaves the as-found state. A multi-step write with no
-   stated failure outcome is `met with conditions`.
+   states its failure outcome: a write rejected at any step leaves the
+   as-found state. A multi-step write with no stated failure outcome is
+   `met with conditions`.
    A member whose effect a family applies to the device asynchronously (a
    controller that stores the change and pushes it later) promises the
-   controller's stored state; the item names the read that shows the
+   controller's acknowledgement; the item names the read that shows the
    device-side effect and the `testoperations` wait that observes it
    (question 11, Orchestration).
 9. **Precise types.** Every member and model the item adds or changes is
@@ -242,13 +244,13 @@ The review answers these questions, in this order, for every item:
     `docs/architecture/precise-types-design.md` ("The contract model").
 11. **Method grain.** Each member means one transition from one stable
     state to another: the device holds the end state without further
-    driver action, the member's read-back reports it (question 8), and it
+    driver action, the member's paired read shows it (question 8), and it
     is the same state on every family that implements the member. The
     review applies four checks to each added or changed member, and to
     each existing member an added one overlaps.
     **Atomic.** No window inside the call: no in-between state, made by
     the driver's sequencing of device commands, that traffic or another
-    management session can observe and the read-back cannot report (an
+    management session can observe and the paired read cannot show (an
     access list replaced in place while bound; unbind, change, rebind;
     remove-then-re-add of a route or NAT rule). What the device itself
     does after one atomic change, such as a protocol reconverging, is the
@@ -273,7 +275,7 @@ The review answers these questions, in this order, for every item:
     cannot hold the intermediate states, the unsplit member stays core and
     the split members are a tier. A family left with no route to the end
     state is a GAPS pointer; a coarser member defined by the split members
-    (the same end state and read-back as calling them in sequence) is
+    (the same end state and paired read as calling them in sequence) is
     added only when a consumer needs that family to reach it.
     **Orchestration.** A sequence of steps over time (configure a probe,
     wait, read, remove it), or an input derived from another capability's
