@@ -196,17 +196,31 @@ The review answers these questions, in this order, for every item:
    (`docs/archetypes/README.md`, "The reference corpus").
 8. **Every write verifiable.** Each member that changes device state has a
    read in the contract that shows the effect — `set_x` beside `get_x`, an
-   `add` beside the list or get that finds it — so a driver can read the
-   state back after the write and fail when it did not take. A member with no
-   state to read back (a reload, a session reset, a lease renewal) is a
+   `add` beside the list or get that finds it — so a driver can show the
+   state after the write and fail when it did not take. A member with no
+   state to show (a reload, a session reset, a lease renewal) is a
    **lever**, and the item names the observation that confirms it (the boot
    wait, the uptime, the session or lease state). A write-only member with
    neither is `not met`: no driver could ever show that it worked.
+   The member promises an **outcome**, not a mechanism: the call returns
+   normally only when the device holds the intended state, as far as the
+   family can tell without waiting; it raises a rejection error when the
+   device refused the write, and a distinct difference error when the
+   device accepted the write but holds a state other than the one asked
+   for. How a driver establishes that is the family's evidence, on the
+   ladder of `docs/archetypes/README.md` ("Verified writes"); the review
+   does not require a read-back where the family's acknowledgement already
+   proves the state, and does not accept a read-back that needs a wait.
    For each write a reviewed family realises in more than one device step
    (a list replace, delete-then-create, an ordered restore), the contract
    states its failure outcome: a write that fails at any step, rejected or
    not verified, leaves the as-found state. A multi-step write with no
    stated failure outcome is `met with conditions`.
+   A member whose effect a family applies to the device asynchronously (a
+   controller that stores the change and pushes it later) promises the
+   controller's stored state; the item names the read that shows the
+   device-side effect and the `testoperations` wait that observes it
+   (question 11, Orchestration).
 9. **Precise types.** Every member and model the item adds or changes is
    typed precisely, so that the structural check of a `Protocol` verifies
    something: no `Any` or `object` in a signature or field; a value from a

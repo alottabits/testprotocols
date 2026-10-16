@@ -179,18 +179,42 @@ them and a design that makes them impossible is wrong:
   the typed route holder onto the driver explicitly, one at a time; static
   conformance checked by the type checker on the concrete driver class, not
   only by `isinstance`.
-- **Verified writes.** A write whose change the device rejects fails, from the
-  device's own error output or status; a state write reads the state back
-  through the contract's own read and fails when it differs; a removal
-  verifies the object is gone; a lever names the observation that confirms
-  it. A write the contract gives no way to read back cannot be verified —
-  hence design question 8.
+- **Verified writes.** A write returns normally only when the device holds
+  the intended state, as far as the family can tell without waiting. A
+  write the device rejects fails with a rejection error, from the device's
+  own error output or status; a write the device accepted but whose
+  resulting state differs from the one asked for fails with a difference
+  error, distinct from rejection, so a test can tell "the device refused"
+  from "the device accepted but the state differs". A removal shows the
+  object is gone; a lever names the observation that confirms it. The
+  driver shows the resulting state by the strongest evidence its family
+  offers, stopping at the first rung that applies, and cites the vendor
+  source for that rung:
+  1. **An acknowledgement that is the state.** A commit of a candidate
+     configuration that reports success, or a response that returns the
+     stored object. No further read; where an object comes back, the
+     driver compares it.
+  2. **A read-back.** Where the acknowledgement does not imply the state
+     (a silent CLI accept, a success status that may drop unknown fields),
+     the driver reads the state back through the contract's own read,
+     immediately and without waiting, and compares under the family's
+     stated equivalence: what the device normalises (ordering, filled
+     defaults, case, a mode it forces) is written down in the driver, not
+     hidden behind a loose compare. The read is the configuration view;
+     an operational view races the device's own convergence and is a
+     `testoperations` wait.
+  3. **Stored intent.** Where the family applies the change to the device
+     asynchronously (a controller or dashboard), the driver verifies by
+     rung 1 or 2 against the controller and stops there; the device-side
+     effect is a `testoperations` wait, never a wait inside the driver.
+  A write the contract gives no way to show cannot be verified — hence
+  design question 8.
 - **Acknowledged calls.** No call is one-shot. Every call — write, read and
   lever — checks the device's immediate response before using its result or
   reading back. The session classifies every response once, per family
   (error output, a commit or check failure, an HTTP status, an error field
   in a successful body), and raises a rejection error distinct from a
-  read-back difference, so a test can tell "the device refused" from "the
+  difference error, so a test can tell "the device refused" from "the
   device accepted but the state differs". Where the family publishes a
   positive acknowledgement (a commit confirmation, a created object's id, a
   job id, a status field, a confirmation prompt), the driver requires it and
@@ -261,17 +285,31 @@ verdicts of `docs/proposals/README.md`.
    Mechanism, breaking flag and tracking-file entries.
 8. **Every write verifiable.** Each member that changes device state has a
    read in the contract that shows the effect — `set_x` beside `get_x`, an
-   `add` beside the list or get that finds it — so a driver can read the
-   state back after the write and fail when it did not take. A member with no
-   state to read back (a reload, a session reset, a lease renewal) is a
+   `add` beside the list or get that finds it — so a driver can show the
+   state after the write and fail when it did not take. A member with no
+   state to show (a reload, a session reset, a lease renewal) is a
    **lever**, and the item names the observation that confirms it (the boot
    wait, the uptime, the session or lease state). A write-only member with
    neither is `not met`: no driver could ever show that it worked.
+   The member promises an **outcome**, not a mechanism: the call returns
+   normally only when the device holds the intended state, as far as the
+   family can tell without waiting; it raises a rejection error when the
+   device refused the write, and a distinct difference error when the
+   device accepted the write but holds a state other than the one asked
+   for. How a driver establishes that is the family's evidence, on the
+   ladder of `docs/archetypes/README.md` ("Verified writes"); the review
+   does not require a read-back where the family's acknowledgement already
+   proves the state, and does not accept a read-back that needs a wait.
    For each write a reviewed family realises in more than one device step
    (a list replace, delete-then-create, an ordered restore), the contract
    states its failure outcome: a write that fails at any step, rejected or
    not verified, leaves the as-found state. A multi-step write with no
    stated failure outcome is `met with conditions`.
+   A member whose effect a family applies to the device asynchronously (a
+   controller that stores the change and pushes it later) promises the
+   controller's stored state; the item names the read that shows the
+   device-side effect and the `testoperations` wait that observes it
+   (question 11, Orchestration).
 9. **Precise types.** Every member and model the design adds or changes is
    typed precisely, so that the structural check of a `Protocol` verifies
    something: no `Any` or `object` in a signature or field; a value from a
