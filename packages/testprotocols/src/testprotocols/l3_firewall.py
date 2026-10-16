@@ -34,9 +34,9 @@ class L3Firewall(Protocol):
         """Replace the ordered outbound (LAN→WAN) policy with *rules*.
 
         The list is the complete policy in evaluation order; the driver
-        replaces the appliance's outbound ruleset wholesale. A write that fails
-        at any step, rejected or not verified, leaves the as-found state: the
-        outbound policy as it was before the call.
+        replaces the appliance's outbound ruleset wholesale. A write rejected at
+        any step leaves the as-found state: the outbound policy as it was
+        before the call.
         """
         ...
 
@@ -48,9 +48,9 @@ class L3Firewall(Protocol):
         """Replace the ordered inbound (WAN→LAN) policy with *rules*.
 
         The list is the complete policy in evaluation order; the driver
-        replaces the appliance's inbound ruleset wholesale. A write that fails
-        at any step, rejected or not verified, leaves the as-found state: the
-        inbound policy as it was before the call.
+        replaces the appliance's inbound ruleset wholesale. A write rejected at
+        any step leaves the as-found state: the inbound policy as it was
+        before the call.
 
         Conformance note: not every appliance family exposes a generic
         inbound rule list — some offer only an implicit stateful deny plus
@@ -70,8 +70,8 @@ class L3Firewall(Protocol):
         traffic traversing the site-to-site VPN overlay. On some products
         this rule set is scoped wider than a single device (e.g.
         fleet-wide); that is a driver/testbed concern, not a contract one.
-        A write that fails at any step, rejected or not verified, leaves the
-        as-found state: the VPN policy as it was before the call.
+        A write rejected at any step leaves the as-found state: the VPN
+        policy as it was before the call.
         """
         ...
 
