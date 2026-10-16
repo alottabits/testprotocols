@@ -17,6 +17,8 @@ their tags and PR history.
 
 ### testprotocols
 
+#### Fixed
+
 - **docstrings** `testprotocols.l3_firewall:L3Firewall`, `testprotocols.switch_qos:SwitchQos` and `testprotocols.content_filtering:ContentFiltering` — the five
   list-replacing writes (`set_outbound_rules`, `set_inbound_rules`, `set_vpn_rules`, `set_rules`,
   `set_url_rules`) stated their failure outcome as "a write that fails at any step, rejected or
