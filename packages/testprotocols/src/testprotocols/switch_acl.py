@@ -19,7 +19,12 @@ class SwitchAcl(Protocol):
 
     def set_acl(self, binding: str, direction: AclDirection, rules: list[SwitchAclRule]) -> None:
         """Replace the ordered ACL bound to *binding* (a port or ``vlan:<id>``)
-        in *direction*."""
+        in *direction*.
+
+        A write rejected at any step raises naming the step; the driver puts nothing back. The state
+        is then the as-found ACL bound to *binding* in *direction* where the family commits
+        atomically, otherwise the steps applied before the rejection.
+        """
         ...
 
     def get_acl(self, binding: str, direction: AclDirection) -> list[SwitchAclRule]:

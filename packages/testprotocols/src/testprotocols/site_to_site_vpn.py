@@ -90,6 +90,10 @@ class SiteToSiteVpn(Protocol):
         matches) raise rather than approximate. Vendor rule kinds outside
         this contract (e.g. application-based exclusions) are preserved
         unchanged by the driver.
+
+        A write rejected at any step raises naming the step; the driver puts nothing back. The state
+        is then the as-found overlay-exclusion rule set where the family commits atomically,
+        otherwise the steps applied before the rejection.
         """
         ...
 

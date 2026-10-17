@@ -12,10 +12,10 @@ path steering (``set_uplink_selection`` /
 classes reuse ``SLAPolicy`` by name) landed 2026-06-12; the default
 (primary) uplink pair (``get_default_uplink`` / ``set_default_uplink``)
 landed 2026-07-03 — the network-wide "which uplink carries default-routed
-traffic" knob, distinct from per-flow steering. The SLA read-back
+traffic" knob, distinct from per-flow steering. The SLA read
 (``get_sla_policies``), the scalar-settings snapshot
 (``get_uplink_selection_settings``) and the concurrent-overlay-tunnels
-write (``set_active_active_vpn``) landed 2026-08-10 — the read-back and
+write (``set_active_active_vpn``) landed 2026-08-10 — the read and
 converge surface for the settings the rule list rides on. ``apply_policy``
 remains, deprecated with no successor, as the generic escape hatch for
 vendor-shaped policies beyond that surface. Application-match steering grows on evidence.
@@ -103,6 +103,10 @@ class SdwanPolicyManager(Protocol):
         to be configured (``configure_sla_policy``); products that cannot
         express arbitrary performance thresholds raise unsupported-capability
         for such rules rather than approximating.
+
+        A write rejected at any step raises naming the step; the driver puts nothing back. The state
+        is then the as-found uplink-selection rule list where the family commits atomically,
+        otherwise the steps applied before the rejection.
         """
         ...
 
@@ -113,7 +117,7 @@ class SdwanPolicyManager(Protocol):
     def get_sla_policies(self) -> list[SLAPolicy]:
         """Return the configured SLA policies (performance classes).
 
-        The read-back for ``configure_sla_policy`` / ``remove_sla_policy``:
+        The paired read of ``configure_sla_policy`` / ``remove_sla_policy``:
         thresholds as the product stores them, names as configured. Policies
         the product created outside this session are included — a caller
         arranging classes captures this read as its restore reference and

@@ -858,9 +858,9 @@ entry).
   (`add_static_route` / `remove_static_route` / `list_static_routes` over
   `StaticRoute(name, destination_cidr, next_hop)`), composed on **both**
   WAN-edge archetypes — `Router` stays read-only. Per-entry CRUD (all five
-  reviewed families store static routes as individual objects); config-view
-  read-back deliberately added beyond the original sketch. Both existing
-  implementations migrated in step.
+  reviewed families store static routes as individual objects);
+  configuration-view read deliberately added beyond the original sketch.
+  Both existing implementations migrated in step.
   Design record: `docs/architecture/static-routes-protocol-design.md`.
 
 - **2026-06-12 — BGP configuration + operational read** (the last entry of

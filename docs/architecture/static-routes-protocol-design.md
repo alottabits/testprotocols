@@ -81,12 +81,13 @@ class StaticRoutes(Protocol):
 
 **Deviation from the GAPS sketch, deliberate:** the sketch said "reads stay
 on `get_routing_table`", but that is the *operational* RIB (no names).
-Per-entry CRUD needs a config-view read-back for round-trip verification;
-`list_static_routes` provides it and is trivially available on all five
-reviewed families. No overlap with `Router` (operational vs config view).
+Per-entry CRUD needs a configuration-view read for a test's round-trip
+verification; `list_static_routes` provides it and is trivially available on
+all five reviewed families. No overlap with `Router` (operational vs config
+view).
 
 Module docstring carries In scope (testbed-managed static-route CRUD +
-config read-back) / Out of scope (RIB reads → `router`; dynamic routing —
+configuration-view read) / Out of scope (RIB reads → `router`; dynamic routing —
 BGP — deferred in `GAPS.md`; policy-based routing → `sdwan_policy_manager`).
 
 ## Archetypes (`devices/sdwan.py`)

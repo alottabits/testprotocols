@@ -21,7 +21,12 @@ class SwitchQos(Protocol):
         ...
 
     def set_dscp_cos_map(self, mapping: dict[int, int]) -> None:
-        """Replace the DSCP->CoS map."""
+        """Replace the DSCP->CoS map.
+
+        A write rejected at any step raises naming the step; the driver puts nothing back. The state
+        is then the as-found DSCP->CoS map where the family commits atomically, otherwise the steps
+        applied before the rejection.
+        """
         ...
 
     def set_rules(self, rules: list[QosRule]) -> None:

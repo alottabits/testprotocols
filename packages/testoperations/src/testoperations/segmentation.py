@@ -9,7 +9,7 @@ Pure, assertion-free helpers for a spoke-to-spoke segmentation test:
   the caller builds the candidate list from discovery and acts on the result.
 * :func:`build_deny_rule` constructs the directional VPN-firewall ``L3Rule`` for
   a given rule *shape* (host ``/32`` vs subnet scope, and protocol).
-* :func:`find_matching_deny` locates that deny in an effective policy read-back.
+* :func:`find_matching_deny` locates that deny in a read of the effective policy.
 * :func:`derive_decoy_target` derives a provably-inert ("decoy") deny target
   from a reserved documentation range, with a fail-closed non-collision check
   against the in-use CIDRs the caller supplies.
@@ -143,7 +143,7 @@ def find_matching_deny(
 ) -> L3Rule | None:
     """Return the active DENY rule matching protocol + src/dst CIDR, or ``None``.
 
-    Used to confirm an applied deny is present in an effective-policy read-back.
+    Used to confirm an applied deny is present in a read of the effective policy.
     """
     for rule in rules:
         if (

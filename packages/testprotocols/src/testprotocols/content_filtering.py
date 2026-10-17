@@ -27,7 +27,12 @@ class ContentFiltering(Protocol):
     """Abstract contract for an appliance's web content filter."""
 
     def set_blocked_categories(self, categories: list[ContentCategory]) -> None:
-        """Replace the set of blocked content categories with *categories*."""
+        """Replace the set of blocked content categories with *categories*.
+
+        A write rejected at any step raises naming the step; the driver puts nothing back. The state
+        is then the as-found set of blocked categories where the family commits atomically,
+        otherwise the steps applied before the rejection.
+        """
         ...
 
     def get_blocked_categories(self) -> list[ContentCategory]:
