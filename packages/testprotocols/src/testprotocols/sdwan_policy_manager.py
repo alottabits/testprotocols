@@ -139,7 +139,7 @@ class SdwanPolicyManager(Protocol):
 
         On products where performance-class steering only evaluates with
         concurrent tunnels enabled, this is the gate a testbed converges
-        before arranging classes. Read-back via
+        before arranging classes. Paired read:
         ``get_uplink_selection_settings``; the ordered rule list and the
         default uplink are left untouched.
         """

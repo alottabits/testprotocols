@@ -87,8 +87,9 @@ all five reviewed families. No overlap with `Router` (operational vs config
 view).
 
 Module docstring carries In scope (testbed-managed static-route CRUD +
-configuration-view read) / Out of scope (RIB reads → `router`; dynamic routing —
-BGP — deferred in `GAPS.md`; policy-based routing → `sdwan_policy_manager`).
+configuration-view read) / Out of scope (RIB reads → `router`; dynamic
+routing — BGP — deferred in `GAPS.md`; policy-based routing →
+`sdwan_policy_manager`).
 
 ## Archetypes (`devices/sdwan.py`)
 

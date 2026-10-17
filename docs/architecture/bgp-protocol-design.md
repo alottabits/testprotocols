@@ -100,7 +100,7 @@ class Bgp(Protocol):
         """Replace the BGP configuration with *config* (idempotent)."""
 
     def get_bgp_config(self) -> BgpConfig:
-        """Return the current BGP configuration (config read-back)."""
+        """Return the stored BGP configuration (the paired read of the write)."""
 
     def get_bgp_neighbors(self) -> list[BgpPeerStatus]:
         """Return the operational status of every configured neighbor.
@@ -117,7 +117,7 @@ class Bgp(Protocol):
         """
 ```
 
-**Config/read split at method granularity:** config write + read-back are
+**Config/read split at method granularity:** the configuration write and its paired read are
 universal (5/5 — even the family without operational reads has a config
 GET); only the two *operational* reads carry the unsupported-capability
 convention (4/5).
@@ -139,7 +139,7 @@ WAN-edge surface, beside `Router`/`WanLinkAdmin`/`StaticRoutes`).
 
 | Intent | Meraki MX | Catalyst SD-WAN | FortiGate | Prisma SD-WAN | Arista (VeloCloud) |
 |---|---|---|---|---|---|
-| BGP config (write + read-back) | `appliance/vpn/bgp` GET/PUT (enabled, asNumber, neighbors) | BGP feature template / Service-profile BGP parcel | `router/bgp` singleton + neighbor table | element `bgppeers` CRUD | `deviceSettings` `device_settings_bgp` (neighbors/networks/filters) |
+| BGP config (write + paired read) | `appliance/vpn/bgp` GET/PUT (enabled, asNumber, neighbors) | BGP feature template / Service-profile BGP parcel | `router/bgp` singleton + neighbor table | element `bgppeers` CRUD | `deviceSettings` `device_settings_bgp` (neighbors/networks/filters) |
 | neighbor session status | **✗** (no published read) | `/device/bgp/neighbors` | routing monitor (BGP neighbors) | `bgppeers/status` | `monitoring/getEnterpriseBgpPeerStatus` |
 | learned prefixes | **✗** | `/device/bgp/routes` | `monitor/router/ipv4` (type=bgp) | `bgppeers/{id}/reachableprefixes` | enterprise route table (BGP-learned entries) |
 

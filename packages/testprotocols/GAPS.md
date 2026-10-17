@@ -479,6 +479,28 @@ stays a `NotSupportedError` cell.
 
 ---
 
+## 2026-10-17 — `SwitchQos` paired reads for `set_trust_mode` and `set_dscp_cos_map` [priority: low]
+
+**Signal:** `SwitchQos.set_trust_mode` and `set_dscp_cos_map` have no read in the contract
+that shows their effect, so no test can confirm either write; `set_rules` has `get_rules`.
+Design question 8 ("a write the contract gives no way to show") names this shape; the
+PR #93 review raised it when `set_dscp_cos_map` gained its failure-outcome sentence.
+
+**Trigger to act:** A test that asserts a port's trust mode or the DSCP-to-CoS map after
+the write, or the next archetype review of a device class composing `SwitchQos`.
+
+**Out of scope right now because:** A contract addition needs a proposal; this round is a
+wording alignment of released members.
+
+**Design notes (when picked up):** `get_trust_mode(port) -> QosTrustMode` and
+`get_dscp_cos_map() -> dict[int, int]`, each returning what the write set, on the reviewed
+switch families; a family that publishes no map read is per-method unsupported.
+
+**Cross-references:** `switch_qos.py`, `models/switch.py` (`QosTrustMode`),
+`docs/proposals/README.md` question 8.
+
+---
+
 ## 2026-10-05 — `SnmpClient` typed varbind return [priority: low]
 
 **Signal:** The typed SNMP members (`snmp_get`, `snmp_walk`, `snmp_set`,

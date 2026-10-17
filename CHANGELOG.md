@@ -50,8 +50,8 @@ their tags and PR history.
   sentence the five writes of PR #92 carry ("A write rejected at any step raises naming the step;
   the driver puts nothing back. The state is then the as-found <object> where the family commits
   atomically, otherwise the steps applied before the rejection."), as design question 8 asks of
-  every write a reviewed family realises in more than one device step; the three `L3Firewall`
-  sentences are re-wrapped to the file's width. Text only, no change to a signature, an
+  every write a reviewed family realises in more than one device step; the two `L3Firewall`
+  sentences that ran past the file's width are re-wrapped. Text only, no change to a signature, an
   annotation or a behaviour; no proposal (a wording alignment with the reviewer's question 8,
   noted by the PR #90 and #92 reviews, not a contract change); PR #93.
 - **docstrings** `testprotocols.bgp:Bgp`, `testprotocols.sdwan_policy_manager:SdwanPolicyManager`
@@ -59,9 +59,15 @@ their tags and PR history.
   capability's paired configuration read (`get_bgp_config`, `get_sla_policies`,
   `list_static_routes`) now says "paired read" or "configuration-view read", so it cannot be
   taken for the driver read-back after a write that the archetypes README's "Write outcome"
-  rule excludes (PR #89); the same words in `GAPS.md` and
-  `docs/architecture/static-routes-protocol-design.md` move with them. Text only; no proposal
-  (wording, not a contract change); PR #93.
+  rule excludes (PR #89); `SdwanPolicyManager.set_active_active_vpn` names its paired read the
+  same way. The same words move in `GAPS.md` and in the design records that quote or describe
+  these reads: `docs/architecture/static-routes-protocol-design.md`,
+  `docs/architecture/bgp-protocol-design.md`, `docs/architecture/sdwan-appliance-protocol-design.md`
+  and `docs/architecture/precise-types-design.md` (the management-frame-protection paired read);
+  the merged proposals are historical records and are left as they are. `GAPS.md` also gains an
+  entry for the two `SwitchQos` writes (`set_trust_mode`, `set_dscp_cos_map`) that have no read
+  showing their effect. Text only; no proposal (wording and a gap record, not a contract change);
+  PR #93.
 
 ### testoperations
 
