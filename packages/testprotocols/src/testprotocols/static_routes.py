@@ -1,7 +1,7 @@
 """Static-route template — WAN edge (twin and managed appliance).
 
 Defines the abstract contract for testbed-managed static routes: per-entry
-CRUD keyed by ``StaticRoute.name``, plus a config-view read-back. All
+CRUD keyed by ``StaticRoute.name``, plus a configuration-view read. All
 reviewed management planes store static routes as individual objects, so the
 contract is per-entry CRUD — deliberately not the whole-list-replace shape
 used by the firewall/steering policies.

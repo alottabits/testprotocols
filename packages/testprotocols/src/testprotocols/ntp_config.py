@@ -17,7 +17,13 @@ class NtpConfig(Protocol):
     """Abstract contract for NTP-server configuration."""
 
     def set_ntp_servers(self, servers: list[NtpServer]) -> None:
-        """Replace the NTP-server list."""
+        """Replace the NTP-server list.
+
+        A write rejected at any step raises naming the step; the driver puts
+        nothing back. The state is then the as-found NTP-server list where the
+        family commits atomically, otherwise the steps applied before the
+        rejection.
+        """
         ...
 
     def get_ntp_servers(self) -> list[NtpServer]:

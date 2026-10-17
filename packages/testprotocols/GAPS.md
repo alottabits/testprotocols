@@ -479,6 +479,30 @@ stays a `NotSupportedError` cell.
 
 ---
 
+## 2026-10-17 — `SwitchQos` paired reads for `set_trust_mode` and `set_dscp_cos_map` [priority: low]
+
+**Signal:** `SwitchQos.set_trust_mode` and `set_dscp_cos_map` have no read in the contract
+that shows their effect, so no test can confirm either write; `set_rules` has `get_rules`.
+Noticed in the PR #93 wording sweep over `switch_qos.py`, when `set_dscp_cos_map` gained
+its failure-outcome sentence; the archetypes README's "Write outcome" rule names the shape
+("a write the contract gives no way to show"). Until a read lands, that sentence is
+unobservable too: no test can tell the as-found branch from the partially applied one.
+
+**Trigger to act:** A test that asserts a port's trust mode or the DSCP-to-CoS map after
+the write, or the next archetype review of a device class composing `SwitchQos`.
+
+**Out of scope right now because:** A contract addition needs a proposal; this round is a
+wording alignment of released members.
+
+**Design notes (when picked up):** `get_trust_mode(port) -> QosTrustMode` and
+`get_dscp_cos_map() -> dict[int, int]`, each returning what the write set, on the reviewed
+switch families; a family that publishes no map read is per-method unsupported.
+
+**Cross-references:** `switch_qos.py`, `models/switch.py` (`QosTrustMode`),
+`docs/proposals/README.md` question 8.
+
+---
+
 ## 2026-10-05 — `SnmpClient` typed varbind return [priority: low]
 
 **Signal:** The typed SNMP members (`snmp_get`, `snmp_walk`, `snmp_set`,
@@ -858,9 +882,9 @@ entry).
   (`add_static_route` / `remove_static_route` / `list_static_routes` over
   `StaticRoute(name, destination_cidr, next_hop)`), composed on **both**
   WAN-edge archetypes — `Router` stays read-only. Per-entry CRUD (all five
-  reviewed families store static routes as individual objects); config-view
-  read-back deliberately added beyond the original sketch. Both existing
-  implementations migrated in step.
+  reviewed families store static routes as individual objects);
+  configuration-view read deliberately added beyond the original sketch.
+  Both existing implementations migrated in step.
   Design record: `docs/architecture/static-routes-protocol-design.md`.
 
 - **2026-06-12 — BGP configuration + operational read** (the last entry of

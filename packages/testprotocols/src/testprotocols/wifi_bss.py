@@ -79,8 +79,8 @@ class WifiBss(Protocol):
         Management-frame protection is required by some security modes (IEEE 802.11 and
         the WPA3 specification): ``WPA3_SAE``, ``WPA3_EAP`` and ``WPA3_EAP_192`` (the
         WPA3-only modes), ``OWE``, and any security mode on a BSS on 6 GHz. For these a
-        driver applies ``REQUIRED`` whatever *mfp* says, and reading the configuration
-        back (``get_bss_config``) reports ``REQUIRED``.
+        driver applies ``REQUIRED`` whatever *mfp* says, and the paired read
+        (``get_bss_config``) reports ``REQUIRED``.
 
         Raises ValueError on a duplicate *name* or on missing
         mode-required arguments.
@@ -141,8 +141,8 @@ class WifiBss(Protocol):
         Same value space (``WifiSecurityMode``, ``MfpMode``) and required-argument
         rules as ``create_bss``. As there, ``WPA3_SAE``, ``WPA3_EAP``, ``WPA3_EAP_192``,
         ``OWE`` and any BSS on 6 GHz require management-frame protection: a driver applies
-        ``REQUIRED`` whatever *mfp* says, and reading the configuration back reports
-        ``REQUIRED``.
+        ``REQUIRED`` whatever *mfp* says, and the paired read (``get_bss_config``)
+        reports ``REQUIRED``.
         Reconfiguration disconnects currently associated clients on most
         drivers; tests should expect re-association.
         """

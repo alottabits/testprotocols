@@ -38,10 +38,49 @@ their tags and PR history.
   or a behaviour; design `docs/architecture/precise-types-design.md`; no proposal (a wording
   alignment with the reviewer's question 8 after docs PR #91, not a contract change; the
   contract-surface lint reports no change); PR #92.
+- **docstrings** `testprotocols.appliance_nat:ApplianceNat`, `testprotocols.l7_firewall:L7Firewall`,
+  `testprotocols.l3_firewall:L3Firewall`,
+  `testprotocols.switch_acl:SwitchAcl`, `testprotocols.traffic_shaping:TrafficShaping`,
+  `testprotocols.site_to_site_vpn:SiteToSiteVpn`, `testprotocols.sdwan_policy_manager:SdwanPolicyManager`,
+  `testprotocols.content_filtering:ContentFiltering`, `testprotocols.ntp_config:NtpConfig`,
+  `testprotocols.syslog_config:SyslogConfig` and `testprotocols.switch_qos:SwitchQos` — twelve further
+  writes that replace a whole list or map (`set_one_to_one_rules`, `set_one_to_many_rules`,
+  `set_port_forwarding_rules`, `L7Firewall.set_rules`, `set_acl`, `set_shaping_rules`,
+  `set_vpn_exclusions`, `set_uplink_selection`, `set_blocked_categories`, `set_ntp_servers`,
+  `set_syslog_servers`, `set_dscp_cos_map`) stated no failure outcome; each now carries the
+  sentence the five writes of PR #92 carry ("A write rejected at any step raises naming the step;
+  the driver puts nothing back. The state is then the as-found <object> where the family commits
+  atomically, otherwise the steps applied before the rejection."), as design question 8 asks of
+  every write a reviewed family realises in more than one device step, each wrapped to its
+  file's width, as are the two `L3Firewall` sentences that ran past it; `set_vpn_exclusions`
+  also says that a successful write leaves vendor rule kinds outside the contract unchanged and
+  that a rejection treats them like the rest. Text only, no change to a signature, an
+  annotation or a behaviour; no proposal (a wording alignment with the reviewer's question 8,
+  noted by the PR #90 and #92 reviews, not a contract change); PR #93.
+- **docstrings** `testprotocols.bgp:Bgp`, `testprotocols.sdwan_policy_manager:SdwanPolicyManager`,
+  `testprotocols.static_routes:StaticRoutes`, `testprotocols.wifi_bss:WifiBss` and
+  `testprotocols.snmp_client:SnmpClient` — the undated "read-back" wording for a
+  capability's paired configuration read (`get_bgp_config`, `get_sla_policies`,
+  `list_static_routes`, `get_bss_config`, `snmp_get`) now says "paired read" or "configuration-view read", so it cannot be
+  taken for the driver read-back after a write that the archetypes README's "Write outcome"
+  rule excludes (PR #89); `SdwanPolicyManager.set_active_active_vpn` names its paired read the
+  same way. The same words move in `GAPS.md` and in the design records that quote or describe
+  these reads: `docs/architecture/static-routes-protocol-design.md`,
+  `docs/architecture/bgp-protocol-design.md`, `docs/architecture/sdwan-appliance-protocol-design.md`
+  and `docs/architecture/precise-types-design.md` (the management-frame-protection paired read);
+  the merged proposals are historical records and are left as they are. `GAPS.md` also gains an
+  entry for the two `SwitchQos` writes (`set_trust_mode`, `set_dscp_cos_map`) that have no read
+  showing their effect. Text only; no proposal (wording and a gap record, not a contract change);
+  PR #93.
 
 ### testoperations
 
-- no entries yet
+#### Fixed
+
+- **docstrings** `testoperations.segmentation:find_matching_deny` — "effective-policy read-back"
+  now reads "a read of the effective policy": the operation inspects a policy the test read, and
+  the archetypes README's "Write outcome" rule (PR #89) reserves "read-back" for what a driver
+  does not do. Text only; no proposal (wording, not a contract change); PR #93.
 
 ## [0.13.0] — 2026-10-15
 

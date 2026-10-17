@@ -382,7 +382,7 @@ where one exists, also records its retype.
   Suite B). `WifiBss.create_bss` and `set_security` state that the WPA3-only modes
   (`WPA3_SAE`, `WPA3_EAP`, `WPA3_EAP_192`), `OWE` and any BSS on 6 GHz require
   management-frame protection, so a driver applies `REQUIRED` whatever `mfp` says
-  and the read-back reports `REQUIRED` (a driver that reported `optional` for such a BSS
+  and the paired read reports `REQUIRED` (a driver that reported `optional` for such a BSS
   changes; recorded under *Changed* with its migration line). `WifiRadioStats.tx_retries`
   and `tx_failed` become `int | None` under the no-period exception (see "The contract
   model"; breaking for driver authors; still required, in their released positions):

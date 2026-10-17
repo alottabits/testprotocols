@@ -23,7 +23,13 @@ class SyslogConfig(Protocol):
     """Abstract contract for configuring syslog destinations."""
 
     def set_syslog_servers(self, servers: list[SyslogServer]) -> None:
-        """Replace the configured syslog-destination list with *servers*."""
+        """Replace the configured syslog-destination list with *servers*.
+
+        A write rejected at any step raises naming the step; the driver puts
+        nothing back. The state is then the as-found syslog-destination list
+        where the family commits atomically, otherwise the steps applied before
+        the rejection.
+        """
         ...
 
     def get_syslog_servers(self) -> list[SyslogServer]:

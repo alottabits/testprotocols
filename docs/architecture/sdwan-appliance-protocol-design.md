@@ -300,10 +300,10 @@ neighbors[BgpNeighbor], advertised_networks)` — plus operational reads:
 vocabulary, seeded in full because it is protocol-standard rather than a
 vendor taxonomy) and `get_learned_routes` (reusing `wan_edge.RouteEntry`).
 Composed on **both** WAN-edge archetypes. The config/read split is
-per-method: config write + read-back are universal, the operational reads
-are not — a product without a published BGP state read raises
-unsupported-capability there, and one without per-network advertise
-control does the same for a non-empty `advertised_networks`.
+per-method: the configuration write and its paired read are universal,
+the operational reads are not — a product without a published BGP state
+read raises unsupported-capability there, and one without per-network
+advertise control does the same for a non-empty `advertised_networks`.
 
 ## Cross-vendor neutrality
 

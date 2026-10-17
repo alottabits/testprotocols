@@ -4,11 +4,11 @@ Defines the abstract contract for a WAN edge's BGP: whole-replace
 configuration (local AS + neighbors + advertised networks) plus operational
 reads of neighbor session state and learned prefixes.
 
-The config/read split is deliberate and per-method: configuration write and
-read-back are universal across the reviewed management planes, while the
-two *operational* reads are not — a product without a published BGP state
-read raises unsupported-capability on those methods rather than
-approximating.
+The config/read split is deliberate and per-method: the configuration write
+and its paired configuration read are universal across the reviewed
+management planes, while the two *operational* reads are not — a product
+without a published BGP state read raises unsupported-capability on those
+methods rather than approximating.
 
 In scope: BGP process configuration (whole-replace, idempotent), neighbor
 session status, learned-prefix read.
@@ -35,7 +35,7 @@ class Bgp(Protocol):
         ...
 
     def get_bgp_config(self) -> BgpConfig:
-        """Return the current BGP configuration (config read-back)."""
+        """Return the stored BGP configuration (the paired read of the write)."""
         ...
 
     def get_bgp_neighbors(self) -> list[BgpPeerStatus]:
