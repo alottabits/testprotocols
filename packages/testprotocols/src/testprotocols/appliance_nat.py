@@ -30,9 +30,10 @@ class ApplianceNat(Protocol):
     def set_one_to_one_rules(self, rules: list[OneToOneNatRule]) -> None:
         """Replace the 1:1 NAT mapping list with *rules*.
 
-        A write rejected at any step raises naming the step; the driver puts nothing back. The state
-        is then the as-found 1:1 NAT mapping list where the family commits atomically, otherwise the
-        steps applied before the rejection.
+        A write rejected at any step raises naming the step; the driver puts
+        nothing back. The state is then the as-found 1:1 NAT mapping list where
+        the family commits atomically, otherwise the steps applied before the
+        rejection.
         """
         ...
 
@@ -43,9 +44,10 @@ class ApplianceNat(Protocol):
     def set_one_to_many_rules(self, rules: list[OneToManyNatRule]) -> None:
         """Replace the 1:Many (PAT) mapping list with *rules*.
 
-        A write rejected at any step raises naming the step; the driver puts nothing back. The state
-        is then the as-found 1:Many mapping list where the family commits atomically, otherwise the
-        steps applied before the rejection.
+        A write rejected at any step raises naming the step; the driver puts
+        nothing back. The state is then the as-found 1:Many mapping list where
+        the family commits atomically, otherwise the steps applied before the
+        rejection.
         """
         ...
 
@@ -56,9 +58,10 @@ class ApplianceNat(Protocol):
     def set_port_forwarding_rules(self, rules: list[PortForwardRule]) -> None:
         """Replace the port-forwarding rule list with *rules*.
 
-        A write rejected at any step raises naming the step; the driver puts nothing back. The state
-        is then the as-found port-forwarding rule list where the family commits atomically,
-        otherwise the steps applied before the rejection.
+        A write rejected at any step raises naming the step; the driver puts
+        nothing back. The state is then the as-found port-forwarding rule list
+        where the family commits atomically, otherwise the steps applied before
+        the rejection.
         """
         ...
 

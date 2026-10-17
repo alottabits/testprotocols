@@ -104,9 +104,10 @@ class SdwanPolicyManager(Protocol):
         express arbitrary performance thresholds raise unsupported-capability
         for such rules rather than approximating.
 
-        A write rejected at any step raises naming the step; the driver puts nothing back. The state
-        is then the as-found uplink-selection rule list where the family commits atomically,
-        otherwise the steps applied before the rejection.
+        A write rejected at any step raises naming the step; the driver puts
+        nothing back. The state is then the as-found uplink-selection rule list
+        where the family commits atomically, otherwise the steps applied before
+        the rejection.
         """
         ...
 

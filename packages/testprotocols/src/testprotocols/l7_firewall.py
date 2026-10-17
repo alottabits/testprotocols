@@ -26,9 +26,9 @@ class L7Firewall(Protocol):
     def set_rules(self, rules: list[L7Rule]) -> None:
         """Replace the ordered L7 policy with *rules* (complete, in order).
 
-        A write rejected at any step raises naming the step; the driver puts nothing back. The state
-        is then the as-found L7 policy where the family commits atomically, otherwise the steps
-        applied before the rejection.
+        A write rejected at any step raises naming the step; the driver puts
+        nothing back. The state is then the as-found L7 policy where the family
+        commits atomically, otherwise the steps applied before the rejection.
         """
         ...
 

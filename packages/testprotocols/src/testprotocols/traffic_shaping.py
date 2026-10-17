@@ -48,9 +48,10 @@ class TrafficShaping(Protocol):
     def set_shaping_rules(self, rules: list[ShapingRule]) -> None:
         """Replace the ordered shaping-rule list with *rules*.
 
-        A write rejected at any step raises naming the step; the driver puts nothing back. The state
-        is then the as-found shaping-rule list where the family commits atomically, otherwise the
-        steps applied before the rejection.
+        A write rejected at any step raises naming the step; the driver puts
+        nothing back. The state is then the as-found shaping-rule list where the
+        family commits atomically, otherwise the steps applied before the
+        rejection.
         """
         ...
 

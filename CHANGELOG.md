@@ -39,6 +39,7 @@ their tags and PR history.
   alignment with the reviewer's question 8 after docs PR #91, not a contract change; the
   contract-surface lint reports no change); PR #92.
 - **docstrings** `testprotocols.appliance_nat:ApplianceNat`, `testprotocols.l7_firewall:L7Firewall`,
+  `testprotocols.l3_firewall:L3Firewall`,
   `testprotocols.switch_acl:SwitchAcl`, `testprotocols.traffic_shaping:TrafficShaping`,
   `testprotocols.site_to_site_vpn:SiteToSiteVpn`, `testprotocols.sdwan_policy_manager:SdwanPolicyManager`,
   `testprotocols.content_filtering:ContentFiltering`, `testprotocols.ntp_config:NtpConfig`,
@@ -50,14 +51,17 @@ their tags and PR history.
   sentence the five writes of PR #92 carry ("A write rejected at any step raises naming the step;
   the driver puts nothing back. The state is then the as-found <object> where the family commits
   atomically, otherwise the steps applied before the rejection."), as design question 8 asks of
-  every write a reviewed family realises in more than one device step; the two `L3Firewall`
-  sentences that ran past the file's width are re-wrapped. Text only, no change to a signature, an
+  every write a reviewed family realises in more than one device step, each wrapped to its
+  file's width, as are the two `L3Firewall` sentences that ran past it; `set_vpn_exclusions`
+  also says that a successful write leaves vendor rule kinds outside the contract unchanged and
+  that a rejection treats them like the rest. Text only, no change to a signature, an
   annotation or a behaviour; no proposal (a wording alignment with the reviewer's question 8,
   noted by the PR #90 and #92 reviews, not a contract change); PR #93.
-- **docstrings** `testprotocols.bgp:Bgp`, `testprotocols.sdwan_policy_manager:SdwanPolicyManager`
-  and `testprotocols.static_routes:StaticRoutes` — the undated "read-back" wording for a
+- **docstrings** `testprotocols.bgp:Bgp`, `testprotocols.sdwan_policy_manager:SdwanPolicyManager`,
+  `testprotocols.static_routes:StaticRoutes`, `testprotocols.wifi_bss:WifiBss` and
+  `testprotocols.snmp_client:SnmpClient` — the undated "read-back" wording for a
   capability's paired configuration read (`get_bgp_config`, `get_sla_policies`,
-  `list_static_routes`) now says "paired read" or "configuration-view read", so it cannot be
+  `list_static_routes`, `get_bss_config`, `snmp_get`) now says "paired read" or "configuration-view read", so it cannot be
   taken for the driver read-back after a write that the archetypes README's "Write outcome"
   rule excludes (PR #89); `SdwanPolicyManager.set_active_active_vpn` names its paired read the
   same way. The same words move in `GAPS.md` and in the design records that quote or describe

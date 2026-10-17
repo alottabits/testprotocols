@@ -117,10 +117,10 @@ class Bgp(Protocol):
         """
 ```
 
-**Config/read split at method granularity:** the configuration write and its paired read are
-universal (5/5 — even the family without operational reads has a config
-GET); only the two *operational* reads carry the unsupported-capability
-convention (4/5).
+**Config/read split at method granularity:** the configuration write and its
+paired read are universal (5/5 — even the family without operational reads has
+a config GET); only the two *operational* reads carry the
+unsupported-capability convention (4/5).
 
 Module docstring scope — In scope: BGP process config (whole-replace),
 neighbor session status, learned-prefix read. Out of scope: RIB reads

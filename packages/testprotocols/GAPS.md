@@ -483,8 +483,10 @@ stays a `NotSupportedError` cell.
 
 **Signal:** `SwitchQos.set_trust_mode` and `set_dscp_cos_map` have no read in the contract
 that shows their effect, so no test can confirm either write; `set_rules` has `get_rules`.
-Design question 8 ("a write the contract gives no way to show") names this shape; the
-PR #93 review raised it when `set_dscp_cos_map` gained its failure-outcome sentence.
+Noticed in the PR #93 wording sweep over `switch_qos.py`, when `set_dscp_cos_map` gained
+its failure-outcome sentence; the archetypes README's "Write outcome" rule names the shape
+("a write the contract gives no way to show"). Until a read lands, that sentence is
+unobservable too: no test can tell the as-found branch from the partially applied one.
 
 **Trigger to act:** A test that asserts a port's trust mode or the DSCP-to-CoS map after
 the write, or the next archetype review of a device class composing `SwitchQos`.

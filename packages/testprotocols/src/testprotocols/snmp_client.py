@@ -84,7 +84,7 @@ class SnmpClient(Protocol):
         maps it to its tool's own type code. A *value* beginning ``0x`` is sent as hex. The
         other parameters are as for :meth:`snmp_get`.
 
-        :meth:`snmp_get` on the same *oid* reads the value back. A SET the agent rejects (an
+        :meth:`snmp_get` on the same *oid* is the paired read. A SET the agent rejects (an
         error status such as ``noSuchName``, ``notWritable`` or ``wrongType``) or does not
         answer raises; the refusal is never returned as the tool's output.
         """
