@@ -479,7 +479,7 @@ stays a `NotSupportedError` cell.
 
 ---
 
-## 2026-10-17 — `SwitchQos` paired reads for `set_trust_mode` and `set_dscp_cos_map` [priority: low]
+## 2026-10-17 — `SwitchQos` paired reads for `set_trust_mode` and `set_dscp_cos_map` [priority: medium]
 
 **Signal:** `SwitchQos.set_trust_mode` and `set_dscp_cos_map` have no read in the contract
 that shows their effect, so no test can confirm either write; `set_rules` has `get_rules`.
@@ -487,6 +487,9 @@ Noticed in the PR #93 wording sweep over `switch_qos.py`, when `set_dscp_cos_map
 its failure-outcome sentence; the archetypes README's "Write outcome" rule names the shape
 ("a write the contract gives no way to show"). Until a read lands, that sentence is
 unobservable too: no test can tell the as-found branch from the partially applied one.
+Priority raised from low on 2026-10-19: two released writes no test can confirm, on a
+capability both mandatory switch archetypes compose, sit above the deferred vocabularies and
+typed returns this file keeps at low.
 
 **Trigger to act:** A test that asserts a port's trust mode or the DSCP-to-CoS map after
 the write, or the next archetype review of a device class composing `SwitchQos`.
@@ -500,6 +503,36 @@ switch families; a family that publishes no map read is per-method unsupported.
 
 **Cross-references:** `switch_qos.py`, `models/switch.py` (`QosTrustMode`),
 `docs/proposals/README.md` question 8.
+
+---
+
+## 2026-10-19 — method grain of released multi-step writes [priority: low]
+
+**Signal:** The wording rounds that gave every list- or map-replacing write its
+failure-outcome sentence (PRs #92 and #93), and the round that gave it to the record-shaped
+writes `Bgp.set_bgp_config`, `Ospf.set_ospf_config` and `SiteToSiteVpn.set_vpn_config`, left
+two questions a `fix:` cannot settle: whether a record-shaped whole-replace write should be
+split where a reviewed family stores its parts as individual objects (question 11,
+Orthogonal), and whether the in-flight window of a multi-step replace on a released member
+has a documented mechanism that closes it (question 11, Atomic, at the driver level). Both
+are rung-5 questions on released members.
+
+**Trigger to act:** The next archetype review of a device class composing `Bgp`, `Ospf`,
+`SiteToSiteVpn` or one of the list-replacing capabilities, which applies question 11 over
+the ratified families; or a reference driver that shows the window on a reviewed family.
+
+**Out of scope right now because:** A split of a released member walks rung 5 of the
+placement ladder (deprecate, delegate, `SPLITS.md` entry) on a proposal; the wording rounds
+were text-only alignments.
+
+**Design notes (when picked up):** Work a window at the driver level first
+(`docs/archetypes/README.md`, verification item 10); a split follows only when no documented
+mechanism closes it. A record-shaped write stays whole where none of its parts is another
+member's concern, however many device steps it takes.
+
+**Cross-references:** `bgp.py`, `ospf.py`, `site_to_site_vpn.py`, `l3_firewall.py`,
+`switch_qos.py`, `content_filtering.py`; `docs/proposals/README.md` question 11;
+`docs/archetypes/README.md` verification item 10; `SPLITS.md`.
 
 ---
 

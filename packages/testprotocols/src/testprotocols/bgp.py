@@ -31,7 +31,13 @@ class Bgp(Protocol):
     """Abstract contract for a WAN edge's BGP configuration and state."""
 
     def set_bgp_config(self, config: BgpConfig) -> None:
-        """Replace the BGP configuration with *config* (idempotent)."""
+        """Replace the BGP configuration with *config* (idempotent).
+
+        A write rejected at any step raises naming the step; the driver puts
+        nothing back. The state is then the as-found BGP configuration where
+        the family commits atomically, otherwise the steps applied before the
+        rejection.
+        """
         ...
 
     def get_bgp_config(self) -> BgpConfig:

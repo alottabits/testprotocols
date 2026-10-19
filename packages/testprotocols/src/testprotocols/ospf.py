@@ -16,7 +16,13 @@ class Ospf(Protocol):
     """
 
     def set_ospf_config(self, config: OspfConfig) -> None:
-        """Replace the OSPF configuration."""
+        """Replace the OSPF configuration.
+
+        A write rejected at any step raises naming the step; the driver puts
+        nothing back. The state is then the as-found OSPF configuration where
+        the family commits atomically, otherwise the steps applied before the
+        rejection.
+        """
         ...
 
     def get_ospf_config(self) -> OspfConfig:
