@@ -201,10 +201,10 @@ lines run RDK-B or prplOS and are covered by those families); **Ubiquiti**
 development, as the managed-router charter found); **consumer mesh systems**
 managed only through a vendor app (no published management plane).
 
-Also excluded, with reasons: **ADTRAN SmartOS** (SmartOS 11 and later is
-built on prplWrt, the predecessor of prplOS, so its published operations are
-covered by the prplOS family; a dated revision brings it in if its data model
-diverges); **Zyxel** (operator and retail gateways on vendor firmware managed
+Also excluded, with reasons: **ADTRAN SmartOS** (SmartOS 11 and later
+realizes the principles and best practices of the prplWrt project, the
+predecessor of prplOS, so its published operations are covered by the prplOS
+family; a dated revision brings it in if its data model diverges); **Zyxel** (operator and retail gateways on vendor firmware managed
 through a web interface and TR-069, with no published management-plane
 documentation beyond the TR-069 data model that the RDK-B, prplOS and
 FRITZ!OS columns already exercise); **TP-Link** (retail routers managed
@@ -357,6 +357,195 @@ it stays.
 | R56 | Read mesh topology (agents, backhaul links) | ✓ [56] | ✗ no EasyMesh controller; 802.11s is a peer mesh [56] | ◐ controller source only; BPI R4 porting marked ongoing/TBD, no RDK doc of the paths [56] | ✓ [56] | ◐ CAPsMAN, not EasyMesh; CAP list without backhaul links [56] |
 | R57 | Read backhaul link health | ◐ Backhaul object gives link type/MACs; signal/rate only via parent BSS STA entry [57] | ✗ 802.11s peer links via `iw station dump`, not EasyMesh backhaul [57] | ◐ controller source only; BPI R4 porting marked ongoing/TBD [57] | ◐ link metrics present; no explicit backhaul flag (is_upstream is LAN-only) [57] | ✗ no backhaul-link metrics; remote-cap shows connected-time only [57] |
 | R58 | Steer a client to another agent | ✓ [58] | ◐ usteer roams clients between plain APs; no EasyMesh agents [58] | ◐ controller rbus method in source only; BPI R4 porting marked ongoing/TBD [58] | ✗ no steering action; schema steering_enabled is a read-only flag [58] | ◐ no EasyMesh steer; 802.11v BSS-transition suggestion via steering only [58] |
+
+## 5. Reuse vs. net-new
+
+### Reuse survey (exploration)
+
+A first reading of the capabilities on `main` for every matrix row; the
+placement-ladder argument per operation is stage 3. "D8" marks the
+operations the spec has this pass introduce as generic capabilities.
+
+| Id | Operation | Candidate on main | Fit | Note |
+| --- | --- | --- | --- | --- |
+| R1 | Set the WAN connection mode (DHCP, static, PPPoE, IPoE) | new (WAN connection object) | new | no capability carries a WAN connection with a mode; `wan_link_admin` (twin) has only bring_wan_down/up |
+| R2 | Read WAN connection state, address and lease | new (WAN connection object) | new | state, address and lease belong to the same object as R1 |
+| R3 | Set PPPoE credentials and service name | new (WAN connection object) | new | PPPoE credentials and service name are fields of the connection |
+| R4 | Reset the PPPoE session | new (WAN connection object) | new | session reset is a lever on the connection |
+| R5 | Set the WAN VLAN id and priority | new (WAN connection object) | new | tag and priority are fields of the connection; `vlan_client` is a host lever |
+| R6 | Set the IPv6 WAN mode; read the delegated prefix | new (WAN connection object) | new | IPv6 mode and delegated prefix on the connection; `held_prefixes` is the provisioner's view |
+| R7 | Read the provisioning mode (v4, v6, dual) | new (WAN connection object) | new | provisioning mode is a read on the connection |
+| R8 | Read WAN link state | `port_status` (PortStatus) | as-is | link state of the WAN port; the WAN connection object carries the upper-layer state |
+| R9 | Administratively disable / enable the WAN | `wan_link_admin` (WanLinkAdmin) | as-is or extend | bring_wan_down/up match; written for the twin, check its docstring for host assumptions |
+| R10 | Renew / release the WAN DHCP lease | `dhcp_client` (DhcpClient) | as-is | release_dhcp/renew_dhcp and the IPv6 pair |
+| R11 | Configure the DHCP server pool and lease time | `interface_dhcp` (InterfaceDhcp) or `dhcp_server` (provisioner) | extend | set_interface_dhcp is per interface with pool and lease time; the provisioner's `provision_cpe` is test-bed shaped |
+| R12 | Configure DHCP options | `interface_dhcp` | extend | options need a field or a member; check `models/dhcp.py` DhcpOption |
+| R13 | Configure static leases | `interface_dhcp` | extend | static leases are a new member |
+| R14 | Read active leases | `interface_dhcp` | as-is | get_dhcp_leases |
+| R15 | Configure DNS forwarder upstreams | new (DNS forwarder) | new | `dns_client` is a resolver on a host; no forwarder configuration exists |
+| R16 | Configure local host overrides | new (DNS forwarder) | new | local overrides are forwarder entries |
+| R17 | Configure DNS rebind protection | new (DNS forwarder) | new | rebind protection is a forwarder setting |
+| R18 | Configure bridge membership (ports, wireless networks) | new `L2Bridge` (GAPS 2026-05-02) | new | imports `models/l2_common.py`; `switch_ports`/`switch_vlans` are the switchport shape, rejected for this class |
+| R19 | Read bridge and port membership | new `L2Bridge` | new | membership read on the same capability |
+| R20 | Configure a guest segment | `L2Bridge` + `firewall_zones` + `interface_dhcp` | reuse (composition) | a guest segment is a bridge, a zone and a pool; the design decides whether a named operation is needed |
+| R21 | Read LAN port status (link, speed, duplex) | `port_status` | as-is | link, speed, duplex |
+| R22 | Configure radio (band, channel, width, power, enable) | `wifi_radio` | as-is | existing CPE member |
+| R23 | Read radio state | `wifi_radio` | as-is |  |
+| R24 | Configure a BSS (SSID, security mode, passphrase, hidden) | `wifi_bss` | as-is |  |
+| R25 | Read BSS state | `wifi_bss` | as-is |  |
+| R26 | Read connected stations (signal, rate) | `wifi_stations` | as-is |  |
+| R27 | Disconnect a station | `wifi_stations` or `wifi_transitions.send_deauth` | as-is | check which carries the kick today |
+| R28 | Start / cancel push-button or PIN onboarding; read its state | `wifi_onboarding` | as-is | trigger_wps_pbc/pin, get_wps_enabled; cancel and state read may need `extend` |
+| R29 | Configure band steering and 11k/v/r | `wifi_transitions` | as-is | set_rrm_enabled/set_btm_enabled/set_ft_enabled; band steering may need a field |
+| R30 | Read zone defaults and zone membership | `firewall_zones` | as-is | list_zones/get_zone/set_zone_defaults; two families have no zones (◐) |
+| R31 | Add / remove a port forward | `firewall` (port mappings) or `appliance_nat` | as-is | `firewall.add_port_mapping` is the gateway-tier shape; `appliance_nat.set_port_forwarding_rules` is list-replacing; the design picks one |
+| R32 | Read the port-forward table | `firewall.list_port_mappings` | as-is |  |
+| R33 | Add / remove an egress filter rule | `firewall` / `packet_filter` rules | as-is or extend | egress rule by host and destination; check the Firewall tier's rule members |
+| R34 | Read filter rules | `firewall` / `packet_filter` | as-is |  |
+| R35 | Block a host, on demand or on a schedule | new (host filter) | new | per-host block and schedule; `content_filtering` is URL-based, `firewall` rules are address-based without schedule |
+| R36 | Enable / disable automatic port mapping (UPnP IGD, PCP) | new (automatic port mapping control) | new | `upnp_client` is the LAN client's lever, not the gateway's enable |
+| R37 | Read automatic port mappings | new (automatic port mapping control) | new | mapping table read |
+| R38 | Read the host table (address, name, attachment) | new (host table) | new | no archetype reads a host table; `arp_client` is a host lever |
+| R39 | Read identity (manufacturer, model, serial, OUI, software version) | `device_info` (DeviceInfo) | extend | only `model` today; manufacturer, serial, OUI, software version are new fields (D8: introduce here) |
+| R40 | Read uptime, load, memory | `device_management` | as-is | get_seconds_uptime, get_load_avg, read_memory_utilization (D8: health split decided by the design) |
+| R41 | Read process state | `device_management.read_running_processes` | as-is |  |
+| R42 | Read device logs | `device_management.read_log_entries` | as-is |  |
+| R43 | Configure log export | `syslog_config` | as-is | set_syslog_servers/get_syslog_servers (D8) |
+| R44 | Configure NTP servers; read sync state | `ntp_config` + `ntp_client` | as-is | set/get_ntp_servers; sync-state read: check `ntp_client` |
+| R45 | Upgrade firmware from an image | `device_lifecycle` | extend | no image stage/activate member today (D8: introduce here) |
+| R46 | Factory reset | `device_lifecycle.factory_reset` | as-is |  |
+| R47 | Reboot; read readiness | `device_lifecycle.reset` + `wait_for_boot` | as-is | readiness = wait_for_boot; `verify_cpe_is_booting` carries a class name in a method (rename candidate) |
+| R48 | Export configuration | new or `device_lifecycle` extend (configuration transfer) | extend | D8: introduce here; export |
+| R49 | Import configuration | same as R48 | extend | import |
+| R50 | Set the local administrator credential | new (management access / admin credential) | new | `radius_client`/`operator_login` are the router's; a single credential set is a smaller shape |
+| R51 | Configure ACS URL, credentials and periodic inform | `tr069_client` | extend | is_tr069_connected/get_id/force_inform exist; ACS URL, credentials and periodic inform are new members |
+| R52 | Trigger an inform; read connection-request state | `tr069_client.force_inform` + `is_tr069_connected` | as-is | connection-request state read may need `extend` |
+| R53 | Configure the USP controller endpoint and transport; read agent state | new (USP agent) | new | no USP capability exists |
+| R54 | Configure a SIP account; read registration state | new (voice: SIP account) | new | `sip_phone` is the test-bed phone, not the gateway's account |
+| R55 | Read FXS line state | new (voice: FXS line) | new |  |
+| R56 | Read mesh topology (agents, backhaul links) | `wifi_mesh.get_topology` | as-is | `wifi_mesh` exists on main (controller side: topology, agents, steering) |
+| R57 | Read backhaul link health | `wifi_mesh.get_mesh_status` / `get_topology` | as-is or extend | backhaul health fields to check |
+| R58 | Steer a client to another agent | `wifi_mesh.steer_client` | as-is |  |
+
+## 9. Verification
+
+### Verification items (exploration)
+
+Every ◐ and ✗ cell of §2 as it stands; stage 4 settles each as an explicit
+`NotSupportedError` with a source or as a sourced mapping. 103 items.
+
+**prplOS 4.0 line** (6)
+- R30 Read zone defaults and zone membership: ◐ TR-181 Firewall uses Level/Chain, no zone objects; UCI zones shell-only [30]
+- R37 Read automatic port mappings: ◐ PCP mappings readable; UPnP IGD lease table not in data model [37]
+- R47 Reboot; read readiness: ◐ Reboot() exists; no boot-readiness parameter, infer from DeviceInfo.UpTime [47]
+- R54 Configure a SIP account; read registration state: ◐ tr104-voip repo is a 3-line stub; no VoiceService parameters published [54]
+- R55 Read FXS line state: ◐ VoiceService:2 stub only; FXS line objects unpublished [55]
+- R57 Read backhaul link health: ◐ Backhaul object gives link type/MACs; signal/rate only via parent BSS STA entry [57]
+
+**OpenWrt 24.10 line + icwmp** (20)
+- R5 Set the WAN VLAN id and priority: ◐ VLAN id via `8021q` `vid`; 802.1p priority mapping undocumented [5]
+- R7 Read the provisioning mode (v4, v6, dual): ◐ no mode field; derive from wan/wan6 interface status [7]
+- R10 Renew / release the WAN DHCP lease: ◐ wiki shows `ifdown`/`ifup` only; `renew` method only in netifd source [10]
+- R14 Read active leases: ◐ dnsmasq leases are a file; ubus `dhcp ipv4leases` is odhcpd-only [14]
+- R19 Read bridge and port membership: ◐ UCI `ports` gives config; live membership via `bridge` shell [19]
+- R21 Read LAN port status (link, speed, duplex): ◐ `link` via network.device status; speed/duplex need ethtool/swconfig [21]
+- R27 Disconnect a station: ◐ `del_client` only in hostapd ubus source, no wiki page [27]
+- R28 Start / cancel push-button or PIN onboarding; read its state: ◐ PBC via `wps_pushbutton`/hostapd_cli; `wps_start`/`wps_status` source-only [28]
+- R37 Read automatic port mappings: ◐ lease file only; no documented read command [37]
+- R38 Read the host table (address, name, attachment): ◐ no unified host table; DHCP leases + `ip neigh`/LuCI hints [38]
+- R39 Read identity (manufacturer, model, serial, OUI, software version): ◐ `system board` lacks serial, manufacturer, OUI [39]
+- R44 Configure NTP servers; read sync state: ◐ servers via `system.ntp.server`; sync state needs ntp-utils `ntpq` [44]
+- R47 Reboot; read readiness: ◐ `reboot` documented; readiness inferred from `system info` uptime, no flag [47]
+- R52 Trigger an inform; read connection-request state: ◐ `status` reports session state, not connection-request state [52]
+- R53 Configure the USP controller endpoint and transport; read agent state: ✗ no USP agent (obuspa) in 24.10 packages/luci/routing/telephony feeds [53]
+- R54 Configure a SIP account; read registration state: ◐ Asterisk PBX config files + CLI; no UCI/ubus voice model [54]
+- R55 Read FXS line state: ◐ asterisk-chan-lantiq Lantiq SoC FXS only; state via Asterisk CLI [55]
+- R56 Read mesh topology (agents, backhaul links): ✗ no EasyMesh controller; 802.11s is a peer mesh [56]
+- R57 Read backhaul link health: ✗ 802.11s peer links via `iw station dump`, not EasyMesh backhaul [57]
+- R58 Steer a client to another agent: ◐ usteer roams clients between plain APs; no EasyMesh agents [58]
+
+**RDK-B 2025q4+** (18)
+- R16 Configure local host overrides: ◐ shell only: Utopia dnsmasq `address=/` lines, no data-model parameter [16]
+- R17 Configure DNS rebind protection: ◐ always on: hard-coded dnsmasq `--stop-dns-rebind`, not configurable [17]
+- R20 Configure a guest segment: ◐ no guest object; composed from LanManagementEntry table + a dedicated SSID [20]
+- R22 Configure radio (band, channel, width, power, enable): ◐ band fixed per radio: OperatingFrequencyBand is read-only [22]
+- R29 Configure band steering and 11k/v/r: ◐ band steering and 11k/11v writable; no 802.11r parameter found [29]
+- R30 Read zone defaults and zone membership: ◐ no zone model; firewall level presets only [30]
+- R33 Add / remove an egress filter rule: ◐ LAN-host/port/protocol access policy; no destination-address match [33]
+- R36 Enable / disable automatic port mapping (UPnP IGD, PCP): ◐ UPnP IGD only; PCP absent [36]
+- R37 Read automatic port mappings: ◐ no TR-181 table; UPnP IGD service action only (shell/UPnP side) [37]
+- R48 Export configuration: ◐ shell only (syscfg/PSM store); no data-model export parameter [48]
+- R49 Import configuration: ◐ shell only (syscfg/PSM store); no data-model import parameter [49]
+- R52 Trigger an inform; read connection-request state: ◐ ConnectionRequestURL readable; no inform-trigger parameter [52]
+- R53 Configure the USP controller endpoint and transport; read agent state: ◐ obuspa config via factory-reset file; Device.LocalAgent not on dmcli/rbus [53]
+- R54 Configure a SIP account; read registration state: ◐ telco-voice-manager is an optional component, not in the reference-build list; MTA model is DOCSIS-eMTA only [54]
+- R55 Read FXS line state: ◐ same component caveat: voice manager optional; X_CISCO_COM_MTA.LineTable only on DOCSIS eMTA builds [55]
+- R56 Read mesh topology (agents, backhaul links): ◐ controller source only; BPI R4 porting marked ongoing/TBD, no RDK doc of the paths [56]
+- R57 Read backhaul link health: ◐ controller source only; BPI R4 porting marked ongoing/TBD [57]
+- R58 Steer a client to another agent: ◐ controller rbus method in source only; BPI R4 porting marked ongoing/TBD [58]
+
+**FRITZ!OS 8.20+** (37)
+- R1 Set the WAN connection mode (DHCP, static, PPPoE, IPoE): ◐ SetConnectionType only routed/bridged; no static/DHCP/IPoE selector [1]
+- R2 Read WAN connection state, address and lease: ◐ status, address, uptime, DNS; no lease-time field [2]
+- R3 Set PPPoE credentials and service name: ◐ credentials only; PPPoEServiceName "Not supported, returns ''" [3]
+- R5 Set the WAN VLAN id and priority: ✗ no WAN VLAN action; WANEthernetLinkConfig has only GetEthernetLinkStatus [5]
+- R6 Set the IPv6 WAN mode; read the delegated prefix: ◐ read only via UPnP IGD; no IPv6 WAN-mode Set action [6]
+- R7 Read the provisioning mode (v4, v6, dual): ◐ derivable from v4/v6 ConnectionStatus and DsliteStatus; no mode field [7]
+- R9 Administratively disable / enable the WAN: ✗ no SetEnable on WANIP/PPPConnection; DSL default link cannot be disabled [9]
+- R10 Renew / release the WAN DHCP lease: ◐ ForceTermination/RequestConnection re-establish the connection; no explicit lease renew [10]
+- R11 Configure the DHCP server pool and lease time: ◐ pool via SetAddressRange; no lease-time action [11]
+- R12 Configure DHCP options: ◐ only router and subnet options (SetIPRouter, SetSubnetMask); DNS/domain read-only [12]
+- R13 Configure static leases: ✗ ReservedAddresses is out-only in GetInfo; no Set action [13]
+- R15 Configure DNS forwarder upstreams: ✗ X_SetDNSServers "The action is not supported"; LAN GetDNSServer read-only [15]
+- R16 Configure local host overrides: ◐ only X_AVM-DE_SetHostNameByMACAddress; no arbitrary name/record override [16]
+- R17 Configure DNS rebind protection: ✗ no rebind-protection action in any listed TR-064 service [17]
+- R18 Configure bridge membership (ports, wireless networks): ✗ no bridge/port-membership action; LAN services configure IP and DHCP only [18]
+- R19 Read bridge and port membership: ◐ per-host port/guest flag only; no bridge object [19]
+- R20 Configure a guest segment: ◐ Wi-Fi guest AP via its own WLANConfiguration instance; no LAN guest-port action [20]
+- R21 Read LAN port status (link, speed, duplex): ◐ single LANEthernetInterfaceConfig instance; per-port only via host entries [21]
+- R22 Configure radio (band, channel, width, power, enable): ◐ SetEnable/SetChannel; no channel-width or TX-power action [22]
+- R27 Disconnect a station: ✗ no deauthenticate/disconnect-station action in WLANConfiguration [27]
+- R29 Configure band steering and 11k/v/r: ✗ no steering/11k/v/r action; mesh JSON exposes read-only flags [29]
+- R30 Read zone defaults and zone membership: ✗ no zone/firewall object; only per-host WANAccess granted/denied [30]
+- R31 Add / remove a port forward: ◐ AddPortMapping only for the calling host itself, not other LAN hosts [31]
+- R33 Add / remove an egress filter rule: ✗ no L3/L4 rule action; only per-host WAN disallow and filter profiles [33]
+- R34 Read filter rules: ◐ only filter profiles (time budgets/timetables), not address/port rules [34]
+- R36 Enable / disable automatic port mapping (UPnP IGD, PCP): ◐ X_UPnP SetConfig Enable toggles UPnP generally; PCP not covered [36]
+- R37 Read automatic port mappings: ◐ mappings listed; origin (UPnP vs manual) not flagged [37]
+- R40 Read uptime, load, memory: ◐ UpTime only; no load or memory figures [40]
+- R41 Read process state: ✗ no process-list action in any listed TR-064 service [41]
+- R43 Configure log export: ✗ no syslog/export action; SendSupportData targets vendor support only [43]
+- R44 Configure NTP servers; read sync state: ◐ SetNTPServers; no sync-state field, timezone fields "not supported" [44]
+- R47 Reboot; read readiness: ◐ Reboot action; readiness only inferable via DeviceInfo GetInfo UpTime [47]
+- R52 Trigger an inform; read connection-request state: ◐ no inform-trigger action; only ConnectionRequestURL/Username readable [52]
+- R53 Configure the USP controller endpoint and transport; read agent state: ◐ endpoint, MTP (websocket/mqtt), host, path, TLS writable; no agent connection state [53]
+- R55 Read FXS line state: ◐ X_AVM-DE_GetPhonePort returns port name only; no hook/line state [55]
+- R57 Read backhaul link health: ◐ link metrics present; no explicit backhaul flag (is_upstream is LAN-only) [57]
+- R58 Steer a client to another agent: ✗ no steering action; schema steering_enabled is a read-only flag [58]
+
+**RouterOS v7** (22)
+- R1 Set the WAN connection mode (DHCP, static, PPPoE, IPoE): ◐ no WAN-mode selector; add dhcp-client, pppoe-client or address object [1]
+- R4 Reset the PPPoE session: ◐ no reset command; disable then enable the pppoe-client interface [4]
+- R5 Set the WAN VLAN id and priority: ◐ 802.1p only via mangle/bridge-filter set-priority, not a VLAN property [5]
+- R7 Read the provisioning mode (v4, v6, dual): ◐ no provisioning-mode object; derive from v4 and v6 client status [7]
+- R17 Configure DNS rebind protection: ✗ no rebind or private-address answer filter on the DNS page [17]
+- R20 Configure a guest segment: ◐ no guest object; composed from bridge VLAN, address, DHCP and firewall [20]
+- R23 Read radio state: ◐ wifi package: monitor fields undocumented; state via running/inactive flags [23]
+- R25 Read BSS state: ◐ wifi package: print flags/detail only; no BSS monitor field table [25]
+- R28 Start / cancel push-button or PIN onboarding; read its state: ◐ wifi package: push-button start only; no cancel, state read or PIN [28]
+- R29 Configure band steering and 11k/v/r: ◐ wifi package: 11k/v/r properties; no explicit band-steering switch [29]
+- R30 Read zone defaults and zone membership: ◐ no zone object; WAN/LAN interface lists and defconf filter rules [30]
+- R36 Enable / disable automatic port mapping (UPnP IGD, PCP): ◐ UPnP IGD only; no PCP or NAT-PMP [36]
+- R38 Read the host table (address, name, attachment): ◐ no single host table; join DHCP leases, ARP and neighbor list [38]
+- R41 Read process state: ◐ per-class CPU usage only; no process list or PIDs [41]
+- R47 Reboot; read readiness: ◐ no readiness state; infer from reachability and resource uptime [47]
+- R52 Trigger an inform; read connection-request state: ◐ no inform-trigger command; connection-request settings undocumented; status read-only [52]
+- R53 Configure the USP controller endpoint and transport; read agent state: ✗ no USP/TR-369 agent; only the CWMP tr069-client exists [53]
+- R54 Configure a SIP account; read registration state: ✗ no SIP user agent; SIP appears only as a NAT helper [54]
+- R55 Read FXS line state: ✗ no FXS or telephony port in the feature list [55]
+- R56 Read mesh topology (agents, backhaul links): ◐ CAPsMAN, not EasyMesh; CAP list without backhaul links [56]
+- R57 Read backhaul link health: ✗ no backhaul-link metrics; remote-cap shows connected-time only [57]
+- R58 Steer a client to another agent: ◐ no EasyMesh steer; 802.11v BSS-transition suggestion via steering only [58]
 
 ## 10. Sources
 
@@ -671,6 +860,59 @@ in the package source, not in this design record.
 57. WiFi — <https://help.mikrotik.com/docs/spaces/ROS/pages/224559120/WiFi> — wifi package: Remote CAP property table — The remote-cap table has no link quality, rate or backhaul-type fields; CAPs attach over any IP/L2 path
 58. WiFi — <https://help.mikrotik.com/docs/spaces/ROS/pages/224559120/WiFi> — wifi package Steering `wnm`, `neighbor-group`, `transition-threshold`, `transition-request-count`, `transition-time` — Clients can be nudged to neighbor-group APs by (unsolicited, 7.21+) 802.11v BSS-transition requests and optionally de-authenticated; there is no per-client "steer to agent X" command
 
+## 11. Open questions
+
+Carried from the charter and raised by the matrix; the design (stage 3)
+answers each.
+
+1. **Does ◐ count as support?** The evidence bar says "supported"; the
+   matrix grades a caveated cell ◐. Counting ✓ only: 33 core
+   candidates (R1, R2, R3, R4, R6, R8, R9, R11, R12, R13, R15, R16, R18, R22,
+   R23, R24, R25, R26, R31, R32, R33, R34, R35, R40, R41, R42, R43, R45, R46,
+   R48, R49, R50, R51), 9 tier candidates on a majority without
+   both triggers (R10, R14, R19, R21, R27, R28, R38, R39, R44), 16 below the
+   majority (R5, R7, R17, R20, R29, R30, R36, R37, R47, R52, R53, R54, R55,
+   R56, R57, R58).
+   Counting ✓ and ◐: 55 core candidates, 3 tier candidates
+   (R53, R56, R57), 0 below (none). Mesh (R56–R58), USP (R53),
+   voice (R54–R55), zone defaults (R30), automatic port mapping (R36–R37) and
+   provisioning mode (R7) change category between the two readings.
+2. **The WAN connection object's shape** (R1–R7, R9–R10): one object with a
+   mode and mode-specific fields, or one object per mode; and whether link
+   state (R8) stays on `port_status`.
+3. **DHCP server placement** (R11–R14): extend `interface_dhcp`, extend the
+   provisioner's `dhcp_server`, or a new gateway-side capability.
+4. **Port forwards** (R31–R32): `firewall` (per-mapping, gateway tier) or
+   `appliance_nat` (list-replacing); one shape for both archetypes.
+5. **Host filtering** (R35): a new capability, or `firewall` rules with a
+   schedule field; five families publish a per-host block, three a schedule.
+6. **Remote management**: TR-069 configuration (R51) is ✓ on all five; the
+   inform trigger (R52) is ✓ only where the iCWMP ubus object exists, so the
+   `force_inform` member of `tr069_client` is a per-family unsupported case
+   on three families. USP (R53) is ✓ on prplOS alone (obuspa CLI, not the
+   data model) and ◐ on RDK-B and FRITZ!OS.
+7. **Mesh and voice tiers** (D7): mesh is ✓ on prplOS and FRITZ!OS and ◐ on
+   RDK-B (controller source only); voice has no ✓✓ family pair. Both depend
+   on question 1. `wifi_mesh` exists on `main` as the reuse candidate.
+8. **`CpeDevice` supersession mechanics** (D6): the new class name, the
+   `linux_cpe` deprecation row (kind `class`), the members the new class drops
+   (`hw_console`, `ip_interface`, `ip_routing`, `conntrack`, host `nat`).
+9. **Health reads**: no family publishes a load average as such (prplOS and
+   RDK-B publish CPU usage, OpenWrt the loadavg, FRITZ!OS nothing, RouterOS a
+   CPU load figure); `device_management.get_load_avg` needs a stated meaning.
+10. **Source maintenance**: the RouterOS documentation site carries a
+    "frozen" banner pointing to a successor site; the prplOS wiki renders
+    client-side and the TR-064 PDFs carry wrong metadata titles; the charter's
+    Telnet knowledge-base citation now redirects. Stage 3 re-points what it
+    can and records the rest.
+11. **Reference-image inclusion** (RDK-B): several ✓ cells rest on the
+    `Rdk*Manager` components (WAN, VLAN, PPP managers) and OneWifi whose
+    presence on the Banana Pi R4 reference build is not stated by the release
+    page; stage 4 cites the build's component list or downgrades.
+12. **Two CWMP clients on prplOS**: the 4.0.3 observation ships iCWMP, the
+    data-model site documents tr069-manager; the driver's TR-069 route (UCI
+    `cwmp` or `ManagementServer.`) is chosen at stage 4.
+
 ## Review record
 
 - **2026-10-19 — chartered under the archetype track.** Request: issue #98
@@ -684,8 +926,9 @@ in the package source, not in this design record.
   request's I26 row corrected the same way); the LAN port-state reuse
   candidate is `port_status`, not `switch_ports` (I9 row corrected); the
   appliance's NAT member is `appliance_nat`; `ip_routing` is a fourth host
-  lever; software lifecycle and configuration transfer are demands both
-  charters carry, not shared protocols; sources for every version line added; the evidence-bar
+  lever; software lifecycle, configuration transfer, identity and health
+  stated as demands both charters carry, not shared protocols (corrected in
+  round 2); sources for every version line added; the evidence-bar
   paraphrase aligned with the README; one line wrapped. One finding
   rejected: `tr069_client` is a member of `CpeDevice` (`devices/cpe.py`).
 - **2026-10-19 — charter review, round 1 (on 378007f): approve with
@@ -703,3 +946,10 @@ in the package source, not in this design record.
   configuration transfer, identity and health stated as demands of this
   class only; N1 a public source for ADTRAN SmartOS on prplWrt added to the
   sources.
+- **2026-10-19 — exploration (stage 2).** Matrix of 58 operations × 5
+  families sourced (§2, §10; 290 cells); 103 ◐ and ✗ cells listed as
+  verification items (§9); reuse survey drafted (§5); twelve open questions
+  (§11). Per-family tally (✓/◐/✗): prplOS 52/6/0, RDK-B 40/18/0, OpenWrt
+  38/17/3, RouterOS 36/17/5, FRITZ!OS 21/24/13. Charter notes carried: the
+  SmartOS reason out now follows its source's wording; the pre-review entry
+  above is restored to what the pre-review applied.
