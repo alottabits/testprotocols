@@ -244,8 +244,12 @@ point of including it.
   https://developer.rdkcentral.com/documentation/?p=9589.
 - FRITZ!OS: https://fritz.com/en/pages/interfaces (the TR-064 service list,
   documents for FRITZ!OS 8.20 and 8.25);
-  https://en.fritz.com/service/knowledge-base/dok/FRITZ-Box-7490/1635_Access-to-the-FRITZ-Box-via-Telnet-is-not-supported
-  (Telnet unsupported since FRITZ!OS 6.25).
+  https://fritz.com/en/apps/knowledge-base/FRITZ-Box-7490/1635_Access-to-the-FRITZ-Box-via-Telnet-is-not-supported/
+  (Telnet unsupported since FRITZ!OS 6.25; re-pointed 2026-10-19 from the
+  `en.fritz.com/service/knowledge-base/dok/...` path, which now redirects to
+  a page that does not exist; the live page renders its text client-side,
+  so the version statement is also cited from the archived copy
+  http://web.archive.org/web/20221204193844/https://en.avm.de/service/knowledge-base/dok/FRITZ-Box-7490/1635_Access-to-the-FRITZ-Box-via-Telnet-is-not-supported/).
 - RouterOS v7: https://mikrotik.com/download/changelogs (the v7 stable
   channel), as the managed-router charter cites.
 - ADTRAN SmartOS on prplWrt: the SmartRG (ADTRAN) release of SmartOS 11,
@@ -1308,7 +1312,7 @@ unknown path, an invalid value, a bus ACL denial), applied by the owning
 plugin at once with no commit step; a write that the model marks read-only
 is refused, not ignored. Normalisations: MAC addresses lower-cased, Wi-Fi
 and connection object instances re-numbered on add (the driver keys on the
-`Alias` it sets, never on the instance number), enumerations returned in the
+alias parameter it sets, never on the instance number), enumerations returned in the
 model's spelling. The driver's `source:` lines cite the plugin's data-model
 documentation page for the path and the observed output of the public
 example image where the exploration lifted a cell to ✓ (R56–R58, R52).
@@ -1397,6 +1401,83 @@ successor (§10); the driver cites the successor page where one exists.
 
 ## 9. Verification
 
+Stage 4 verifies this design statically and shape-only, as the sibling
+designs were: one reference driver per column in the private reference
+corpus, each a driver of the corpus's plugin shape with a `source:`
+line per method, pinned to the design PR's head, under the corpus's
+`conformance` check and strict type checking. No live device is driven.
+Columns are named by their position in §2.
+
+### What each reference driver must show
+
+- **Column 1 (trigger family 1):** every core member realised through the
+  data model, with the configuration store beneath it for the zone reads
+  (R30) and the inform trigger (R52); the three tiers implemented (voice
+  with the nominal cells below; mesh through the controller's data model;
+  USP through the agent's own files, `connected` as `None`). The TR-069
+  route is decided here (§6, verification items): the data-model object for
+  `set_acs` / `get_acs`, the client's bus object for `force_inform`, the
+  choice recorded in the review record.
+- **Column 2 (trigger family 2):** every core member realised through the
+  configuration store and the bus, with the staged-commit failure outcome
+  stated; the three access-point bus methods the wiki leaves undocumented
+  cited as source-only (R27, R28); no tier
+  satisfied: the voice and mesh members raise `NotSupportedError` with the
+  package feed and the peer-mesh source (R54–R58), the USP tier is absent
+  (R53 ✗).
+- **Column 3:** every core member realised through the data-model tool,
+  with the apply-parameter step named for the Wi-Fi writes and the shell
+  store cited for the three "shell only" cells (R16, R48, R49); the voice
+  and mesh tiers implemented against the optional components, each
+  `source:` beside the reference build's component list (§6, verification
+  items), and flipped to ◐ or ✗ where the component is absent; USP
+  implemented through the agent's file with `connected` as `None`.
+- **Column 4:** the read-rich, write-narrow column: every core member
+  present, with the thirteen ✗ cells raising `NotSupportedError` and the
+  twenty-four ◐ cells mapped with their limit or raising for the part the
+  column lacks (R1 mode changes, R5, R9, R13, R15, R17, R18, R27, R29, R30,
+  R33, R41, R43, R58 raise; R2, R3, R6, R7, R10, R11, R12, R16, R19, R20,
+  R21, R22, R31, R34, R36, R37, R40, R44, R47, R52, R53, R55, R57 map or
+  raise in part); the voice tier implemented (SIP accounts at ✓, FXS hook
+  state `None`); the mesh tier implemented from the topology JSON behind the
+  session-ID login (backhaul health in part, no steering); the USP tier
+  implemented from the service document with `connected` as `None`. No
+  white-box extension satisfied.
+- **Column 5:** every core member realised through the CLI with the silent
+  success cited; the five ✗ cells raising (R17, R53, R54, R55, R57); the
+  mesh tier implemented from the controller's access-point list (topology
+  without backhaul links; steering as the 802.11v suggestion; backhaul
+  health raising); the voice and USP tiers absent; the `wifi` package cited
+  per model for the Wi-Fi cells.
+
+### Reference-driver expectations per tier
+
+| Tier | Column 1 | Column 2 | Column 3 | Column 4 | Column 5 |
+| --- | --- | --- | --- | --- | --- |
+| `voice` (`VoiceGateway`) | implemented (nominal: a stub plugin; see Stated risks) | raises (PBX from a feed; nominal) | implemented (optional component; see verification items) | implemented; `hook_state` `None` | absent (R54–R55 ✗) |
+| `mesh` (`WifiMesh`) | implemented; backhaul health in part (R57 ◐) | absent (R56–R57 ✗; R58 is plain-AP roaming, raises) | implemented (controller source; nominal) | implemented; steering raises (R58 ✗) | implemented in part: topology without backhaul links, backhaul health raises (R57 ✗), steering as 802.11v suggestion |
+| `usp` (`UspAgent`) | implemented; `connected` `None` | absent (R53 ✗) | implemented; `connected` `None` | implemented; `connected` `None` | absent (R53 ✗) |
+
+A column whose driver does not satisfy a tier registers under `cpe_gateway`
+only; a column that satisfies a tier in part implements the tier with the
+documented per-method unsupported cases, as a core member with a ◐ cell
+does.
+
+### Stated risks — the nominal ◐ cells
+
+These ◐ cells support an operation in name: the family lists or packages
+something, but publishes no operation a driver can call. Each is a stage-4
+verification item with its consequence named; a flip reshapes nothing in
+this design, only the cell, the driver and the manifest row's Outcome.
+
+| Cells | What the cell rests on | If stage 4 finds no operation |
+| --- | --- | --- |
+| R54–R55, column 1 | a voice plugin repository that publishes no parameters | cells flip to ✗; the voice tier keeps a majority (columns 2, 3 and 4 by count) and stays built; the column-1 driver raises |
+| R54–R55, column 2 | a PBX from a package feed with its own configuration files, no store or bus model | cells flip to ✗; the voice tier stays built if three columns still support it, else drops to `tier-staged` with its rows re-outcomed |
+| R56–R58, column 3 | controller source whose porting to the reference platform is marked ongoing, no documentation of the paths | cells flip to ✗; the mesh tier keeps a majority on R56 and R58 (columns 1, 4 and 5) but loses it on R57 (columns 1 and 4 only), so the backhaul-health member becomes a per-column unsupported case on three columns, and the tier stays built |
+| R53, column 1 | build-profile and CI scripts, no agent-state documentation | the cell flips to ✗; the USP tier keeps columns 3 and 4 only and drops to `tier-staged` with its rows re-outcomed |
+| R52, columns 1–5 | an inform trigger on two columns, session state only on all five | no flip possible: the member set already omits the connection-request read (§6) |
+
 ### Verification items (exploration)
 
 Every ◐ and ✗ cell of §2 as it stands, by column and row id (the cell text
@@ -1408,6 +1489,19 @@ and its source stand in §2 and §10); stage 4 settles each as an explicit
 - **Column 3** (18): ◐ R16, R17, R20, R22, R29, R30, R33, R36, R37, R48, R49, R52, R53, R54, R55, R56, R57, R58; ✗ none
 - **Column 4** (37): ◐ R1, R2, R3, R6, R7, R10, R11, R12, R16, R19, R20, R21, R22, R31, R34, R36, R37, R40, R44, R47, R52, R53, R55, R57; ✗ R5, R9, R13, R15, R17, R18, R27, R29, R30, R33, R41, R43, R58
 - **Column 5** (22): ◐ R1, R4, R5, R7, R20, R23, R25, R28, R29, R30, R36, R38, R41, R47, R52, R56, R58; ✗ R17, R53, R54, R55, R57
+
+Three further items from §6: the TR-069 route on column 1, the reference
+build's component list on column 3, and the re-check of every cited URL
+when the drivers cite it.
+
+### Precise types in the corpus
+
+Every driver fills the records of §6 with the enum values named there and
+nothing looser; a family value outside an enum is a `lossy:` line with the
+mapping, never a widened field. The corpus's fakes emit each column's
+refusal shape (§8) so the negative path of every write is tested, and the
+`source:` line of every unsupported case names the document that
+establishes the absence.
 
 ## 10. Sources
 
@@ -1722,64 +1816,117 @@ in the package source, not in this design record.
 57. WiFi — <https://help.mikrotik.com/docs/spaces/ROS/pages/224559120/WiFi> — wifi package: Remote CAP property table — The remote-cap table has no link quality, rate or backhaul-type fields; CAPs attach over any IP/L2 path
 58. WiFi — <https://help.mikrotik.com/docs/spaces/ROS/pages/224559120/WiFi> — wifi package Steering `wnm`, `neighbor-group`, `transition-threshold`, `transition-request-count`, `transition-time` — Clients can be nudged to neighbor-group APs by (unsolicited, 7.21+) 802.11v BSS-transition requests and optionally de-authenticated; there is no per-client "steer to agent X" command
 
+### Citation maintenance (stage 3)
+
+- The charter's no-CLI citation for FRITZ!OS (the knowledge-base article
+  "Access to the FRITZ!Box via Telnet is not supported") moved from the
+  `en.fritz.com/service/knowledge-base/dok/...` path, which now redirects to
+  a missing page, to `fritz.com/en/apps/knowledge-base/...`; §1 cites the
+  live path and, because that page renders its text client-side, the
+  archived copy for the "since FRITZ!OS 6.25" statement. The interfaces index (https://fritz.com/en/pages/interfaces)
+  corroborates the point from the other side: it lists TR-064, UPnP IGD,
+  the HTTP session-ID login and the Smart Home REST API, and no shell or
+  command-line interface.
+- RouterOS: the legacy documentation wiki (`wiki.mikrotik.com`) carries a
+  "frozen" notice pointing at its successor, the help site
+  (https://help.mikrotik.com/docs); every entry in the column's list above
+  already cites the successor, and a driver's `source:` line cites it too.
+- RDK-B: the project wiki renders client-side; the entries above were read
+  through its export views, and a driver's `source:` line names the page
+  title beside the URL so a reader can find it when the rendering changes.
+- FRITZ!OS: several TR-064 service documents carry wrong metadata titles;
+  the entries above and the drivers cite the document's file name and the
+  action, not the metadata title.
+
 ## 11. Open questions
 
-Carried from the charter and raised by the matrix; the design (stage 3)
-answers each. Columns are named by their position in §2.
+No open questions at the design stage; the verification items are §9. The
+twelve questions the exploration raised are answered in §6, each with the
+condition that would overturn the answer:
 
-1. **Does ◐ count as support?** The evidence bar says "supported"; the matrix
-   grades a caveated cell ◐. Counting ✓ only: 33 core candidates (R1, R2, R3,
-   R4, R6, R8, R9, R11, R12, R13, R15, R16, R18, R22, R23, R24, R25, R26, R31,
-   R32, R33, R34, R35, R40, R41, R42, R43, R45, R46, R48, R49, R50, R51); 9
-   tier candidates on a majority without both triggers (R10, R14, R19, R21,
-   R27, R28, R38, R39, R44); 16 below the majority (R5, R7, R17, R20, R29, R30,
-   R36, R37, R47, R52, R53, R54, R55, R56, R57, R58). Counting ✓ and ◐ as
-   support: 55 core candidates, 3 tier candidates (R53, R56, R57), 0 below
-   (none); the rows that change category are R5, R7, R10, R14, R17, R19, R20,
-   R21, R27, R28, R29, R30, R36, R37, R38, R39, R44, R47, R52, R54, R55, R58.
-   Mesh (R56–R58), USP (R53), voice (R54–R55), zone defaults (R30), automatic
-   port mapping (R36–R37) and provisioning mode (R7) all hinge on this reading.
-2. **The WAN connection object's shape** (R1–R7, R9–R10): one object with a
-   mode and mode-specific fields, or one object per mode; and whether link
-   state (R8) stays on `port_status`.
-3. **DHCP server placement** (R11–R14): extend `interface_dhcp`, extend the
-   provisioner's `dhcp_server`, or a new gateway-side capability.
-4. **Port forwards** (R31–R32): `firewall` (per-mapping, gateway tier) or
-   `appliance_nat` (list-replacing); one shape for both archetypes.
-5. **Host filtering** (R35): a new capability, or `packet_filter` rules with a
-   schedule; all five columns publish both a per-host block and a schedule, in
-   five different shapes (§2 R35).
-6. **Remote management**: TR-069 configuration (R51) is ✓ on all five columns;
-   the inform trigger (R52) is ◐ on every column (a session can be provoked,
-   its connection-request state read nowhere), so `tr069_client.force_inform`
-   needs a stated meaning or becomes a per-family unsupported case. USP (R53)
-   is ◐ on columns 1, 3 and 4 (configured through the agent's own files, agent
-   state undocumented) and ✗ on columns 2 and 5.
-7. **Mesh and voice tiers** (D7): topology (R56) is ✓ on columns 1 and 4 and ◐
-   on column 3; backhaul health (R57) is ◐ on columns 1, 3 and 4; steering
-   (R58) is ✓ on column 1 and ◐ on columns 2, 3 and 5. Voice (R54–R55) has no
-   column pair at ✓. Both tiers depend on question 1. `wifi_mesh` exists on
-   `main` as the reuse candidate for R56–R58.
-8. **`CpeDevice` supersession mechanics** (D6): the new class name, the
-   `linux_cpe` deprecation row (kind `class`), the members the new class drops
-   (`hw_console`, `ip_interface`, `ip_routing`, `conntrack`, host `nat`).
-9. **Health reads** (R40): no column publishes a load average under that name;
-   columns 1 and 3 publish a CPU-usage figure, column 2 the kernel load
-   averages, column 5 a CPU-load figure, column 4 uptime only.
-   `device_management.get_load_avg` needs a stated meaning.
-10. **Source maintenance**: one column's documentation site carries a "frozen"
-    banner pointing at a successor site; another's wiki renders client-side;
-    one vendor's service documents carry wrong metadata titles; the charter's
-    no-CLI knowledge-base citation now redirects. Stage 3 re-points what it can
-    and records the rest (§10).
-11. **Reference-image inclusion** (column 3): several ✓ cells rest on optional
-    manager components whose presence on the reference build is not stated by
-    the release page; stage 4 cites the build's component list or downgrades
-    (§10, column 3 entries 1, 3, 5–8).
-12. **Two CWMP clients on column 1**: the observed image ships one client (the
-    substrate bus object of R52), the data-model site documents another; the
-    driver's TR-069 route (substrate configuration or data model) is chosen at
-    stage 4.
+1. Does ◐ count as support? — Yes (D9, maintainer 2026-10-19): §3 and §4
+   apply it; every ◐ cell stays a verification item (§9).
+2. The WAN connection object's shape — §6, "The WAN connection": one object,
+   a mode, mode-specific optional parts; link state stays on `port_status`.
+3. DHCP server placement — §6, "DHCP server": `interface_dhcp` as-is.
+4. Port forwards — §6, "Port forwards": the per-mapping `firewall` shape;
+   the appliance keeps its list-replacing one.
+5. Host filtering — §6, "Host filtering": a new capability with a weekly
+   schedule.
+6. Remote management — §6, "Remote management": the ACS configuration as an
+   extend, the inform's meaning stated, no connection-request read, USP as
+   a tier.
+7. Mesh and voice tiers — §6, "Mesh and voice": both built, the nominal
+   cells named (§9 Stated risks).
+8. `CpeDevice` supersession — §6, "Supersession": new class and key, the old
+   shape intact and deprecated as a `class` row.
+9. Health reads — §6, "Health": `DeviceHealth` split with `read_cpu_load`.
+10. Source maintenance — §6, "Decided as verification items"; §10 re-points
+    what it can.
+11. Reference-image inclusion — §6, "Decided as verification items".
+12. Two CWMP clients on column 1 — §6, "Decided as verification items".
+
+## 12. Landing manifest
+
+Every symbol change the body proposes. `core` and `tier` rows land on this
+design's `archetype:` PR at stage 4 with changelog entries citing this
+document and the row id; a `tier-staged` row would become a `GAPS.md`
+pointer at merge (none at the design stage). Outcomes record the design
+review rounds; every row starts at `pending review`.
+
+| Id | Kind | Symbol | Mechanism | Placement | Breaking | Outcome |
+| --- | --- | --- | --- | --- | --- | --- |
+| M1 | new archetype | `testprotocols.devices.cpe_gateway:CpeGatewayDevice` (registered `cpe_gateway`) | archetype | core | no | pending review |
+| M2 | deprecation | `testprotocols.devices.cpe:CpeDevice` (registry key `linux_cpe`): kept intact, marked deprecated, `class` row; replacement `CpeGatewayDevice` / `cpe_gateway`; period one MINOR and six months (§6) | deprecate | core | no | pending review |
+| M3 | new tier | `testprotocols.devices.cpe_gateway:CpeGatewayVoiceTier` (registered `cpe_gateway_voice`; `voice: VoiceGateway`) | archetype | tier — voice | no | pending review |
+| M4 | new tier | `testprotocols.devices.cpe_gateway:CpeGatewayMeshTier` (registered `cpe_gateway_mesh`; `wifi_mesh: WifiMesh`) | archetype | tier — mesh | no | pending review |
+| M5 | new tier | `testprotocols.devices.cpe_gateway:CpeGatewayUspTier` (registered `cpe_gateway_usp`; `usp_agent: UspAgent`) | archetype | tier — usp | no | pending review |
+| M6 | new protocol | `testprotocols.wan_connection:WanConnection` (`set_wan_connection`, `get_wan_connection`, `list_wan_connections`, `get_wan_state`, `reset_session`) | new capability | core | no | pending review |
+| M7 | new models | `testprotocols.models.cpe_gateway:WanMode`, `WanIpv6Mode`, `WanStatus`, `ProvisioningMode`, `PppoeCredentials`, `StaticAddressing`, `WanVlan`, `WanIpv6`, `WanConnectionConfig`, `WanConnectionState` | new capability | core | no | pending review |
+| M8 | new protocol | `testprotocols.dns_forwarder:DnsForwarder` (`set_upstreams`, `get_upstreams`, `add_host_override`, `remove_host_override`, `list_host_overrides`, `set_rebind_protection`, `get_rebind_protection`) | new capability | core | no | pending review |
+| M9 | new models | `testprotocols.models.cpe_gateway:DnsUpstream`, `DnsHostOverride` | new capability | core | no | pending review |
+| M10 | new protocol | `testprotocols.l2_bridge:L2Bridge` (`create_bridge`, `delete_bridge`, `list_bridges`, `get_bridge`, `add_member`, `remove_member`, `get_members`); realises the `GAPS.md` 2026-05-02 entry's membership half | new capability | core | no | pending review |
+| M11 | new models | `testprotocols.models.cpe_gateway:BridgeMemberKind`, `BridgeMember`, `BridgeConfig`, `BridgeMemberState` (importing `StpMode`, `StpPortState` from `models/l2_common.py`) | new capability | core | no | pending review |
+| M12 | GAPS entry | `GAPS.md` 2026-05-02 `L2Bridge`: closed for membership by M10–M11; the STP tuning and the forwarding-table read stay open under a dated note, the table read as the `L2BridgeWhiteBox` candidate (M34) | record | core | no | pending review |
+| M13 | new protocol | `testprotocols.host_table:HostTable` (`list_hosts`, `get_host`) | new capability | core | no | pending review |
+| M14 | new models | `testprotocols.models.cpe_gateway:HostAttachment`, `LanHost` | new capability | core | no | pending review |
+| M15 | new protocol | `testprotocols.host_filter:HostFilter` (`block_host`, `unblock_host`, `get_host_block`, `list_host_blocks`) | new capability | core | no | pending review |
+| M16 | new models | `testprotocols.models.cpe_gateway:Weekday`, `WeeklySchedule`, `HostBlock` | new capability | core | no | pending review |
+| M17 | new protocol | `testprotocols.auto_port_mapping:AutoPortMapping` (`set_enabled`, `get_enabled`, `list_mappings`) | new capability | core | no | pending review |
+| M18 | new models | `testprotocols.models.cpe_gateway:AutoMappingProtocol`, `AutoPortMappingEntry` | new capability | core | no | pending review |
+| M19 | new protocol | `testprotocols.admin_credential:AdminCredential` (`set_password`, `list_accounts`) | new capability | core | no | pending review |
+| M20 | new protocol (split) | `testprotocols.device_health:DeviceHealth` (`is_online`, `get_seconds_uptime`, `read_cpu_load`, `read_memory_utilization`, `read_running_processes`, `read_log_entries`), inherited by `DeviceManagement` | new capability | core | no | pending review |
+| M21 | protocol extension | `testprotocols.device_management:DeviceManagement.read_cpu_load` (through the inherited base, M20); `get_load_avg` unchanged | extend | core | yes | pending review |
+| M22 | new model | `testprotocols.models.device_management:CpuLoad` (`percent: float \| None`, `load_average_1m: float \| None`) | new capability | core | no | pending review |
+| M23 | SPLITS entry | `DeviceHealth` split off `DeviceManagement` so a closed product composes the health reads without the host-shaped members; follows `GAPS.md` 2026-06-11 and the `Router` → `RoutingRead` precedent | record | core | no | pending review |
+| M24 | GAPS entry | update to `GAPS.md` 2026-06-11 (appliance health): the read-only base landed as M20; the appliance composes it when its trigger lands | record | core | no | pending review |
+| M25 | protocol extension | `testprotocols.device_info:DeviceInfo`: properties `manufacturer`, `serial_number`, `software_version`, `oui`, `hardware_version`; module docstring's extension point taken | extend | core | yes | pending review |
+| M26 | protocol extension | `testprotocols.device_lifecycle:DeviceLifecycle`: `upgrade_firmware`, `export_configuration`, `import_configuration`; module docstring generalised from CPE to any device | extend | core | yes | pending review |
+| M27 | new model | `testprotocols.models.cpe_gateway:ImageSource` (`url`, `checksum: str \| None`) | new capability | core | no | pending review |
+| M28 | method rename | `testprotocols.device_lifecycle:DeviceLifecycle.verify_cpe_is_booting` → `verify_booting`, both declared for the period, the old delegating; lands with M26 | deprecate | core | no | pending review |
+| M29 | protocol extension | `testprotocols.tr069_client:Tr069Client`: `set_acs`, `get_acs`; `force_inform` docstring states the per-column meaning (§6) | extend | core | yes | pending review |
+| M30 | new model | `testprotocols.models.tr069:AcsConfig` | new capability | core | no | pending review |
+| M31 | protocol extension | `testprotocols.ntp_config:NtpConfig.get_sync_state` | extend | core | yes | pending review |
+| M32 | new models | `testprotocols.models.cpe_gateway:NtpSyncStatus`, `NtpSyncState` | new capability | core | no | pending review |
+| M33 | protocol extension | `testprotocols.wifi_onboarding:WifiOnboarding`: `cancel_wps`, `get_wps_state` | extend | core | yes | pending review |
+| M34 | LEVELS entry | the white-box candidates of §7 recorded as candidates, not seeded (`WanConnectionWhiteBox`, `L2BridgeWhiteBox`, `HostFilterWhiteBox`, `DnsForwarderWhiteBox`, `DeviceHealthWhiteBox`, `Tr069ClientWhiteBox`, `UspAgentWhiteBox`, `InterfaceDhcpWhiteBox`), with the columns expected to satisfy (1, 2, 3, 5) and not (4) | record | core | no | pending review |
+| M35 | new models | `testprotocols.models.wifi:WpsSessionState`, `WpsMethod`, `WpsState` | new capability | core | no | pending review |
+| M36 | composition | `testprotocols.wan_link_admin:WanLinkAdmin` on `CpeGatewayDevice`; module docstring generalised at stage 4 (the lever is published by four of five gateway columns) | reuse | core | no | pending review |
+| M37 | SPLITS entry | `WanLinkAdmin` composed by a closed product: the 2026-06-12 rationale ("implemented only by the Linux twin") narrowed to "not by API-managed appliances"; the port-forward shapes (`Firewall` per-mapping for gateways, `ApplianceNat` list-replacing for appliances) recorded as two shapes for two device classes | record | core | no | pending review |
+| M38 | composition | `testprotocols.port_status:PortStatus`, `testprotocols.dhcp_client:DhcpClient`, `testprotocols.interface_dhcp:InterfaceDhcp`, `testprotocols.syslog_config:SyslogConfig`, `testprotocols.network_endpoint:NetworkEndpoint` on `CpeGatewayDevice` | reuse | core | no | pending review |
+| M39 | composition | `testprotocols.wifi_radio:WifiRadio`, `testprotocols.wifi_bss:WifiBss`, `testprotocols.wifi_stations:WifiStations`, `testprotocols.wifi_transitions:WifiTransitions`, `testprotocols.firewall:Firewall`, `testprotocols.firewall_zones:FirewallZones` on `CpeGatewayDevice` | reuse | core | no | pending review |
+| M40 | new protocol (tier) | `testprotocols.voice_gateway:VoiceGateway` (`set_sip_account`, `remove_sip_account`, `list_sip_accounts`, `get_sip_registration`, `list_fxs_lines`) | new capability | tier — voice | no | pending review |
+| M41 | new models (tier) | `testprotocols.models.voice:SipRegistrationState`, `FxsHookState`, `SipAccount`, `SipRegistration`, `FxsLine` | new capability | tier — voice | no | pending review |
+| M42 | composition (tier) | `testprotocols.wifi_mesh:WifiMesh` on `CpeGatewayMeshTier` | reuse | tier — mesh | no | pending review |
+| M43 | new field (tier) | `testprotocols.models.wifi:WifiMeshNode.backhaul_link` (`WifiMeshLink \| None = None`) | defaulted field | tier — mesh | no | pending review |
+| M44 | new protocol (tier) | `testprotocols.usp_agent:UspAgent` (`set_controller`, `get_controller`, `get_agent_state`) | new capability | tier — usp | no | pending review |
+| M45 | new models (tier) | `testprotocols.models.cpe_gateway:UspTransport`, `UspController`, `UspAgentState` | new capability | tier — usp | no | pending review |
+| M46 | DEPRECATIONS entry | the `class` row of M2 in `packages/testprotocols/DEPRECATIONS.md` (`next release` / `next release + 6 months`), beside the *Deprecated* changelog entry; the M28 `member` row | record | core | no | pending review |
+| M47 | GAPS entry | `CpeGatewayDevice` design record and matrix (this document); the dropped members `wifi_rf` and `network_probe` with their trigger (a sourced matrix row) | record | core | no | pending review |
+
+M12's note keeps the unrealised half of the `L2Bridge` entry (STP tuning,
+forwarding-table read) visible; M24 and M37 update records this design
+relies on rather than contradicts.
 
 ## Review record
 
@@ -1824,3 +1971,12 @@ answers each. Columns are named by their position in §2.
   exploration (a fresh reviewer) re-graded R52 and R53 on column 1 to ◐,
   removed a symbol absent from `main` from §5, and neutralised §9, §11 and this
   entry.
+- **2026-10-19 — design opened (stage 3).** §3–§8, §11 and §12 written on
+  the exploration's matrix under D9 (◐ counts as support): 55 of 58
+  operations on the core, three tiers built in this pass (`voice`, `mesh`,
+  `usp`), nothing `tier-staged`. Nine new capabilities (seven core, one
+  split, two tier), five protocol extensions, one defaulted field, two
+  deprecations (the superseded class, one method rename), eight reuse
+  compositions, and seven tracking-file records; 47 manifest rows, every
+  Outcome `pending review`. §9 names the nominal ◐ cells as the design's
+  stated risk. The charter's knowledge-base citation re-pointed (§10).
