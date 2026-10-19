@@ -98,10 +98,11 @@ directly is a separate request.
   The sibling closed network product. Shared services — NAT, zone firewall,
   DHCP server, on-box probes, time synchronisation, log export — are shared
   by **reuse of the same capability protocols**, not by one archetype
-  extending the other; software lifecycle, configuration transfer, identity
-  and health are demands both charters carry and whose placement each design
-  decides, so the two designs record the dependency on each other's rows
-  rather than assume a shared protocol. The router publishes what the gateway does
+  extending the other; software image lifecycle and configuration transfer
+  are demands both charters carry and whose placement each design decides,
+  so the two designs record the dependency on each other's rows rather than
+  assume a shared protocol. Identity and health are demands of this class
+  only (I25, I26); the router charter does not list them. The router publishes what the gateway does
   not: routing tables and peers, first-hop redundancy, own-traffic capture,
   QoS by class, operator authentication against a central server. The gateway
   publishes what the router does not: the WAN connection as an access object
@@ -246,6 +247,10 @@ point of including it.
   (Telnet unsupported since FRITZ!OS 6.25).
 - RouterOS v7: https://mikrotik.com/download/changelogs (the v7 stable
   channel), as the managed-router charter cites.
+- ADTRAN SmartOS on prplWrt: the SmartRG (ADTRAN) release of SmartOS 11,
+  "which realizes the principles and best practices established by the
+  prplWrt project":
+  https://www.nasdaq.com/press-release/smartrg-first-to-deliver-open-cpe-solutions-2019-10-23
 
 ### Demand
 
@@ -279,8 +284,8 @@ candidate on the trigger-family definitions above.
   request's I26 row corrected the same way); the LAN port-state reuse
   candidate is `port_status`, not `switch_ports` (I9 row corrected); the
   appliance's NAT member is `appliance_nat`; `ip_routing` is a fourth host
-  lever; lifecycle, identity and health are demands both charters carry, not
-  shared protocols; sources for every version line added; the evidence-bar
+  lever; software lifecycle and configuration transfer are demands both
+  charters carry, not shared protocols; sources for every version line added; the evidence-bar
   paraphrase aligned with the README; one line wrapped. One finding
   rejected: `tr069_client` is a member of `CpeDevice` (`devices/cpe.py`).
 - **2026-10-19 — charter review, round 1 (on 378007f): approve with
@@ -292,3 +297,9 @@ candidate on the trigger-family definitions above.
   in the PR body; N2 sources added for every version line; N3 OpenWrt stated
   as the 24.10 line, old-stable since 25.12, with a 25.12 revision allowed by
   dated note.
+- **2026-10-19 — charter review, round 2 (on a97cde5): approve with
+  conditions (C1, N1).** Applied: C1 the shared-demand sentence with the
+  managed-router charter restricted to software image lifecycle and
+  configuration transfer, identity and health stated as demands of this
+  class only; N1 a public source for ADTRAN SmartOS on prplWrt added to the
+  sources.
