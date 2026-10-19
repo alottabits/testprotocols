@@ -291,72 +291,72 @@ it stays.
 | Id | Operation | prplOS 4.0 line | OpenWrt 24.10 line + icwmp | RDK-B 2025q4+ | FRITZ!OS 8.20+ | RouterOS v7 |
 | --- | --- | :--: | :--: | :--: | :--: | :--: |
 | | **WAN connection** |  |  |  |  |  |
-| R1 | Set the WAN connection mode (DHCP, static, PPPoE, IPoE) | ? | ? | ? | ? | ? |
-| R2 | Read WAN connection state, address and lease | ? | ? | ? | ? | ? |
-| R3 | Set PPPoE credentials and service name | ? | ? | ? | ? | ? |
-| R4 | Reset the PPPoE session | ? | ? | ? | ? | ? |
-| R5 | Set the WAN VLAN id and priority | ? | ? | ? | ? | ? |
-| R6 | Set the IPv6 WAN mode; read the delegated prefix | ? | ? | ? | ? | ? |
-| R7 | Read the provisioning mode (v4, v6, dual) | ? | ? | ? | ? | ? |
-| R8 | Read WAN link state | ? | ? | ? | ? | ? |
-| R9 | Administratively disable / enable the WAN | ? | ? | ? | ? | ? |
-| R10 | Renew / release the WAN DHCP lease | ? | ? | ? | ? | ? |
+| R1 | Set the WAN connection mode (DHCP, static, PPPoE, IPoE) | ? | ✓ [1] | ? | ? | ? |
+| R2 | Read WAN connection state, address and lease | ? | ✓ [2] | ? | ? | ? |
+| R3 | Set PPPoE credentials and service name | ? | ✓ [3] | ? | ? | ? |
+| R4 | Reset the PPPoE session | ? | ✓ [4] | ? | ? | ? |
+| R5 | Set the WAN VLAN id and priority | ? | ◐ VLAN id via `8021q` `vid`; 802.1p priority mapping undocumented [5] | ? | ? | ? |
+| R6 | Set the IPv6 WAN mode; read the delegated prefix | ? | ✓ [6] | ? | ? | ? |
+| R7 | Read the provisioning mode (v4, v6, dual) | ? | ◐ no mode field; derive from wan/wan6 interface status [7] | ? | ? | ? |
+| R8 | Read WAN link state | ? | ✓ [8] | ? | ? | ? |
+| R9 | Administratively disable / enable the WAN | ? | ✓ [9] | ? | ? | ? |
+| R10 | Renew / release the WAN DHCP lease | ? | ◐ wiki shows `ifdown`/`ifup` only; `renew` method only in netifd source [10] | ? | ? | ? |
 | | **LAN services** |  |  |  |  |  |
-| R11 | Configure the DHCP server pool and lease time | ? | ? | ? | ? | ? |
-| R12 | Configure DHCP options | ? | ? | ? | ? | ? |
-| R13 | Configure static leases | ? | ? | ? | ? | ? |
-| R14 | Read active leases | ? | ? | ? | ? | ? |
-| R15 | Configure DNS forwarder upstreams | ? | ? | ? | ? | ? |
-| R16 | Configure local host overrides | ? | ? | ? | ? | ? |
-| R17 | Configure DNS rebind protection | ? | ? | ? | ? | ? |
-| R18 | Configure bridge membership (ports, wireless networks) | ? | ? | ? | ? | ? |
-| R19 | Read bridge and port membership | ? | ? | ? | ? | ? |
-| R20 | Configure a guest segment | ? | ? | ? | ? | ? |
-| R21 | Read LAN port status (link, speed, duplex) | ? | ? | ? | ? | ? |
+| R11 | Configure the DHCP server pool and lease time | ? | ✓ [11] | ? | ? | ? |
+| R12 | Configure DHCP options | ? | ✓ [12] | ? | ? | ? |
+| R13 | Configure static leases | ? | ✓ [13] | ? | ? | ? |
+| R14 | Read active leases | ? | ◐ dnsmasq leases are a file; ubus `dhcp ipv4leases` is odhcpd-only [14] | ? | ? | ? |
+| R15 | Configure DNS forwarder upstreams | ? | ✓ [15] | ? | ? | ? |
+| R16 | Configure local host overrides | ? | ✓ [16] | ? | ? | ? |
+| R17 | Configure DNS rebind protection | ? | ✓ [17] | ? | ? | ? |
+| R18 | Configure bridge membership (ports, wireless networks) | ? | ✓ [18] | ? | ? | ? |
+| R19 | Read bridge and port membership | ? | ◐ UCI `ports` gives config; live membership via `bridge` shell [19] | ? | ? | ? |
+| R20 | Configure a guest segment | ? | ✓ [20] | ? | ? | ? |
+| R21 | Read LAN port status (link, speed, duplex) | ? | ◐ `link` via network.device status; speed/duplex need ethtool/swconfig [21] | ? | ? | ? |
 | | **Wi-Fi access points** |  |  |  |  |  |
-| R22 | Configure radio (band, channel, width, power, enable) | ? | ? | ? | ? | ? |
-| R23 | Read radio state | ? | ? | ? | ? | ? |
-| R24 | Configure a BSS (SSID, security mode, passphrase, hidden) | ? | ? | ? | ? | ? |
-| R25 | Read BSS state | ? | ? | ? | ? | ? |
-| R26 | Read connected stations (signal, rate) | ? | ? | ? | ? | ? |
-| R27 | Disconnect a station | ? | ? | ? | ? | ? |
-| R28 | Start / cancel push-button or PIN onboarding; read its state | ? | ? | ? | ? | ? |
-| R29 | Configure band steering and 11k/v/r | ? | ? | ? | ? | ? |
+| R22 | Configure radio (band, channel, width, power, enable) | ? | ✓ [22] | ? | ? | ? |
+| R23 | Read radio state | ? | ✓ [23] | ? | ? | ? |
+| R24 | Configure a BSS (SSID, security mode, passphrase, hidden) | ? | ✓ [24] | ? | ? | ? |
+| R25 | Read BSS state | ? | ✓ [25] | ? | ? | ? |
+| R26 | Read connected stations (signal, rate) | ? | ✓ [26] | ? | ? | ? |
+| R27 | Disconnect a station | ? | ◐ `del_client` only in hostapd ubus source, no wiki page [27] | ? | ? | ? |
+| R28 | Start / cancel push-button or PIN onboarding; read its state | ? | ◐ PBC via `wps_pushbutton`/hostapd_cli; `wps_start`/`wps_status` source-only [28] | ? | ? | ? |
+| R29 | Configure band steering and 11k/v/r | ? | ✓ [29] | ? | ? | ? |
 | | **Security posture** |  |  |  |  |  |
-| R30 | Read zone defaults and zone membership | ? | ? | ? | ? | ? |
-| R31 | Add / remove a port forward | ? | ? | ? | ? | ? |
-| R32 | Read the port-forward table | ? | ? | ? | ? | ? |
-| R33 | Add / remove an egress filter rule | ? | ? | ? | ? | ? |
-| R34 | Read filter rules | ? | ? | ? | ? | ? |
-| R35 | Block a host, on demand or on a schedule | ? | ? | ? | ? | ? |
-| R36 | Enable / disable automatic port mapping (UPnP IGD, PCP) | ? | ? | ? | ? | ? |
-| R37 | Read automatic port mappings | ? | ? | ? | ? | ? |
+| R30 | Read zone defaults and zone membership | ? | ✓ [30] | ? | ? | ? |
+| R31 | Add / remove a port forward | ? | ✓ [31] | ? | ? | ? |
+| R32 | Read the port-forward table | ? | ✓ [32] | ? | ? | ? |
+| R33 | Add / remove an egress filter rule | ? | ✓ [33] | ? | ? | ? |
+| R34 | Read filter rules | ? | ✓ [34] | ? | ? | ? |
+| R35 | Block a host, on demand or on a schedule | ? | ✓ [35] | ? | ? | ? |
+| R36 | Enable / disable automatic port mapping (UPnP IGD, PCP) | ? | ✓ [36] | ? | ? | ? |
+| R37 | Read automatic port mappings | ? | ◐ lease file only; no documented read command [37] | ? | ? | ? |
 | | **Host table** |  |  |  |  |  |
-| R38 | Read the host table (address, name, attachment) | ? | ? | ? | ? | ? |
+| R38 | Read the host table (address, name, attachment) | ? | ◐ no unified host table; DHCP leases + `ip neigh`/LuCI hints [38] | ? | ? | ? |
 | | **Device operations** |  |  |  |  |  |
-| R39 | Read identity (manufacturer, model, serial, OUI, software version) | ? | ? | ? | ? | ? |
-| R40 | Read uptime, load, memory | ? | ? | ? | ? | ? |
-| R41 | Read process state | ? | ? | ? | ? | ? |
-| R42 | Read device logs | ? | ? | ? | ? | ? |
-| R43 | Configure log export | ? | ? | ? | ? | ? |
-| R44 | Configure NTP servers; read sync state | ? | ? | ? | ? | ? |
-| R45 | Upgrade firmware from an image | ? | ? | ? | ? | ? |
-| R46 | Factory reset | ? | ? | ? | ? | ? |
-| R47 | Reboot; read readiness | ? | ? | ? | ? | ? |
-| R48 | Export configuration | ? | ? | ? | ? | ? |
-| R49 | Import configuration | ? | ? | ? | ? | ? |
-| R50 | Set the local administrator credential | ? | ? | ? | ? | ? |
+| R39 | Read identity (manufacturer, model, serial, OUI, software version) | ? | ◐ `system board` lacks serial, manufacturer, OUI [39] | ? | ? | ? |
+| R40 | Read uptime, load, memory | ? | ✓ [40] | ? | ? | ? |
+| R41 | Read process state | ? | ✓ [41] | ? | ? | ? |
+| R42 | Read device logs | ? | ✓ [42] | ? | ? | ? |
+| R43 | Configure log export | ? | ✓ [43] | ? | ? | ? |
+| R44 | Configure NTP servers; read sync state | ? | ◐ servers via `system.ntp.server`; sync state needs ntp-utils `ntpq` [44] | ? | ? | ? |
+| R45 | Upgrade firmware from an image | ? | ✓ [45] | ? | ? | ? |
+| R46 | Factory reset | ? | ✓ [46] | ? | ? | ? |
+| R47 | Reboot; read readiness | ? | ◐ `reboot` documented; readiness inferred from `system info` uptime, no flag [47] | ? | ? | ? |
+| R48 | Export configuration | ? | ✓ [48] | ? | ? | ? |
+| R49 | Import configuration | ? | ✓ [49] | ? | ? | ? |
+| R50 | Set the local administrator credential | ? | ✓ [50] | ? | ? | ? |
 | | **Remote management** |  |  |  |  |  |
-| R51 | Configure ACS URL, credentials and periodic inform | ? | ? | ? | ? | ? |
-| R52 | Trigger an inform; read connection-request state | ? | ? | ? | ? | ? |
-| R53 | Configure the USP controller endpoint and transport; read agent state | ? | ? | ? | ? | ? |
+| R51 | Configure ACS URL, credentials and periodic inform | ? | ✓ [51] | ? | ? | ? |
+| R52 | Trigger an inform; read connection-request state | ? | ◐ `status` reports session state, not connection-request state [52] | ? | ? | ? |
+| R53 | Configure the USP controller endpoint and transport; read agent state | ? | ✗ no USP agent (obuspa) in 24.10 packages/luci/routing/telephony feeds [53] | ? | ? | ? |
 | | **Voice** |  |  |  |  |  |
-| R54 | Configure a SIP account; read registration state | ? | ? | ? | ? | ? |
-| R55 | Read FXS line state | ? | ? | ? | ? | ? |
+| R54 | Configure a SIP account; read registration state | ? | ◐ Asterisk PBX config files + CLI; no UCI/ubus voice model [54] | ? | ? | ? |
+| R55 | Read FXS line state | ? | ◐ asterisk-chan-lantiq Lantiq SoC FXS only; state via Asterisk CLI [55] | ? | ? | ? |
 | | **Mesh controller** |  |  |  |  |  |
-| R56 | Read mesh topology (agents, backhaul links) | ? | ? | ? | ? | ? |
-| R57 | Read backhaul link health | ? | ? | ? | ? | ? |
-| R58 | Steer a client to another agent | ? | ? | ? | ? | ? |
+| R56 | Read mesh topology (agents, backhaul links) | ? | ✗ no EasyMesh controller; 802.11s is a peer mesh [56] | ? | ? | ? |
+| R57 | Read backhaul link health | ? | ✗ 802.11s peer links via `iw station dump`, not EasyMesh backhaul [57] | ? | ? | ? |
+| R58 | Steer a client to another agent | ? | ◐ usteer roams clients between plain APs; no EasyMesh agents [58] | ? | ? | ? |
 
 ## 10. Sources
 
@@ -369,6 +369,65 @@ in the package source, not in this design record.
 ### prplOS 4.0 line
 
 ### OpenWrt 24.10 line with icwmp
+
+1. IPv4 configuration — <https://openwrt.org/docs/guide-user/network/ipv4/configuration> — Protocol "static" / Protocol "dhcp" (`proto`, `ipaddr`, `netmask`, `gateway`) — option tables for `proto static` and `proto dhcp` on the WAN interface; PPPoE is `proto pppoe` on the WAN protocols page; IPoE = dhcp/static
+2. ubus (techref) — <https://openwrt.org/docs/techref/ubus> — `ubus call network.interface.wan status` (`up`, `pending`, `uptime`, `address`, `route`, `data`) — status call returns interface up/pending state, uptime and address list (lease data in `data`; `ifstatus wan6` shows prefix lifetimes on the IPv6 page)
+3. WAN interface protocols — <https://openwrt.org/docs/guide-user/network/wan/wan_interface_protocols> — `pppoe`: `username`, `password`, `service`, `ac` — the PPPoE option table names username, password and service (plus ac, keepalive, padi_*)
+4. Network configuration /etc/config/network — <https://openwrt.org/docs/guide-user/network/network_configuration> — `ifdown <name>` / `ifup <name>` (`ubus list network.interface.*`) — interfaces are brought down and up individually with ifdown/ifup, which restarts the PPPoE session
+5. ISP configurations — <https://openwrt.org/docs/guide-user/network/wan/isp-configurations> — `config device` / `option type '8021q'` / `option ifname 'wan'` / `option vid '…'`; `option device 'wan.<vid>'` — many ISP examples define a tagged WAN device by `type 8021q` + `vid` (or legacy `eth0.7`); no `ingress/egress_qos_mapping` on any wiki page
+6. IPv6 configuration — <https://openwrt.org/docs/guide-user/network/ipv6/configuration> — Protocol "dhcpv6": `reqaddress`, `reqprefix`; LAN `ip6assign`; `ifstatus wan6` → `ipv6-prefix` — wan6 is `proto dhcpv6` with `reqprefix` (auto/no/1-64), and `ifstatus wan6` lists the delegated `ipv6-prefix` with lifetimes and `assigned` sub-prefixes
+7. ubus (techref) — <https://openwrt.org/docs/techref/ubus> — `network.interface.<name> status` (`up`, `address`) — there is no provisioning-mode object; v4/v6/dual is inferred from which of wan/wan6 is up with addresses
+8. ubus (techref) — <https://openwrt.org/docs/techref/ubus> — `ubus call network.device status '{"name":"eth0"}'` → `up`, `link`, `mtu`, `macaddr`, `statistics` — device status reports the carrier `link` flag and counters for the WAN device
+9. Network configuration /etc/config/network — <https://openwrt.org/docs/guide-user/network/network_configuration> — interface options `disabled`, `auto`; `ifup`/`ifdown` — interface section has `disabled` and `auto` options; ifup/ifdown change the running state
+10. Network configuration /etc/config/network — <https://openwrt.org/docs/guide-user/network/network_configuration> — `ifdown wan` ; `ifup wan` — lease release/re-acquire is documented only as ifdown then ifup (netifd's `network.interface.<name> renew` exists in ubus.c but no wiki page shows it)
+11. DHCP and DNS configuration — <https://openwrt.org/docs/guide-user/base-system/dhcp> — `config dhcp`: `start`, `limit`, `leasetime`, `interface`, `ignore` — pool section defines offset, size and lease time per interface
+12. DHCP and DNS configuration — <https://openwrt.org/docs/guide-user/base-system/dhcp> — `list dhcp_option '3,192.168.1.1'`, `dhcp_option_force` — per-pool DHCP options in `code,value` or `option:name,value` form
+13. DHCP and DNS configuration — <https://openwrt.org/docs/guide-user/base-system/dhcp> — `config host`: `mac`, `ip`, `name`, `leasetime` — static lease section binding MAC to address and hostname
+14. odhcpd (techref) — <https://openwrt.org/docs/techref/odhcpd> — `ubus call dhcp ipv4leases`, `ubus call dhcp ipv6leases`; dnsmasq `leasefile` default `/tmp/dhcp.leases` (dhcp page) — lease reads exist as a ubus method for odhcpd and as the lease file for the default dnsmasq
+15. DHCP and DNS configuration — <https://openwrt.org/docs/guide-user/base-system/dhcp> — `config dnsmasq`: `list server` — dnsmasq `server` list names upstream DNS forwarders
+16. DHCP and DNS configuration — <https://openwrt.org/docs/guide-user/base-system/dhcp> — `config dnsmasq`: `list address '/host/ip'` (`dhcp.@dnsmasq[0].address`) — `address` entries answer local names with fixed addresses
+17. DHCP and DNS configuration — <https://openwrt.org/docs/guide-user/base-system/dhcp> — `rebind_protection` (default 1), `list rebind_domain '/example.com/'` — rebind protection toggle and whitelist are dnsmasq UCI options
+18. Network configuration /etc/config/network — <https://openwrt.org/docs/guide-user/network/network_configuration> — `config device` `type bridge`, `list ports`; wifi-iface `network` (wireless page) — bridge membership is the device `ports` list; wireless networks join via the wifi-iface `network` option
+19. Network configuration /etc/config/network — <https://openwrt.org/docs/guide-user/network/network_configuration> — `config device` `ports` (read with `uci show network`) — configured membership is readable from UCI; the DSA page reads live VLAN/port tables with `bridge v`, no ubus field is documented
+20. Guest Wi-Fi basics — <https://openwrt.org/docs/guide-user/network/wifi/guestwifi/guest-wlan> — `uci set network.guest=interface` … `firewall.guest=zone` `input=REJECT` `forward=REJECT`, `forwarding guest→wan` — full UCI recipe for an isolated guest bridge, SSID, DHCP pool and zone
+21. ubus (techref) — <https://openwrt.org/docs/techref/ubus> — `network.device status` → `link`, `up` — only link state is exposed uniformly; speed/duplex appear as device write options (`speed`, `duplex`, `autoneg`) and swconfig's `link` attribute, not a uniform read API
+22. Wi-Fi /etc/config/wireless — <https://openwrt.org/docs/guide-user/network/wifi/basic> — `wifi-device`: `band`, `channel`, `htmode`, `txpower`, `disabled`, `country` — radio section sets band, channel, width (htmode), power and enable
+23. ubus (techref) — <https://openwrt.org/docs/techref/ubus> — `network.wireless status`; rpcd `iwinfo` `devices`/`info`/`freqlist`/`txpowerlist` — radio/running wireless state is exposed by netifd `network.wireless status` and the rpcd iwinfo object (method names listed, fields not expanded)
+24. Wi-Fi /etc/config/wireless — <https://openwrt.org/docs/guide-user/network/wifi/basic> — `wifi-iface`: `ssid`, `encryption`, `key`, `hidden`, `mode ap`, `network`, `disabled` — BSS section with SSID, security mode, passphrase and hidden flag
+25. ubus (techref) — <https://openwrt.org/docs/techref/ubus> — `network.wireless status`; `iwinfo info` — BSS/running state readable via network.wireless status and iwinfo info (names listed; output fields not expanded on the page)
+26. Wireless utilities — <https://openwrt.org/docs/guide-user/network/wifi/wireless-tool/wireless.utilities> — `iwinfo wlan0 assoclist`; `iw dev wlan0 station dump` — both commands list connected clients in AP mode (iw adds retry/fail counts); rpcd `iwinfo assoclist` is also listed on the ubus page
+27. hostapd ubus.c (openwrt-24.10) — <https://raw.githubusercontent.com/openwrt/openwrt/openwrt-24.10/package/network/services/hostapd/src/src/ap/ubus.c> — `UBUS_METHOD("del_client", …, del_policy)`, `list_bans` — the 24.10 hostapd build registers `hostapd.<ifname> del_client` (addr, reason, deauth, ban_time); not documented on openwrt.org
+28. Wi-Fi /etc/config/wireless — <https://openwrt.org/docs/guide-user/network/wifi/basic> — `wps_pushbutton`, `wps_pin`, `hostapd_cli wps_pin any $PIN` (needs wpad + hostapd-utils) — WPS enable and PIN trigger documented; start/cancel/status via `hostapd.<ifname> wps_start
+29. usteer band steering — <https://openwrt.org/docs/guide-user/network/wifi/usteer> — `/etc/config/usteer` `band_steering_interval`, `band_steering_min_snr`, `signal_diff_threshold`; wireless `ieee80211k '1'`, `bss_transition '1'` (+ `ieee80211r`, `mobility_domain`, `ft_over_ds` on the wireless page) — usteer (in the 24.10 packages feed) configures band/AP steering; 11k/v/r are wifi-iface options requiring full wpad
+30. Firewall configuration — <https://openwrt.org/docs/guide-user/firewall/firewall_configuration> — `config defaults` (`input`,`output`,`forward`); `config zone` (`name`,`network`,`input`,`output`,`forward`,`masq`) — zone defaults and interface membership live in UCI and are read with `uci show firewall`
+31. Firewall configuration — <https://openwrt.org/docs/guide-user/firewall/firewall_configuration> — `config redirect`: `src`, `src_dport`, `dest_ip`, `dest_port`, `proto`, `target DNAT`; `uci add firewall …`/`uci commit firewall` + `/etc/init.d/firewall reload` — port forwards are redirect sections added/removed via uci
+32. Firewall configuration — <https://openwrt.org/docs/guide-user/firewall/firewall_configuration> — `config redirect` sections (`uci show firewall`) — the redirect table is the set of redirect sections
+33. Firewall configuration — <https://openwrt.org/docs/guide-user/firewall/firewall_configuration> — `config rule`: `src lan`, `dest wan`, `src_ip`, `dest_ip`, `dest_port`, `proto`, `target REJECT — DROP
+34. Firewall configuration — <https://openwrt.org/docs/guide-user/firewall/firewall_configuration> — `config rule` sections (`uci show firewall`) — filter rules are readable UCI sections
+35. Firewall configuration — <https://openwrt.org/docs/guide-user/firewall/firewall_configuration> — `rule`: `src_mac`, `src_ip`, `target REJECT`, `start_time`, `stop_time`, `weekdays`, `utc_time`, `enabled` — a rule can match a host by MAC/IP, be scheduled by time window and weekdays, and be toggled with `enabled`
+36. miniupnpd — <https://openwrt.org/docs/guide-user/firewall/upnp/miniupnpd> — `/etc/config/upnpd`: `enable_upnp`, `enable_natpmp` ("NAT-PMP and PCP"), `enabled` — UPnP IGD and NAT-PMP/PCP are separately enabled via uci (`uci set upnpd.config.enable_natpmp=1`)
+37. miniupnpd — <https://openwrt.org/docs/guide-user/firewall/upnp/miniupnpd> — `upnp_lease_file` (`/var/run/miniupnpd.leases`) — active redirects are stored "like DHCP leases" in the lease file; no ubus/CLI read is documented (luci-app-upnp shows them)
+38. DHCP and DNS configuration — <https://openwrt.org/docs/guide-user/base-system/dhcp> — dnsmasq `leasefile` `/tmp/dhcp.leases` (MAC, IP, hostname) — host/name/address comes from the lease file; attachment (port/SSID) requires combining `iwinfo assoclist`/`bridge` output, `luci-rpc getHostHints` is LuCI-only
+39. ubus (techref) — <https://openwrt.org/docs/techref/ubus> — `ubus call system board` → `kernel`, `hostname`, `system`, `model`, `board_name`, `release{distribution,version,revision,target}` — identity read gives model/board and software release but no serial or OUI (icwmp lets `cwmp.cpe.serial_number`/`manufacturer_oui` be set manually)
+40. ubus (techref) — <https://openwrt.org/docs/techref/ubus> — `ubus call system info` (load averages ÷ 65536) — procd system info returns uptime/load/memory (page expands only the load field)
+41. ubus (techref) — <https://openwrt.org/docs/techref/ubus> — `ubus call service list` — procd returns all services and their instances, filterable by name
+42. Log essentials — <https://openwrt.org/docs/guide-user/base-system/log.essentials> — `logread`, `logread -f`, `logread -e <regexp>`, `ubus subscribe log` — logread reads the ring buffer and can follow/filter
+43. System configuration — <https://openwrt.org/docs/guide-user/base-system/system_configuration> — `/etc/config/system`: `log_ip`, `log_port` (514), `log_proto` (udp/tcp), `log_remote`, `log_file`, `log_size` — remote syslog export and local file logging are system-section options
+44. NTP configuration — <https://openwrt.org/docs/guide-user/advanced/ntp_configuration> — `uci add_list system.ntp.server=…`, `enable_server`, `use_dhcp`, `interface`; `/etc/init.d/sysntpd restart`; `ntpq` → `peer` — NTP server list is UCI; the only documented sync check installs ntp-utils and reads ntpq peers (busybox sysntpd has no status API)
+45. sysupgrade (CLI) — <https://openwrt.org/docs/guide-user/installation/sysupgrade.cli> — `sysupgrade -v /tmp/firmware_image.bin` (`-n` drops config); `ubus call system board` → `release` — image must be in /tmp; upgrade and post-check of the release are documented
+46. Failsafe mode, factory reset — <https://openwrt.org/docs/guide-user/troubleshooting/failsafe_and_factory_reset> — `firstboot && reboot` (`firstboot -y`), `jffs2reset`, `umount /overlay && jffs2reset && reboot` — soft and hard overlay reset commands; squashfs/overlayfs only (ext4 x86 excluded)
+47. Failsafe mode, factory reset — <https://openwrt.org/docs/guide-user/troubleshooting/failsafe_and_factory_reset> — `reboot`; ubus `system reboot` listed (techref) — reboot is documented; no readiness object exists, so recovery is judged from ubus/ssh reachability and `system info` uptime
+48. Backup and restore — <https://openwrt.org/docs/guide-user/troubleshooting/backup_restore> — `sysupgrade -b /tmp/backup-….tar.gz`; `sysupgrade -l`; `/etc/sysupgrade.conf` — configuration archive export with the file list under control
+49. Backup and restore — <https://openwrt.org/docs/guide-user/troubleshooting/backup_restore> — `sysupgrade -r /tmp/backup-*.tar.gz` then reboot — restore of a configuration archive
+50. SSH access for newcomers — <https://openwrt.org/docs/guide-quick-start/sshadministration> — `passwd` ("Use the “passwd” command to set up a new password"); account `root` — root is the only administrator account; password set with passwd (LuCI "Set up root password" on the login walkthrough)
+51. icwmp UCI configuration — cwmp — <https://dev.iopsys.eu/bbf/icwmp/-/blob/devel/docs/api/uci/cwmp.md> — `config acs`: `url` (required), `userid`, `passwd`, `periodic_inform_enable` (default 1), `periodic_inform_interval` (86400), `periodic_inform_time`, `dhcp_discovery`; `config cpe`: `userid`, `passwd`, `port` 7547, `allowed_cr_ip` — ACS URL, credentials and periodic inform are UCI options of /etc/config/cwmp; connection-request credentials/port are in the cpe section
+52. icwmp UBUS schema — tr069 — <https://dev.iopsys.eu/bbf/icwmp/-/blob/devel/docs/api/ubus/tr069.md> — `ubus call tr069 inform {"event":"6 CONNECTION REQUEST"…}`; `ubus call tr069 status {}` → `cwmp{acs_url,start_time,status}`, `last_session`, `next_session`, `statistics`; `tr069 command {"command":"reload"}` — inform can be triggered with an event code; status exposes ACS URL, last/next session status; no field for pending connection-request state
+53. openwrt/packages net/ (openwrt-24.10) — <https://github.com/openwrt/packages/tree/openwrt-24.10/net> — 382 package directories; none named obuspa/usp/bbf (only `uspot`, a captive portal) — the official 24.10 feeds carry no USP agent; icwmp docs cover TR-069 only
+54. Asterisk (VoIP) — <https://openwrt.org/docs/guide-user/services/voip/asterisk> — `/etc/asterisk/pjsip.conf` `[reg_…]`/`[auth_…]`/`[aor_…]`; `asterisk -rx "pjsip show endpoints"`, `pjsip show registration <name>` — a SIP account is a pjsip.conf registration and its state is read via the Asterisk CLI; packages come from the telephony feed, not the base system
+55. Asterisk (VoIP) — <https://openwrt.org/docs/guide-user/services/voip/asterisk> — `asterisk-chan-lantiq`, `/etc/asterisk/lantiq.conf` (`channels`, `per_channel_context`) — FXS exists only on Lantiq SoCs through the chan-lantiq package (telephony feed: asterisk, asterisk-chan-lantiq, dahdi-*, freeswitch, kamailio, yate, baresip); no gateway FXS state API
+56. IEEE 802.11s Wireless Mesh Networking — <https://openwrt.org/docs/guide-user/network/wifi/mesh/802-11s> — `option mode 'mesh'`, `mesh_id`, `encryption sae`; `iw dev $MESH_IFACE mpath dump` — OpenWrt mesh = 802.11s peers (+ batman-adv/OLSR); no controller/agent topology object; packages feed has no prplmesh/easymesh
+57. IEEE 802.11s Wireless Mesh Networking — <https://openwrt.org/docs/guide-user/network/wifi/mesh/802-11s> — `iw dev $MESH_IFACE station dump` — per-peer station stats are the only link-health read; no backhaul concept
+58. usteer band steering — <https://openwrt.org/docs/guide-user/network/wifi/usteer> — `roam_scan_snr`, `roam_trigger_snr`, `signal_diff_threshold`; `ubus call usteer get_clients — get_client_info`
 
 ### RDK-B quarterly releases, rdkb-2025q4-kirkstone and later
 
