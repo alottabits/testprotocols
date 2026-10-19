@@ -26,7 +26,8 @@ class SwitchQos(Protocol):
         A write rejected at any step raises naming the step; the driver puts
         nothing back. The state is then the as-found DSCP->CoS map where the
         family commits atomically, otherwise the steps applied before the
-        rejection.
+        rejection. The contract has no read of this map, so a test cannot
+        tell the two outcomes apart until one lands (`GAPS.md`, 2026-10-17).
         """
         ...
 
