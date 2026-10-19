@@ -271,6 +271,111 @@ restore (I24), the administrator credential (I30), voice (I31–I32) and the
 mesh controller (I33–I35). Remote management over TR-069 (I20) is a core
 candidate on the trigger-family definitions above.
 
+## 2. Cross-family matrix
+
+✓ = fully present · ◐ = partial or caveated, the limit named in the cell ·
+✗ = absent, the absence named in the cell. Every cell carries `[n]`, a
+numbered source in the family's list under §10. A cell is ✓ only where the
+family's own documentation names the operation (a command reference, a
+service document, a data-model plugin's README that lists the object, a
+project wiki page); a cell that rests on the TR-181 data-model definition
+alone is ◐ and a verification item. A public observation of the operation on
+prplOS 4.0.3 (the triggering consumer's public example) may lift a prplOS
+cell to ✓ when cited as an observation with its path. The columns are the
+five ratified families at the charter's version lines; the OpenWrt column is
+the 24.10 line with icwmp from the iopsys feed as its TR-069 client. Every
+◐ and ✗ cell is a stage-4 verification item (§9). The `Id` column is a
+working id for the exploration and the review; the design decides whether
+it stays.
+
+| Id | Operation | prplOS 4.0 line | OpenWrt 24.10 line + icwmp | RDK-B 2025q4+ | FRITZ!OS 8.20+ | RouterOS v7 |
+| --- | --- | :--: | :--: | :--: | :--: | :--: |
+| | **WAN connection** |  |  |  |  |  |
+| R1 | Set the WAN connection mode (DHCP, static, PPPoE, IPoE) | ? | ? | ? | ? | ? |
+| R2 | Read WAN connection state, address and lease | ? | ? | ? | ? | ? |
+| R3 | Set PPPoE credentials and service name | ? | ? | ? | ? | ? |
+| R4 | Reset the PPPoE session | ? | ? | ? | ? | ? |
+| R5 | Set the WAN VLAN id and priority | ? | ? | ? | ? | ? |
+| R6 | Set the IPv6 WAN mode; read the delegated prefix | ? | ? | ? | ? | ? |
+| R7 | Read the provisioning mode (v4, v6, dual) | ? | ? | ? | ? | ? |
+| R8 | Read WAN link state | ? | ? | ? | ? | ? |
+| R9 | Administratively disable / enable the WAN | ? | ? | ? | ? | ? |
+| R10 | Renew / release the WAN DHCP lease | ? | ? | ? | ? | ? |
+| | **LAN services** |  |  |  |  |  |
+| R11 | Configure the DHCP server pool and lease time | ? | ? | ? | ? | ? |
+| R12 | Configure DHCP options | ? | ? | ? | ? | ? |
+| R13 | Configure static leases | ? | ? | ? | ? | ? |
+| R14 | Read active leases | ? | ? | ? | ? | ? |
+| R15 | Configure DNS forwarder upstreams | ? | ? | ? | ? | ? |
+| R16 | Configure local host overrides | ? | ? | ? | ? | ? |
+| R17 | Configure DNS rebind protection | ? | ? | ? | ? | ? |
+| R18 | Configure bridge membership (ports, wireless networks) | ? | ? | ? | ? | ? |
+| R19 | Read bridge and port membership | ? | ? | ? | ? | ? |
+| R20 | Configure a guest segment | ? | ? | ? | ? | ? |
+| R21 | Read LAN port status (link, speed, duplex) | ? | ? | ? | ? | ? |
+| | **Wi-Fi access points** |  |  |  |  |  |
+| R22 | Configure radio (band, channel, width, power, enable) | ? | ? | ? | ? | ? |
+| R23 | Read radio state | ? | ? | ? | ? | ? |
+| R24 | Configure a BSS (SSID, security mode, passphrase, hidden) | ? | ? | ? | ? | ? |
+| R25 | Read BSS state | ? | ? | ? | ? | ? |
+| R26 | Read connected stations (signal, rate) | ? | ? | ? | ? | ? |
+| R27 | Disconnect a station | ? | ? | ? | ? | ? |
+| R28 | Start / cancel push-button or PIN onboarding; read its state | ? | ? | ? | ? | ? |
+| R29 | Configure band steering and 11k/v/r | ? | ? | ? | ? | ? |
+| | **Security posture** |  |  |  |  |  |
+| R30 | Read zone defaults and zone membership | ? | ? | ? | ? | ? |
+| R31 | Add / remove a port forward | ? | ? | ? | ? | ? |
+| R32 | Read the port-forward table | ? | ? | ? | ? | ? |
+| R33 | Add / remove an egress filter rule | ? | ? | ? | ? | ? |
+| R34 | Read filter rules | ? | ? | ? | ? | ? |
+| R35 | Block a host, on demand or on a schedule | ? | ? | ? | ? | ? |
+| R36 | Enable / disable automatic port mapping (UPnP IGD, PCP) | ? | ? | ? | ? | ? |
+| R37 | Read automatic port mappings | ? | ? | ? | ? | ? |
+| | **Host table** |  |  |  |  |  |
+| R38 | Read the host table (address, name, attachment) | ? | ? | ? | ? | ? |
+| | **Device operations** |  |  |  |  |  |
+| R39 | Read identity (manufacturer, model, serial, OUI, software version) | ? | ? | ? | ? | ? |
+| R40 | Read uptime, load, memory | ? | ? | ? | ? | ? |
+| R41 | Read process state | ? | ? | ? | ? | ? |
+| R42 | Read device logs | ? | ? | ? | ? | ? |
+| R43 | Configure log export | ? | ? | ? | ? | ? |
+| R44 | Configure NTP servers; read sync state | ? | ? | ? | ? | ? |
+| R45 | Upgrade firmware from an image | ? | ? | ? | ? | ? |
+| R46 | Factory reset | ? | ? | ? | ? | ? |
+| R47 | Reboot; read readiness | ? | ? | ? | ? | ? |
+| R48 | Export configuration | ? | ? | ? | ? | ? |
+| R49 | Import configuration | ? | ? | ? | ? | ? |
+| R50 | Set the local administrator credential | ? | ? | ? | ? | ? |
+| | **Remote management** |  |  |  |  |  |
+| R51 | Configure ACS URL, credentials and periodic inform | ? | ? | ? | ? | ? |
+| R52 | Trigger an inform; read connection-request state | ? | ? | ? | ? | ? |
+| R53 | Configure the USP controller endpoint and transport; read agent state | ? | ? | ? | ? | ? |
+| | **Voice** |  |  |  |  |  |
+| R54 | Configure a SIP account; read registration state | ? | ? | ? | ? | ? |
+| R55 | Read FXS line state | ? | ? | ? | ? | ? |
+| | **Mesh controller** |  |  |  |  |  |
+| R56 | Read mesh topology (agents, backhaul links) | ? | ? | ? | ? | ? |
+| R57 | Read backhaul link health | ? | ? | ? | ? | ? |
+| R58 | Steer a client to another agent | ? | ? | ? | ? | ? |
+
+## 10. Sources
+
+The charter (§1) carries the sources for the version lines. The matrix
+sources follow, one numbered list per family; a cell's `[n]` resolves to
+entry `n` of its column's list. Each entry: title — URL — section or anchor —
+what it establishes. The vendor-isolation rule forbids vendor names and URLs
+in the package source, not in this design record.
+
+### prplOS 4.0 line
+
+### OpenWrt 24.10 line with icwmp
+
+### RDK-B quarterly releases, rdkb-2025q4-kirkstone and later
+
+### FRITZ!OS 8.20 and later
+
+### RouterOS v7
+
 ## Review record
 
 - **2026-10-19 — chartered under the archetype track.** Request: issue #98
