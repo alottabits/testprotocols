@@ -78,25 +78,29 @@ directly is a separate request.
   names this class and predates the track. *Over*-specified: it mandates the
   full Wi-Fi stack (`wifi_radio`, `wifi_bss`, `wifi_stations`, `wifi_rf`,
   `wifi_transitions`, `wifi_onboarding`), a hardware console (`hw_console`)
-  and host-substrate levers (`ip_interface`, `conntrack`, host `nat`); a
-  gateway reached through a SOAP API or a data-model CLI publishes none of
-  the three host levers, several families publish no console, and a bridged
-  modem publishes no Wi-Fi. *Under*-specified: no WAN connection object, no
+  and host-substrate levers (`ip_interface`, `ip_routing`, `conntrack`, host
+  `nat`); a gateway reached through a SOAP API or a data-model CLI publishes
+  none of the four host levers, several families publish no console, and a
+  bridged modem publishes no Wi-Fi. *Under*-specified: no WAN connection object, no
   DHCP server, DNS forwarder or bridge (`GAPS.md`, `L2Bridge`, 2026-05-02,
-  whose trigger is this class), no host table, no identity read, health
-  beyond `device_management`'s uptime and memory, no configuration backup
-  and restore, no USP, no voice, no mesh. A tier of it cannot close the
+  whose trigger is this class), no host table, no identity read, no
+  configuration backup and restore, no USP, no voice, no mesh (health —
+  uptime, load, memory, logs — it has, through `device_management`). A tier of it cannot close the
   over-specification, because its mandatory members stay mandatory; extending
   it member by member would keep its one consumer on a shape no matrix has
   tested. The design decides the mechanism on the placement ladder — evolve
   in place through `extend` and `deprecate`, or supersede under a new registry
   name with the old one deprecated — and the recorded deprecation period
   applies either way. This charter commits to the class, not to the mechanism.
-- **`managed_router` (chartered, `docs/architecture/managed-router-protocol-design.md`; not yet registered).**
+- **`managed_router` (chartered,
+  `docs/architecture/managed-router-protocol-design.md`; not yet registered).**
   The sibling closed network product. Shared services — NAT, zone firewall,
-  DHCP server, on-box probes, time, log export, lifecycle, identity, health —
-  are shared by **reuse of the same capability protocols**, not by one
-  archetype extending the other. The router publishes what the gateway does
+  DHCP server, on-box probes, time synchronisation, log export — are shared
+  by **reuse of the same capability protocols**, not by one archetype
+  extending the other; software lifecycle, configuration transfer, identity
+  and health are demands both charters carry and whose placement each design
+  decides, so the two designs record the dependency on each other's rows
+  rather than assume a shared protocol. The router publishes what the gateway does
   not: routing tables and peers, first-hop redundancy, own-traffic capture,
   QoS by class, operator authentication against a central server. The gateway
   publishes what the router does not: the WAN connection as an access object
@@ -107,7 +111,9 @@ directly is a separate request.
   security bundles and controller ownership that a gateway does not publish.
   *Under*-specified: no Wi-Fi access point, no DHCP server, no host table, no
   ACS management, no PPPoE or IPoE connection object. Its `DeviceInfo`,
-  `SyslogConfig` and `Nat` members are reuse candidates for the design.
+  `SyslogConfig` and `ApplianceNat` (`appliance_nat`, the port-forward table
+  rather than the host primitives) members are reuse candidates for the
+  design.
 - **`linux_sdwan_router` (`SdwanRouterDevice`, the Linux twin)** —
   *over*-specified: host-substrate levers (`ip_interface`, `conntrack`,
   `pcap`, host `nat`, `wan_admin`) that a closed gateway does not expose;
@@ -116,12 +122,15 @@ directly is a separate request.
   *under*-specified: no WAN access, NAT, Wi-Fi, stateful firewall or ACS
   management. *Over*-specified: every one mandates the switch port layer
   (`switch_ports`, `switch_vlans`, `spanning_tree`, `link_aggregation`,
-  `port_poe`, `port_security`, `storm_control`, `mac_table`, `placement`),
+  `port_poe`, `port_security`, `storm_control`, `mac_table`, `port_status`,
+  `placement`),
   which a gateway with four LAN ports behind one bridge cannot satisfy. The
   L2 switch design (2026-06-14) deliberately left the bridge-native shape to
   this class and placed the shared STP and FDB vocabulary in
   `models/l2_common.py` for it; this charter takes that up. A gateway's LAN
-  port state may reuse `switch_ports` as a reuse candidate.
+  port state (link, speed, duplex) has `port_status` (`PortStatus`, the
+  read-only per-port state) as its reuse candidate; `switch_ports` is the
+  configuration object and is not.
 - **The test-bed hosts** — `linux_lan_client`, `linux_wlan_client`,
   `linux_qoe_client`, `linux_qoe_measurement_client`, `linux_sip_phone`,
   `linux_sip_server`, `linux_wan_server`, `linux_traffic_controller`,
@@ -194,10 +203,36 @@ a dated revision.
 
 Five families give denominators with meaning under the evidence bar as
 amended on 2026-10-19: a core member is supported on both trigger families
-and on a majority of the five; a tier member on a majority of the five
-without one trigger family; anything below stays `tier-staged`. FRITZ!OS's
-narrow write side is where the majority rule is expected to bite, and that is
-the point of including it.
+and on a majority of the five; a tier is built with the archetype when its
+members are supported on a majority of the five; anything else is
+`tier-staged` or a documented per-method unsupported case. FRITZ!OS's narrow
+write side is where the majority rule is expected to bite, and that is the
+point of including it.
+
+### Sources for the version lines
+
+- prplOS release tags: https://gitlab.com/prpl-foundation/prplos/prplos/-/tags
+  (prplware-v4.0.4, 2 October 2026; prplware-v5.2.0, 7 October 2026).
+- OpenWrt 24.10: https://openwrt.org/releases/24.10/start (24.10.8 released
+  26 July 2026). The official feeds at the 24.10 branch:
+  https://github.com/openwrt/packages/tree/openwrt-24.10,
+  https://github.com/openwrt/luci/tree/openwrt-24.10,
+  https://github.com/openwrt/routing/tree/openwrt-24.10,
+  https://github.com/openwrt/telephony/tree/openwrt-24.10 — none carries a
+  CWMP or USP client.
+- icwmp: https://dev.iopsys.eu/bbf/icwmp (BSD 3-Clause); the iopsys feed:
+  https://dev.iopsys.eu/feed/iopsys.
+- RDK-B quarterly releases: https://wiki.rdkcentral.com/x/tXtkH
+  (RDKB_2026q1_kirkstone: the Banana Pi is the lead reference gateway
+  platform and the Raspberry Pi 4 is no longer supported; its changelog is
+  against rdkb-2025q4-kirkstone). `dmcli`:
+  https://developer.rdkcentral.com/documentation/?p=9589.
+- FRITZ!OS: https://fritz.com/en/pages/interfaces (the TR-064 service list,
+  documents for FRITZ!OS 8.20 and 8.25);
+  https://en.fritz.com/service/knowledge-base/dok/FRITZ-Box-7490/1635_Access-to-the-FRITZ-Box-via-Telnet-is-not-supported
+  (Telnet unsupported since FRITZ!OS 6.25).
+- RouterOS v7: https://mikrotik.com/download/changelogs (the v7 stable
+  channel), as the managed-router charter cites.
 
 ### Demand
 
@@ -225,3 +260,13 @@ candidate on the trigger-family definitions above.
   this charter's review. The OpenWrt trigger family is defined with its
   TR-069 client after the official feeds were found to carry none; USP and
   the other placements listed under Demand are left to the design.
+- **2026-10-19 — maintainer's pre-review (local code review), before
+  `/review`.** Eight findings applied: health is not an under-specification
+  of `linux_cpe` (`device_management` carries uptime, load and memory; the
+  request's I26 row corrected the same way); the LAN port-state reuse
+  candidate is `port_status`, not `switch_ports` (I9 row corrected); the
+  appliance's NAT member is `appliance_nat`; `ip_routing` is a fourth host
+  lever; lifecycle, identity and health are demands both charters carry, not
+  shared protocols; sources for every version line added; the evidence-bar
+  paraphrase aligned with the README; one line wrapped. One finding
+  rejected: `tr069_client` is a member of `CpeDevice` (`devices/cpe.py`).
