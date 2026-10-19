@@ -24,8 +24,9 @@ proposal format and cycle, and `SECURITY.md` for private reports.
   that review here; the reviewer runs from its own checklist with no
   authoring transcript. Agents never merge and never push to a
   contributor's branch.
-- **Two rounds** on a proposal, then the consumer decides (see the
-  proposals README).
+- **Three rounds** on a proposal, then the consumer decides (see the
+  proposals README). A **status refresh** after an approve verdict is not a
+  round ("A PR's life", step 4).
 - **The maintainer's three-line glance.** Before merging, the maintainer
   reads the neutrality answer, the per-item table or the changelog entry,
   and one finding they agree with or override.
@@ -174,6 +175,15 @@ maintainer change with `no proposal` and its rationale.
    conditions; `/review full` asks for a full review). Fixup
    commits may stay; the merge commit groups the PR. No interactive
    rebase is asked of you.
+   **Status refresh.** When the last review's verdict was approve or
+   approve with conditions, the push that folds its conditions back is
+   re-reviewed as a *status refresh*: the delta against those conditions
+   only, the `review` status set on the new head, and **not a round** of
+   the kind's cap. On a branch PR the refresh starts by itself when a
+   maintainer pushes (the deterministic gates must be green; a push by
+   anyone else, a draft or a fork PR gets no refresh and no comment, and
+   `/review` remains the way to ask). A refresh whose delta adds design or
+   raises a new condition is an ordinary re-review and counts as a round.
 5. **Go-ahead.** A maintainer reads the review and merges with a merge
    commit. Merging over a `request changes` verdict follows the override
    procedure under Branch protection on `main` below (finding and reason

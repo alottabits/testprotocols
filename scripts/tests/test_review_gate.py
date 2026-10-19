@@ -6,7 +6,7 @@ import json
 from pathlib import Path
 
 import pytest
-from review_gate import conclusions, full_requested, main, maintainers, refusal
+from review_gate import conclusions, full_requested, main, maintainers, refresh_allowed, refusal
 
 MAINTAINERS_MD = """# Maintainers
 
@@ -266,3 +266,39 @@ def test_cli_full_out(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> Non
         "ok",
         "the comment must be exactly `/review` or `/review full`",
     ]
+
+
+BEFORE_APPROVED = [
+    {"context": "review", "state": "success", "description": "review: approve with conditions"},
+    {"context": "hygiene", "state": "success", "description": "ok"},
+]
+
+
+def test_refresh_allowed_after_an_approve_verdict() -> None:
+    assert refresh_allowed(BEFORE_APPROVED) is None
+    plain = [{"context": "review", "state": "success", "description": "review: approve"}]
+    assert refresh_allowed(plain) is None
+
+
+def test_refresh_refused_without_an_approve_verdict() -> None:
+    assert refresh_allowed([]) == "no review status on the previous head"
+    changes = [{"context": "review", "state": "failure", "description": "review: request changes"}]
+    assert refresh_allowed(changes) == (
+        "the previous verdict was not approve: review: request changes"
+    )
+    pending = [{"context": "review", "state": "pending", "description": "review requested"}]
+    assert refresh_allowed(pending) == "the previous verdict was not approve: review requested"
+    hygiene_only = [
+        {"context": "review", "state": "success", "description": "no agent review for this kind"}
+    ]
+    assert refresh_allowed(hygiene_only) == (
+        "the previous verdict was not approve: no agent review for this kind"
+    )
+
+
+def test_refresh_reads_the_newest_review_status_first() -> None:
+    newest_first = [
+        {"context": "review", "state": "success", "description": "review: approve"},
+        {"context": "review", "state": "pending", "description": "review requested"},
+    ]
+    assert refresh_allowed(newest_first) is None

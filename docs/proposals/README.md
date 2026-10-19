@@ -436,7 +436,10 @@ for a breaking change.
 
 The contributor answers with an **Outcome** section (per item: decision,
 date) or one revision in place with the round set to 2 and the round-one
-response left below. Two rounds. After round two without agreement:
+response left below. Three rounds (two for a proposal whose review began
+before 2026-10-19); a status refresh after an approve verdict
+(CONTRIBUTING.md, "A PR's life", step 4) is not a round. After the last
+round without agreement:
 
 - a keep-local item is the consumer's call, recorded with the maintainer's
   reservations verbatim;
