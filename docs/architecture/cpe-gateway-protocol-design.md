@@ -359,6 +359,217 @@ it stays.
 | R57 | Read backhaul link health | ◐ Backhaul object gives link type/MACs; signal/rate only via parent BSS STA entry [57] | ✗ 802.11s peer links via `iw station dump`, not EasyMesh backhaul [57] | ◐ controller source only; BPI R4 porting marked ongoing/TBD [57] | ◐ link metrics present; no explicit backhaul flag (is_upstream is LAN-only) [57] | ✗ no backhaul-link metrics; remote-cap shows connected-time only [57] |
 | R58 | Steer a client to another agent | ✓ [58] | ◐ usteer roams clients between plain APs; no EasyMesh agents [58] | ◐ controller rbus method in source only; BPI R4 porting marked ongoing/TBD [58] | ✗ no steering action; schema steering_enabled is a read-only flag [58] | ◐ no EasyMesh steer; 802.11v BSS-transition suggestion via steering only [58] |
 
+## 3. Decision
+
+Add a vendor-neutral **`CpeGatewayDevice`** archetype (registered
+`cpe_gateway`), **superseding** `CpeDevice` (`linux_cpe`). The new class
+composes what a CPE gateway publishes on its management planes (§1): the WAN
+connection as a managed object, the LAN services, the Wi-Fi access points, the
+security posture, the host table, device operations and remote management by
+an auto-configuration server. `CpeDevice` stays registered under `linux_cpe`,
+intact and deprecated, for one MINOR release and six months (§6, D6): its one
+consumer keeps passing the `isinstance` gate unchanged while it moves, and
+the old shape is removed, not evolved, when the period ends.
+
+The **core** is every operation of §2 that both trigger columns and a
+majority of the five columns support, a caveated cell (◐) counting as
+support with its limit becoming the member's documented per-column behaviour
+or a per-method unsupported case (D9): 55 of the 58 operations. It composes
+existing capabilities wherever their shape holds (§5), and introduces nine
+capabilities no protocol on `main` owns, each argued on the placement ladder
+in §5 and §6: `WanConnection`, `DnsForwarder`, `L2Bridge` (the `GAPS.md`
+entry of 2026-05-02 whose trigger is this class), `HostTable`, `HostFilter`,
+`AutoPortMapping`, `AdminCredential`, `DeviceHealth` (a read-only base split
+off the host-shaped `DeviceManagement`, which inherits it) and, on the tiers,
+`VoiceGateway` and `UspAgent`. Four existing protocols are extended (rung 5):
+`DeviceInfo` with the identity facts, `DeviceLifecycle` with image staging and
+configuration transfer, `Tr069Client` with the ACS configuration,
+`NtpConfig` with the synchronisation state and `WifiOnboarding` with the
+cancel and state read. The identity, health, lifecycle and configuration
+members are worded for any closed network product, not for this class
+alone, so the chartered router sibling can compose them when its design
+lands (D8).
+
+Three **optional tiers** are built in this pass. Voice and the mesh
+controller are facets the charter places "on many models", not on the class:
+a bridged modem or an operator gateway without telephony publishes neither,
+so both are tiers whatever the count says, and the count (four of five
+columns support voice, three support each mesh operation) meets the amended
+evidence bar, so both are implemented and tested like the core (D7). USP is
+a tier because one trigger column publishes no agent (R53, column 2) while
+three columns do. Each tier is a Protocol a driver satisfies in addition to
+the core; §9 names the columns expected to implement each tier member and
+the ones expected to raise. The cells that support a tier only nominally (a
+stub plugin, a PBX from a package feed, controller source whose porting is
+marked ongoing) are the design's stated risk, listed by id in §9: if stage 4
+finds one of them unsupported in substance, the member becomes a per-column
+unsupported case or the tier drops to `tier-staged`, and its manifest rows
+are re-outcomed without reopening the design.
+
+The superseded shape drops what no closed gateway publishes: the hardware
+console and the four host-substrate levers (`hw_console`, `ip_interface`,
+`ip_routing`, `conntrack`, host `nat`), which stay on the Linux twin, and the
+host-shaped `device_management` and `ntp_client`, whose device-side concerns
+move to `DeviceHealth` and `NtpConfig`. It also drops two members for which
+§2 carries no row (`wifi_rf`, `network_probe`); a dated matrix row brings
+either back as a `feat:` change. The test-bed role objects (`wan_endpoint`,
+`lan_endpoint`) stay (§4).
+
+## 4. The archetype
+
+The mandatory **core** is the universal surface of §1: satisfiable by an
+operator gateway reached through a data-model CLI, a retail router reached
+through a SOAP API on the LAN side, and a low-end router reached through a
+proprietary CLI, with no Wi-Fi assumption beyond the radios the matrix shows
+every column publishes and no voice or mesh member. Where a column supports
+an operation only in part (◐ in §2), the member keeps its neutral shape and
+the driver raises the documented unsupported case for the part the column
+lacks, or maps with a stated loss (§8); the three facets that fail the core
+threshold or the class definition are independent optional tier Protocols,
+so a driver satisfies any combination of them.
+
+```python
+@runtime_checkable
+class CpeGatewayDevice(BaseDeviceProtocol, Protocol):
+    """CPE gateway — universal core. Vendor-neutral; satisfiable by any
+    gateway whose driver publishes the members below. The reviewed
+    families and their evidence are in
+    docs/architecture/cpe-gateway-protocol-design.md (§2, §10); the
+    management transport and who manages the device are driver concerns."""
+
+    wan_connection: WanConnection        # NEW — the WAN connection as a managed object: mode, credentials, tag, IPv6, state (§6)
+    wan_link_admin: WanLinkAdmin         # reuse as-is — administrative down/up of the WAN by label; module docstring generalised (§6)
+    dhcp_client: DhcpClient              # reuse — release and renew of the WAN lease, v4 and v6
+    port_status: PortStatus              # reuse — link, speed, duplex of the WAN and LAN ports
+    interface_dhcp: InterfaceDhcp        # reuse as-is — pools, lease time, options, reservations, active leases (§6)
+    dns_forwarder: DnsForwarder          # NEW — upstreams, local host overrides, rebind protection (§6)
+    l2_bridge: L2Bridge                  # NEW (GAPS 2026-05-02) — bridge membership of ports and wireless networks (§6)
+    wifi_radio: WifiRadio                # reuse — radios addressed by band; no band setter (§6)
+    wifi_bss: WifiBss                    # reuse — networks, security, visibility
+    wifi_stations: WifiStations          # reuse — attached stations, disconnect
+    wifi_onboarding: WifiOnboarding      # EXTENDED — push-button and PIN as today; cancel and state read added (§6)
+    wifi_transitions: WifiTransitions    # reuse — 11k/v/r; band steering by composition (§6)
+    firewall_zones: FirewallZones        # reuse — zone defaults and membership; per-method unsupported on four columns (§6)
+    firewall: Firewall                   # reuse — port forwards and the DMZ host, plus the rule members it inherits (egress filters) (§6)
+    host_filter: HostFilter              # NEW — per-host block, on demand or on a weekly schedule (§6)
+    auto_port_mapping: AutoPortMapping   # NEW — automatic port mapping enable per protocol; the mapping table (§6)
+    hosts: HostTable                     # NEW — the hosts behind the gateway: address, name, attachment (§6)
+    info: DeviceInfo                     # EXTENDED — model as today; manufacturer, serial number, OUI, hardware and software version added (§6)
+    health: DeviceHealth                 # NEW (split off DeviceManagement) — uptime, online state, load figure, memory, processes, log entries (§6)
+    syslog: SyslogConfig                 # reuse — log export
+    ntp: NtpConfig                       # EXTENDED — servers as today; synchronisation state added (§6)
+    device_lifecycle: DeviceLifecycle    # EXTENDED — boot wait, factory reset, reboot as today; image staging and activation, configuration export and import added; one member renamed (§6)
+    admin_credential: AdminCredential    # NEW — the local administrator credential (§6)
+    tr069_client: Tr069Client            # EXTENDED — connection state, identifier and inform as today, the inform's meaning stated; ACS configuration added (§6)
+    wan_endpoint: NetworkEndpoint        # reuse — test-bed role object: the gateway's WAN-side address
+    lan_endpoint: NetworkEndpoint        # reuse — test-bed role object: the gateway's LAN-side address
+
+register_device_type("cpe_gateway", CpeGatewayDevice)
+```
+
+**Nine new capabilities at seed, each argued in §5 and §6:** seven on the
+core (`WanConnection`, `DnsForwarder`, `L2Bridge`, `HostTable`, `HostFilter`,
+`AutoPortMapping`, `AdminCredential`), one split (`DeviceHealth`) and two on
+tiers (`VoiceGateway`, `UspAgent`). Every other member exists today; each
+change to an existing one is placed on the ladder in §5 and listed in §12.
+Where a disposition has a fallback, §6 states the condition that would move
+to it.
+
+Optional tier Protocols, each a strict `(CpeGatewayDevice, Protocol)`
+superset adding one facet, built in this pass on the matrix evidence (D7):
+
+```python
+@runtime_checkable
+class CpeGatewayVoiceTier(CpeGatewayDevice, Protocol):
+    """Adds the voice facet: SIP accounts and their registration, FXS lines
+    and their state. Present on operator gateways and on retail gateways
+    with telephony; absent on bridged modems and on the fifth reviewed
+    column. Evidence: four of five columns (R54–R55, one at ✓, three
+    caveated; §9 names the nominal cells)."""
+    voice: VoiceGateway                  # NEW (tier) — SIP accounts, registration state, FXS line state (§6)
+
+@runtime_checkable
+class CpeGatewayMeshTier(CpeGatewayDevice, Protocol):
+    """Adds the mesh-controller facet: the agents and their backhaul links,
+    client steering between agents. The extender is not a device of this
+    archetype; it is an agent in the controller's topology (§1). Evidence:
+    three of five columns per operation (R56–R58); the second trigger
+    column publishes no controller and raises."""
+    wifi_mesh: WifiMesh                  # reuse (+ one defaulted field on the topology node) — topology, backhaul, steering (§6)
+
+@runtime_checkable
+class CpeGatewayUspTier(CpeGatewayDevice, Protocol):
+    """Adds the USP agent: the controller endpoint and its transport, the
+    agent's state. Evidence: three of five columns (R53, all caveated); the
+    second trigger column packages no agent and raises."""
+    usp_agent: UspAgent                  # NEW (tier) — controller endpoint and transport, agent state (§6)
+```
+
+The tiers are registered with the archetype (`cpe_gateway_voice`,
+`cpe_gateway_mesh`, `cpe_gateway_usp`) because their reference drivers exist
+at stage 4; a driver that satisfies two facets registers plugin-local under
+the combined shape until a second consumer lifts it (the composition rule
+the sibling designs follow).
+
+**Concerns, dispositions and evidence.** One row per concern of §1; the
+X-vendor column gives the count of the concern's weakest matrix row as
+`✓ + ◐ + ✗` over the five columns, the ◐ cells counting as support (D9);
+Notes cite the rows. Core membership needs both trigger columns (1 and 2)
+supporting and at least three of five.
+
+| Concern | Capability | Disposition | X-vendor (of 5) | Notes |
+| --- | --- | --- | :--: | --- |
+| WAN connection: mode, credentials, tag, IPv6, provisioning mode, state | `WanConnection` | **new** | 2 + 2 ◐ + 1 ✗ | R1–R7; weakest R5 (the tag's priority, column 4 publishes no tag action); R7 derived on three columns |
+| WAN link state | `PortStatus` | reuse | 5 | R8 |
+| WAN administrative down/up | `WanLinkAdmin` | reuse, docstring generalised | 4 + 1 ✗ | R9; column 4 raises |
+| WAN lease release and renew | `DhcpClient` | reuse | 3 + 2 ◐ | R10 |
+| DHCP server: pool, lease time, options, reservations, leases | `InterfaceDhcp` | reuse as-is | 4 + 1 ✗ | R11–R14; weakest R13 (column 4 has no reservation write); `InterfaceDhcpConfig` already carries options and reservations |
+| DNS forwarder: upstreams, overrides, rebind protection | `DnsForwarder` | **new** | 2 + 1 ◐ + 2 ✗ | R15–R17; weakest R17 (rebind protection, two columns raise, one is always on) |
+| Bridge membership | `L2Bridge` | **new** (GAPS 2026-05-02) | 4 + 1 ✗ | R18–R19; column 4 publishes no bridge object |
+| Guest segment | `L2Bridge` + `FirewallZones` + `InterfaceDhcp` + `WifiBss` | composition | 2 + 3 ◐ | R20; no named member (§6) |
+| LAN port status | `PortStatus` | reuse | 3 + 2 ◐ | R21 |
+| Radios | `WifiRadio` | reuse | 3 + 2 ◐ | R22–R23; the band is the radio's address, not a setting (§6) |
+| Networks (BSS) | `WifiBss` | reuse | 4 + 1 ◐ | R24–R25 |
+| Stations, disconnect | `WifiStations` | reuse | 3 + 1 ◐ + 1 ✗ | R26–R27; column 4 cannot disconnect |
+| Onboarding: start, cancel, state | `WifiOnboarding` | **extend** | 3 + 2 ◐ | R28; cancel and state read added |
+| Band steering, 11k/v/r | `WifiTransitions` | reuse | 2 + 2 ◐ + 1 ✗ | R29; band steering by composition of the 11v members (§6) |
+| Zone defaults and membership | `FirewallZones` | reuse | 1 + 3 ◐ + 1 ✗ | R30; four columns have no zone object: mapped or per-method unsupported (§6) |
+| Port forwards, DMZ host | `Firewall` | reuse | 4 + 1 ◐ | R31–R32; column 4 forwards to the calling host only |
+| Egress filter rules | `Firewall` (the inherited rule members) | reuse | 3 + 1 ◐ + 1 ✗ | R33–R34; column 4 publishes profiles, not rules |
+| Host block with schedule | `HostFilter` | **new** | 5 | R35 |
+| Automatic port mapping | `AutoPortMapping` | **new** | 1 + 4 ◐ | R36–R37; PCP absent on three columns, per-protocol unsupported |
+| Host table | `HostTable` | **new** | 3 + 2 ◐ | R38; two columns join leases, neighbours and station lists |
+| Identity | `DeviceInfo` | **extend** | 4 + 1 ◐ | R39; manufacturer, serial number, OUI, hardware and software version added (D8) |
+| Health: uptime, load, memory, processes, logs | `DeviceHealth` | **new (split)** | 3 + 1 ◐ + 1 ✗ | R40–R42; weakest R41 (column 4 has no process list); the base `DeviceManagement` inherits (D8, §6) |
+| Log export | `SyslogConfig` | reuse | 4 + 1 ✗ | R43; column 4 raises (D8) |
+| Time: servers, synchronisation state | `NtpConfig` | **extend** | 3 + 2 ◐ | R44; sync-state read added |
+| Firmware upgrade | `DeviceLifecycle` | **extend** | 5 | R45; image staging and activation added (D8) |
+| Factory reset; reboot and readiness | `DeviceLifecycle` | reuse | 1 + 4 ◐ | R46–R47; readiness is the boot wait on uptime or reachability on four columns |
+| Configuration export and import | `DeviceLifecycle` | **extend** | 4 + 1 ◐ | R48–R49 (D8); column 3 through the shell store |
+| Local administrator credential | `AdminCredential` | **new** | 5 | R50 |
+| ACS configuration, inform, connection-request state | `Tr069Client` | **extend** | 0 + 5 ◐ | R51 (5 ✓) and R52 (5 ◐): ACS configuration added; the inform's meaning stated, the connection-request state read nowhere (§6) |
+| USP controller endpoint, transport, agent state | `UspAgent` | **new (tier)** | 0 + 3 ◐ + 2 ✗ | R53; column 2 packages no agent: tier `usp` |
+| Voice: SIP accounts, registration, FXS lines | `VoiceGateway` | **new (tier)** | 0 + 4 ◐ + 1 ✗ | R54–R55; the class definition makes it a tier; column 5 raises |
+| Mesh controller: topology, backhaul health, steering | `WifiMesh` | reuse (tier) | 0 + 3 ◐ + 2 ✗ | R56–R58; weakest R57; column 2 publishes no controller: tier `mesh`; one defaulted field for backhaul health per agent (§6) |
+
+**Test-bed role objects.** `wan_endpoint` and `lan_endpoint` are not
+operations the gateway publishes; they are how a scenario binds the two
+sides of the device under test (which address a LAN client reaches it on,
+which address the WAN server sees), the same role the superseded shape gave
+them. They stay on the core as `NetworkEndpoint` members; no matrix row
+applies, and no driver "supports" or "lacks" them.
+
+**Dropped members.** Against `CpeDevice`, the new class drops `hw_console`
+(a hardware console is a test-bed attachment, not a published operation),
+`ip_interface`, `ip_routing`, `conntrack` and host `nat` (host-substrate
+levers of the Linux twin; the gateway's NAT concern is the port-forward table
+on `firewall`), `device_management` (replaced by the read-only `health`
+split; the host-shaped file and board-log members stay on the hosts),
+`ntp_client` (a host's clock lever; the gateway publishes its server list and
+synchronisation state on `ntp`), `wifi_rf` and `network_probe` (no matrix
+row; §3). A consumer that needs one of the dropped members on a gateway
+composes it plugin-local, or brings the matrix row.
+
 ## 5. Reuse vs. net-new
 
 ### Reuse survey (exploration)
