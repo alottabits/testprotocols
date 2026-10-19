@@ -9,6 +9,13 @@ exit 1. The workflow posts the reason as a PR comment. The comment is exactly
 conditions) or `/review full` (a full review); `--full-out` receives `true` or
 `false` for the dispatch.
 
+A **status refresh** (CONTRIBUTING.md, step 4) is the same gate run by the
+workflow when a maintainer pushes to a branch PR whose previous head carries an
+approve or approve-with-conditions verdict: `--refresh-statuses` receives that
+head's commit statuses (`gh api repos/O/R/commits/BEFORE/statuses`, newest
+first) and the gate refuses unless the newest `review` status is such a
+verdict. The refresh is not a review round.
+
 A head commit can carry more than one check run of the same name: a PR-body
 edit right after a push starts a second `hygiene` run whose concurrency
 group cancels the first, and a re-run of a cancelled or failed run adds a
@@ -79,6 +86,25 @@ def full_requested(body: str) -> bool:
     return COMMANDS.get(body.strip(), False)
 
 
+APPROVE_PREFIX = "review: approve"
+
+
+def refresh_allowed(statuses: list[dict[str, Any]]) -> str | None:
+    """Why a status refresh may not start, or ``None``.
+
+    *statuses* are the previous head commit's statuses, newest first (the
+    API's order); the newest with context ``review`` decides.
+    """
+    for status in statuses:
+        if status.get("context") != "review":
+            continue
+        description = str(status.get("description") or "")
+        if status.get("state") == "success" and description.startswith(APPROVE_PREFIX):
+            return None
+        return f"the previous verdict was not approve: {description}"
+    return "no review status on the previous head"
+
+
 def refusal(
     *,
     body: str,
@@ -123,6 +149,12 @@ def main(argv: list[str]) -> int:
         default=None,
         help="on success, write true or false (`/review full`)",
     )
+    parser.add_argument(
+        "--refresh-statuses",
+        type=Path,
+        default=None,
+        help="status refresh: gh api repos/O/R/commits/BEFORE/statuses of the previous head",
+    )
     args = parser.parse_args(argv)
     body_path: Path = args.body
     maintainers_path: Path = args.maintainers
@@ -139,6 +171,10 @@ def main(argv: list[str]) -> int:
         is_draft=bool(pr_data.get("draft", False)),
         checks=conclusions(check_runs),
     )
+    refresh_path: Path | None = args.refresh_statuses
+    if reason is None and refresh_path is not None:
+        statuses: list[dict[str, Any]] = json.loads(refresh_path.read_text(encoding="utf-8"))
+        reason = refresh_allowed(statuses)
     print(reason if reason is not None else "ok")
     full_out: Path | None = args.full_out
     if reason is None and full_out is not None:

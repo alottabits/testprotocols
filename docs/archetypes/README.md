@@ -23,7 +23,7 @@ verification` → `verified`.
 | 0 | Request | issue from the `archetype-request` template, or a private request held by the maintainers | maintainer | a charter is opened, or the request is declined with the reason |
 | 1 | Charter | PR `charter: <slug>`, merged to `main`; adds the document with Status `chartered` and only its Charter section | archetype reviewer, charter questions | merge ratifies the class definition and the reviewed-family list; it commits scope only, no contract |
 | 2 | Exploration | branch `archetype/<slug>`, no PR | none | the maintainer opens the design PR |
-| 3 | Design | PR `archetype: <slug>`, the document only | archetype reviewer, design questions; two rounds | verdict not `request changes`, every manifest row has an Outcome, Status `accepted for verification`; **not merged** |
+| 3 | Design | PR `archetype: <slug>`, the document only | archetype reviewer, design questions; three rounds | verdict not `request changes`, every manifest row has an Outcome, Status `accepted for verification`; **not merged** |
 | 4 | Verification | the same PR gains the core code, tests and changelog entries; a reference driver per ratified family is written in the private corpus | code reviewer and archetype reviewer, verification questions | `conformance` green; every finding folded back into the document in place and recorded in its review record |
 | 5 | Land | merge with Status `verified`; then a `release:` | release reviewer | tag, publish |
 
@@ -35,7 +35,9 @@ fires (a second consumer or a second trigger family), it arrives through an
 ordinary `proposal:` citing the design path and row id, and its reference
 drivers arrive with the implementing `feat:` PR.
 
-A charter that cannot be agreed after two rounds is closed, not merged. A
+A charter that cannot be agreed after three rounds is closed, not merged. A
+status refresh after an approve verdict (CONTRIBUTING.md, "A PR's life",
+step 4) is not a round at any stage. A
 design that fails verification is reshaped on its branch, or its PR is closed
 with the reason recorded; the charter stays on `main` with a closing note in
 its review record.
