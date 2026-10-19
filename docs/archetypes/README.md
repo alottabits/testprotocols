@@ -30,7 +30,7 @@ verification` → `verified`.
 Nothing but the charter reaches `main` before verification: an accepted
 design on `main` is a recorded decision every later review reads.
 
-A tier left `tier-staged` becomes a GAPS pointer at merge. When its trigger
+A tier below the majority, left `tier-staged`, becomes a GAPS pointer at merge. When its trigger
 fires (a second consumer or a second trigger family), it arrives through an
 ordinary `proposal:` citing the design path and row id, and its reference
 drivers arrive with the implementing `feat:` PR.
@@ -134,10 +134,10 @@ driver-facing notes.
 
 | Id | Kind | Symbol | Mechanism | Placement | Breaking | Outcome |
 | --- | --- | --- | --- | --- | --- |
-| M1 | new protocol / new field / new archetype / new tier / rename / SPLITS entry / GAPS entry / LEVELS entry | `module:Symbol` | a ladder rung, or `archetype` / `record` | `core` or `tier-staged — <trigger>` | yes / no | accepted / accepted with conditions / declined, date |
+| M1 | new protocol / new field / new archetype / new tier / rename / SPLITS entry / GAPS entry / LEVELS entry | `module:Symbol` | a ladder rung, or `archetype` / `record` | `core`, `tier — <tier name>` or `tier-staged — <trigger>` | yes / no | accepted / accepted with conditions / declined, date |
 
-Every symbol change the body mentions has a row. `core` rows are implemented
-on the `archetype:` PR and get changelog entries citing `<design path> M<n>`.
+Every symbol change the body mentions has a row. `core` and `tier` rows are
+implemented on the `archetype:` PR and get changelog entries citing `<design path> M<n>`.
 `tier-staged` rows get a pointer in `packages/testprotocols/GAPS.md` naming the
 document before the PR merges at `verified`. A later `feat:` PR cites a row
 the way it cites a proposal's `P<n>`.
@@ -158,7 +158,14 @@ For an archetype **core**, a ratified reviewed-family list plus the sourced
 matrix plus the reference corpus substitutes for a second consumer. A core
 member is supported on every trigger family and on a majority of the ratified
 list; anything else is a tier or a documented per-method unsupported case. A
-**tier** still waits for a second consumer or a second trigger family.
+**tier** is built on the archetype PR when its members are supported on a
+majority of the ratified list: its matrix evidence stands in for the second
+consumer, as the core's does. Its manifest rows carry Placement
+`tier — <tier name>` and are implemented and tested like core rows, and a
+family that lacks a member raises the documented unsupported case. A tier
+below the majority still waits for a second consumer or a second trigger
+family and stays `tier-staged` (amended 2026-10-19; until then every tier
+waited).
 
 ## The reference corpus and the `conformance` check
 
