@@ -84,8 +84,9 @@ directly is a separate request.
   bridged modem publishes no Wi-Fi. *Under*-specified: no WAN connection object, no
   DHCP server, DNS forwarder or bridge (`GAPS.md`, `L2Bridge`, 2026-05-02,
   whose trigger is this class), no host table, no identity read, no
-  configuration backup and restore, no USP, no voice, no mesh (health —
-  uptime, load, memory, logs — it has, through `device_management`). A tier of it cannot close the
+  configuration backup and restore, no USP, no voice, no mesh. Health and
+  logs it has: `DeviceManagement` publishes uptime, load, memory, process
+  state and log reads, and is the reuse candidate for both. A tier of it cannot close the
   over-specification, because its mandatory members stay mandatory; extending
   it member by member would keep its one consumer on a shape no matrix has
   tested. The design decides the mechanism on the placement ladder — evolve
@@ -157,11 +158,13 @@ lines:
   line (prplware-v5.2.0, October 2026). The 4.0 line is the floor because it
   is the line the consumer runs; a 5.x revision joins by a dated note where
   its evidence differs.
-- **OpenWrt 24.10 stable, with icwmp from the public iopsys feed as its
+- **OpenWrt, the 24.10 line, with icwmp from the public iopsys feed as its
   TR-069 client.** The substrate under prplOS and under many retail routers;
-  UCI and ubus; no TR-181 data model, no mesh controller
-  (https://openwrt.org/releases/24.10/start — 24.10.0 released February
-  2025, 24.10.8 on 26 July 2026). The family is named with its TR-069 client
+  UCI and ubus; no TR-181 data model, no mesh controller. The 24.10 line is
+  the old-stable series since 25.12 (25.12.6 released 18 October 2026;
+  24.10.8 on 26 July 2026) and is the floor because it is the line the
+  consumer runs and the base prplOS builds on; a 25.12 revision joins by a
+  dated note where its evidence differs. The family is named with its TR-069 client
   because the four official OpenWrt feeds (`packages`, `luci`, `routing`,
   `telephony`) at `openwrt-24.10` carry no CWMP or USP client: icwmp (iopsys,
   BSD 3-Clause, https://dev.iopsys.eu/bbf/icwmp) is packaged in the public
@@ -183,7 +186,7 @@ Five families: the two trigger families plus three competitors.
 | Family | Role | Reason in |
 | --- | --- | --- |
 | prplOS, prplWare 4.0 line and later | trigger | triggering consumer; operator-managed access gateway class; TR-181 data model, TR-069, USP, mesh controller |
-| OpenWrt 24.10 stable with icwmp (iopsys feed) | trigger | triggering consumer; the substrate under prplOS and many retail routers; UCI/ubus with a packaged TR-069 client, no data model, no mesh |
+| OpenWrt, 24.10 line, with icwmp (iopsys feed) | trigger | triggering consumer; the substrate under prplOS and many retail routers; UCI/ubus with a packaged TR-069 client, no data model, no mesh |
 | RDK-B, quarterly releases `rdkb-2025q4-kirkstone` and later | competitor | the other open operator gateway stack (cable and fibre); `dmcli` over TR-181 with `X_RDK_` extensions; the 2026q1 release moves the lead reference platform from Raspberry Pi 4 to Banana Pi R4 |
 | FRITZ!OS 8.20 and later (AVM FRITZ!Box) | competitor | the retail and small-business gateway with a fully published SOAP/UPnP management API (TR-064, about fifty services) and **no CLI** (AVM states Telnet is unsupported since FRITZ!OS 6.25); the family that tests whether the shape survives a read-rich, write-narrow API |
 | MikroTik RouterOS v7 | competitor | the same family line the managed-router charter reviews, here on its low-end routers used as CPE; the first "one OS, two archetypes" data point for the composition question; v6 is out |
@@ -197,9 +200,17 @@ lines run RDK-B or prplOS and are covered by those families); **Ubiquiti**
 development, as the managed-router charter found); **consumer mesh systems**
 managed only through a vendor app (no published management plane).
 
-Not reviewed: **ADTRAN SmartOS, Zyxel, TP-Link, Calix**. This charter makes
-no claim about their published operations; any of them can join the list by
-a dated revision.
+Also excluded, with reasons: **ADTRAN SmartOS** (SmartOS 11 and later is
+built on prplWrt, the predecessor of prplOS, so its published operations are
+covered by the prplOS family; a dated revision brings it in if its data model
+diverges); **Zyxel** (operator and retail gateways on vendor firmware managed
+through a web interface and TR-069, with no published management-plane
+documentation beyond the TR-069 data model that the RDK-B, prplOS and
+FRITZ!OS columns already exercise); **TP-Link** (retail routers managed
+through a web interface and a vendor app, no published management API);
+**Calix** (operator gateways on vendor firmware managed through the vendor's
+cloud, no published device-side API). Each can join the list by a dated
+revision that cites a published management plane.
 
 Five families give denominators with meaning under the evidence bar as
 amended on 2026-10-19: a core member is supported on both trigger families
@@ -214,7 +225,9 @@ point of including it.
 - prplOS release tags: https://gitlab.com/prpl-foundation/prplos/prplos/-/tags
   (prplware-v4.0.4, 2 October 2026; prplware-v5.2.0, 7 October 2026).
 - OpenWrt 24.10: https://openwrt.org/releases/24.10/start (24.10.8 released
-  26 July 2026). The official feeds at the 24.10 branch:
+  26 July 2026; https://openwrt.org/ names 25.12.6 of 18 October 2026 as the
+  current stable and 24.10 as old-stable). The official feeds at the 24.10
+  branch:
   https://github.com/openwrt/packages/tree/openwrt-24.10,
   https://github.com/openwrt/luci/tree/openwrt-24.10,
   https://github.com/openwrt/routing/tree/openwrt-24.10,
@@ -270,3 +283,12 @@ candidate on the trigger-family definitions above.
   shared protocols; sources for every version line added; the evidence-bar
   paraphrase aligned with the README; one line wrapped. One finding
   rejected: `tr069_client` is a member of `CpeDevice` (`devices/cpe.py`).
+- **2026-10-19 — charter review, round 1 (on 378007f): approve with
+  conditions (C1–C2, N1–N3).** Applied: C1 the health claim corrected and
+  `DeviceManagement` named as the reuse candidate for health and logs; C2 the
+  four "not reviewed" families given a reason out each (ADTRAN SmartOS covered
+  by the prplOS family; Zyxel, TP-Link and Calix without a published
+  management plane); N1 the request's I26 and I27 cells corrected in #98 and
+  in the PR body; N2 sources added for every version line; N3 OpenWrt stated
+  as the 24.10 line, old-stable since 25.12, with a 25.12 revision allowed by
+  dated note.
