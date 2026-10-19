@@ -61,6 +61,50 @@ class TestCaptureSharedWindow:
         one.stop_tcpdump.assert_called_once()
         two.stop_tcpdump.assert_called_once()
 
+    def test_start_failing_after_others_stops_the_started_ones(self) -> None:
+        one, two, three = _pcap(), _pcap(), _pcap()
+        two.start_tcpdump.side_effect = RuntimeError("tcpdump: n0: no such device")
+        with patch("testoperations._capture.time.sleep") as sleep:
+            with pytest.raises(RuntimeError, match="no such device"):
+                capture_shared_window(
+                    [
+                        CaptureSpec(one, "n0", "/tmp/a.pcap"),
+                        CaptureSpec(two, "n0", "/tmp/b.pcap"),
+                        CaptureSpec(three, "n0", "/tmp/c.pcap"),
+                    ],
+                    window_s=1,
+                )
+        sleep.assert_not_called()
+        one.stop_tcpdump.assert_called_once_with("pid-1")
+        two.stop_tcpdump.assert_not_called()
+        three.start_tcpdump.assert_not_called()
+
+    def test_a_raising_stop_does_not_skip_the_later_stops(self) -> None:
+        one, two, three = _pcap(), _pcap(), _pcap()
+        two.stop_tcpdump.side_effect = RuntimeError("stop failed")
+        with pytest.raises(RuntimeError, match="stop failed"):
+            capture_shared_window(
+                [
+                    CaptureSpec(one, "n0", "/tmp/a.pcap"),
+                    CaptureSpec(two, "n0", "/tmp/b.pcap"),
+                    CaptureSpec(three, "n0", "/tmp/c.pcap"),
+                ],
+                window_s=0,
+            )
+        one.stop_tcpdump.assert_called_once()
+        three.stop_tcpdump.assert_called_once()
+
+    def test_every_stop_failure_is_reported(self) -> None:
+        one, two = _pcap(), _pcap()
+        one.stop_tcpdump.side_effect = RuntimeError("first")
+        two.stop_tcpdump.side_effect = RuntimeError("second")
+        with pytest.raises(ExceptionGroup) as raised:
+            capture_shared_window(
+                [CaptureSpec(one, "n0", "/tmp/a.pcap"), CaptureSpec(two, "n0", "/tmp/b.pcap")],
+                window_s=0,
+            )
+        assert [str(exc) for exc in raised.value.exceptions] == ["first", "second"]
+
 
 class TestReadFields:
     def test_one_read_per_entry_with_filter_and_fields(self) -> None:
