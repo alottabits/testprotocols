@@ -291,72 +291,72 @@ it stays.
 | Id | Operation | prplOS 4.0 line | OpenWrt 24.10 line + icwmp | RDK-B 2025q4+ | FRITZ!OS 8.20+ | RouterOS v7 |
 | --- | --- | :--: | :--: | :--: | :--: | :--: |
 | | **WAN connection** |  |  |  |  |  |
-| R1 | Set the WAN connection mode (DHCP, static, PPPoE, IPoE) | ? | ✓ [1] | ? | ? | ? |
-| R2 | Read WAN connection state, address and lease | ? | ✓ [2] | ? | ? | ? |
-| R3 | Set PPPoE credentials and service name | ? | ✓ [3] | ? | ? | ? |
-| R4 | Reset the PPPoE session | ? | ✓ [4] | ? | ? | ? |
-| R5 | Set the WAN VLAN id and priority | ? | ◐ VLAN id via `8021q` `vid`; 802.1p priority mapping undocumented [5] | ? | ? | ? |
-| R6 | Set the IPv6 WAN mode; read the delegated prefix | ? | ✓ [6] | ? | ? | ? |
-| R7 | Read the provisioning mode (v4, v6, dual) | ? | ◐ no mode field; derive from wan/wan6 interface status [7] | ? | ? | ? |
-| R8 | Read WAN link state | ? | ✓ [8] | ? | ? | ? |
-| R9 | Administratively disable / enable the WAN | ? | ✓ [9] | ? | ? | ? |
-| R10 | Renew / release the WAN DHCP lease | ? | ◐ wiki shows `ifdown`/`ifup` only; `renew` method only in netifd source [10] | ? | ? | ? |
+| R1 | Set the WAN connection mode (DHCP, static, PPPoE, IPoE) | ? | ✓ [1] | ? | ◐ SetConnectionType only routed/bridged; no static/DHCP/IPoE selector [1] | ? |
+| R2 | Read WAN connection state, address and lease | ? | ✓ [2] | ? | ◐ status, address, uptime, DNS; no lease-time field [2] | ? |
+| R3 | Set PPPoE credentials and service name | ? | ✓ [3] | ? | ◐ credentials only; PPPoEServiceName "Not supported, returns ''" [3] | ? |
+| R4 | Reset the PPPoE session | ? | ✓ [4] | ? | ✓ [4] | ? |
+| R5 | Set the WAN VLAN id and priority | ? | ◐ VLAN id via `8021q` `vid`; 802.1p priority mapping undocumented [5] | ? | ✗ no WAN VLAN action; WANEthernetLinkConfig has only GetEthernetLinkStatus [5] | ? |
+| R6 | Set the IPv6 WAN mode; read the delegated prefix | ? | ✓ [6] | ? | ◐ read only via UPnP IGD; no IPv6 WAN-mode Set action [6] | ? |
+| R7 | Read the provisioning mode (v4, v6, dual) | ? | ◐ no mode field; derive from wan/wan6 interface status [7] | ? | ◐ derivable from v4/v6 ConnectionStatus and DsliteStatus; no mode field [7] | ? |
+| R8 | Read WAN link state | ? | ✓ [8] | ? | ✓ [8] | ? |
+| R9 | Administratively disable / enable the WAN | ? | ✓ [9] | ? | ✗ no SetEnable on WANIP/PPPConnection; DSL default link cannot be disabled [9] | ? |
+| R10 | Renew / release the WAN DHCP lease | ? | ◐ wiki shows `ifdown`/`ifup` only; `renew` method only in netifd source [10] | ? | ◐ ForceTermination/RequestConnection re-establish the connection; no explicit lease renew [10] | ? |
 | | **LAN services** |  |  |  |  |  |
-| R11 | Configure the DHCP server pool and lease time | ? | ✓ [11] | ? | ? | ? |
-| R12 | Configure DHCP options | ? | ✓ [12] | ? | ? | ? |
-| R13 | Configure static leases | ? | ✓ [13] | ? | ? | ? |
-| R14 | Read active leases | ? | ◐ dnsmasq leases are a file; ubus `dhcp ipv4leases` is odhcpd-only [14] | ? | ? | ? |
-| R15 | Configure DNS forwarder upstreams | ? | ✓ [15] | ? | ? | ? |
-| R16 | Configure local host overrides | ? | ✓ [16] | ? | ? | ? |
-| R17 | Configure DNS rebind protection | ? | ✓ [17] | ? | ? | ? |
-| R18 | Configure bridge membership (ports, wireless networks) | ? | ✓ [18] | ? | ? | ? |
-| R19 | Read bridge and port membership | ? | ◐ UCI `ports` gives config; live membership via `bridge` shell [19] | ? | ? | ? |
-| R20 | Configure a guest segment | ? | ✓ [20] | ? | ? | ? |
-| R21 | Read LAN port status (link, speed, duplex) | ? | ◐ `link` via network.device status; speed/duplex need ethtool/swconfig [21] | ? | ? | ? |
+| R11 | Configure the DHCP server pool and lease time | ? | ✓ [11] | ? | ◐ pool via SetAddressRange; no lease-time action [11] | ? |
+| R12 | Configure DHCP options | ? | ✓ [12] | ? | ◐ only router and subnet options (SetIPRouter, SetSubnetMask); DNS/domain read-only [12] | ? |
+| R13 | Configure static leases | ? | ✓ [13] | ? | ✗ ReservedAddresses is out-only in GetInfo; no Set action [13] | ? |
+| R14 | Read active leases | ? | ◐ dnsmasq leases are a file; ubus `dhcp ipv4leases` is odhcpd-only [14] | ? | ✓ [14] | ? |
+| R15 | Configure DNS forwarder upstreams | ? | ✓ [15] | ? | ✗ X_SetDNSServers "The action is not supported"; LAN GetDNSServer read-only [15] | ? |
+| R16 | Configure local host overrides | ? | ✓ [16] | ? | ◐ only X_AVM-DE_SetHostNameByMACAddress; no arbitrary name/record override [16] | ? |
+| R17 | Configure DNS rebind protection | ? | ✓ [17] | ? | ✗ no rebind-protection action in any listed TR-064 service [17] | ? |
+| R18 | Configure bridge membership (ports, wireless networks) | ? | ✓ [18] | ? | ✗ no bridge/port-membership action; LAN services configure IP and DHCP only [18] | ? |
+| R19 | Read bridge and port membership | ? | ◐ UCI `ports` gives config; live membership via `bridge` shell [19] | ? | ◐ per-host port/guest flag only; no bridge object [19] | ? |
+| R20 | Configure a guest segment | ? | ✓ [20] | ? | ◐ Wi-Fi guest AP via its own WLANConfiguration instance; no LAN guest-port action [20] | ? |
+| R21 | Read LAN port status (link, speed, duplex) | ? | ◐ `link` via network.device status; speed/duplex need ethtool/swconfig [21] | ? | ◐ single LANEthernetInterfaceConfig instance; per-port only via host entries [21] | ? |
 | | **Wi-Fi access points** |  |  |  |  |  |
-| R22 | Configure radio (band, channel, width, power, enable) | ? | ✓ [22] | ? | ? | ? |
-| R23 | Read radio state | ? | ✓ [23] | ? | ? | ? |
-| R24 | Configure a BSS (SSID, security mode, passphrase, hidden) | ? | ✓ [24] | ? | ? | ? |
-| R25 | Read BSS state | ? | ✓ [25] | ? | ? | ? |
-| R26 | Read connected stations (signal, rate) | ? | ✓ [26] | ? | ? | ? |
-| R27 | Disconnect a station | ? | ◐ `del_client` only in hostapd ubus source, no wiki page [27] | ? | ? | ? |
-| R28 | Start / cancel push-button or PIN onboarding; read its state | ? | ◐ PBC via `wps_pushbutton`/hostapd_cli; `wps_start`/`wps_status` source-only [28] | ? | ? | ? |
-| R29 | Configure band steering and 11k/v/r | ? | ✓ [29] | ? | ? | ? |
+| R22 | Configure radio (band, channel, width, power, enable) | ? | ✓ [22] | ? | ◐ SetEnable/SetChannel; no channel-width or TX-power action [22] | ? |
+| R23 | Read radio state | ? | ✓ [23] | ? | ✓ [23] | ? |
+| R24 | Configure a BSS (SSID, security mode, passphrase, hidden) | ? | ✓ [24] | ? | ✓ [24] | ? |
+| R25 | Read BSS state | ? | ✓ [25] | ? | ✓ [25] | ? |
+| R26 | Read connected stations (signal, rate) | ? | ✓ [26] | ? | ✓ [26] | ? |
+| R27 | Disconnect a station | ? | ◐ `del_client` only in hostapd ubus source, no wiki page [27] | ? | ✗ no deauthenticate/disconnect-station action in WLANConfiguration [27] | ? |
+| R28 | Start / cancel push-button or PIN onboarding; read its state | ? | ◐ PBC via `wps_pushbutton`/hostapd_cli; `wps_start`/`wps_status` source-only [28] | ? | ✓ [28] | ? |
+| R29 | Configure band steering and 11k/v/r | ? | ✓ [29] | ? | ✗ no steering/11k/v/r action; mesh JSON exposes read-only flags [29] | ? |
 | | **Security posture** |  |  |  |  |  |
-| R30 | Read zone defaults and zone membership | ? | ✓ [30] | ? | ? | ? |
-| R31 | Add / remove a port forward | ? | ✓ [31] | ? | ? | ? |
-| R32 | Read the port-forward table | ? | ✓ [32] | ? | ? | ? |
-| R33 | Add / remove an egress filter rule | ? | ✓ [33] | ? | ? | ? |
-| R34 | Read filter rules | ? | ✓ [34] | ? | ? | ? |
-| R35 | Block a host, on demand or on a schedule | ? | ✓ [35] | ? | ? | ? |
-| R36 | Enable / disable automatic port mapping (UPnP IGD, PCP) | ? | ✓ [36] | ? | ? | ? |
-| R37 | Read automatic port mappings | ? | ◐ lease file only; no documented read command [37] | ? | ? | ? |
+| R30 | Read zone defaults and zone membership | ? | ✓ [30] | ? | ✗ no zone/firewall object; only per-host WANAccess granted/denied [30] | ? |
+| R31 | Add / remove a port forward | ? | ✓ [31] | ? | ◐ AddPortMapping only for the calling host itself, not other LAN hosts [31] | ? |
+| R32 | Read the port-forward table | ? | ✓ [32] | ? | ✓ [32] | ? |
+| R33 | Add / remove an egress filter rule | ? | ✓ [33] | ? | ✗ no L3/L4 rule action; only per-host WAN disallow and filter profiles [33] | ? |
+| R34 | Read filter rules | ? | ✓ [34] | ? | ◐ only filter profiles (time budgets/timetables), not address/port rules [34] | ? |
+| R35 | Block a host, on demand or on a schedule | ? | ✓ [35] | ? | ✓ [35] | ? |
+| R36 | Enable / disable automatic port mapping (UPnP IGD, PCP) | ? | ✓ [36] | ? | ◐ X_UPnP SetConfig Enable toggles UPnP generally; PCP not covered [36] | ? |
+| R37 | Read automatic port mappings | ? | ◐ lease file only; no documented read command [37] | ? | ◐ mappings listed; origin (UPnP vs manual) not flagged [37] | ? |
 | | **Host table** |  |  |  |  |  |
-| R38 | Read the host table (address, name, attachment) | ? | ◐ no unified host table; DHCP leases + `ip neigh`/LuCI hints [38] | ? | ? | ? |
+| R38 | Read the host table (address, name, attachment) | ? | ◐ no unified host table; DHCP leases + `ip neigh`/LuCI hints [38] | ? | ✓ [38] | ? |
 | | **Device operations** |  |  |  |  |  |
-| R39 | Read identity (manufacturer, model, serial, OUI, software version) | ? | ◐ `system board` lacks serial, manufacturer, OUI [39] | ? | ? | ? |
-| R40 | Read uptime, load, memory | ? | ✓ [40] | ? | ? | ? |
-| R41 | Read process state | ? | ✓ [41] | ? | ? | ? |
-| R42 | Read device logs | ? | ✓ [42] | ? | ? | ? |
-| R43 | Configure log export | ? | ✓ [43] | ? | ? | ? |
-| R44 | Configure NTP servers; read sync state | ? | ◐ servers via `system.ntp.server`; sync state needs ntp-utils `ntpq` [44] | ? | ? | ? |
-| R45 | Upgrade firmware from an image | ? | ✓ [45] | ? | ? | ? |
-| R46 | Factory reset | ? | ✓ [46] | ? | ? | ? |
-| R47 | Reboot; read readiness | ? | ◐ `reboot` documented; readiness inferred from `system info` uptime, no flag [47] | ? | ? | ? |
-| R48 | Export configuration | ? | ✓ [48] | ? | ? | ? |
-| R49 | Import configuration | ? | ✓ [49] | ? | ? | ? |
-| R50 | Set the local administrator credential | ? | ✓ [50] | ? | ? | ? |
+| R39 | Read identity (manufacturer, model, serial, OUI, software version) | ? | ◐ `system board` lacks serial, manufacturer, OUI [39] | ? | ✓ [39] | ? |
+| R40 | Read uptime, load, memory | ? | ✓ [40] | ? | ◐ UpTime only; no load or memory figures [40] | ? |
+| R41 | Read process state | ? | ✓ [41] | ? | ✗ no process-list action in any listed TR-064 service [41] | ? |
+| R42 | Read device logs | ? | ✓ [42] | ? | ✓ [42] | ? |
+| R43 | Configure log export | ? | ✓ [43] | ? | ✗ no syslog/export action; SendSupportData targets vendor support only [43] | ? |
+| R44 | Configure NTP servers; read sync state | ? | ◐ servers via `system.ntp.server`; sync state needs ntp-utils `ntpq` [44] | ? | ◐ SetNTPServers; no sync-state field, timezone fields "not supported" [44] | ? |
+| R45 | Upgrade firmware from an image | ? | ✓ [45] | ? | ✓ [45] | ? |
+| R46 | Factory reset | ? | ✓ [46] | ? | ✓ [46] | ? |
+| R47 | Reboot; read readiness | ? | ◐ `reboot` documented; readiness inferred from `system info` uptime, no flag [47] | ? | ◐ Reboot action; readiness only inferable via DeviceInfo GetInfo UpTime [47] | ? |
+| R48 | Export configuration | ? | ✓ [48] | ? | ✓ [48] | ? |
+| R49 | Import configuration | ? | ✓ [49] | ? | ✓ [49] | ? |
+| R50 | Set the local administrator credential | ? | ✓ [50] | ? | ✓ [50] | ? |
 | | **Remote management** |  |  |  |  |  |
-| R51 | Configure ACS URL, credentials and periodic inform | ? | ✓ [51] | ? | ? | ? |
-| R52 | Trigger an inform; read connection-request state | ? | ◐ `status` reports session state, not connection-request state [52] | ? | ? | ? |
-| R53 | Configure the USP controller endpoint and transport; read agent state | ? | ✗ no USP agent (obuspa) in 24.10 packages/luci/routing/telephony feeds [53] | ? | ? | ? |
+| R51 | Configure ACS URL, credentials and periodic inform | ? | ✓ [51] | ? | ✓ [51] | ? |
+| R52 | Trigger an inform; read connection-request state | ? | ◐ `status` reports session state, not connection-request state [52] | ? | ◐ no inform-trigger action; only ConnectionRequestURL/Username readable [52] | ? |
+| R53 | Configure the USP controller endpoint and transport; read agent state | ? | ✗ no USP agent (obuspa) in 24.10 packages/luci/routing/telephony feeds [53] | ? | ◐ endpoint, MTP (websocket/mqtt), host, path, TLS writable; no agent connection state [53] | ? |
 | | **Voice** |  |  |  |  |  |
-| R54 | Configure a SIP account; read registration state | ? | ◐ Asterisk PBX config files + CLI; no UCI/ubus voice model [54] | ? | ? | ? |
-| R55 | Read FXS line state | ? | ◐ asterisk-chan-lantiq Lantiq SoC FXS only; state via Asterisk CLI [55] | ? | ? | ? |
+| R54 | Configure a SIP account; read registration state | ? | ◐ Asterisk PBX config files + CLI; no UCI/ubus voice model [54] | ? | ✓ [54] | ? |
+| R55 | Read FXS line state | ? | ◐ asterisk-chan-lantiq Lantiq SoC FXS only; state via Asterisk CLI [55] | ? | ◐ X_AVM-DE_GetPhonePort returns port name only; no hook/line state [55] | ? |
 | | **Mesh controller** |  |  |  |  |  |
-| R56 | Read mesh topology (agents, backhaul links) | ? | ✗ no EasyMesh controller; 802.11s is a peer mesh [56] | ? | ? | ? |
-| R57 | Read backhaul link health | ? | ✗ 802.11s peer links via `iw station dump`, not EasyMesh backhaul [57] | ? | ? | ? |
-| R58 | Steer a client to another agent | ? | ◐ usteer roams clients between plain APs; no EasyMesh agents [58] | ? | ? | ? |
+| R56 | Read mesh topology (agents, backhaul links) | ? | ✗ no EasyMesh controller; 802.11s is a peer mesh [56] | ? | ✓ [56] | ? |
+| R57 | Read backhaul link health | ? | ✗ 802.11s peer links via `iw station dump`, not EasyMesh backhaul [57] | ? | ◐ link metrics present; no explicit backhaul flag (is_upstream is LAN-only) [57] | ? |
+| R58 | Steer a client to another agent | ? | ◐ usteer roams clients between plain APs; no EasyMesh agents [58] | ? | ✗ no steering action; schema steering_enabled is a read-only flag [58] | ? |
 
 ## 10. Sources
 
@@ -432,6 +432,65 @@ in the package source, not in this design record.
 ### RDK-B quarterly releases, rdkb-2025q4-kirkstone and later
 
 ### FRITZ!OS 8.20 and later
+
+1. TR-064 Support – WAN IP Connection (v7, 2025-12-18) — <https://fritz.support/resources/TR-064_WAN_IP_Connection.pdf> — §1.3 SetConnectionType (ConnectionType: Unconfigured, IP_Routed, IP_Bridged); Layer3Forwarding SetDefaultConnectionService picks WANIP vs WANPPP — the only mode writes are routed/bridged per service and default-service selection; addressing method is not settable
+2. TR-064 Support – WAN IP Connection (v7, 2025-12-18) — <https://fritz.support/resources/TR-064_WAN_IP_Connection.pdf> — §1.1 GetInfo (ConnectionStatus, ExternalIPAddress, Uptime, DNSServers, X_AVM-DE_IPv6ConnectionStatus), §1.16 GetExternalIPAddress — GetInfo returns connection state, external address and uptime; no DHCP lease expiry is exposed
+3. TR-064 Support – WAN PPP Connection (v16, 2025-12-18) — <https://fritz.support/resources/TR-064_WAN_PPP_Connection.pdf> — §1.7 SetUserName, §1.8 SetPassword; §1.1 GetInfo remark on NewPPPoEServiceName — username and password are settable actions; the PPPoE service name is explicitly unsupported
+4. TR-064 Support – WAN PPP Connection (v16, 2025-12-18) — <https://fritz.support/resources/TR-064_WAN_PPP_Connection.pdf> — §1.11 ForceTermination, §1.12 RequestConnection — the PPP connection can be torn down and re-requested by two argument-less actions
+5. TR-064 Support – WAN Ethernet Link Config (v3, 2025-08-07) — <https://fritz.support/resources/TR-064_WAN_Ethernet_Link_Config.pdf> — Action List (GetEthernetLinkStatus only) — the WAN Ethernet link service exposes a single read action and no VLAN id/priority parameter in any WAN service
+6. Internet Gateway Device Support v2 (FRITZ!OS 6.93 baseline, 2023-01-20) — <https://fritz.support/resources/IGD_v2.pdf> — WANIPConnection:2 additional actions X_AVM_DE_GetIPv6Prefix (IPv6Prefix, PrefixLength, ValidLifetime), X_AVM_DE_GetExternalIPv6Address — the delegated prefix and external IPv6 address are readable over IGD; nothing sets the IPv6 WAN mode
+7. TR-064 Support – WAN IP Connection (v7, 2025-12-18) — <https://fritz.support/resources/TR-064_WAN_IP_Connection.pdf> — §1.1 GetInfo NewConnectionStatus + NewX_AVM-DE_IPv6ConnectionStatus (both Unconfigured…Connected); IGD X_AVM_DE_GetDsliteStatus — separate IPv4 and IPv6 connection states (and a DS-Lite flag over IGD) let v4/v6/dual be inferred, but no provisioning-mode value exists
+8. TR-064 Support – WANCommonInterfaceConfig (v22, 2026-02-25) — <https://fritz.support/resources/TR-064_WAN_Common_Interface_Config.pdf> — §4 GetCommonLinkProperties NewPhysicalLinkStatus (Unavailable, Down, Initializing, Up), NewWANAccessType — the physical WAN link status and access type are returned by a documented read action
+9. TR-064 Support – WANDSLLinkConfig (v14, 2025-08-07) — <https://fritz.support/resources/TR-064_WAN_DSL_Link_Config.pdf> — SetEnable remark "Default connection cannot be disabled"; WANIPConnection Enable is out-only in GetInfo — the only Enable write is on the DSL link and is documented as unable to disable the default connection
+10. TR-064 Support – WAN IP Connection (v7, 2025-12-18) — <https://fritz.support/resources/TR-064_WAN_IP_Connection.pdf> — §1.7 ForceTermination, §1.8 RequestConnection — an IP connection can be dropped and re-requested, which re-acquires the address, but no renew/release verb exists
+11. TR-064 Support – LANHostConfigManagement1 (v9, 2025-08-07) — <https://fritz.support/resources/TR-064_LAN_Host_Config_Management.pdf> — SetAddressRange (MinAddress, MaxAddress), SetDHCPServerEnable, SetIPInterface — the DHCP range and server enable are writable; the state table has no lease-time variable
+12. TR-064 Support – LANHostConfigManagement1 (v9, 2025-08-07) — <https://fritz.support/resources/TR-064_LAN_Host_Config_Management.pdf> — SetIPRouter, SetSubnetMask; GetDNSServer (no Set); DomainName out-only in GetInfo — gateway and mask handed out by DHCP are writable, DNS and domain are read-only, no generic option action
+13. TR-064 Support – LANHostConfigManagement1 (v9, 2025-08-07) — <https://fritz.support/resources/TR-064_LAN_Host_Config_Management.pdf> — GetInfo NewReservedAddresses (out); Action List has no reservation write — static reservations can be read in aggregate but no action creates or deletes one
+14. TR-064 Support – Hosts (v32, 2026-01-29) — <https://fritz.support/resources/TR-064_Hosts.pdf> — §2.3 GetGenericHostEntry (IPAddress, AddressSource, LeaseTimeRemaining, Active, HostName), §2.1 GetHostNumberOfEntries — each host entry carries address source and remaining lease time
+15. TR-064 Support – WAN IP Connection (v7, 2025-12-18) — <https://fritz.support/resources/TR-064_WAN_IP_Connection.pdf> — §1.10 X_SetDNSServers (not supported); §1.9 X_GetDNSServers; history v3 "Mark X_SetDNSServer as unsupported" — the only DNS-server write action in the WAN services is explicitly marked unsupported
+16. TR-064 Support – Hosts (v32, 2026-01-29) — <https://fritz.support/resources/TR-064_Hosts.pdf> — §2.8 X_AVM-DE_SetHostNameByMACAddress, §2.17–2.19 X_AVM-DE_SetFriendlyName* — a host's name can be set per MAC, but no action defines a local DNS record or override
+17. FRITZ! interfaces index (TR-064 service list) — <https://fritz.com/en/pages/interfaces> — TR-064 service table (no DNS/rebind service) — the published service list contains no DNS forwarder service and no rebind-protection parameter
+18. TR-064 Support – LANHostConfigManagement1 (v9, 2025-08-07) — <https://fritz.support/resources/TR-064_LAN_Host_Config_Management.pdf> — Action List (SetIPInterface, SetAddressRange, …) — the LAN-side services carry no bridge or VLAN membership write
+19. TR-064 Support – Hosts (v32, 2026-01-29) — <https://fritz.support/resources/TR-064_Hosts.pdf> — §2.10 X_AVM-DE_GetSpecificHostEntryByIP (InterfaceType, X_AVM-DE_Port, X_AVM-DE_Speed, X_AVM-DE_Guest) — which LAN port or guest segment a host sits on is readable per host, not as a bridge table
+20. TR-064 Support – WLANConfiguration (v49, 2026-03-10) — <https://fritz.support/resources/TR-064_WLAN_Configuration.pdf> — §1 introduction (logical guest AP as service #2/#3/#4), §2.1 SetEnable, §2.12 SetSSID, §2.4 SetSecurityKeys, §2.33 X_AVM-DE_GetWLANExtInfo (APType normal/guest, UserIsolation) — the guest Wi-Fi is a separate service instance with the full Set* action set; wired guest access is not covered
+21. TR-064 Support – LAN Ethernet Interface Config (v3, 2025-08-07) — <https://fritz.support/resources/TR-064_LAN_Ethernet_Interface_Config.pdf> — GetInfo (Status, MaxBitRate, DuplexMode, MACAddress), GetStatistics; Hosts X_AVM-DE_Port/X_AVM-DE_Speed — link status, rate and duplex are read for one LAN interface; per-port speed is only visible on connected hosts
+22. TR-064 Support – WLANConfiguration (v49, 2026-03-10) — <https://fritz.support/resources/TR-064_WLAN_Configuration.pdf> — §2.1 SetEnable, §2.16 SetChannel (0 = auto), §2.3 SetConfig, §2.34 X_AVM-DE_SetWLANGlobalEnable; band = service instance — radio enable and channel are writable per band instance; width and power have no action
+23. TR-064 Support – WLANConfiguration (v49, 2026-03-10) — <https://fritz.support/resources/TR-064_WLAN_Configuration.pdf> — §2.2 GetInfo (Enable, Status Up/Disabled, Channel, Standard, X_AVM-DE_FrequencyBand), §2.15 GetChannelInfo (PossibleChannels, X_AVM-DE_AutoChannelEnabled) — radio enable, status, channel, band and auto-channel state are returned
+24. TR-064 Support – WLANConfiguration (v49, 2026-03-10) — <https://fritz.support/resources/TR-064_WLAN_Configuration.pdf> — §2.12 SetSSID, §2.14 SetBeaconType (None, WPA, 11i, WPAand11i, WPA3, 11iandWPA3, OWE, OWETrans), §2.4 SetSecurityKeys (KeyPassphrase/PreSharedKey), §2.18 SetBeaconAdvertisement (hidden) — SSID, security mode, passphrase and SSID broadcast are each set by a documented action
+25. TR-064 Support – WLANConfiguration (v49, 2026-03-10) — <https://fritz.support/resources/TR-064_WLAN_Configuration.pdf> — §2.2 GetInfo (SSID, BSSID, BeaconType, Enable, Status), §2.17 GetBeaconAdvertisement, §2.19 GetTotalAssociations — BSS identity, security mode, enable/status and association count are readable
+26. TR-064 Support – WLANConfiguration (v49, 2026-03-10) — <https://fritz.support/resources/TR-064_WLAN_Configuration.pdf> — §2.20 GetGenericAssociatedDeviceInfo (MAC, IP, AuthState, X_AVM-DE_Speed, X_AVM-DE_SignalStrength, X_AVM-DE_ChannelWidth), §2.23 X_AVM-DE_GetWLANDeviceListPath — per-station signal strength, rate and channel width are listed
+27. TR-064 Support – WLANConfiguration (v49, 2026-03-10) — <https://fritz.support/resources/TR-064_WLAN_Configuration.pdf> — §2 Action List (38 actions, none acting on a single station) — the service's full action list has no kick/deauth action
+28. TR-064 Support – WLANConfiguration (v49, 2026-03-10) — <https://fritz.support/resources/TR-064_WLAN_Configuration.pdf> — §2.36 X_AVM-DE_SetWPSConfig (WPSMode pbc / stop), §2.35 X_AVM-DE_GetWPSInfo (WPSStatus off, inactive, active, success, err_*), §2.37 X_AVM-DE_SetWPSEnable — push-button WPS can be started and stopped and its status read (PIN variables marked obsolete)
+29. TR-064 Support – WLANConfiguration (v49, 2026-03-10) — <https://fritz.support/resources/TR-064_WLAN_Configuration.pdf> — §2 Action List; Mesh schema node_interfaces.steering_enabled, 11k_friendly, 11v_friendly (read-only) — neither the Wi-Fi service nor the mesh JSON offers a write for steering or 802.11k/v/r
+30. TR-064 Support – X_AVM-DE_HostFilter (v8, 2025-09-11) — <https://fritz.support/resources/TR-064_Host_Filter.pdf> — §2.4 GetWANAccessByIP (WANAccess granted/denied/error); no zone action anywhere — the security surface is per-host WAN access, with no zone defaults or membership
+31. TR-064 Support – WAN IP Connection (v7, 2025-12-18) — <https://fritz.support/resources/TR-064_WAN_IP_Connection.pdf> — §1.14 AddPortMapping (restriction text), §1.15 DeletePortMapping; same in WAN PPP Connection §1.18/§1.19 — add/delete actions exist but the document limits adds to the requesting host and excludes guest hosts
+32. TR-064 Support – WAN IP Connection (v7, 2025-12-18) — <https://fritz.support/resources/TR-064_WAN_IP_Connection.pdf> — §1.11 GetPortMappingNumberOfEntries, §1.12 GetGenericPortMappingEntry (RemoteHost, ExternalPort, Protocol, InternalPort, InternalClient, Enabled, Description, LeaseDuration) — the full mapping table is enumerable by index
+33. TR-064 Support – X_AVM-DE_HostFilter (v8, 2025-09-11) — <https://fritz.support/resources/TR-064_Host_Filter.pdf> — §2 Action List (DisallowWANAccessByIP, AddHostEntryToFilterProfile, tickets) — the host-filter service blocks hosts and assigns time profiles; no address/port/protocol rule can be written
+34. TR-064 Support – X_AVM-DE_HostFilter (v8, 2025-09-11) — <https://fritz.support/resources/TR-064_Host_Filter.pdf> — §2.10 GetFilterProfiles, §2.7 GetFilterProfileByID, §4.1 FilterProfile XML (TimeTable Time/Action) — readable rules are per-profile allow/disallow timetables, not packet-filter rules
+35. TR-064 Support – X_AVM-DE_HostFilter (v8, 2025-09-11) — <https://fritz.support/resources/TR-064_Host_Filter.pdf> — §2.1 DisallowWANAccessByIP (Disallow 1/0), §2.9 AddHostEntryToFilterProfile (profile with timetable), §2.8 AddTicketTimeToHostEntryByIP — a host can be blocked immediately or bound to a scheduled filter profile
+36. TR-064 Support – X_UPnP (v3, 2025-08-08) — <https://fritz.support/resources/TR-064_UPnP.pdf> — SetConfig (Enable "UPnP functionality enabled", UPnPMediaServer); IGD GetAddonInfos UpnpControlEnabled "True, if portmappings allowed" (read) — UPnP can be switched on/off by action; the port-mapping permission is only readable and PCP is absent
+37. Internet Gateway Device Support v2 (FRITZ!OS 6.93 baseline, 2023-01-20) — <https://fritz.support/resources/IGD_v2.pdf> — WANIPConnection:2 GetListOfPortMappings, GetGenericPortMappingEntry; TR-064 GetGenericPortMappingEntry — the mapping table is readable over IGD and TR-064 but entries carry no automatic/static origin marker
+38. TR-064 Support – Hosts (v32, 2026-01-29) — <https://fritz.support/resources/TR-064_Hosts.pdf> — §2.3 GetGenericHostEntry (MAC, IP, HostName, InterfaceType Ethernet/802.11, Active), §2.10 X_AVM-DE_GetSpecificHostEntryByIP (X_AVM-DE_Port, X_AVM-DE_Guest), §2.14 X_AVM-DE_GetHostListPath (XML list) — the host table with address, name and attachment (interface type, port, guest) is enumerable
+39. TR-064: Supported Actions of Device Info (v11, 2025-08-07) — <https://fritz.support/resources/TR-064_Device_Info.pdf> — GetInfo (ManufacturerName, ManufacturerOUI, ModelName, SerialNumber, SoftwareVersion, HardwareVersion, ProductClass) — all five identity fields are returned by one action
+40. TR-064: Supported Actions of Device Info (v11, 2025-08-07) — <https://fritz.support/resources/TR-064_Device_Info.pdf> — GetInfo NewUpTime (ui4) — uptime is readable; no service exposes CPU load or memory
+41. FRITZ! interfaces index (TR-064 service list) — <https://fritz.com/en/pages/interfaces> — TR-064 service table — the published services (DeviceInfo, DeviceConfig, …) contain nothing about processes
+42. TR-064: Supported Actions of Device Info (v11, 2025-08-07) — <https://fritz.support/resources/TR-064_Device_Info.pdf> — GetDeviceLog (NewDeviceLog), X_AVM-DE_GetDeviceLogPath (XML events; filter all/sys/net/fon/wlan/usb) — the device log is readable as text and as filtered XML
+43. TR-064 Support – DeviceConfig (v12, 2025-12-01) — <https://fritz.support/resources/TR-064_Device_Config.pdf> — §2.12 X_AVM-DE_SendSupportData (mode normal/mesh), §2.14 X_AVM-DE_SetSupportDataEnable — the only log-shipping action sends support data to the vendor; no syslog destination is configurable
+44. TR-064 Support – Time (v5, 2025-08-07) — <https://fritz.support/resources/TR-064_Time.pdf> — SetNTPServers (NTPServer1, NTPServer2), GetInfo (CurrentLocalTime; LocalTimeZone etc. not supported) — two NTP servers are settable and current time readable, but no synchronisation status exists
+45. TR-064 Support – Special Actions (v5, 2025-08-07) — <https://fritz.support/resources/TR-064_Special_Actions.pdf> — §3.2 Firmware Upgrade (HTTP POST multipart to /cgi-bin/firmwarecfg: sid + UploadFile image), sid from UserInterface X_AVM-DE_DoPrepareCGI; alternative UserInterface X_AVM-DE_DoManualUpdate (DownloadURL) — a firmware image can be uploaded by POST or pulled from a URL; downgrade is "Not supported"
+46. TR-064 Support – DeviceConfig (v12, 2025-12-01) — <https://fritz.support/resources/TR-064_Device_Config.pdf> — §2.5 FactoryReset (no arguments) — factory reset is a documented argument-less action
+47. TR-064 Support – DeviceConfig (v12, 2025-12-01) — <https://fritz.support/resources/TR-064_Device_Config.pdf> — §2.6 Reboot (no arguments); DeviceInfo GetInfo NewUpTime — reboot exists; no readiness/boot-complete indicator is documented
+48. TR-064 Support – DeviceConfig (v12, 2025-12-01) — <https://fritz.support/resources/TR-064_Device_Config.pdf> — §2.8 X_AVM-DE_GetConfigFile (Password in, ConfigFileUrl out; URL valid <30 s, digest-protected, LAN-only per Remote Access §5.1) — an encrypted configuration export is produced on demand and fetched from a short-lived URL
+49. TR-064 Support – DeviceConfig (v12, 2025-12-01) — <https://fritz.support/resources/TR-064_Device_Config.pdf> — §2.9 X_AVM-DE_SetConfigFile (Password, ConfigFileUrl http/https); Special Actions §3.1 POST ConfigImportFile — a configuration file is imported from a client-hosted URL or by multipart POST
+50. TR-064 Support – LANConfigSecurity (v12, 2025-08-07) — <https://fritz.support/resources/TR-064_LAN_Config_Security.pdf> — §2.4 SetConfigPassword (NewPassword; "needs up to 20 seconds"), §2.5 X_AVM-DE_GetUserList, §2.1 GetInfo X_AVM-DE_IsDefaultPasswordActive — the administrator password is settable by action; user creation is not (password only)
+51. TR-064 Support – ManagementServer (v10, 2025-08-07) — <https://fritz.support/resources/TR-064_Management_Server.pdf> — §1.2 SetManagementServerURL, §1.3 SetManagementServerUsername, §1.4 SetManagementServerPassword, §1.5 SetPeriodicInform (Enable, Interval, Time), §1.8 X_SetTR069Enable — ACS URL, credentials and periodic inform are each writable (URL change may demand second-factor auth, codes 866–868)
+52. TR-064 Support – ManagementServer (v10, 2025-08-07) — <https://fritz.support/resources/TR-064_Management_Server.pdf> — §1.1 GetInfo (ConnectionRequestURL, ConnectionRequestUsername, ParameterKey), §1.6 SetConnectionRequestAuthentication — connection-request URL and credentials are exposed but nothing triggers an Inform or reports its state
+53. TR-064 Support – X_AVM-DE_USPController (v6, 2025-08-08) — <https://fritz.support/resources/TR-064_USP_Controller.pdf> — §2.4 AddUSPController (EndpointID, MTP, Hostname, Path, Port, UseTLS, MQTT topics, Username/Password, AccessRight*), §2.6 SetUSPControllerEnableByIndex, §2.2 GetUSPControllerByIndex — a USP controller endpoint and transport are fully configurable; the service table has no agent/connection status variable
+54. TR-064 Support – X_VoIP (v71, 2025-08-08) — <https://fritz.support/resources/TR-064_VoIP.pdf> — §2.14 X_AVM-DE_AddVoIPAccount (Registrar, Number, Username, Password, OutboundProxy, STUNServer), §2.32 X_AVM-DE_GetVoIPStatus (disabled, not registered, registered, connected, unknown) — SIP accounts are added by action and their registration state is readable per account
+55. TR-064 Support – X_VoIP (v71, 2025-08-08) — <https://fritz.support/resources/TR-064_VoIP.pdf> — §2.29 X_AVM-DE_GetPhonePort (Index in, X_AVM-DE_PhoneName out; analog, ISDN, DECT ports) — analog ports are enumerable by name, but no off-hook/ringing/line status is exposed
+56. TR-064 Support – Hosts (v32, 2026-01-29) — <https://fritz.support/resources/TR-064_Hosts.pdf> — §2.15 X_AVM-DE_GetMeshListPath → JSON per Mesh-Topology_Schema_v8.7 (nodes.mesh_role master/slave, is_meshed; node_interfaces; node_links node_1_uid/node_2_uid, state) — the mesh topology (nodes, interfaces, links) is fetched as JSON via a documented action and schema
+57. Mesh Topology JSON Schema v8.7 (FRITZ!OS 08.19–08.25) — <https://fritz.support/resources/Mesh-Topology_Schema_v8.7.json> — node_links: state, cur_data_rate_rx/tx, max_data_rate_rx/tx, cur_availability_rx/tx, rx_rsni/tx_rsni, rx_rcpi/tx_rcpi; node_interfaces.is_upstream, blocking_state — per-link rate, availability and signal metrics exist, but backhaul links must be inferred from mesh_role/is_upstream
+58. Mesh Topology JSON Schema v8.7 (FRITZ!OS 08.19–08.25) — <https://fritz.support/resources/Mesh-Topology_Schema_v8.7.json> — node_interfaces.steering_enabled ("Steering of this interface is enabled.", boolean); Hosts service has only Get*MeshListPath — the mesh surface is read-only JSON; no TR-064 action steers a client
 
 ### RouterOS v7
 
