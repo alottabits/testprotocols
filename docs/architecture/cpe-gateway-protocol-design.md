@@ -1192,6 +1192,209 @@ conformance check, which is the verification stage 4 runs.
   `force_inform`; the alternative client is named in the driver's `source:`
   lines and the choice is recorded in the review record at stage 4.
 
+## 7. Levels
+
+### Intent (sea-level) and mechanism (white-box)
+
+The five columns reach the same operations through three kinds of
+management plane (§1, §8): two expose a **data model** whose every path is
+readable and, where the model allows, writable (columns 1 and 3); one
+exposes a **configuration store and a bus** whose every section and object
+is reachable from a shell (column 2); one exposes a **proprietary CLI** over
+every menu of the device (column 5); one exposes **SOAP actions** on the LAN
+side and nothing beneath them (column 4). The first four publish mechanism
+as well as intent — any path, any section, any menu — and the fifth
+publishes intent only. The portable surface is the **intersection**, and
+the intersection is the intent level: the operations of §2, as the capability
+members of §4. That is why the core is written as intents (set the
+connection, block the host, read the hosts) and never as paths, sections or
+actions.
+
+The finer granularity of the four mechanism-publishing columns is real, and
+the repo already has the axis for it: `LEVELS.md` gives every capability a
+mandatory black-box sea-level surface plus optional `<Capability>WhiteBox(
+<Capability>, Protocol)` extensions that land on tracked evidence. Applied
+here, mechanism access takes the three forms the sibling designs
+distinguish, of which two have merit:
+
+- **Raw-state reads that prove a write landed** — white-box, per the
+  `PacketFilterWhiteBox` and `FirewallWhiteBox` precedents already on `main`
+  (the kernel rule dumps behind a gateway's port forwards and filters). For
+  this class the valuable ones are the realised state behind the composed
+  intents: the connection object's full state (every parameter the data
+  model or the store holds for it), the bridge's forwarding table and port
+  states, the realised rules behind a host block and its schedule, the
+  forwarder's effective configuration. The verb and the return type stay
+  vendor-neutral; the payload is substrate state, opaque `str` where no
+  neutral record exists and a typed record where the vocabulary is shared
+  (`MacTableEntry` from `models/l2_common.py` for the bridge table, the
+  read the `GAPS.md` 2026-05-02 entry sketches). Column 4 cannot back any
+  of them: it publishes no mechanism, so its driver satisfies no white-box
+  extension, which the convention handles (a test pinned to the extension
+  collection-skips there).
+- **Levers with no intent-level equivalent** — white-box, per the
+  `WifiRadioWhiteBox.inject_radar_event` precedent. Restarting the ACS
+  client or the USP agent without touching its configuration, forcing a
+  lease expiry on the server side, dropping the WAN link at the port driver
+  rather than the connection object: each makes a convergence test
+  reproducible and is published by the mechanism columns only. None is
+  seeded here (no consumer signal in the request); each is a candidate.
+- **Mechanism-level passthroughs as protocol surface** — a read of an
+  arbitrary data-model path, of an arbitrary configuration section, or a
+  call of an arbitrary SOAP action — **no merit as protocols.** Each is
+  shaped by one management plane by construction and fails the neutrality
+  check; each would open a second write path for behaviour the intent level
+  already encodes. The reference drivers use them as **driver-internal
+  helpers** (the dialogue and transport sessions of the corpus), never as
+  members.
+
+**Selecting the level needs no mechanism of its own.** A driver either
+satisfies a `WhiteBox` extension or does not; a test declares the level it
+needs by pinning against the extension (`isinstance`), as the existing
+white-box tests do. For this class the enabling fact is **mechanism
+publication**: the four shell, data-model and CLI columns offer both levels;
+the SOAP column offers sea level only. Who manages the device never enters
+(§1, §8).
+
+### White-box candidates
+
+Nothing is seeded with this archetype; every candidate below is recorded in
+`LEVELS.md` as a candidate (§12) and lands when a consumer or reviewer
+signal names it, with the drivers expected to satisfy it (the shell,
+data-model and CLI columns, 1, 2, 3 and 5) and not (the SOAP column, 4).
+
+- *Raw-state reads* (prove a composed write landed; pin diagnostics):
+  `WanConnectionWhiteBox.get_raw_connection_state(name) -> str` — the
+  connection's full realised state; `L2BridgeWhiteBox.get_bridge_table(
+  name) -> list[MacTableEntry]` — the forwarding table, typed with the
+  shared vocabulary, and `get_raw_bridge_state(name) -> str`;
+  `HostFilterWhiteBox.get_raw_filter_rules() -> str` — the realised rules
+  and schedule behind the blocks; `DnsForwarderWhiteBox.get_raw_forwarder_
+  config() -> str`; `DeviceHealthWhiteBox.get_raw_process_table() -> str`
+  (the host-shaped read `DeviceManagement` keeps at sea level on the
+  hosts). The existing `FirewallWhiteBox`, `PacketFilterWhiteBox`,
+  `WifiRadioWhiteBox` and `WifiMeshWhiteBox` apply unchanged: columns 1, 2
+  and 3 back the kernel dumps and the PHY dump; column 5 backs none of the
+  kernel dumps (a different kernel firewall) and column 4 none at all.
+- *Levers with no intent-level equivalent* (reproducible convergence tests):
+  `Tr069ClientWhiteBox.restart_client() -> None` and
+  `UspAgentWhiteBox.restart_agent() -> None` — restart the management
+  client without changing its configuration (the sea-level `force_inform`
+  provokes a session, not a restart); `WanConnectionWhiteBox.
+  expire_lease(name) -> None` — force the WAN lease to expire so the renew
+  path runs; `InterfaceDhcpWhiteBox.expire_lease(mac) -> None` — the
+  server-side counterpart for a LAN host.
+
+Each candidate is recorded with its signal when it lands; until then the
+sea-level members and the test-bed hosts carry every test the request names
+(§1 Demand).
+
+## 8. Driver-facing neutrality notes
+
+Vendor names appear in this section by design: it tells a driver author how
+each reviewed family's management plane acknowledges a write, what it
+normalises, how it refuses, and what the reference driver cites. Nothing
+here enters a method, model or enum. The management mode (operator through
+an ACS, household through a local interface) is not a driver fact either:
+the reference drivers reach every family as an administrator on the box.
+
+**Column 1 — prplOS (prplWare 4.0 line).** Transport: SSH to the box; the
+TR-181 data model through the Ambiorix CLI (`ba-cli`, `ubus-cli`), the
+configuration store beneath it where the data model stops (the firewall
+zones of R30, the CWMP client's own bus object of R52). A write is a
+parameter set or an object add on a data-model path; the acknowledgement is
+the CLI's reply (an error line and a non-zero status on refusal: an
+unknown path, an invalid value, a bus ACL denial), applied by the owning
+plugin at once with no commit step; a write that the model marks read-only
+is refused, not ignored. Normalisations: MAC addresses lower-cased, Wi-Fi
+and connection object instances re-numbered on add (the driver keys on the
+`Alias` it sets, never on the instance number), enumerations returned in the
+model's spelling. The driver's `source:` lines cite the plugin's data-model
+documentation page for the path and the observed output of the public
+example image where the exploration lifted a cell to ✓ (R56–R58, R52).
+Multi-step writes: one set per parameter, so a rejection leaves the sets
+before it applied; the `lossy:` line says so for the WAN connection and the
+guest segment.
+
+**Column 2 — OpenWrt 24.10 line with icwmp.** Transport: SSH to the box;
+the configuration store through `uci` (set, add, delete, then `commit` on
+the configuration, then the service reload or `reload_config`), the runtime
+through `ubus` (JSON replies) and the service CLIs (`hostapd_cli`, `iwinfo`,
+`wifi reload`). A write is acknowledged by `uci`'s exit status and `commit`
+(refusals: "Entry not found", "Invalid argument", "Parse error") and by the
+bus's reply ("Command failed: Not found / Invalid argument"); the TR-069
+client answers on its `tr069` bus object and in the `cwmp` section. The
+store is staged until `commit`: a rejection before the commit leaves the
+device as found because the driver does not commit (it does not revert
+either; the staged changes die with the session), which is the "candidate
+configuration" of §6. Normalisations: list options re-ordered on commit,
+anonymous sections renamed (`cfg0a3b...`; the driver names every section
+it creates), booleans written as `1`/`0`. Refusal shapes are text lines on
+stderr; the driver matches them, never the success path. `source:` lines
+cite the wiki page for the section or the bus object and, for the three
+hostapd methods the wiki does not document (R27, R28), the project source at
+the 24.10 tag with "source-only" stated. Voice (R54–R55) and mesh (R56–R58)
+are nominal here: the driver raises `NotSupportedError` for the PBX and for
+the 802.11s peer mesh with the source, unless stage 4 finds a published
+operation (§9).
+
+**Column 3 — RDK-B (rdkb-2025q4-kirkstone and later).** Transport: SSH or
+serial to the box; the TR-181 data model through `dmcli eRT` (`getv`,
+`setv`, `addtable`, `deltable`). A write is acknowledged by the tool's
+result line ("Execution succeed." / "Execution fail(error code: ...)"); a
+destination component that is not running yields its own error. Some write
+groups take effect only after the family's apply parameter is set (Wi-Fi:
+the radio and access-point apply flags), which the driver names as the step
+in a multi-step write; a rejection leaves the sets before it applied, and
+the `lossy:` line says so. Normalisations: MAC addresses upper-cased in
+some tables and lower-cased in others (the driver canonicalises on read),
+instance numbers re-assigned on `addtable`. Cells marked "shell only" (R16,
+R48, R49) are realised through the store or the file system with the
+command cited as a `source:` line and a `lossy:` line for the format. The
+reference-image question (§6, verification items) binds every `source:`
+that rests on an optional manager: the driver cites the build's component
+list beside the manager's documentation.
+
+**Column 4 — FRITZ!OS 8.20 and later.** Transport: HTTP(S) on the LAN side
+only — TR-064 SOAP actions on the device's service port with digest
+authentication, the mesh topology as JSON behind the HTTP session-ID login,
+UPnP IGD for the mapping table. There is no CLI (the knowledge base states
+Telnet is unsupported since 6.25) and TR-064 is not reachable from the WAN;
+the reference driver runs from a LAN host. A write is acknowledged by an
+HTTP 200 with the action's response envelope; a refusal is a SOAP fault
+whose `errorCode` the driver maps (invalid action, invalid arguments, action
+failed, internal error, and the per-action codes the service documents
+list); a silent 200 on an action the service document marks as having no
+effect is treated as a refusal by the driver when the document says so.
+Normalisations: hostnames re-written to the family's allowed character set,
+SSIDs applied at once with a Wi-Fi restart, per-host settings keyed by the
+host's MAC. The write-narrow side of the matrix is here: thirteen ✗ cells
+and twenty-four ◐ cells (§9), each raised as `NotSupportedError` with the
+service document as the source, or mapped with the limit stated. `source:`
+lines cite the service document (title and the action's section), retrieved
+as PDF; several documents carry wrong metadata titles, so the driver cites
+the document's file name and the action, not the metadata.
+
+**Column 5 — MikroTik RouterOS v7.** Transport: SSH to the CLI (the REST
+API is an alternative the driver may take; the operations are the same
+menus). A write is a menu command (`add`, `set`, `remove`, `enable`,
+`disable`); a success is **silent** (no output) and cited as such from the
+manual; a refusal is a text line ("failure: ...", "input does not match any
+value of ...", "no such item", "invalid value for argument"), which the
+driver matches. Reads use `print` with the terse or as-value forms. There
+is no commit: each command applies at once, so a rejection in a multi-step
+write leaves the commands before it applied, and the `lossy:` line says
+so. Normalisations: item ordering by the menu's own order, `disabled=no`
+filled in, MAC addresses upper-cased, the `wifi` package versus the legacy
+`wireless` package (the driver cites the package per model; the ✓ Wi-Fi
+cells rest on the `wifi` package, named in their §10 entries). The reboot
+asks for confirmation (the driver answers it; the lever's observation is
+`wait_for_boot`). Mesh is CAPsMAN, not EasyMesh (R56–R58 ◐): the driver
+maps the controller's access-point list onto the topology with no backhaul
+links and raises for backhaul health, with the source. The documentation
+site the exploration cited carries a "frozen" banner pointing at its
+successor (§10); the driver cites the successor page where one exists.
+
 ## 9. Verification
 
 ### Verification items (exploration)
