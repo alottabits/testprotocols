@@ -188,6 +188,7 @@ def test_a_tier_placement_is_not_tier_staged() -> None:
         "| Id | Kind | Symbol | Mechanism | Placement | Breaking | Outcome |\n"
         "| --- | --- | --- | --- | --- | --- | --- |\n"
         "| M1 | new tier | `mesh:MeshTopology` | archetype | tier — mesh | no | accepted |\n"
-        "| M2 | new tier | `voice:FxsLines` | archetype | tier-staged — second trigger family | no | accepted |\n"
+        "| M2 | new tier | `voice:FxsLines` | archetype | tier-staged — second trigger family"
+        " | no | accepted |\n"
     )
     assert tier_staged_rows(body) == ["M2"]
