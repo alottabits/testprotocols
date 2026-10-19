@@ -77,6 +77,14 @@ their tags and PR history.
 
 #### Fixed
 
+- **behaviour** — the shared capture window behind `testoperations.path_placement` and
+  `testoperations.marking_observation` had two exits that left a started capture running: a
+  start that failed after others had started skipped their stops, and a stop that raised skipped
+  the stops after it. Every started capture is now stopped on every exit; the error of a failing
+  start or wait propagates once every stop ran, and a failing stop raises its own error (an
+  `ExceptionGroup` when more than one stop failed). No signature changes; no proposal (a
+  behaviour fix under design question 11, Orchestration: the operation owns the cleanup on every
+  exit); PR #94.
 - **docstrings** `testoperations.segmentation:find_matching_deny` — "effective-policy read-back"
   now reads "a read of the effective policy": the operation inspects a policy the test read, and
   the archetypes README's "Write outcome" rule (PR #89) reserves "read-back" for what a driver
