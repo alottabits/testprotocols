@@ -591,8 +591,8 @@ operations the spec has this pass introduce as generic capabilities.
 | R9 | Administratively disable / enable the WAN | `wan_link_admin` (WanLinkAdmin) | as-is or extend | bring_wan_down/up match; written for the twin, check its docstring for host assumptions |
 | R10 | Renew / release the WAN DHCP lease | `dhcp_client` (DhcpClient) | as-is | release_dhcp/renew_dhcp and the IPv6 pair |
 | R11 | Configure the DHCP server pool and lease time | `interface_dhcp` (InterfaceDhcp) or `dhcp_server` (provisioner) | extend | set_interface_dhcp is per interface with pool and lease time; the provisioner's `provision_cpe` is test-bed shaped |
-| R12 | Configure DHCP options | `interface_dhcp` | extend | options need a field or a member; `DhcpOption` lives in `models/sdwan_appliance.py` |
-| R13 | Configure static leases | `interface_dhcp` | extend | static leases are a new member |
+| R12 | Configure DHCP options | `interface_dhcp` | as-is | `InterfaceDhcpConfig.options` (a list of `DhcpOption`) already exists; the survey first read it as missing |
+| R13 | Configure static leases | `interface_dhcp` | as-is | `InterfaceDhcpConfig.reservations` (a list of `DhcpReservation`) already exists |
 | R14 | Read active leases | `interface_dhcp` | as-is | get_dhcp_leases |
 | R15 | Configure DNS forwarder upstreams | new (DNS forwarder) | new | `dns_client` is a resolver on a host; no forwarder configuration exists |
 | R16 | Configure local host overrides | new (DNS forwarder) | new | local overrides are forwarder entries |
@@ -638,6 +638,110 @@ operations the spec has this pass introduce as generic capabilities.
 | R56 | Read mesh topology (agents, backhaul links) | `wifi_mesh.get_topology` | as-is | `wifi_mesh` exists on main (controller side: topology, agents, steering) |
 | R57 | Read backhaul link health | `wifi_mesh.get_mesh_status` / `get_topology` | as-is or extend | backhaul health fields to check |
 | R58 | Steer a client to another agent | `wifi_mesh.steer_client` | as-is |  |
+
+### Placement on the ladder
+
+Every operation group of §2, on the lowest rung of the placement ladder
+(`docs/proposals/README.md`, "The placement ladder") that fits, with the
+reason no cheaper rung does for every item above rung 2. The Mechanism value
+is the one its §12 rows carry. A `new capability` row carries the "rung 5
+before rung 6" argument: no existing protocol owns the concern, or extending
+one would leave an archetype that composes it permanently unsupported.
+
+| Operations | Capability | Rung | Mechanism | Why no cheaper rung |
+| --- | --- | :--: | --- | --- |
+| R1–R7, R9 (as a member's label) | `WanConnection` | 6 | new capability | no protocol carries a WAN connection with a mode: `wan_link_admin` is the down/up lever only, `ip_interface` is a host's netdev, `appliance_uplinks` is the appliance's read-only uplink status (an `extend` of it with a mode and credentials would leave every appliance driver permanently unsupported on the writes), `dhcp_client` is the lease lever; the connection object is a concern of its own |
+| R8, R21 | `PortStatus` | 2 | reuse | link, speed and duplex per port, unchanged |
+| R9 | `WanLinkAdmin` | 2 | reuse | `bring_wan_down` / `bring_wan_up` by label match; the module docstring, which calls the lever twin-only, is generalised at stage 4 (a `record` row in SPLITS) because four of five columns publish it |
+| R10 | `DhcpClient` | 2 | reuse | release and renew, v4 and v6 |
+| R11–R14 | `InterfaceDhcp` | 2 | reuse | `InterfaceDhcpConfig` already carries pool, lease time, options, reservations and reserved ranges; `get_dhcp_leases` reads the leases |
+| R15–R17 | `DnsForwarder` | 6 | new capability | no protocol owns a forwarder: `dns_client` is a host's resolver (`extend` would put server-side settings on every LAN client); the three operations are one concern |
+| R18–R19 | `L2Bridge` | 6 | new capability | the `GAPS.md` 2026-05-02 entry, whose trigger is this class; `switch_ports` / `switch_vlans` are the switchport shape the switch designs kept apart from the bridge-native one; imports the shared STP vocabulary from `models/l2_common.py` |
+| R20 | composition | 1 | driver-only | a guest segment is the four capabilities with their own membership (§6) |
+| R22–R23 | `WifiRadio` | 2 | reuse | radios addressed by band; no setter added (§6) |
+| R24–R25 | `WifiBss` | 2 | reuse | unchanged |
+| R26–R27 | `WifiStations` | 2 | reuse | `disconnect_station` is the disconnect |
+| R28 | `WifiOnboarding` | 5 | extend | the protocol owns onboarding and has the triggers; cancel and the state read are two members on the same concern, so rung 3 (a field) cannot carry them and rung 6 would split one concern over two protocols |
+| R29 | `WifiTransitions` | 2 | reuse | 11k/v/r setters; band steering composed from the 11v members (§6) |
+| R30 | `FirewallZones` | 2 | reuse | zone defaults and membership; per-method unsupported on four columns |
+| R31–R34 | `Firewall` | 2 | reuse | port mappings and DMZ, plus the inherited `PacketFilter` rule members for the egress rules |
+| R35 | `HostFilter` | 6 | new capability | a schedule field on `FirewallRule` (rung 3) would be unusable by every host-side `PacketFilter` driver and `None` for every existing rule; `content_filtering` is URL-based; the per-host block with a schedule is a concern of its own |
+| R36–R37 | `AutoPortMapping` | 6 | new capability | `upnp_client` is the LAN client's lever to request a mapping, not the gateway's enable and table; `firewall`'s mappings are the administrator's, not the automatic ones (origin and lease differ); the enable and the table are one concern |
+| R38 | `HostTable` | 6 | new capability | no archetype reads a host table; `arp_client` is a host lever; `wifi_stations` covers wireless only and `interface_dhcp` leases only — the joined table is the concern |
+| R39 | `DeviceInfo` | 5 | extend | the protocol owns identity and nominates the extension point in its docstring; a Protocol property cannot default (rung 3); the appliance and the switches publish the facts, so no archetype is left permanently unsupported |
+| R40–R42 | `DeviceHealth` | 6 | new capability (split) | the `GAPS.md` 2026-06-11 record forbids composing the host-shaped `DeviceManagement` on a closed product; a split base that `DeviceManagement` inherits (the `Router` → `RoutingRead` precedent) leaves its implementers satisfying both; `read_cpu_load` is an `extend` of the base's inheritor |
+| R43 | `SyslogConfig` | 2 | reuse | unchanged |
+| R44 | `NtpConfig` | 5 | extend | the protocol owns the server list; the synchronisation state is the read beside it; the switches publish it, so no archetype is left permanently unsupported |
+| R45, R48–R49 | `DeviceLifecycle` | 5 | extend | the protocol owns the device's lifecycle (boot, reset, factory reset); image upgrade and configuration transfer are its concern; composed by the superseded class only, so no other archetype is affected; the docstring generalised from CPE to any device |
+| R46–R47 | `DeviceLifecycle` | 2 | reuse | `factory_reset`, `reset`, `wait_for_boot` unchanged; `verify_cpe_is_booting` renamed (`deprecate`, lands with the extend) |
+| R50 | `AdminCredential` | 6 | new capability | no protocol owns a local credential; `radius_client` is a server registry and an `extend` of it would put a local-account write on every AAA-client implementer |
+| R51–R52 | `Tr069Client` | 5 | extend | the protocol owns the ACS relationship and has the connection state, identifier and inform; the ACS configuration is two members on the same concern; composed by the superseded class only |
+| R53 | `UspAgent` | 6 | new capability (tier) | USP is a second management protocol with its own endpoint and transport, not a TR-069 field: an `extend` of `Tr069Client` would mix two protocols' lifecycles on one member set and leave the two columns without an agent permanently unsupported on the core |
+| R54–R55 | `VoiceGateway` | 6 | new capability (tier) | `sip_phone` and `sip_server` are the test-bed far ends; no protocol owns the gateway's own accounts and lines |
+| R56–R58 | `WifiMesh` | 3 | defaulted field | `get_topology`, `get_mesh_status`, `steer_client` unchanged; `WifiMeshNode.backhaul_link: WifiMeshLink | None = None` carries each agent's backhaul health |
+| class | `CpeGatewayDevice`, three tier Protocols | — | archetype | the archetype and its tiers (§4) |
+| class | `CpeDevice` | 5 | deprecate | superseded, intact under `linux_cpe` for the period (§6) |
+
+### Shared with the appliance
+
+Read against `SdwanApplianceDevice`'s members, the gateway shares by reuse of
+the same capability protocols, never by one archetype extending the other
+(§1). The appliance's shapes that the gateway does not take are recorded
+with the reason, so the two designs do not drift into near-duplicates.
+
+| Concern | Appliance member | Gateway member | How |
+| --- | --- | --- | --- |
+| Identity | `info: DeviceInfo` | `info: DeviceInfo` | the same protocol; the gateway's five identity properties are an `extend` the appliance's drivers implement too (§6) |
+| Log export | `syslog: SyslogConfig` | `syslog: SyslogConfig` | reuse as-is |
+| NAT | `appliance_nat: ApplianceNat` (list-replacing `NatRule` tables) | `firewall: Firewall` (per-mapping `PortMapping`) | two shapes for two device classes; a gateway publishes one mapping at a time and no column needs a table replace; recorded in SPLITS (§12) |
+| WAN uplink status | `uplinks: ApplianceUplinks` (read-only `UplinkStatus`) | `wan_connection: WanConnection` (configured object with state) | the appliance's uplink is a controller fact read back; the gateway's connection is written on the box with credentials and a tag; the read records overlap on address and state only |
+| WAN admin | — (the appliance cannot) | `wan_link_admin: WanLinkAdmin` | the twin's lever, published by four gateway columns (§6) |
+| LAN | `lan: ApplianceVlans` | `l2_bridge` + `interface_dhcp` | the appliance's VLAN object is the switchport shape; the gateway's LAN is a bridge of ports and networks with a DHCP pool |
+| Edge firewall, zones | `l3_firewall: L3Firewall` | `firewall_zones`, `firewall` | the appliance's triad is a controller-side rule set; the gateway's is a zone model plus per-rule administration, already modelled for the superseded class |
+| Health | (`GAPS.md` 2026-06-11, deferred) | `health: DeviceHealth` | the read-only base this design seeds is the shape that entry sketches; the appliance composes it when its trigger lands (a `record` row updates the entry) |
+
+### Shared with the switches
+
+| Concern | Switch member | Gateway member | How |
+| --- | --- | --- | --- |
+| Per-interface DHCP | `interface_dhcp: InterfaceDhcp` | `interface_dhcp: InterfaceDhcp` | reuse as-is, over the same sub-models |
+| Port state | `port_status: PortStatus` | `port_status: PortStatus` | reuse as-is |
+| Time | `ntp: NtpConfig` | `ntp: NtpConfig` | the same protocol; the sync-state read is an `extend` the switch drivers implement too (§6) |
+| Identity, log export | `info`, `syslog` | `info`, `syslog` | as with the appliance |
+| LAN ports | `switch_ports`, `switch_vlans`, `spanning_tree`, `mac_table` | `l2_bridge: L2Bridge` | the switchport shape versus the bridge-native shape, kept apart by the 2026-06-14 switch designs; the shared STP and FDB vocabulary (`StpMode`, `StpPortState`, `MacTableEntry`) is imported from `models/l2_common.py`, not re-invented |
+
+### Shared with the chartered router sibling
+
+The sibling is chartered, not designed on `main`; this table records
+operations as demand, not symbols, so that the two designs can record the
+dependency on each other's rows when the sibling's design lands.
+
+| Demand (both charters) | This design's home | The sibling's design |
+| --- | --- | --- |
+| Software image lifecycle | `DeviceLifecycle.upgrade_firmware` (one action; §6) | composes the extended protocol, or adds staging by a further `extend` on dual-image evidence |
+| Configuration transfer | `DeviceLifecycle.export_configuration` / `import_configuration` | composes the same members |
+| Identity | `DeviceInfo` (+ five properties) | composes the extended protocol |
+| Health reads | `DeviceHealth` | composes the base, which its charter lists as demand under a different grouping |
+| Log export, time | `SyslogConfig`, `NtpConfig` (+ sync state) | reuse |
+| On-box reachability | not on this core (no matrix row; §3) | its charter's demand; its own evidence |
+| Operator authentication, routing, first-hop redundancy, QoS, capture | not published by a gateway (§1) | its own |
+| WAN connection with credentials, Wi-Fi, host table, ACS management, voice lines, mesh controller | this design | not published by a router core (§1) |
+
+### Boundary with the superseded shape
+
+Each row names a member `CpeDevice` has and what `CpeGatewayDevice` offers
+instead; the old class keeps every member for the period (§6).
+
+| `CpeDevice` member | `CpeGatewayDevice` | Why |
+| --- | --- | --- |
+| `tr069_client`, `device_lifecycle`, `wifi_radio`, `wifi_bss`, `wifi_stations`, `wifi_transitions`, `wifi_onboarding`, `firewall`, `firewall_zones`, `wan_endpoint`, `lan_endpoint` | the same members (three of the protocols extended) | the shapes hold on all five columns |
+| `device_management: DeviceManagement` | `health: DeviceHealth` | the host-shaped members (file content, board and boot-time logs) are not published by a closed product; the read-only base is (§6) |
+| `ntp_client: NtpClient` | `ntp: NtpConfig` (+ sync state) | a host's clock lever versus the device's server list |
+| `hw_console: HwConsole` | — | a test-bed attachment, not a published operation; several columns have no console |
+| `ip_interface`, `ip_routing`, `conntrack`, `nat` | — (`firewall` carries the port-forward table) | host-substrate levers of the Linux twin; no column publishes them as operations |
+| `wifi_rf: WifiRf` | — | no matrix row; a dated row brings it back |
+| `network_probe: NetworkProbe` | — | no matrix row; reachability is observed from the test-bed hosts (`await_reachability`) |
+| — | `wan_connection`, `wan_link_admin`, `dhcp_client`, `port_status`, `interface_dhcp`, `dns_forwarder`, `l2_bridge`, `host_filter`, `auto_port_mapping`, `hosts`, `info`, `syslog`, `admin_credential` | the under-specification the charter names (§1), closed from the matrix |
 
 ## 6. Modelling decisions
 
