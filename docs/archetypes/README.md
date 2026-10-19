@@ -336,7 +336,11 @@ verdicts of `docs/proposals/README.md`.
     cost.
 11. **Method grain.** As proposal question 11, over the ratified family
     list and the capabilities every archetype composing the design's
-    capabilities holds.
+    capabilities holds. Atomicity is decided at three levels: the shape,
+    the driver and the family (question 11, Atomic). A window the
+    corpus shows is worked at the driver level first (verification item
+    10) and reaches this item's Atomic verdict only when no documented
+    mechanism closes it.
 
 **Verification** (`archetype:` PR with package source):
 
@@ -384,7 +388,10 @@ verdicts of `docs/proposals/README.md`.
     write disturbs another member's concern instead of refusing is a
     condition. A device resource the drivers find two members writing,
     which the design does not show as split or refused, is a condition
-    folded back into the design.
+    folded back into the design. This item is worked before design item
+    11's Atomic verdict: a window is a driver-level finding until the
+    family's documentation and the comparable drivers show no mechanism
+    that closes it, and only then a shape question.
 
 The posted review cites only public documentation, public protocol symbols
 and the corpus commit it verified against.
