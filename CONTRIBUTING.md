@@ -210,7 +210,7 @@ maintainer change with `no proposal` and its rationale.
   verification`, `verified` and never moves backwards; package source needs
   `accepted for verification` or later and a `## 12. Landing manifest`; at
   `verified`, a document with `tier-staged` manifest rows is named in
-  `GAPS.md`; every manifest row names its Mechanism, a rung of the
+  `GAPS.md`, and `tier — <name>` rows are implemented like core rows; every manifest row names its Mechanism, a rung of the
   placement ladder (or `archetype` / `record`), and says Breaking `yes`
   exactly for `extend` and `remove` rows;
 - a `release:` PR sets both version fields to the title's version and

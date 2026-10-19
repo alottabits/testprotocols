@@ -181,10 +181,12 @@ The review answers these questions, in this order, for every item:
    second: for a capability protocol, neutrality evidence across the
    domain's reviewed-family list is the accepted substitute; for an
    archetype core, the ratified family list, the sourced matrix and the
-   reference corpus (`docs/archetypes/README.md`); for an archetype tier or
-   a boundary view that folds several devices, a second consumer (or, for a
-   tier, a second trigger family) is still required and the item defaults
-   to plugin-staged or keep-local with the trigger recorded.
+   reference corpus (`docs/archetypes/README.md`); for a boundary view that
+   folds several devices, a second consumer is still required and the item
+   defaults to plugin-staged or keep-local with the trigger recorded; for an
+   archetype tier, support on a majority of the ratified list substitutes
+   for it, otherwise a second consumer or a second trigger family does
+   (`docs/archetypes/README.md`, "The evidence bar").
    **Corpus impact:** for an item that touches a capability reachable from
    an archetype in the reference corpus, the review states how many
    reference families could implement it. At or above the core threshold

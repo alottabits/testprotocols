@@ -180,3 +180,14 @@ def test_escaped_pipes_stay_inside_their_cell() -> None:
     assert manifest_problems(body) == []
     tier = body.replace("| archetype | tier-staged — x |", "| archetype | tier-staged — a \\| b |")
     assert tier_staged_rows(tier) == ["M5"]
+
+
+def test_a_tier_placement_is_not_tier_staged() -> None:
+    body = (
+        "## 12. Landing manifest\n\n"
+        "| Id | Kind | Symbol | Mechanism | Placement | Breaking | Outcome |\n"
+        "| --- | --- | --- | --- | --- | --- | --- |\n"
+        "| M1 | new tier | `mesh:MeshTopology` | archetype | tier — mesh | no | accepted |\n"
+        "| M2 | new tier | `voice:FxsLines` | archetype | tier-staged — second trigger family | no | accepted |\n"
+    )
+    assert tier_staged_rows(body) == ["M2"]
