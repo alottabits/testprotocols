@@ -72,6 +72,21 @@ their tags and PR history.
   entry for the two `SwitchQos` writes (`set_trust_mode`, `set_dscp_cos_map`) that have no read
   showing their effect. Text only; no proposal (wording and a gap record, not a contract change);
   PR #93.
+- **docstrings** `testprotocols.bgp:Bgp`, `testprotocols.ospf:Ospf`,
+  `testprotocols.site_to_site_vpn:SiteToSiteVpn` and
+  `testprotocols.sdwan_policy_manager:SdwanPolicyManager` — the record-shaped whole-replace
+  writes (`set_bgp_config`, `set_ospf_config`, `set_vpn_config` and the deprecated
+  `apply_policy`) stated no failure outcome; each now carries the sentence the list-replacing
+  writes carry since PR #92 ("A write rejected at any step raises naming the step; the driver
+  puts nothing back. The state is then the as-found <object> where the family commits
+  atomically, otherwise the steps applied before the rejection."), as design question 8 asks of
+  every write a reviewed family realises in more than one device step; the BGP design record's
+  quoted docstring follows. `SwitchQos.set_dscp_cos_map` adds that the contract has no read of
+  the map, so a test cannot tell the two outcomes apart until one lands. `GAPS.md` raises the
+  `SwitchQos` paired-reads entry to medium and records the two method-grain questions the
+  wording rounds deferred (record-shaped splits; the in-flight window of a released multi-step
+  replace). Text only, no change to a signature, an annotation or a behaviour; no proposal (the
+  closing round of the PR #93 wording alignment, not a contract change); PR #96.
 
 ### testoperations
 
