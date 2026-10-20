@@ -17,6 +17,138 @@ their tags and PR history.
 
 ### testprotocols
 
+#### Breaking for driver authors
+
+- **protocol members** `testprotocols.device_info:DeviceInfo.manufacturer`, `serial_number`,
+  `software_version`, `oui`, `hardware_version` — new mandatory read-only properties beside
+  `model`; the two optional facts are `None` where the family publishes no field. Migration:
+  implement the five properties, raising `NotSupportedError` from `manufacturer` or
+  `serial_number` where the device publishes neither. no proposal; design `docs/architecture/cpe-gateway-protocol-design.md` M18; PR #101.
+- **protocol members** `testprotocols.device_lifecycle:DeviceLifecycle.upgrade_firmware`,
+  `export_configuration`, `import_configuration`, `verify_booting` — new mandatory members: the
+  firmware upgrade from an `ImageSource`, the configuration archive out and in, and the renamed
+  boot check. Migration: implement them, raising `NotSupportedError` from the ones the device
+  lacks; keep `verify_cpe_is_booting` delegating to `verify_booting` until its removal.
+  no proposal; design `docs/architecture/cpe-gateway-protocol-design.md` M19, M20; PR #101.
+- **protocol members** `testprotocols.tr069_client:Tr069Client.set_acs`, `get_acs` — new
+  mandatory members: the CPE's own ACS configuration as an `AcsConfig`, the passwords `None` on
+  every read. Migration: implement both. no proposal; design `docs/architecture/cpe-gateway-protocol-design.md` M22; PR #101.
+- **protocol member** `testprotocols.ntp_config:NtpConfig.get_sync_state` — new mandatory
+  member: the clock's synchronisation state as an `NtpSyncState`. Migration: implement it,
+  raising `NotSupportedError` where the device publishes no synchronisation state. no proposal; design `docs/architecture/cpe-gateway-protocol-design.md` M23;
+  PR #101.
+- **protocol members** `testprotocols.wifi_onboarding:WifiOnboarding.cancel_wps`,
+  `get_wps_state` — new mandatory members: close the open WPS window, read the session state as
+  a `WpsState`. Migration: implement both, raising `NotSupportedError` where the device
+  publishes only the push-button start. no proposal; design `docs/architecture/cpe-gateway-protocol-design.md` M24; PR #101.
+- **protocol members** `testprotocols.device_management:DeviceManagement.read_cpu_load`,
+  `get_seconds_uptime`, `is_online`, `read_memory_utilization`, `read_running_processes`,
+  `read_log_entries` — `read_cpu_load` is a new mandatory member returning a `CpuLoad`; the
+  other five are unchanged in name, signature and meaning and are now declared by the new
+  read-only base `testprotocols.device_health:DeviceHealth`, which `DeviceManagement` extends,
+  so a conformance check sees them through the base. Migration: implement `read_cpu_load` (the
+  host's one-minute load average as `load_average_1m`, `percent` `None` unless the host
+  publishes a usage figure); nothing changes for the five; `get_load_avg` is unchanged.
+  no proposal; design `docs/architecture/cpe-gateway-protocol-design.md` M14, M15; PR #101.
+
+#### Added
+
+- **device archetype** `testprotocols.devices.cpe_gateway:CpeGatewayDevice` — the CPE gateway
+  (registered `cpe_gateway`): twenty-six capability members, seven of them new, over any
+  gateway's management plane; supersedes `CpeDevice` (`linux_cpe`), which stays registered for
+  its deprecation period. no proposal; design `docs/architecture/cpe-gateway-protocol-design.md` M1; PR #101.
+- **tier protocols** `testprotocols.devices.cpe_gateway:CpeGatewayVoiceTier`,
+  `CpeGatewayMeshTier`, `CpeGatewayUspTier` — each a strict superset of `CpeGatewayDevice`
+  adding one facet (`voice: VoiceGateway`, `wifi_mesh: WifiMesh`, `usp_agent: UspAgent`); not
+  registered, a test pins against them with `isinstance`. no proposal; design `docs/architecture/cpe-gateway-protocol-design.md` M3, M4, M5; PR #101.
+- **capability protocol** `testprotocols.wan_connection:WanConnection` — the gateway's WAN
+  connection as one object with a mode (`set_wan_connection`, `get_wan_connection`,
+  `list_wan_connections`, `get_wan_state`, `reset_session`); the reset is the PPPoE session
+  reset and raises on the other modes. no proposal; design `docs/architecture/cpe-gateway-protocol-design.md` M6; PR #101.
+- **capability protocol** `testprotocols.dns_forwarder:DnsForwarder` — the gateway's forwarder:
+  configured upstreams (a list replace, compared as a set; distinct from the resolvers the
+  connection supplies), host overrides, rebind protection. no proposal; design `docs/architecture/cpe-gateway-protocol-design.md` M7; PR #101.
+- **capability protocol** `testprotocols.l2_bridge:L2Bridge` — bridges and their membership of
+  ports and wireless networks (`create_bridge` creates the bridge only; `add_member` /
+  `remove_member` own membership, `get_members` reads it); realises the membership half of the
+  `GAPS.md` 2026-05-02 entry. no proposal; design `docs/architecture/cpe-gateway-protocol-design.md` M8, M9; PR #101.
+- **capability protocol** `testprotocols.host_table:HostTable` — the hosts behind the gateway
+  (`list_hosts`, `get_host`), MACs canonical lowercase colon-separated. no proposal; design `docs/architecture/cpe-gateway-protocol-design.md` M10; PR #101.
+- **capability protocol** `testprotocols.host_filter:HostFilter` — a per-host block of traffic
+  through the gateway, at all times or on a weekly schedule (`block_host`, `unblock_host`,
+  `get_host_block`, `list_host_blocks`); the block has one owner, so a `firewall` driver refuses
+  rule writes on a rule that realises one. no proposal; design `docs/architecture/cpe-gateway-protocol-design.md` M11; PR #101.
+- **capability protocol** `testprotocols.auto_port_mapping:AutoPortMapping` — the protocols by
+  which LAN hosts request their own mappings, enabled per protocol, and their one table
+  (`set_enabled`, `get_enabled`, `list_mappings`). no proposal; design `docs/architecture/cpe-gateway-protocol-design.md` M12; PR #101.
+- **capability protocol** `testprotocols.admin_credential:AdminCredential` — the local
+  administrator credential (`set_password`, a lever confirmed by a new session the test opens;
+  `list_accounts`). no proposal; design `docs/architecture/cpe-gateway-protocol-design.md` M13; PR #101.
+- **capability protocol** `testprotocols.device_health:DeviceHealth` — the read-only health a
+  device publishes about itself (`is_online`, `get_seconds_uptime`, `read_cpu_load`,
+  `read_memory_utilization`, `read_running_processes`, `read_log_entries`), split off
+  `DeviceManagement`, which inherits it (`SPLITS.md` 2026-10-20; `GAPS.md` 2026-06-11 updated).
+  no proposal; design `docs/architecture/cpe-gateway-protocol-design.md` M14, M16, M17; PR #101.
+- **capability protocol** `testprotocols.voice_gateway:VoiceGateway` — the gateway's own SIP
+  accounts, their registration state and its analogue lines (`set_sip_account`,
+  `remove_sip_account`, `list_sip_accounts`, `get_sip_registration`, `list_fxs_lines`); the
+  `voice` tier. no proposal; design `docs/architecture/cpe-gateway-protocol-design.md` M32; PR #101.
+- **capability protocol** `testprotocols.usp_agent:UspAgent` — the USP agent's controller
+  endpoint and transport and its own state (`set_controller`, `get_controller`,
+  `get_agent_state`); the `usp` tier. no proposal; design `docs/architecture/cpe-gateway-protocol-design.md` M35; PR #101.
+- **models** `testprotocols.models.cpe_gateway:WanMode`, `WanIpv6Mode`, `WanStatus`,
+  `ProvisioningMode`, `PppoeCredentials`, `StaticAddressing`, `WanVlan`, `WanIpv6`,
+  `WanConnectionConfig`, `WanConnectionState`, `DnsUpstream`, `DnsHostOverride`,
+  `BridgeMemberKind`, `BridgeMember`, `BridgeConfig`, `BridgeMemberState`, `HostAttachment`,
+  `LanHost`, `Weekday`, `WeeklySchedule`, `HostBlock`, `AutoMappingProtocol`,
+  `AutoPortMappingEntry`, `UspTransport`, `UspController`, `UspAgentState` — the gateway
+  records and vocabularies, every record frozen, every closed set a `StrEnum` (`Weekday` an
+  ISO-numbered `IntEnum`); each `X | None` field's absence meaning is in its record's docstring.
+  no proposal; design `docs/architecture/cpe-gateway-protocol-design.md` M6, M7, M8, M10, M11, M12, M35; PR #101.
+- **models** `testprotocols.models.device_management:CpuLoad`, `ImageSource` — the processor
+  load (`percent`, `load_average_1m`, each `None` where unpublished) and the firmware image's
+  source (`url`, `checksum_sha256`). no proposal; design `docs/architecture/cpe-gateway-protocol-design.md` M14, M19; PR #101.
+- **models** `testprotocols.models.switch:NtpSyncStatus`, `NtpSyncState` — the clock's
+  synchronisation state beside `NtpServer`. no proposal; design `docs/architecture/cpe-gateway-protocol-design.md` M23; PR #101.
+- **model** `testprotocols.models.tr069:AcsConfig` — the CPE's own ACS configuration, the two
+  passwords required on a write and `None` on every read. no proposal; design `docs/architecture/cpe-gateway-protocol-design.md` M22; PR #101.
+- **models** `testprotocols.models.wifi:WpsSessionState`, `WpsMethod`, `WpsState` — a BSS's WPS
+  session state. no proposal; design `docs/architecture/cpe-gateway-protocol-design.md` M24; PR #101.
+- **models** `testprotocols.models.voice:SipRegistrationState`, `FxsHookState`, `SipAccount`,
+  `SipRegistration`, `FxsLine` — the gateway's own SIP accounts, their registration and its
+  analogue lines; `SipAccount.password` `None` on every read. no proposal; design `docs/architecture/cpe-gateway-protocol-design.md` M32; PR #101.
+
+#### Changed
+
+- **fields** `testprotocols.models.switch_routing:InterfaceDhcpConfig.pool_start`, `pool_end`
+  (`str | None = None`) — the first and last dynamic address; `None` keeps today's meaning, the
+  whole interface subnet minus the reserved ranges, so no caller changes. Every reserved range
+  must lie inside the bounds; a driver rejects a configuration whose range lies outside them
+  before any write (`SPLITS.md` 2026-10-20). no proposal; design `docs/architecture/cpe-gateway-protocol-design.md` M25, M26; PR #101.
+- **field** `testprotocols.models.wifi:WifiMeshNode.backhaul_link` (`WifiMeshLink | None = None`)
+  — each agent's wireless backhaul link where the family publishes it; `None` where it does not
+  or where the backhaul is wired. no proposal; design `docs/architecture/cpe-gateway-protocol-design.md` M34; PR #101.
+- **docstrings** `testprotocols.wan_link_admin:WanLinkAdmin`, `testprotocols.wifi_mesh:WifiMesh`,
+  `testprotocols.tr069_client:Tr069Client.force_inform`,
+  `testprotocols.wifi_onboarding:WifiOnboarding` — the WAN lever is published by closed
+  gateways too, not only by the Linux twin (`SPLITS.md` 2026-10-20); the mesh and onboarding
+  modules state the documented unsupported case (`NotSupportedError`) instead of
+  `NotImplementedError`; `force_inform` says what it provokes and names no vendor command or
+  daemon. Text only, no change to a signature or a behaviour. no proposal; design `docs/architecture/cpe-gateway-protocol-design.md` M28, M33, M22, M24;
+  PR #101.
+
+#### Deprecated
+
+- **class** `testprotocols.devices.cpe:CpeDevice` (registry key `linux_cpe`) — deprecated, kept
+  intact and registered for the period. Replacement:
+  `testprotocols.devices.cpe_gateway:CpeGatewayDevice`, registry key `cpe_gateway`. Earliest
+  removal: the first release 6 months after the release that deprecates it. no proposal; design `docs/architecture/cpe-gateway-protocol-design.md` M2, M36;
+  register `packages/testprotocols/DEPRECATIONS.md`; PR #101.
+- **member** `testprotocols.device_lifecycle:DeviceLifecycle.verify_cpe_is_booting` —
+  deprecated. Replacement: `verify_booting`. Earliest removal: the first release 6 months after
+  the release that deprecates it. no proposal; design `docs/architecture/cpe-gateway-protocol-design.md` M20, M36; register
+  `packages/testprotocols/DEPRECATIONS.md`; PR #101.
+
 #### Fixed
 
 - **docstrings** `testprotocols.l3_firewall:L3Firewall`, `testprotocols.switch_qos:SwitchQos` and `testprotocols.content_filtering:ContentFiltering` — the five
@@ -74,6 +206,13 @@ their tags and PR history.
   PR #93.
 
 ### testoperations
+
+#### Changed
+
+- **operation** `testoperations.device_management:wait_for_reboot_completion` — its parameter
+  accepts any `testprotocols.device_health:DeviceHealth`, so a host's `DeviceManagement` and a
+  gateway's `health` alike; the parameter name and the behaviour are unchanged. no proposal; design `docs/architecture/cpe-gateway-protocol-design.md` M38;
+  PR #101.
 
 #### Fixed
 

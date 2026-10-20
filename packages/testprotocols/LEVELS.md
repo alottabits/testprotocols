@@ -158,6 +158,41 @@ kernel netfilter behind them.
   design-target Meraki MS225 / MS355 (no FDB API). Seed when the base `MacTable`
   capability is implemented. No L3-only WhiteBox candidate identified yet.
 
+- **CPE gateway white-box candidates** — 2026-10-20, the CPE gateway design
+  (`docs/architecture/cpe-gateway-protocol-design.md`, §7 "White-box candidates"; manifest row M27). Recorded, not seeded;
+  each lands when a consumer or reviewer signal names it. *Drivers expected to
+  satisfy:* the shell, data-model and CLI families of the design's §2 (columns
+  1, 2, 3 and 5). *Drivers expected NOT to satisfy:* the SOAP-only family
+  (column 4), whose management plane publishes no raw state and no restart.
+  - **`WanConnectionWhiteBox(WanConnection, Protocol)`** — *Methods:*
+    `get_raw_connection_state(name) -> str` (the connection's full realised
+    state); `expire_lease(name) -> None` (force the WAN lease to expire so the
+    renew path runs).
+  - **`L2BridgeWhiteBox(L2Bridge, Protocol)`** — *Methods:*
+    `get_bridge_table(name) -> list[MacTableEntry]` (the forwarding table, typed
+    with the shared `models/l2_common.py` vocabulary; the table read of the
+    `GAPS.md` 2026-05-02 entry); `get_raw_bridge_state(name) -> str`.
+  - **`HostFilterWhiteBox(HostFilter, Protocol)`** — *Method:*
+    `get_raw_filter_rules() -> str` (the realised rules and schedule behind the
+    blocks).
+  - **`DnsForwarderWhiteBox(DnsForwarder, Protocol)`** — *Method:*
+    `get_raw_forwarder_config() -> str`.
+  - **`DeviceHealthWhiteBox(DeviceHealth, Protocol)`** — *Method:*
+    `get_raw_process_table() -> str` (the host-shaped read `DeviceManagement`
+    keeps at sea level on the hosts).
+  - **`Tr069ClientWhiteBox(Tr069Client, Protocol)`** — *Method:*
+    `restart_client() -> None` (restart the management client without changing
+    its configuration; the sea-level `force_inform` provokes a session, not a
+    restart).
+  - **`UspAgentWhiteBox(UspAgent, Protocol)`** — *Method:* `restart_agent() ->
+    None`.
+  - **`InterfaceDhcpWhiteBox(InterfaceDhcp, Protocol)`** — *Method:*
+    `expire_lease(mac) -> None` (the server-side counterpart for a LAN host).
+  *Black-box impact:* none — every candidate adds raw reads or levers with no
+  intent-level equivalent; the sea-level members carry every test the request
+  names. The existing `FirewallWhiteBox`, `PacketFilterWhiteBox`,
+  `WifiRadioWhiteBox` and `WifiMeshWhiteBox` apply to the gateway unchanged.
+
 The architecture doc (vitro-bdd `architecture-overview.md` v2.0) initially listed
 `FirewallWhiteBox`, `RoutingWhiteBox`, `SipPhoneWhiteBox`, `SipServerWhiteBox`
 as seed extensions. `FirewallWhiteBox` and `SipPhoneWhiteBox` are seeded. The remaining two — `RoutingWhiteBox` and `SipServerWhiteBox` — remain aspirational; future consumer signals will

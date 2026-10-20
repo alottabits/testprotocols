@@ -467,7 +467,7 @@ class CpeGatewayDevice(BaseDeviceProtocol, Protocol):
     health: DeviceHealth                 # NEW (split off DeviceManagement) — uptime, online state, load figure, memory, processes, log entries (§6)
     syslog: SyslogConfig                 # reuse — log export
     ntp: NtpConfig                       # EXTENDED — servers as today; synchronisation state added (§6)
-    device_lifecycle: DeviceLifecycle    # EXTENDED — boot wait, factory reset, reboot as today; image staging and activation, configuration export and import added; one member renamed (§6)
+    device_lifecycle: DeviceLifecycle    # EXTENDED — boot wait, factory reset, reboot as today; firmware upgrade, configuration export and import added; one member renamed (§6)
     admin_credential: AdminCredential    # NEW — the local administrator credential (§6)
     tr069_client: Tr069Client            # EXTENDED — connection state, identifier and inform as today, the inform's meaning stated; ACS configuration added (§6)
     wan_endpoint: NetworkEndpoint        # reuse — test-bed role object: the gateway's WAN-side address
@@ -2339,3 +2339,12 @@ relies on rather than contradicts; M21 is the one `tier-staged` row.
   must lie inside the pool bounds; N9 the bridge-membership versus
   `wifi_bss` VLAN boundary stated; N10 the connection's resolvers kept apart
   from the configured upstreams, `set_upstreams` never touching them.
+- **2026-10-20 — stage 4a: core code landed on this PR.** Every `core` and
+  `tier` row of §12 is implemented (commits `0313df9..d7e819c`, plus the
+  records commit carrying this entry): ten capability
+  protocols, six extensions, the archetype and three unregistered tier
+  Protocols, the superseded class and one method deprecated with their
+  register rows, the two defaulted fields, the tracking-file records M9, M16,
+  M17, M21, M26, M27, M29, M36, M37 and the `testoperations` widening M38.
+  The §4 listing's lifecycle comment corrected to the one-member decision of
+  §6. Stage 4b (the reference drivers) follows in the private corpus.

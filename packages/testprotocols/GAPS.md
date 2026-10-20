@@ -81,6 +81,14 @@ switch — `StpMode`, `StpGuard`, `StpPortState`, and the `MacTableEntry` record
 **import that shared vocabulary** rather than re-inventing divergent enums.
 Cross-reference both switch design docs.
 
+**Update 2026-10-20 (CPE gateway design, M9):** the membership half is realised by
+`testprotocols.l2_bridge:L2Bridge` (create / delete / list / get a bridge; add / remove /
+read members of kind port or wireless network), composed by `CpeGatewayDevice` as
+`l2_bridge`; `BridgeConfig` imports the shared `StpMode` and `BridgeMemberState` the shared
+`StpPortState`, as the 2026-06-14 update asks. The STP timers, port priority, path cost,
+guard flags and the forwarding-table read stay open under this entry; the table read is the
+`L2BridgeWhiteBox` candidate (`LEVELS.md`, 2026-10-20). Design `docs/architecture/cpe-gateway-protocol-design.md` §6.
+
 ---
 
 ## 2026-05-02 — `WifiMlo` (or `WifiBss` / `WifiStations` extension for MLO) [priority: low]
@@ -1229,3 +1237,34 @@ When picking up a deferred capability:
    if appropriate, tests asserting the protocol shape.
 4. Cross-reference any new device archetypes that should aggregate the new
    capability (e.g. `CpeDevice` should grow `l2_bridge: L2Bridge` once seeded).
+
+---
+
+## 2026-10-20 — `CpeGatewayDevice`: staged firmware pair, dropped members, DS-Lite [priority: low]
+
+**Signal:** The CPE gateway archetype track (`docs/architecture/cpe-gateway-protocol-design.md`, §6, §12). Three things the design
+decided against building now, each with the trigger that reopens it.
+
+**Trigger to act:**
+- *The staged firmware pair* (`stage_image` / `activate_image`, the finer grain of
+  `DeviceLifecycle.upgrade_firmware`; manifest row M21, `tier-staged`): the first dual-image
+  product whose tests need the staged-image state read. Three of the five reviewed families
+  upgrade in one action and none publishes a staged-image read, so the unsplit member is on the
+  core and the pair is staged here.
+- *The dropped members* `wifi_rf` and `network_probe` (M37): a sourced matrix row for the
+  operation on a majority of the reviewed families. Neither has a row in the design's §2; a
+  consumer that needs one on a gateway composes it plugin-local until then.
+- *DS-Lite* (an IPv4-over-IPv6 transition, M37): a matrix row. Two families publish it as a
+  status; it would land as a `WanIpv6` part, not a second connection object.
+
+**Out of scope right now because:** each sits below the design's evidence bar (a majority of
+the reviewed families) or has no matrix row; the design record is the archetype's design
+document itself.
+
+**Design notes (when picked up):** the staged pair keeps `upgrade_firmware` as the one-step
+member and adds the two levers plus a staged-image read on `DeviceLifecycle`; DS-Lite is a
+`WanIpv6Mode` value or a `WanIpv6` field with its tunnel endpoint.
+
+**Cross-references:** `docs/architecture/cpe-gateway-protocol-design.md` (§4 "Dropped members", §6 "The WAN connection" and "The generic
+introductions", §12 M21 and M37); `devices/cpe_gateway.py`; `device_lifecycle.py`;
+`models/cpe_gateway.py`.

@@ -800,3 +800,52 @@ CpuLoad(percent, load_average_1m)` is added on the base, so it reaches
   keeps its name, signature and meaning. Manifest rows M14–M17 of the design.
 - `testoperations`: `wait_for_reboot_completion(device_mgmt: DeviceHealth, …)` —
   the annotation widened, the parameter name and behaviour unchanged (M38).
+
+---
+
+## 2026-10-20 — `InterfaceDhcpConfig` gains the pool bounds; two port-forward shapes for two device classes
+
+**Signal:** The CPE gateway design (`docs/architecture/cpe-gateway-protocol-design.md`, §6 "DHCP server", "Port forwards"). Every
+reviewed gateway family publishes its DHCP pool as a first and last address, which the
+appliance's and the switches' `InterfaceDhcpConfig` could not carry; and the gateway's port
+forwards are per-mapping objects (`Firewall.add_port_mapping` and siblings) where the
+appliance's are a list replace (`ApplianceNat.set_port_forwarding_rules`).
+
+**Decision:** add — two defaulted fields `pool_start: str | None = None` and
+`pool_end: str | None = None` on `InterfaceDhcpConfig` (manifest row M25); keep — the two
+port-forward shapes stay as they are, recorded here as two shapes for two device classes
+(M26).
+
+**Rationale:**
+- `None` bounds keep the appliance meaning (the whole interface subnet minus the reserved
+  ranges), so no consumer's configuration changes meaning; a gateway driver fills both. Every
+  reserved range must lie inside the bounds, a rule the driver checks before any write; with
+  `None` bounds nothing is outside.
+- A gateway administrator adds and removes one mapping at a time and the families publish them
+  so; an appliance's API replaces the table. Forcing one shape on both would make one class's
+  drivers emulate the other's grain.
+
+**Migration impact:**
+- `testprotocols`: two defaulted fields, appended after `relay_targets`; no positional caller
+  changes. `testoperations`: unaffected.
+
+---
+
+## 2026-10-20 — `WanLinkAdmin` composed by a closed product (the CPE gateway)
+
+**Signal:** The CPE gateway design's matrix (`docs/architecture/cpe-gateway-protocol-design.md`, §2 row R9): four of the five reviewed
+gateway families publish an administrative WAN enable through their management plane. The
+2026-06-12 entry above said the lever is "implemented only by the Linux digital twin".
+
+**Decision:** keep — `WanLinkAdmin` unchanged in its members; composed by `CpeGatewayDevice`
+as `wan_admin`, with the connection's name as the label and `WanConnection.get_wan_state` as
+its paired read on that class (manifest rows M28, M29).
+
+**Rationale:** the 2026-06-12 boundary was about API-managed appliances, whose management
+planes publish no such operation; it was stated more narrowly than the evidence. The rationale
+now reads: the lever is published by substrates that carry an administrative WAN enable — the
+Linux twin and closed gateways — and not by API-managed appliances.
+
+**Migration impact:**
+- `testprotocols`: the module docstring of `wan_link_admin.py` generalised; no member change.
+  The appliance archetype still omits `wan_admin`. `testoperations`: unaffected.
