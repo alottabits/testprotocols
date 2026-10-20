@@ -2,7 +2,7 @@
 
 | Field | Value |
 | --- | --- |
-| Status | chartered |
+| Status | accepted for verification |
 | Author | rjvisser |
 | Date | 2026-10-19 |
 | Related | `docs/archetypes/README.md` (the track), `docs/architecture/managed-router-protocol-design.md` (the chartered sibling), `packages/testprotocols/src/testprotocols/devices/cpe.py` (the archetype this charter rebuilds), `packages/testprotocols/GAPS.md` (`L2Bridge`, 2026-05-02), `docs/architecture/l2-switch-protocol-design.md` (the shared STP/FDB vocabulary), `packages/testprotocols/SPLITS.md`, `packages/testprotocols/LEVELS.md` |
@@ -683,7 +683,7 @@ one would leave an archetype that composes it permanently unsupported.
 | R39 | `DeviceInfo` | 5 | extend | the protocol owns identity and nominates the extension point in its docstring; a Protocol property cannot default (rung 3); the appliance and the switches publish the facts, so no archetype is left permanently unsupported |
 | R40–R42 | `DeviceHealth` | 6 | new capability (split) | the `GAPS.md` 2026-06-11 record forbids composing the host-shaped `DeviceManagement` on a closed product; a split base that `DeviceManagement` inherits (the `Router` → `RoutingRead` precedent) leaves its implementers satisfying both; `read_cpu_load` is an `extend` of the base's inheritor |
 | R43 | `SyslogConfig` | 2 | reuse | unchanged |
-| R44 | `NtpConfig` | 5 | extend | the protocol owns the server list; the synchronisation state is the read beside it; the switches publish it, so no archetype is left permanently unsupported |
+| R44 | `NtpConfig` | 5 | extend | the protocol owns the server list; the synchronisation state is the read beside it; a family that publishes no state raises the documented per-method case, so no archetype is left permanently unsupported |
 | R45, R48–R49 | `DeviceLifecycle` | 5 | extend | the protocol owns the device's lifecycle (boot, reset, factory reset); image upgrade and configuration transfer are its concern; composed by the superseded class only, so no other archetype is affected; the docstring generalised from CPE to any device |
 | R46–R47 | `DeviceLifecycle` | 2 | reuse | `factory_reset`, `reset`, `wait_for_boot` unchanged; `verify_cpe_is_booting` renamed (`deprecate`, lands with the extend) |
 | R50 | `AdminCredential` | 6 | new capability | no protocol owns a local credential; `radius_client` is a server registry and an `extend` of it would put a local-account write on every AAA-client implementer |
@@ -710,7 +710,7 @@ with the reason, so the two designs do not drift into near-duplicates.
 | WAN admin | — (the appliance cannot) | `wan_admin: WanLinkAdmin` | the twin's lever, published by four gateway columns (§6) |
 | LAN | `lan: ApplianceVlans` | `l2_bridge` + `interface_dhcp` | the appliance's VLAN object is the switchport shape; the gateway's LAN is a bridge of ports and networks with a DHCP pool |
 | Edge firewall, zones | `l3_firewall: L3Firewall` | `firewall_zones`, `firewall` | the appliance's triad is a controller-side rule set; the gateway's is a zone model plus per-rule administration, already modelled for the superseded class |
-| Health | (`GAPS.md` 2026-06-11, deferred) | `health: DeviceHealth` | the read-only base this design seeds is the shape that entry sketches; the appliance composes it when its trigger lands (a `record` row updates the entry) |
+| Health | (`GAPS.md` 2026-06-11, deferred) | `health: DeviceHealth` | the read-only base this design seeds takes that entry's concern with two differences its update records (M17): `get_seconds_uptime` returns `float`, not the sketch's `float \| None`, so an appliance that reports no uptime raises the documented unsupported case, and the base carries the process-list read the sketch lacks; the appliance composes it when its trigger lands |
 
 ### Shared with the switches
 
@@ -772,41 +772,45 @@ connection the charter describes (§1): a `WanConnectionConfig` record with a
 `name` (the handle `wan_admin` also takes as its label), `mode: WanMode`
 (`DHCP`, `STATIC`, `PPPOE`; IPoE is `DHCP` or `STATIC` with the `vlan` part
 set, so it is not a fourth value), and the mode-specific parts as optional
-records — `pppoe: PppoeCredentials | None` (`username`, `password: str |
-None` — required on a write, `None` on every read because no column returns
-a stored secret — `service_name: str | None`), `static:
-StaticAddressing | None` (`address`, `prefix_length`, `gateway`,
-`dns_servers: tuple[str, ...]`), `vlan: WanVlan | None` (`vlan_id`, `priority:
-int | None`) and `ipv6: WanIpv6 | None` (`mode: WanIpv6Mode` — `DISABLED`,
-`DHCPV6_PD`, `SLAAC`, `STATIC` — `requested_prefix_length: int | None`,
-`static_address: str | None`). A part that does not apply to the mode is
+records — `pppoe: PppoeCredentials | None` (`username`, `password: str | None`
+— required on a write, `None` on every read because no column returns a stored
+secret — `service_name: str | None`), `static: StaticAddressing | None`
+(`address: str`, `prefix_length: int`, `gateway: str`, all required, and
+`dns_servers: tuple[str, ...]`, the resolvers the connection supplies in place
+of a lease's — empty when the forwarder's own upstreams are to serve; the DNS
+forwarder decision states the boundary), `vlan: WanVlan | None` (`vlan_id`,
+`priority: int | None`) and `ipv6: WanIpv6 | None` (`mode: WanIpv6Mode` —
+`DISABLED`, `DHCPV6_PD`, `SLAAC`, `STATIC` — `requested_prefix_length: int |
+None`, `static_address: str | None`). A part that does not apply to the mode is
 `None` and the driver rejects a configuration whose parts contradict its mode
 before touching the device. The state is a separate read record,
 `WanConnectionState`: `status: WanStatus` (the TR-181 connection-status set:
 `UNCONFIGURED`, `CONNECTING`, `AUTHENTICATING`, `CONNECTED`, `DISCONNECTING`,
-`DISCONNECTED`; CLI families map their words onto it), `ipv4_address`,
-`ipv4_gateway`, `dns_servers`, `lease_remaining_s: int | None` (None where
-the family publishes no lease time, column 4), `ipv6_address`,
-`delegated_prefix: str | None`, `provisioning_mode: ProvisioningMode | None`
-(`IPV4`, `IPV6`, `DUAL_STACK`; derived from the v4 and v6 states on columns
-2, 4 and 5, which publish no mode field, and `None` only while neither
-family of addresses is up) and `uptime_s: int | None`. Members:
-`set_wan_connection(config) -> None`, `get_wan_connection(name) ->
-WanConnectionConfig`, `list_wan_connections() -> list[WanConnectionConfig]`,
-`get_wan_state(name) -> WanConnectionState`, `reset_session(name) -> None`.
-The reset is a lever that re-establishes the connection whatever its mode
-(a PPPoE session is terminated and redialled, a DHCP connection released and
-renewed, a static connection brought down and up): its confirming
-observation is `get_wan_state` showing the status leave `CONNECTED` and
-return, through `await_reachability` from a LAN client. `dhcp_client`'s
-release and renew (R10) are the finer, lease-level lever on the same
-connection, and `wan_admin`'s down and up (R9) the administrative state,
-with `get_wan_state` as its paired read on this class; the connection record
-carries no `enabled` field, so one lever encodes the administrative state
-once. The link beneath the connection stays on `port_status` (R8): link
-state is a port fact, published that way by all five columns. The written
-PPPoE password is confirmed by the session: `WanStatus.CONNECTED` after
-`AUTHENTICATING`.
+`DISCONNECTED`; CLI families map their words onto it), `ipv4_address: str |
+None`, `ipv4_gateway: str | None`, `dns_servers: tuple[str, ...]` (the
+resolvers the connection supplies), `lease_remaining_s: int | None` (None where
+the family publishes no lease time, column 4), `ipv6_address: str | None`,
+`delegated_prefix: str | None` — each address `None`, and the tuple empty,
+while its address family is not provisioned or the status is anything but
+`CONNECTED` —, `provisioning_mode: ProvisioningMode | None` (`IPV4`, `IPV6`,
+`DUAL_STACK`; derived from the v4 and v6 states on columns 2, 4 and 5, which
+publish no mode field, and `None` only while neither family of addresses is up)
+and `uptime_s: int | None`. Members: `set_wan_connection(config) -> None`,
+`get_wan_connection(name) -> WanConnectionConfig`, `list_wan_connections() ->
+list[WanConnectionConfig]`, `get_wan_state(name) -> WanConnectionState`,
+`reset_session(name) -> None`. The reset is the PPPoE session reset R4
+evidences: on a `PPPOE` connection the session is terminated and redialled, and
+its confirming observation is `get_wan_state` showing the status leave
+`CONNECTED` and return, through `await_reachability` from a LAN client. On a
+`DHCP` or `STATIC` connection it raises the documented unsupported case, and
+its docstring points at the released levers that already do that work:
+`dhcp_client`'s release and renew (R10) for the lease and `wan_admin`'s down
+and up (R9) for the administrative state, with `get_wan_state` as their paired
+read on this class; the connection record carries no `enabled` field, so one
+lever encodes the administrative state once. The link beneath the connection
+stays on `port_status` (R8): link state is a port fact, published that way by
+all five columns. The written PPPoE password is confirmed by the session:
+`WanStatus.CONNECTED` after `AUTHENTICATING`.
 
 **Per-column limits, as docstring normalisations.** Column 4 publishes no
 mode selector beyond routed/bridged, no service name and no tag: a
@@ -820,14 +824,15 @@ mapping the family does not document (R5 ◐), so a `priority` is the
 unsupported case there until stage 4 sources it.
 
 **Multi-step write.** `set_wan_connection` is several device steps on every
-column but the fourth: one set per parameter on columns 1 and 3 (column 3
-with an apply step for some objects), interface, protocol, credential and
-tag objects on columns 2 and 5. A rejection at any step raises naming the
-step and the driver writes nothing more; the family's own mechanism decides
-whether the as-found state returns (column 2 commits a candidate
-configuration; columns 1, 3 and 5 apply each step, so the steps before the
-rejection stand) — stated per column in §8 and in the drivers' `lossy:`
-lines.
+column but the fourth: one set per parameter on columns 1 and 3 (column 3 with
+an apply step for some objects), interface, protocol, credential and tag
+objects on columns 2 and 5. A rejection at any step raises naming the step and
+the driver writes nothing more; the family's own mechanism decides whether the
+as-found state returns (column 2 stages every step under a change-file path of
+the write's own and commits only when every step is accepted, so a rejected
+write's steps are never committed; columns 1, 3 and 5 apply each step, so the
+steps before the rejection stand) — stated per column in §8 and in the drivers'
+`lossy:` lines.
 
 **Not modelled.** An IPv4-over-IPv6 transition (DS-Lite), which columns 1
 and 4 publish as a status, has no matrix row and no field; a dated row adds
@@ -847,7 +852,12 @@ reads the active leases. The pool's bounds are two defaulted fields (rung
 `None` means the whole interface subnet minus the reserved ranges, which is
 what the appliance's and the switches' drivers serve today, so no consumer
 changes; every gateway column publishes the pool as a first and last address
-(R11) and its driver fills both. The gateway composes it per LAN interface (the
+(R11) and its driver fills both. Every reserved range must lie inside the
+bounds: a range inside them is subtracted from the pool, and a configuration
+whose reserved range lies wholly or partly outside its bounds is rejected by
+the driver before any write (with `None` bounds nothing is outside, so no
+consumer's configuration changes meaning). The gateway composes it per LAN
+interface (the
 bridge, the guest bridge) exactly as the switches do per SVI. The
 provisioner's `dhcp_server` is a test-bed server for the device under test,
 not the device's own, and stays where it is. Column 4 publishes the pool but
@@ -888,28 +898,33 @@ one.
 
 **Decision.** `HostFilter` (`host_filter`) owns the per-host block: a
 `HostBlock` record (`mac: str`, `schedule: WeeklySchedule | None`, `enabled:
-bool = True`) with `WeeklySchedule(days: frozenset[Weekday], start: time,
-end: time)` and `Weekday` an `IntEnum` Monday to Sunday; members
-`block_host(block) -> None`, `unblock_host(mac) -> None`,
-`get_host_block(mac) -> HostBlock`, `list_host_blocks() -> list[HostBlock]`.
-It is not a `packet_filter` rule because `FirewallRule` carries no schedule
-and the five columns publish the block in five shapes (a per-host access
-flag with a time profile, a schedule object bound to a rule, a parental
-control entry, a time-budget profile, a scheduler script): a schedule field on
-`FirewallRule` would be `None` for every rule consumer today and would make
-every host-side `PacketFilter` driver carry a field it cannot honour. The
-block is by MAC because that is what every column keys on; an address-keyed
-block is not offered. It is not `WifiBss`'s per-network MAC access list
-either: that list admits or refuses a station's association on one network,
-while a host block denies a host's traffic through the gateway, wired or
-wireless, on a schedule. The write is one device step on columns 3, 4 and
-5; on column 1 it is one set per parameter and on column 2 a rule plus a
-schedule section, and a rejection raises naming the step. On columns 1 and
-2 the realised block is a firewall rule, so `firewall.list_rules` shows it
-too: the driver names the rule after the host so a reader can tell the two
-apart, and a test that removes it through `firewall` has removed the block
-(the same device resource, one owner — `host_filter` — stated here so the
-composition is not a surprise).
+bool = True`) with `WeeklySchedule(days: frozenset[Weekday], start: time, end:
+time)` and `Weekday` an `IntEnum` Monday to Sunday; members `block_host(block)
+-> None`, `unblock_host(mac) -> None`, `get_host_block(mac) -> HostBlock`,
+`list_host_blocks() -> list[HostBlock]`. It is not a `packet_filter` rule
+because `FirewallRule` carries no schedule and the five columns publish the
+block in five shapes (a per-host access flag with a time profile, a schedule
+object bound to a rule, a parental control entry, a time-budget profile, a
+scheduler script): a schedule field on `FirewallRule` would be `None` for every
+rule consumer today and would make every host-side `PacketFilter` driver carry
+a field it cannot honour. The block is by MAC because that is what every column
+keys on; an address-keyed block is not offered. It is not `WifiBss`'s
+per-network MAC access list either: that list admits or refuses a station's
+association on one network, while a host block denies a host's traffic through
+the gateway, wired or wireless, on a schedule. The write is one device step on
+columns 3, 4 and 5; on column 1 it is one set per parameter and on column 2 a
+rule plus a schedule section, and a rejection raises naming the step. On
+columns 1 and 2 the realised block is a firewall rule, so `firewall.list_rules`
+shows it too, named after the host so a reader can tell the two apart. The
+block has one owner, `host_filter`: the `firewall` driver of those columns
+refuses `remove_rule` on a rule that realises a host block, and `flush_chain`
+and `set_default_policy` on the chain that holds one, with `NotSupportedError`
+naming the owner, so no `firewall` write disturbs a block. The `mac` of
+`HostBlock`, and the argument of `unblock_host` and `get_host_block`, is the
+canonical lowercase colon-separated form `WifiMeshNode.mac` already uses: the
+driver canonicalises every MAC it reads (columns 3 and 5 upper-case theirs) and
+accepts any case on a write, normalising before the device sees it, so what a
+test reads back equals what it wrote.
 
 **Overturn.** A schedule field acceptable on `packet_filter` rules for all
 its consumers (the hosts, the twin, the superseded class), which would move
@@ -922,39 +937,41 @@ None` and `get_acs() -> AcsConfig`, where `AcsConfig` carries `enabled: bool`, `
 `username: str | None`, `password: str | None`, `periodic_inform_enabled:
 bool`, `periodic_inform_interval_s: int`, `connection_request_username: str
 | None` and `connection_request_password: str | None` — the parameter set
-the five columns publish (R51, five ✓). The two passwords are required on
-a write when the ACS authenticates and `None` on every read: no column
-returns a stored secret (the data-model columns return an empty string, the
-CLI column marks the field sensitive), and the written value is confirmed by
-the session — `is_tr069_connected` after the next inform — not by a read.
-On column 4 `set_acs` is several SOAP actions (one per parameter group); a
-rejection raises naming the action. `force_inform` keeps its name and
-gains the stated meaning: *provoke an inform session where the family
-publishes a trigger (columns 1 and 2, through the client's own interface);
-raise the unsupported case where it publishes none (columns 3, 4 and 5)*,
-with `is_tr069_connected` as its confirming observation and the test-bed ACS
-as the far-end witness. The member stays on the core because the operation
-it belongs to (R52) is supported on every column in part; the trigger half
-is a per-method unsupported case on three of five, stated here and in §9.
-The connection-request state is read by no column
-(R52, five ◐): no member is added for it, and the row's second half is a
-verification item that may become a `feat:` change when a column publishes
-it. The `get_id` identifier and `get_tr069_log` stay as they are.
+the five columns publish (R51, five ✓). The two passwords are required on a
+write when the ACS authenticates and `None` on every read: no column returns a
+stored secret (the data-model columns return an empty string, the CLI column
+marks the field sensitive), and the written value is confirmed by the session —
+`is_tr069_connected` after the next inform — not by a read. On column 4
+`set_acs` is several SOAP actions (one per parameter group); a rejection raises
+naming the action. `force_inform` keeps its name and gains the stated meaning:
+*provoke an inform session where the family publishes a trigger (columns 1 and
+2, through the client's own interface); raise the unsupported case where it
+publishes none (columns 3, 4 and 5)*, with `is_tr069_connected` as its
+confirming observation and the test-bed ACS as the far-end witness. The
+rewritten docstring names no vendor command or daemon; the released text's
+example moves to the column-1 driver's `source:` line. The member stays on the
+core because the operation it belongs to (R52) is supported on every column in
+part; the trigger half is a per-method unsupported case on three of five,
+stated here and in §9. The connection-request state is read by no column (R52,
+five ◐): no member is added for it, and the row's second half is a verification
+item that may become a `feat:` change when a column publishes it. The `get_id`
+identifier and `get_tr069_log` stay as they are.
 
 USP is the `usp` tier: `UspAgent` (`usp_agent`) with `set_controller(
 controller: UspController) -> None`, `get_controller() -> UspController` and
-`get_agent_state() -> UspAgentState`. `UspController` carries
-`endpoint_id`, `transport: UspTransport` (`WEBSOCKET`, `MQTT`, `STOMP`; the
-CoAP transport is omitted because no column's agent documentation lists it,
-and joins by a dated note), `host`, `port`, `path: str | None` and `tls:
-bool`; `UspAgentState` carries the agent's `endpoint_id` and `connected:
-bool | None`, `None` where the family publishes the configuration but no
-connection state — every column that implements the tier today (R53 ◐), so
-the field's worth is the verification item: the first column to publish a
-state fills it, and if none does by stage 4 the field is dropped from the
-record before it lands. Columns 1 and 3 configure the agent
-through its own files rather than a data-model object: a mapping with a
-`source:` line, not a limit. Column 2 packages no agent and column 5 has
+`get_agent_state() -> UspAgentState`. `UspController` carries `endpoint_id:
+str` (the controller's endpoint identifier), `transport: UspTransport`
+(`WEBSOCKET`, `MQTT`, `STOMP`; the CoAP transport is omitted because no
+column's agent documentation lists it, and joins by a dated note), `host: str`,
+`port: int`, `path: str | None` (the WebSocket resource path; `None` on the
+other transports, which have none) and `tls: bool`; `UspAgentState` carries the
+agent's `endpoint_id` and `connected: bool | None`, `None` where the family
+publishes the configuration but no connection state — every column that
+implements the tier today (R53 ◐), so the field's worth is the verification
+item: the first column to publish a state fills it, and if none does by stage 4
+the field is dropped from the record before it lands. Columns 1 and 3 configure
+the agent through its own files rather than a data-model object: a mapping with
+a `source:` line, not a limit. Column 2 packages no agent and column 5 has
 none: both raise, and both drivers satisfy the core without the tier.
 
 **Overturn.** A trigger column that publishes no TR-069 configuration (none
@@ -1049,33 +1066,34 @@ mechanism.
 
 ### Health — a read-only base split off `DeviceManagement`
 
-**Decision.** `DeviceHealth` (`health`) is a new protocol carrying the reads
-a closed product publishes about itself: `is_online() -> bool`,
+**Decision.** `DeviceHealth` (`health`) is a new protocol carrying the reads a
+closed product publishes about itself: `is_online() -> bool`,
 `get_seconds_uptime() -> float`, `read_cpu_load() -> CpuLoad`,
-`read_memory_utilization() -> MemoryUtilization`, `read_running_processes()
--> list[ProcessInfo]` and `read_log_entries() -> list[EventLogEntry]`.
+`read_memory_utilization() -> MemoryUtilization`, `read_running_processes() ->
+list[ProcessInfo]` and `read_log_entries() -> list[EventLogEntry]`.
 `DeviceManagement` inherits it, so every implementer of the host-shaped
 protocol satisfies the base; the host-shaped members (`get_file_content`,
 `get_board_logs`, `get_boottime_log`, the deprecated pairs) stay on
-`DeviceManagement` and off the gateway. `CpuLoad` answers R40's load
-question precisely instead of renaming `get_load_avg`: `percent: float |
-None` (the family's processor-usage figure, columns 1, 3 and 5) and
-`load_average_1m: float | None` (the kernel's figure, column 2), each `None`
-where the family publishes no such figure (column 4 publishes neither;
-R40 ◐). `get_load_avg` keeps its name and its meaning on
-`DeviceManagement` and is not part of the split. The one member the base
-adds that `DeviceManagement` lacks, `read_cpu_load`, is therefore an
-`extend` of `DeviceManagement` (breaking, §12), whose one implementer on
-`main`'s archetypes is the superseded class's driver. The inheritance is
-kept because it is what lets the existing `testoperations` lifecycle waits
-(`wait_for_reboot_completion`, `is_cpe_online`), typed against
-`DeviceManagement` today, be widened to the health base without a second
-code path — a stage-4 `testoperations` change recorded in §12. This follows
-the recorded decision of `GAPS.md` 2026-06-11 (the host-shaped protocol is
-not reused on a closed product) and the `RoutingRead` precedent (a read-only
-protocol split off `Router`, `SPLITS.md`). Column 4 publishes uptime only (R40 ◐, R41 ✗): memory, processes and
-the load record raise there; column 5 publishes per-class usage without PIDs
-(R41 ◐): `ProcessInfo.pid` is the unsupported case there.
+`DeviceManagement` and off the gateway. `CpuLoad` answers R40's load question
+precisely instead of renaming `get_load_avg`: `percent: float | None` (the
+family's processor-usage figure, columns 1, 3 and 5) and `load_average_1m:
+float | None` (the kernel's figure, column 2), each `None` where the family
+publishes no such figure (column 4 publishes neither; R40 ◐). `get_load_avg`
+keeps its name and its meaning on `DeviceManagement` and is not part of the
+split. The one member the base adds that `DeviceManagement` lacks,
+`read_cpu_load`, is therefore an `extend` of `DeviceManagement` (breaking,
+§12), whose one implementer on `main`'s archetypes is the superseded class's
+driver. The inheritance is kept because it is what lets the existing
+`testoperations` lifecycle wait `wait_for_reboot_completion`, typed against
+`DeviceManagement` today, be widened to the health base without a second code
+path — a stage-4 `testoperations` change recorded in §12 (`is_cpe_online`
+probes through the test-bed ACS and takes a `Tr069Server`; it is unaffected).
+This follows the recorded decision of `GAPS.md` 2026-06-11 (the host-shaped
+protocol is not reused on a closed product) and the `RoutingRead` precedent (a
+read-only protocol split off `Router`, `SPLITS.md`). Column 4 publishes uptime
+only (R40 ◐, R41 ✗): memory, processes and the load record raise there; column
+5 publishes per-class usage without PIDs (R41 ◐): `ProcessInfo.pid` is the
+unsupported case there.
 
 **Overturn.** A test that needs the kernel's three load averages as a
 record, which would widen `CpuLoad` by defaulted fields.
@@ -1093,28 +1111,29 @@ sibling composes the same members when its design lands:
   unsupported case there until stage 4 sources a board-level read. This is
   an `extend` (rung 5; a Protocol property cannot default) of a protocol the
   appliance and the switches compose.
-- `DeviceLifecycle` gains `upgrade_firmware(image: ImageSource) -> None`
-  (R45; `ImageSource(url: str, checksum_sha256: str | None = None)`), a
-  lever whose acknowledgement is the family accepting the transfer and the
-  apply and whose confirming observation is `wait_for_boot` followed by
-  `info.software_version`. On column 5 it is two steps (upload, then
-  reboot) and a rejection raises naming the step. It is one member rather
-  than a staged pair (`stage_image` / `activate_image`) because three of
-  five columns upgrade in one action and no column publishes a staged-image
-  read: the pair is the staged half of this operation and sits below the
-  majority, so it is a `tier-staged` row with its trigger (the first
-  dual-image product), the method-grain rule applied (the unsplit member on
-  the core, the finer pair staged). It gains `export_configuration() ->
-  bytes` and `import_configuration(archive: bytes) -> None` (R48–R49): the
-  archive is the family's own, opaque to the contract; the import is a lever
-  confirmed by `wait_for_boot` where the family reboots and by the test
-  reading back a setting it changed before the export (`wifi_bss.
-  get_bss_config` is the natural one; the orchestration is a
-  `testoperations` candidate). Column 3 realises both through the shell
-  store (◐, a `source:` line). `DeviceLifecycle` is composed by the
-  superseded class only, so the extension reaches one implementer. `verify_cpe_is_booting` is
-  renamed `verify_booting` with the old name delegating for the period
-  (`deprecate`, §12), so the generalised docstring stops naming a class.
+- `DeviceLifecycle` gains `upgrade_firmware(image: ImageSource) -> None` (R45;
+  `ImageSource(url: str, checksum_sha256: str | None = None)` in
+  `models/device_management.py`, beside the management models, because the
+  members it serves are generic), a lever whose acknowledgement is the family
+  accepting the transfer and the apply and whose confirming observation is
+  `wait_for_boot` followed by `info.software_version`. On column 5 it is two
+  steps (upload, then reboot) and a rejection raises naming the step. It is one
+  member rather than a staged pair (`stage_image` / `activate_image`) because
+  three of five columns upgrade in one action and no column publishes a
+  staged-image read: the pair is the staged half of this operation and sits
+  below the majority, so it is a `tier-staged` row with its trigger (the first
+  dual-image product), the method-grain rule applied (the unsplit member on the
+  core, the finer pair staged). It gains `export_configuration() -> bytes` and
+  `import_configuration(archive: bytes) -> None` (R48–R49): the archive is the
+  family's own, opaque to the contract; the import is a lever confirmed by
+  `wait_for_boot` where the family reboots and by the test reading back a
+  setting it changed before the export (`wifi_bss. get_bss_config` is the
+  natural one; the orchestration is a `testoperations` candidate). Column 3
+  realises both through the shell store (◐, a `source:` line).
+  `DeviceLifecycle` is composed by the superseded class only, so the extension
+  reaches one implementer. `verify_cpe_is_booting` is renamed `verify_booting`
+  with the old name delegating for the period (`deprecate`, §12), so the
+  generalised docstring stops naming a class.
 - Log export is `SyslogConfig` as it stands (R43; column 4 raises).
 
 **Overturn.** A column whose firmware upgrade needs an explicit staged
@@ -1146,7 +1165,9 @@ protocol first, which would make this a `reuse` row.
 list the switches already compose, and `NtpConfig` gains `get_sync_state()
 -> NtpSyncState` (R44): `status: NtpSyncStatus` (`SYNCHRONISED`,
 `UNSYNCHRONISED`, `DISABLED`), `server: str | None`, `offset_ms: float |
-None`, `last_sync: datetime | None`. Columns 2 and 4 publish no sync state
+None`, `last_sync: datetime | None`; the two types live in `models/switch.py`
+beside `NtpServer`, where the protocol's server model already is. Columns 2
+and 4 publish no sync state
 (R44 ◐): the read raises there, a documented per-method unsupported case on
 a trigger column (§9 Stated risks). `NtpClient` (set the date, run a
 one-shot sync) is a host's clock lever and is not composed. A switch driver
@@ -1181,24 +1202,38 @@ not a member of its own; column 4 raises on the 11k/v/r setters.
 
 **Decision.** `DnsForwarder` (`dns_forwarder`) owns the gateway's forwarder:
 `set_upstreams(upstreams: tuple[DnsUpstream, ...]) -> None` and
-`get_upstreams() -> tuple[DnsUpstream, ...]` (R15; `DnsUpstream(address:
-str, port: int = 53, domain: str | None = None)`, `domain` naming the suffix
-the upstream serves — `None` is the default upstream for every name);
+`get_upstreams() -> tuple[DnsUpstream, ...]` (R15; `DnsUpstream(address: str,
+port: int = 53, domain: str | None = None)`, `domain` naming the suffix the
+upstream serves — `None` is the default upstream for every name);
 `add_host_override(override: DnsHostOverride) -> None`,
 `remove_host_override(name: str) -> None`, `list_host_overrides() ->
 list[DnsHostOverride]` (R16; `DnsHostOverride(name: str, address: str)`);
-`set_rebind_protection(enabled: bool) -> None` and `get_rebind_protection()
--> bool` (R17). `set_upstreams` is a list replace, realised as clear-then-add
-on columns 1, 2, 3 and 5 (one set per parameter on columns 1 and 3), so a
-rejection raises naming the step. Per-column limits: column 3 publishes host
-overrides only through the shell (R16 ◐: a `source:` line) and its rebind
-protection is always on (R17 ◐: `set_rebind_protection(False)` is the
-unsupported case, `get_rebind_protection` returns `True`); column 4
-publishes no upstream write (R15 ✗: `set_upstreams` raises), overrides only
-as a host name per MAC (R16 ◐: an override whose name is not a LAN host's
-raises) and no rebind setting (R17 ✗: both members raise); column 5 has no
-rebind filter (R17 ✗). `dns_client` is a host's resolver and is not
-composed.
+`set_rebind_protection(enabled: bool) -> None` and `get_rebind_protection() ->
+bool` (R17). `set_upstreams` is a list replace of the forwarder's configured
+upstreams. On columns 1 and 3 the driver rewrites the existing forwarding
+instances in place and adds or deletes only the difference, so no step leaves
+the forwarder without an upstream (one set per parameter; a rejection raises
+naming the step); on column 2 it is one staged write and one commit, on column
+5 one property set, so there is no window and no partial state. The configured
+upstreams are distinct from the resolvers the WAN connection supplies (a
+lease's, or `StaticAddressing.dns_servers`): those are read on
+`get_wan_state().dns_servers`, `get_upstreams` returns the configured set only,
+and the rewrite never touches a connection-derived entry on the data-model
+columns, where both live in one forwarding table; an empty tuple written means
+the connection's resolvers serve. `get_upstreams` returns the upstreams in the
+device's own order, which columns 2 and 5 may not keep as written: the contract
+promises the same set, not the order, and a test compares as a set (the
+docstring says so). On column 4 a `DnsHostOverride.name` outside the family's
+allowed character set would be rewritten by the device; the driver rejects such
+a name before the write with the reason, so a read-back equals the write.
+Per-column limits: column 3 publishes host overrides only through the shell
+(R16 ◐: a `source:` line) and its rebind protection is always on (R17 ◐:
+`set_rebind_protection(False)` is the unsupported case, `get_rebind_protection`
+returns `True`); column 4 publishes no upstream write (R15 ✗: `set_upstreams`
+raises), overrides only as a host name per MAC (R16 ◐: an override whose name
+is not a LAN host's raises) and no rebind setting (R17 ✗: both members raise);
+column 5 has no rebind filter (R17 ✗). `dns_client` is a host's resolver and is
+not composed.
 
 **Overturn.** A column whose forwarder cannot be reached except through a
 per-host record (none in §2), which would make the overrides a `HostTable`
@@ -1212,25 +1247,33 @@ write instead.
 `get_bridge(name: str) -> BridgeConfig`, `add_member(bridge: str, member:
 BridgeMember) -> None`, `remove_member(bridge: str, member_name: str) ->
 None`, `get_members(bridge: str) -> list[BridgeMemberState]`.
-`BridgeConfig(name: str, members: tuple[BridgeMember, ...], stp_mode: StpMode
-| None)` — `members` is the initial membership `create_bridge` applies, and
-`add_member` / `remove_member` are the per-member levers afterwards, both
-reflected by `get_bridge`; `stp_mode` is `None` when spanning tree is off
+`BridgeConfig(name: str, stp_mode: StpMode | None)` carries no membership:
+`create_bridge` creates the bridge only, `add_member` / `remove_member` are the
+only writes of membership and `get_members` its read (one owner per concern, no
+coarser member defined by the two); `stp_mode` is `None` when spanning tree is off
 (the shared `StpMode` has no off value) and otherwise a value of
 `models/l2_common.py`'s enum. `BridgeMember(name: str, kind:
 BridgeMemberKind)` with `BridgeMemberKind` `PORT` or `WIRELESS_NETWORK`;
 `BridgeMemberState(member: BridgeMember, stp_state: StpPortState | None,
 link_up: bool | None)`, each `None` where the family publishes no such
 state. The bridge carries no address: the gateway's LAN address and DHCP
-pool are `interface_dhcp`'s concern on the bridge interface. The STP timers
+pool are `interface_dhcp`'s concern on the bridge interface. Membership of a
+`WIRELESS_NETWORK` decides which bridge the network joins and is `l2_bridge`'s
+alone; the VLAN tag the network's traffic carries on a VLAN-aware bridge is
+`wifi_bss`'s alone (`set_vlan`, `create_bss(vlan_id=…)`). Where a family
+realises both on one bridge-port entry, the driver backs the two with that one
+entry, each member owning its parameter and neither writing the other's;
+`set_vlan` with a tag on a network whose bridge is not VLAN-aware is the
+documented unsupported case. The STP timers
 and the forwarding-table read of the GAPS entry stay open under a dated
 note; the table read is the `L2BridgeWhiteBox` candidate (§7). Per-column:
 column 2 reads live membership through the shell (R19 ◐: a `source:`
 line); column 4 publishes no bridge object (R18 ✗: every write raises;
 R19 ◐: `get_members` is derived from the per-host port and guest flags).
-`create_bridge` is several steps on columns 1, 2, 3 and 5 (bridge, then
-members; one set per parameter on columns 1 and 3) and a rejection raises
-naming the step.
+`create_bridge` is two steps on columns 1 and 3 (the object add, then the STP
+parameter) and a rejection raises naming the step; it is one staged write on
+column 2 and one command on column 5. `get_members` returns the members in the
+device's own order; the contract promises the set.
 
 **Overturn.** A trigger column whose bridge cannot carry a wireless network
 as a member (none in §2), which would split the two member kinds.
@@ -1242,7 +1285,12 @@ as a member (none in §2), which would split the two member kinds.
 | None, ipv6_addresses: tuple[str, ...], hostname: str | None, attachment:
 HostAttachment | None, interface: str | None, active: bool)`; `attachment`
 is `ETHERNET` or `WIFI` and `None` where the family does not publish how the
-host attaches. Columns 1, 3 and 4 publish the table as one object; columns
+host attaches. The set is closed by the contract: a host attached over a medium
+the set lacks (coax, powerline) reads `None` too, and a column that publishes
+such a medium adds a value by a dated note. `LanHost.mac` and the argument of
+`get_host` are the canonical lowercase colon-separated form, canonicalised by
+the driver on read and normalised on the argument (the host-filtering decision
+states the rule once). Columns 1, 3 and 4 publish the table as one object; columns
 2 and 5 publish no single table (R38 ◐) and their drivers **join** the DHCP
 leases, the neighbour table and the station list inside `list_hosts`. That
 join is a mapping, not an orchestration: it is one read of three sources
@@ -1301,12 +1349,12 @@ recorded in §8 and in the drivers' `lossy:` lines.
 
 | Write | Paired read / observation | Multi-step? failure outcome |
 | --- | --- | --- |
-| `WanConnection.set_wan_connection` | `get_wan_connection`, `get_wan_state` (`CONNECTED` after `AUTHENTICATING` confirms the password) | yes on columns 1, 2, 3 and 5: raises naming the step; column 2 commits a candidate, columns 1, 3 and 5 leave the steps before |
-| `WanConnection.reset_session` (lever) | `get_wan_state` status cycling; `await_reachability` from a LAN client | no |
-| `DnsForwarder.set_upstreams` (list replace) | `get_upstreams` | yes on columns 1, 2, 3 and 5 (replace = clear then add; one set per parameter on columns 1 and 3): raises naming the step |
+| `WanConnection.set_wan_connection` | `get_wan_connection`, `get_wan_state` (`CONNECTED` after `AUTHENTICATING` confirms the password) | yes on columns 1, 2, 3 and 5: raises naming the step; column 2's steps are staged under the write's own change-file path and never committed, columns 1, 3 and 5 leave the steps before |
+| `WanConnection.reset_session` (PPPoE lever; raises on the other modes) | `get_wan_state` status cycling; `await_reachability` from a LAN client | no |
+| `DnsForwarder.set_upstreams` (list replace) | `get_upstreams` (set equality) | yes on columns 1 and 3 (existing instances rewritten in place, the difference added or deleted, so no step leaves the forwarder without an upstream; one set per parameter): raises naming the step; one commit on column 2, one property set on column 5 |
 | `DnsForwarder.add_host_override` / `remove_host_override` | `list_host_overrides` | no |
 | `DnsForwarder.set_rebind_protection` | `get_rebind_protection` | no |
-| `L2Bridge.create_bridge` / `delete_bridge` | `list_bridges`, `get_bridge` | yes on columns 1, 2, 3 and 5 (bridge, then members): raises naming the step |
+| `L2Bridge.create_bridge` / `delete_bridge` | `list_bridges`, `get_bridge` | yes on columns 1 and 3 (the object add, then the STP parameter): raises naming the step; one staged write on column 2, one command on column 5 |
 | `L2Bridge.add_member` / `remove_member` | `get_members` | no |
 | `HostFilter.block_host` / `unblock_host` | `get_host_block`, `list_host_blocks` | yes on columns 1 and 2 (rule + schedule, one set per parameter on column 1): raises naming the step |
 | `AutoPortMapping.set_enabled` | `get_enabled` | no |
@@ -1322,14 +1370,14 @@ recorded in §8 and in the drivers' `lossy:` lines.
 | `WifiMesh.steer_client` (existing lever) | `get_topology` showing the station on the target agent | as today |
 | `DeviceLifecycle.upgrade_firmware` (lever) on column 5 | as above | yes on column 5 (upload, then reboot): raises naming the step; every other lever above is one device step |
 
-Each member is one transition between stable states; nothing here
-orchestrates (a guest segment, a WAN failover, a reboot-and-verify is a
-`testoperations` operation over these members). The cross-capability
-candidates this design leaves to `testoperations`: `wait_for_reboot_completion`
-and `is_cpe_online` already exist for the lifecycle levers and are widened
-from `DeviceManagement` to the health base (§12); a guest-segment
-composition, a WAN-reconnect wait, the second-session credential check and
-the export-change-import-compare sequence are candidates recorded at stage 4.
+Each member is one transition between stable states; nothing here orchestrates
+(a guest segment, a WAN failover, a reboot-and-verify is a `testoperations`
+operation over these members). The cross-capability candidates this design
+leaves to `testoperations`: `wait_for_reboot_completion` already exists for the
+lifecycle levers and is widened from `DeviceManagement` to the health base
+(§12; `is_cpe_online` takes the test-bed ACS and is unchanged); a guest-segment
+composition, a WAN-reconnect wait, the second-session credential check and the
+export-change-import-compare sequence are candidates recorded at stage 4.
 
 ### Precise types and proportionality
 
@@ -1341,8 +1389,8 @@ the `vlan` part): `WanMode`, `WanIpv6Mode`, `WanStatus`,
 `WanConnectionConfig`, `PppoeCredentials`, `StaticAddressing`, `WanVlan`,
 `WanIpv6`, `WanConnectionState`, `DnsUpstream` (`address`, `port: int = 53`,
 `domain: str | None`), `DnsHostOverride` (`name`, `address`), `BridgeConfig`
-(`name`, `members: tuple[BridgeMember, ...]`, `stp_mode: StpMode | None`
-from `models/l2_common.py`, `None` = off), `BridgeMember` (`name`, `kind`), `BridgeMemberState`
+(`name`, `stp_mode: StpMode | None` from `models/l2_common.py`, `None` = off;
+membership is read by `get_members`), `BridgeMember` (`name`, `kind`), `BridgeMemberState`
 (`member`, `stp_state: StpPortState | None`, `link_up: bool | None`),
 `LanHost` (`mac`, `ipv4_address: str | None`, `ipv6_addresses: tuple[str,
 ...]`, `hostname: str | None`, `attachment: HostAttachment | None` —
@@ -1363,17 +1411,19 @@ reads it),
 `EventLogEntry`, `WifiMeshTopology`, `WifiMeshNode`, `WifiMeshLink`,
 `StpMode`, `StpPortState`.
 
-Values that stay `str`, with the reason: names and handles (connection,
-bridge, account, interface names: the family's own identifiers), credentials
-and passphrases (typed `str | None` on the records that are also read back,
-`None` meaning "not readable", never an empty string), URLs, hostnames and addresses (an address is a `str` in
-every model on `main`; retyping is the open `GAPS.md` 2026-06-11 question,
-not this design's), the device's own version strings and the archive bytes.
-No `Any`, `object` or `dict` appears in a signature or field; absent values
-are `X | None` with the meaning stated above; every closed set is an enum.
-Each type pays for itself in the structural check: a driver that returns the
-wrong enum, omits a field or widens a type fails `mypy --strict` and the
-conformance check, which is the verification stage 4 runs.
+Values that stay `str`, with the reason: names and handles (connection, bridge,
+account, interface names: the family's own identifiers), credentials and
+passphrases (typed `str | None` on the records that are also read back, `None`
+meaning "not readable", never an empty string), URLs, hostnames and addresses
+(an address is a `str` in every model on `main`, and a MAC is the canonical
+lowercase colon-separated form on every record and argument of this design, as
+`WifiMeshNode.mac` is; retyping is the open `GAPS.md` 2026-06-11 question, not
+this design's), the device's own version strings and the archive bytes. No
+`Any`, `object` or `dict` appears in a signature or field; absent values are `X
+| None` with the meaning stated above; every closed set is an enum. Each type
+pays for itself in the structural check: a driver that returns the wrong enum,
+omits a field or widens a type fails `mypy --strict` and the conformance check,
+which is the verification stage 4 runs.
 
 ### Decided as verification items
 
@@ -1516,27 +1566,32 @@ Multi-step writes: one set per parameter, so a rejection leaves the sets
 before it applied; the `lossy:` line says so for the WAN connection and the
 guest segment.
 
-**Column 2 — OpenWrt 24.10 line with icwmp.** Transport: SSH to the box;
-the configuration store through `uci` (set, add, delete, then `commit` on
-the configuration, then the service reload or `reload_config`), the runtime
-through `ubus` (JSON replies) and the service CLIs (`hostapd_cli`, `iwinfo`,
-`wifi reload`). A write is acknowledged by `uci`'s exit status and `commit`
+**Column 2 — OpenWrt 24.10 line with icwmp.** Transport: SSH to the box; the
+configuration store through `uci` (set, add, delete, then `commit` on the
+configuration, then the service reload or `reload_config`), the runtime through
+`ubus` (JSON replies) and the service CLIs (`hostapd_cli`, `iwinfo`, `wifi
+reload`). A write is acknowledged by `uci`'s exit status and `commit`
 (refusals: "Entry not found", "Invalid argument", "Parse error") and by the
-bus's reply ("Command failed: Not found / Invalid argument"); the TR-069
-client answers on its `tr069` bus object and in the `cwmp` section. The
-store is staged until `commit`: a rejection before the commit leaves the
-device as found because the driver does not commit (it does not revert
-either; the staged changes die with the session), which is the "candidate
-configuration" of §6. Normalisations: list options re-ordered on commit,
-anonymous sections renamed (`cfg0a3b...`; the driver names every section
-it creates), booleans written as `1`/`0`. Refusal shapes are text lines on
-stderr; the driver matches them, never the success path. `source:` lines
-cite the wiki page for the section or the bus object and, for the three
-hostapd methods the wiki does not document (R27, R28), the project source at
-the 24.10 tag with "source-only" stated. Voice (R54–R55) and mesh (R56–R58)
-are nominal here: the driver raises `NotSupportedError` for the PBX and for
-the 802.11s peer mesh with the source, unless stage 4 finds a published
-operation (§9).
+bus's reply ("Command failed: Not found / Invalid argument"); the TR-069 client
+answers on its `tr069` bus object and in the `cwmp` section. The store is
+staged until `commit`, and staged changes outlive the call that made them: `uci
+changes` lists them and the next `commit` of that configuration applies them,
+so the leftovers of a rejected write would ride the driver's next commit. The
+driver therefore stages every write under a change-file path of its own (`uci
+-P <path>` on each `set`, `add`, `delete` and on the `commit`), fresh per
+write: a rejected write's staged steps are never committed, nothing is written
+on the failure path, and the leftovers are a file in the temporary file system
+that the reboot clears. The `lossy:` line states the family fact that a commit
+also applies whatever another session staged in the default path.
+Normalisations: list options re-ordered on commit (the contract promises the
+set, §6), anonymous sections renamed (`cfg0a3b...`; the driver names every
+section it creates), booleans written as `1`/`0`. Refusal shapes are text lines
+on stderr; the driver matches them, never the success path. `source:` lines
+cite the wiki page for the section or the bus object and, for the three hostapd
+methods the wiki does not document (R27, R28), the project source at the 24.10
+tag with "source-only" stated. Voice (R54–R55) and mesh (R56–R58) are nominal
+here: the driver raises `NotSupportedError` for the PBX and for the 802.11s
+peer mesh with the source, unless stage 4 finds a published operation (§9).
 
 **Column 3 — RDK-B (rdkb-2025q4-kirkstone and later).** Transport: SSH or
 serial to the box; the TR-181 data model through `dmcli eRT` (`getv`,
@@ -1679,8 +1734,9 @@ per-column unsupported case inside the tier.
 | --- | --- | --- |
 | R54–R55, column 1 | a voice plugin repository that publishes no parameters | cells flip to ✗; voice keeps columns 2, 3 and 4 (three of five) and stays built; the column-1 driver raises |
 | R54–R55, column 2 | a PBX from a package feed, reached through its own configuration files and CLI | cells flip to ✗; voice keeps columns 1, 3 and 4 and stays built; if columns 1 **and** 2 both flip, voice keeps columns 3 and 4 only and drops to `tier-staged` with its rows re-outcomed |
-| R56–R58, column 3 | controller source whose porting to the reference platform is marked ongoing, no documentation of the paths | cells flip to ✗; the topology (R56) keeps columns 1, 4 and 5 and the tier stays built; steering (R58) keeps columns 1, 2 and 5; backhaul health (R57) keeps columns 1 and 4 only and becomes a per-column unsupported case on columns 2, 3 and 5 |
+| R56–R58, column 3 | controller source whose porting to the reference platform is marked ongoing, no documentation of the paths | cells flip to ✗; the topology (R56) keeps columns 1, 4 and 5 and the tier stays built; steering (R58) keeps columns 1, 2 and 5 by count but is implemented on columns 1 and 5 only, column 2's cell being plain-AP roaming whose driver raises (above); backhaul health (R57) keeps columns 1 and 4 only and becomes a per-column unsupported case on columns 2, 3 and 5 |
 | R53, column 1 | build-profile and CI scripts, no agent-state documentation | the cell flips to ✗; USP keeps columns 3 and 4 only and drops to `tier-staged` with its rows re-outcomed |
+| R30, columns 1, 3, 4 and 5 | zone defaults readable in part or not at all; the zone writes of `FirewallZones` are published by column 2 only | no flip: the zone writes are a per-method unsupported case on four columns, including trigger column 1, so a test of zone writes runs on one family |
 | R39, column 2 | the board read publishes model and software version but neither manufacturer nor serial number | no flip: two of five identity properties raise on a trigger column, a documented per-method unsupported case; if a board-level read is sourced at stage 4 the case closes |
 | R44, column 2 | the server list is published; the synchronisation state needs a package the family does not document | no flip: `get_sync_state` raises on a trigger column (and on column 4), a documented per-method unsupported case |
 | R52, columns 1–5 | an inform trigger on columns 1 and 2, session state only on all five | no flip possible for the operation (◐ everywhere); the member's trigger half is supported on two of five columns and raises on columns 3, 4 and 5 — kept on the core as a per-method unsupported case because the operation it belongs to meets the threshold; a reviewer who reads the bar per member rather than per operation moves `force_inform` to a `tier-staged` row, which this design flags as the one open reading |
@@ -2110,53 +2166,53 @@ condition that would overturn the answer:
 ## 12. Landing manifest
 
 Every symbol change the body proposes. `core` and `tier` rows land on this
-design's `archetype:` PR at stage 4 with changelog entries citing this
-document and the row id; the one `tier-staged` row becomes a `GAPS.md`
-pointer at merge. Outcomes record the design review rounds; every row starts
-at `pending review`. A new record that serves an extension travels in the
-extension's row; a new record that serves a new capability travels in that
-capability's row.
+design's `archetype:` PR at stage 4 with changelog entries citing this document
+and the row id; the one `tier-staged` row becomes a `GAPS.md` pointer at merge.
+Outcomes record the design review rounds (round 1, 2026-10-20: approve with
+conditions C1–C8; a row carries the conditions folded into it). A new record
+that serves an extension travels in the extension's row; a new record that
+serves a new capability travels in that capability's row.
 
 | Id | Kind | Symbol | Mechanism | Placement | Breaking | Outcome |
 | --- | --- | --- | --- | --- | --- | --- |
-| M1 | new archetype | `testprotocols.devices.cpe_gateway:CpeGatewayDevice` (registered `cpe_gateway`) | archetype | core | no | pending review |
-| M2 | deprecation | `testprotocols.devices.cpe:CpeDevice` (registry key `linux_cpe`): kept intact, marked deprecated, `class` row; replacement `CpeGatewayDevice` / `cpe_gateway`; period one MINOR and six months (§6) | deprecate | core | no | pending review |
-| M3 | new tier | `testprotocols.devices.cpe_gateway:CpeGatewayVoiceTier` (`voice: VoiceGateway`; not registered, pinned by `isinstance`) | archetype | tier — voice | no | pending review |
-| M4 | new tier | `testprotocols.devices.cpe_gateway:CpeGatewayMeshTier` (`wifi_mesh: WifiMesh`; not registered) | archetype | tier — mesh | no | pending review |
-| M5 | new tier | `testprotocols.devices.cpe_gateway:CpeGatewayUspTier` (`usp_agent: UspAgent`; not registered) | archetype | tier — usp | no | pending review |
-| M6 | new protocol | `testprotocols.wan_connection:WanConnection` (`set_wan_connection`, `get_wan_connection`, `list_wan_connections`, `get_wan_state`, `reset_session`) with `testprotocols.models.cpe_gateway:WanMode`, `WanIpv6Mode`, `WanStatus`, `ProvisioningMode`, `PppoeCredentials`, `StaticAddressing`, `WanVlan`, `WanIpv6`, `WanConnectionConfig`, `WanConnectionState` | new capability | core | no | pending review |
-| M7 | new protocol | `testprotocols.dns_forwarder:DnsForwarder` (`set_upstreams`, `get_upstreams`, `add_host_override`, `remove_host_override`, `list_host_overrides`, `set_rebind_protection`, `get_rebind_protection`) with `testprotocols.models.cpe_gateway:DnsUpstream`, `DnsHostOverride` | new capability | core | no | pending review |
-| M8 | new protocol | `testprotocols.l2_bridge:L2Bridge` (`create_bridge`, `delete_bridge`, `list_bridges`, `get_bridge`, `add_member`, `remove_member`, `get_members`) with `testprotocols.models.cpe_gateway:BridgeMemberKind`, `BridgeMember`, `BridgeConfig`, `BridgeMemberState` (importing `StpMode`, `StpPortState` from `models/l2_common.py`); realises the `GAPS.md` 2026-05-02 entry's membership half | new capability | core | no | pending review |
-| M9 | GAPS entry | `GAPS.md` 2026-05-02 `L2Bridge`: closed for membership by M8; the STP tuning and the forwarding-table read stay open under a dated note, the table read as the `L2BridgeWhiteBox` candidate (M27) | record | core | no | pending review |
-| M10 | new protocol | `testprotocols.host_table:HostTable` (`list_hosts`, `get_host`) with `testprotocols.models.cpe_gateway:HostAttachment`, `LanHost` | new capability | core | no | pending review |
-| M11 | new protocol | `testprotocols.host_filter:HostFilter` (`block_host`, `unblock_host`, `get_host_block`, `list_host_blocks`) with `testprotocols.models.cpe_gateway:Weekday`, `WeeklySchedule`, `HostBlock` | new capability | core | no | pending review |
-| M12 | new protocol | `testprotocols.auto_port_mapping:AutoPortMapping` (`set_enabled`, `get_enabled`, `list_mappings`) with `testprotocols.models.cpe_gateway:AutoMappingProtocol`, `AutoPortMappingEntry` | new capability | core | no | pending review |
-| M13 | new protocol | `testprotocols.admin_credential:AdminCredential` (`set_password`, `list_accounts`) | new capability | core | no | pending review |
-| M14 | new protocol (split) | `testprotocols.device_health:DeviceHealth` (`is_online`, `get_seconds_uptime`, `read_cpu_load`, `read_memory_utilization`, `read_running_processes`, `read_log_entries`), inherited by `DeviceManagement`; with `testprotocols.models.device_management:CpuLoad` (`percent: float \| None`, `load_average_1m: float \| None`) | new capability | core | no | pending review |
-| M15 | protocol extension | `testprotocols.device_management:DeviceManagement.read_cpu_load` (through the inherited base, M14); `get_load_avg` unchanged | extend | core | yes | pending review |
-| M16 | SPLITS entry | `DeviceHealth` split off `DeviceManagement` so a closed product composes the health reads without the host-shaped members; follows `GAPS.md` 2026-06-11 and the `RoutingRead` read-only split precedent | record | core | no | pending review |
-| M17 | GAPS entry | update to `GAPS.md` 2026-06-11 (appliance health): the read-only base landed as M14; the appliance composes it when its trigger lands | record | core | no | pending review |
-| M18 | protocol extension | `testprotocols.device_info:DeviceInfo`: properties `manufacturer`, `serial_number`, `software_version`, `oui`, `hardware_version`; module docstring's extension point taken | extend | core | yes | pending review |
-| M19 | protocol extension | `testprotocols.device_lifecycle:DeviceLifecycle`: `upgrade_firmware`, `export_configuration`, `import_configuration`; module docstring generalised from CPE to any device; with `testprotocols.models.cpe_gateway:ImageSource` (`url`, `checksum_sha256: str \| None`) | extend | core | yes | pending review |
-| M20 | method rename | `testprotocols.device_lifecycle:DeviceLifecycle.verify_cpe_is_booting` → `verify_booting`, both declared for the period, the old delegating; lands with M19 | deprecate | core | no | pending review |
-| M21 | GAPS entry | the staged firmware pair (`stage_image` / `activate_image`) as the finer grain of M19's `upgrade_firmware`: no reviewed column publishes a staged-image read (§6) | record | tier-staged — the first dual-image product that needs the staged state read | no | pending review |
-| M22 | protocol extension | `testprotocols.tr069_client:Tr069Client`: `set_acs`, `get_acs`; `force_inform` docstring states the per-column meaning (§6); with `testprotocols.models.tr069:AcsConfig` | extend | core | yes | pending review |
-| M23 | protocol extension | `testprotocols.ntp_config:NtpConfig.get_sync_state`; with `testprotocols.models.cpe_gateway:NtpSyncStatus`, `NtpSyncState` | extend | core | yes | pending review |
-| M24 | protocol extension | `testprotocols.wifi_onboarding:WifiOnboarding`: `cancel_wps`, `get_wps_state`; module docstring's `NotImplementedError` wording replaced by the documented unsupported case; with `testprotocols.models.wifi:WpsSessionState`, `WpsMethod`, `WpsState` | extend | core | yes | pending review |
-| M25 | new fields | `testprotocols.models.switch_routing:InterfaceDhcpConfig.pool_start`, `pool_end` (`str \| None = None`; `None` = the whole subnet minus the reserved ranges, the shape served today) | defaulted field | core | no | pending review |
-| M26 | SPLITS entry | `InterfaceDhcpConfig` gains the pool bounds with the appliance meaning preserved as the default (M25); the port-forward shapes (`Firewall` per-mapping for gateways, `ApplianceNat` list-replacing for appliances) recorded as two shapes for two device classes | record | core | no | pending review |
-| M27 | LEVELS entry | the white-box candidates of §7 recorded as candidates, not seeded (`WanConnectionWhiteBox`, `L2BridgeWhiteBox`, `HostFilterWhiteBox`, `DnsForwarderWhiteBox`, `DeviceHealthWhiteBox`, `Tr069ClientWhiteBox`, `UspAgentWhiteBox`, `InterfaceDhcpWhiteBox`), with the columns expected to satisfy (1, 2, 3, 5) and not (4) | record | core | no | pending review |
-| M28 | composition | `testprotocols.wan_link_admin:WanLinkAdmin` on `CpeGatewayDevice` as `wan_admin`, `get_wan_state` its paired read on this class; module docstring generalised at stage 4 (the lever is published by four of five gateway columns) | reuse | core | no | pending review |
-| M29 | SPLITS entry | `WanLinkAdmin` composed by a closed product: the 2026-06-12 rationale ("implemented only by the Linux twin") narrowed to "not by API-managed appliances", on the matrix evidence of R9 | record | core | no | pending review |
-| M30 | composition | `testprotocols.port_status:PortStatus`, `testprotocols.dhcp_client:DhcpClient`, `testprotocols.interface_dhcp:InterfaceDhcp`, `testprotocols.syslog_config:SyslogConfig`, `testprotocols.network_endpoint:NetworkEndpoint` on `CpeGatewayDevice` | reuse | core | no | pending review |
-| M31 | composition | `testprotocols.wifi_radio:WifiRadio`, `testprotocols.wifi_bss:WifiBss`, `testprotocols.wifi_stations:WifiStations`, `testprotocols.wifi_transitions:WifiTransitions`, `testprotocols.firewall:Firewall`, `testprotocols.firewall_zones:FirewallZones` on `CpeGatewayDevice`; their members without a matrix row are verification items (§9) | reuse | core | no | pending review |
-| M32 | new protocol (tier) | `testprotocols.voice_gateway:VoiceGateway` (`set_sip_account`, `remove_sip_account`, `list_sip_accounts`, `get_sip_registration`, `list_fxs_lines`) with `testprotocols.models.voice:SipRegistrationState`, `FxsHookState`, `SipAccount`, `SipRegistration`, `FxsLine` | new capability | tier — voice | no | pending review |
-| M33 | composition (tier) | `testprotocols.wifi_mesh:WifiMesh` on `CpeGatewayMeshTier`; its agent-side members are verification items (§9); module docstring's `NotImplementedError` wording replaced by the documented unsupported case | reuse | tier — mesh | no | pending review |
-| M34 | new field (tier) | `testprotocols.models.wifi:WifiMeshNode.backhaul_link` (`WifiMeshLink \| None = None`; `None` also for a wired backhaul) | defaulted field | tier — mesh | no | pending review |
-| M35 | new protocol (tier) | `testprotocols.usp_agent:UspAgent` (`set_controller`, `get_controller`, `get_agent_state`) with `testprotocols.models.cpe_gateway:UspTransport`, `UspController`, `UspAgentState` | new capability | tier — usp | no | pending review |
-| M36 | DEPRECATIONS entry | the `class` row of M2 in `packages/testprotocols/DEPRECATIONS.md` (`next release` / `next release + 6 months`), beside the *Deprecated* changelog entry; the M20 `member` row | record | core | no | pending review |
-| M37 | GAPS entry | `CpeGatewayDevice` design record and matrix (this document); the dropped members `wifi_rf` and `network_probe` with their trigger (a sourced matrix row); DS-Lite as a `WanIpv6` part with its trigger (a matrix row) | record | core | no | pending review |
-| M38 | testoperations change | `testoperations`' lifecycle waits (`wait_for_reboot_completion`, `is_cpe_online`) widened from `DeviceManagement` to the health base of M14, so they accept both classes; the candidates of §6 (guest segment, WAN reconnect, second-session credential check, export-change-import-compare) recorded for the stage-4 collector | record | core | no | pending review |
+| M1 | new archetype | `testprotocols.devices.cpe_gateway:CpeGatewayDevice` (registered `cpe_gateway`) | archetype | core | no | accepted, 2026-10-20 |
+| M2 | deprecation | `testprotocols.devices.cpe:CpeDevice` (registry key `linux_cpe`): kept intact, marked deprecated, `class` row; replacement `CpeGatewayDevice` / `cpe_gateway`; period one MINOR and six months (§6) | deprecate | core | no | accepted, 2026-10-20 |
+| M3 | new tier | `testprotocols.devices.cpe_gateway:CpeGatewayVoiceTier` (`voice: VoiceGateway`; not registered, pinned by `isinstance`) | archetype | tier — voice | no | accepted, 2026-10-20 |
+| M4 | new tier | `testprotocols.devices.cpe_gateway:CpeGatewayMeshTier` (`wifi_mesh: WifiMesh`; not registered) | archetype | tier — mesh | no | accepted, 2026-10-20 |
+| M5 | new tier | `testprotocols.devices.cpe_gateway:CpeGatewayUspTier` (`usp_agent: UspAgent`; not registered) | archetype | tier — usp | no | accepted, 2026-10-20 |
+| M6 | new protocol | `testprotocols.wan_connection:WanConnection` (`set_wan_connection`, `get_wan_connection`, `list_wan_connections`, `get_wan_state`, `reset_session`) with `testprotocols.models.cpe_gateway:WanMode`, `WanIpv6Mode`, `WanStatus`, `ProvisioningMode`, `PppoeCredentials`, `StaticAddressing`, `WanVlan`, `WanIpv6`, `WanConnectionConfig`, `WanConnectionState` | new capability | core | no | accepted with conditions (C4, C6), 2026-10-20 |
+| M7 | new protocol | `testprotocols.dns_forwarder:DnsForwarder` (`set_upstreams`, `get_upstreams`, `add_host_override`, `remove_host_override`, `list_host_overrides`, `set_rebind_protection`, `get_rebind_protection`) with `testprotocols.models.cpe_gateway:DnsUpstream`, `DnsHostOverride` | new capability | core | no | accepted with conditions (C3, C8), 2026-10-20 |
+| M8 | new protocol | `testprotocols.l2_bridge:L2Bridge` (`create_bridge`, `delete_bridge`, `list_bridges`, `get_bridge`, `add_member`, `remove_member`, `get_members`) with `testprotocols.models.cpe_gateway:BridgeMemberKind`, `BridgeMember`, `BridgeConfig`, `BridgeMemberState` (importing `StpMode`, `StpPortState` from `models/l2_common.py`); realises the `GAPS.md` 2026-05-02 entry's membership half | new capability | core | no | accepted with conditions (C3, C5), 2026-10-20 |
+| M9 | GAPS entry | `GAPS.md` 2026-05-02 `L2Bridge`: closed for membership by M8; the STP tuning and the forwarding-table read stay open under a dated note, the table read as the `L2BridgeWhiteBox` candidate (M27) | record | core | no | accepted, 2026-10-20 |
+| M10 | new protocol | `testprotocols.host_table:HostTable` (`list_hosts`, `get_host`) with `testprotocols.models.cpe_gateway:HostAttachment`, `LanHost` | new capability | core | no | accepted with conditions (C3), 2026-10-20 |
+| M11 | new protocol | `testprotocols.host_filter:HostFilter` (`block_host`, `unblock_host`, `get_host_block`, `list_host_blocks`) with `testprotocols.models.cpe_gateway:Weekday`, `WeeklySchedule`, `HostBlock` | new capability | core | no | accepted with conditions (C3, C7), 2026-10-20 |
+| M12 | new protocol | `testprotocols.auto_port_mapping:AutoPortMapping` (`set_enabled`, `get_enabled`, `list_mappings`) with `testprotocols.models.cpe_gateway:AutoMappingProtocol`, `AutoPortMappingEntry` | new capability | core | no | accepted, 2026-10-20 |
+| M13 | new protocol | `testprotocols.admin_credential:AdminCredential` (`set_password`, `list_accounts`) | new capability | core | no | accepted, 2026-10-20 |
+| M14 | new protocol (split) | `testprotocols.device_health:DeviceHealth` (`is_online`, `get_seconds_uptime`, `read_cpu_load`, `read_memory_utilization`, `read_running_processes`, `read_log_entries`), inherited by `DeviceManagement`; with `testprotocols.models.device_management:CpuLoad` (`percent: float \| None`, `load_average_1m: float \| None`) | new capability | core | no | accepted, 2026-10-20 |
+| M15 | protocol extension | `testprotocols.device_management:DeviceManagement.read_cpu_load` (through the inherited base, M14); `get_load_avg` unchanged | extend | core | yes | accepted, 2026-10-20 |
+| M16 | SPLITS entry | `DeviceHealth` split off `DeviceManagement` so a closed product composes the health reads without the host-shaped members; follows `GAPS.md` 2026-06-11 and the `RoutingRead` read-only split precedent | record | core | no | accepted, 2026-10-20 |
+| M17 | GAPS entry | update to `GAPS.md` 2026-06-11 (appliance health): the read-only base landed as M14; the appliance composes it when its trigger lands | record | core | no | accepted, 2026-10-20 |
+| M18 | protocol extension | `testprotocols.device_info:DeviceInfo`: properties `manufacturer`, `serial_number`, `software_version`, `oui`, `hardware_version`; module docstring's extension point taken | extend | core | yes | accepted, 2026-10-20 |
+| M19 | protocol extension | `testprotocols.device_lifecycle:DeviceLifecycle`: `upgrade_firmware`, `export_configuration`, `import_configuration`; module docstring generalised from CPE to any device; with `testprotocols.models.device_management:ImageSource` (`url`, `checksum_sha256: str \| None`) | extend | core | yes | accepted, 2026-10-20 |
+| M20 | rename | `testprotocols.device_lifecycle:DeviceLifecycle.verify_cpe_is_booting` → `verify_booting`, both declared for the period, the old delegating; lands with M19 | deprecate | core | no | accepted, 2026-10-20 |
+| M21 | GAPS entry | the staged firmware pair (`stage_image` / `activate_image`) as the finer grain of M19's `upgrade_firmware`: no reviewed column publishes a staged-image read (§6) | record | tier-staged — the first dual-image product that needs the staged state read | no | accepted, 2026-10-20 |
+| M22 | protocol extension | `testprotocols.tr069_client:Tr069Client`: `set_acs`, `get_acs`; `force_inform` docstring states the per-column meaning (§6) and names no vendor command or daemon; with `testprotocols.models.tr069:AcsConfig` | extend | core | yes | accepted, 2026-10-20 |
+| M23 | protocol extension | `testprotocols.ntp_config:NtpConfig.get_sync_state`; with `testprotocols.models.switch:NtpSyncStatus`, `NtpSyncState` beside `NtpServer` | extend | core | yes | accepted, 2026-10-20 |
+| M24 | protocol extension | `testprotocols.wifi_onboarding:WifiOnboarding`: `cancel_wps`, `get_wps_state`; module docstring's `NotImplementedError` wording replaced by the documented unsupported case; with `testprotocols.models.wifi:WpsSessionState`, `WpsMethod`, `WpsState` | extend | core | yes | accepted, 2026-10-20 |
+| M25 | new field | `testprotocols.models.switch_routing:InterfaceDhcpConfig.pool_start`, `pool_end` (`str \| None = None`; `None` = the whole subnet minus the reserved ranges, the shape served today) | defaulted field | core | no | accepted, 2026-10-20 |
+| M26 | SPLITS entry | `InterfaceDhcpConfig` gains the pool bounds with the appliance meaning preserved as the default (M25); the port-forward shapes (`Firewall` per-mapping for gateways, `ApplianceNat` list-replacing for appliances) recorded as two shapes for two device classes | record | core | no | accepted, 2026-10-20 |
+| M27 | LEVELS entry | the white-box candidates of §7 recorded as candidates, not seeded (`WanConnectionWhiteBox`, `L2BridgeWhiteBox`, `HostFilterWhiteBox`, `DnsForwarderWhiteBox`, `DeviceHealthWhiteBox`, `Tr069ClientWhiteBox`, `UspAgentWhiteBox`, `InterfaceDhcpWhiteBox`), with the columns expected to satisfy (1, 2, 3, 5) and not (4) | record | core | no | accepted, 2026-10-20 |
+| M28 | composition | `testprotocols.wan_link_admin:WanLinkAdmin` on `CpeGatewayDevice` as `wan_admin`, `get_wan_state` its paired read on this class; module docstring generalised at stage 4 (the lever is published by four of five gateway columns) | reuse | core | no | accepted, 2026-10-20 |
+| M29 | SPLITS entry | `WanLinkAdmin` composed by a closed product: the 2026-06-12 rationale ("implemented only by the Linux twin") narrowed to "not by API-managed appliances", on the matrix evidence of R9 | record | core | no | accepted, 2026-10-20 |
+| M30 | composition | `testprotocols.port_status:PortStatus`, `testprotocols.dhcp_client:DhcpClient`, `testprotocols.interface_dhcp:InterfaceDhcp`, `testprotocols.syslog_config:SyslogConfig`, `testprotocols.network_endpoint:NetworkEndpoint` on `CpeGatewayDevice` | reuse | core | no | accepted, 2026-10-20 |
+| M31 | composition | `testprotocols.wifi_radio:WifiRadio`, `testprotocols.wifi_bss:WifiBss`, `testprotocols.wifi_stations:WifiStations`, `testprotocols.wifi_transitions:WifiTransitions`, `testprotocols.firewall:Firewall`, `testprotocols.firewall_zones:FirewallZones` on `CpeGatewayDevice`; their members without a matrix row are verification items (§9); the `firewall` driver refuses rule writes on a host block (§6) | reuse | core | no | accepted with conditions (C7), 2026-10-20 |
+| M32 | new protocol (tier) | `testprotocols.voice_gateway:VoiceGateway` (`set_sip_account`, `remove_sip_account`, `list_sip_accounts`, `get_sip_registration`, `list_fxs_lines`) with `testprotocols.models.voice:SipRegistrationState`, `FxsHookState`, `SipAccount`, `SipRegistration`, `FxsLine` | new capability | tier — voice | no | accepted, 2026-10-20 |
+| M33 | composition (tier) | `testprotocols.wifi_mesh:WifiMesh` on `CpeGatewayMeshTier`; its agent-side members are verification items (§9); module docstring's `NotImplementedError` wording replaced by the documented unsupported case | reuse | tier — mesh | no | accepted, 2026-10-20 |
+| M34 | new field (tier) | `testprotocols.models.wifi:WifiMeshNode.backhaul_link` (`WifiMeshLink \| None = None`; `None` also for a wired backhaul) | defaulted field | tier — mesh | no | accepted, 2026-10-20 |
+| M35 | new protocol (tier) | `testprotocols.usp_agent:UspAgent` (`set_controller`, `get_controller`, `get_agent_state`) with `testprotocols.models.cpe_gateway:UspTransport`, `UspController`, `UspAgentState` | new capability | tier — usp | no | accepted, 2026-10-20 |
+| M36 | DEPRECATIONS entry | the `class` row of M2 in `packages/testprotocols/DEPRECATIONS.md` (`next release` / `next release + 6 months`), beside the *Deprecated* changelog entry; the M20 `member` row | record | core | no | accepted, 2026-10-20 |
+| M37 | GAPS entry | `CpeGatewayDevice` design record and matrix (this document); the dropped members `wifi_rf` and `network_probe` with their trigger (a sourced matrix row); DS-Lite as a `WanIpv6` part with its trigger (a matrix row) | record | core | no | accepted, 2026-10-20 |
+| M38 | testoperations change | `testoperations.device_management:wait_for_reboot_completion` widened from `DeviceManagement` to the health base of M14, so it accepts both classes (`is_cpe_online` takes `Tr069Server` and is unaffected); the candidates of §6 (guest segment, WAN reconnect, second-session credential check, export-change-import-compare) recorded for the stage-4 collector | record | core | no | accepted with conditions (C1), 2026-10-20 |
 
 M9's note keeps the unrealised half of the `L2Bridge` entry (STP tuning,
 forwarding-table read) visible; M17, M26 and M29 update records this design
@@ -2239,3 +2295,47 @@ relies on rather than contradicts; M21 is the one `tier-staged` row.
   tier flip arithmetic, a duplicated admin-state encoding, secrets read
   back, the multi-step table, private decision labels, the DHCP pool
   bounds, tier registration, the core count).
+- **2026-10-20 — design review, round 1 (on 382011b): approve with
+  conditions (C1–C8, N1–N10). Status moved to `accepted for verification`;
+  every manifest row carries its outcome.** Applied:
+  - C1 the `testoperations` widening names `wait_for_reboot_completion` only;
+    `is_cpe_online` takes the test-bed ACS and is unaffected (§6 Health, §6
+    method grain, M38).
+  - C2 every row outcomed with the conditions it carries; Status set.
+  - C3 the §8 normalisations carried into the members: `get_upstreams` and
+    `get_members` promise the set, not the order; a column-4
+    `DnsHostOverride.name` the device would rewrite is rejected before the
+    write; MACs on `HostBlock`, `LanHost` and the `get_host`,
+    `get_host_block` and `unblock_host` arguments are the canonical lowercase
+    colon-separated form, canonicalised on read and normalised on write (§6,
+    precise types).
+  - C4 column 2's failure outcome corrected: staged changes outlive the
+    call, so the driver stages each write under its own change-file path and
+    a rejected write's steps are never committed, with no write on the
+    failure path (§8, §6 WAN connection, method-grain table).
+  - C5 `create_bridge` creates the bridge only; `BridgeConfig` carries no
+    membership and `add_member` / `remove_member` are its only writes (§6
+    Bridge, precise types, method-grain table).
+  - C6 `reset_session` narrowed to the PPPoE session reset R4 evidences; on
+    the other modes it raises and points at `dhcp_client` and `wan_admin`.
+  - C7 on columns 1 and 2 the `firewall` driver refuses `remove_rule`,
+    `flush_chain` and `set_default_policy` on a rule or chain that realises a
+    host block, naming `host_filter` as the owner (§6, M31).
+  - C8 `set_upstreams` rewrites the existing forwarding instances in place on
+    columns 1 and 3, is one commit on column 2 and one property set on
+    column 5 (§6, method-grain table).
+  Notes: N1 the appliance-health claim restated with the two differences from
+  the sketch (uptime not optional, process list present), recorded by M17;
+  N2 the mesh risk row says steering is implemented on columns 1 and 5 after
+  a column-3 flip; N3 Kind values aligned where the README has a word
+  (`rename`, `new field`), and M38 keeps `record` because the Mechanism
+  vocabulary has no value for a `testoperations` widening and `hygiene`
+  accepts it; N4 the §5 switch claim dropped, `ImageSource` placed in
+  `models/device_management.py` and the NTP types beside `NtpServer`; N5 a
+  stated-risk row for the zone writes (column 2 only); N6 the `force_inform`
+  docstring rewrite names no vendor command or daemon (M22); N7 the state,
+  static-addressing and controller fields typed with their absence meaning;
+  N8 `HostAttachment` closed with `None` for other media, reserved ranges
+  must lie inside the pool bounds; N9 the bridge-membership versus
+  `wifi_bss` VLAN boundary stated; N10 the connection's resolvers kept apart
+  from the configured upstreams, `set_upstreams` never touching them.
