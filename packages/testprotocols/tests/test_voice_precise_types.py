@@ -97,3 +97,55 @@ def test_records_are_frozen() -> None:
     stats = RtpStats(engaged=True, sessions=1)
     with pytest.raises(dataclasses.FrozenInstanceError):
         stats.sessions = 2  # type: ignore[misc]  # assigning a frozen field is the check
+
+
+def test_gateway_voice_records() -> None:
+    """The gateway's own SIP accounts and analogue lines (CPE gateway design §6, M32)."""
+    from testprotocols.models.voice import (
+        FxsHookState,
+        FxsLine,
+        SipAccount,
+        SipRegistration,
+        SipRegistrationState,
+    )
+
+    assert [m.name for m in SipRegistrationState] == [
+        "REGISTERED",
+        "REGISTERING",
+        "UNREGISTERED",
+        "FAILED",
+    ]
+    assert [m.name for m in FxsHookState] == ["ON_HOOK", "OFF_HOOK", "RINGING"]
+    assert [f.name for f in dataclasses.fields(SipAccount)] == [
+        "name",
+        "username",
+        "password",
+        "registrar",
+        "domain",
+        "display_name",
+        "enabled",
+    ]
+    assert [f.name for f in dataclasses.fields(SipRegistration)] == [
+        "account",
+        "state",
+        "registrar",
+        "expires_s",
+    ]
+    assert [f.name for f in dataclasses.fields(FxsLine)] == [
+        "name",
+        "enabled",
+        "hook_state",
+        "account",
+    ]
+    fields = {f.name: f for f in dataclasses.fields(SipAccount)}
+    assert fields["enabled"].default is True
+    assert fields["password"].default is dataclasses.MISSING
+    account = SipAccount("line1", "user", None, "registrar.example.net")
+    with pytest.raises(dataclasses.FrozenInstanceError):
+        account.enabled = False  # type: ignore[misc]  # assigning a frozen field is the check
+    registration = SipRegistration("line1", SipRegistrationState.REGISTERED, None, None)
+    with pytest.raises(dataclasses.FrozenInstanceError):
+        registration.expires_s = 1  # type: ignore[misc]  # assigning a frozen field is the check
+    line = FxsLine("fxs1", True, FxsHookState.ON_HOOK, "line1")
+    with pytest.raises(dataclasses.FrozenInstanceError):
+        line.enabled = False  # type: ignore[misc]  # assigning a frozen field is the check

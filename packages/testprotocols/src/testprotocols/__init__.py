@@ -110,7 +110,9 @@ from testprotocols.tr069_server import Tr069Server
 from testprotocols.traffic_shaping import TrafficShaping
 from testprotocols.uplink_ports import UplinkPortRef, UplinkPorts
 from testprotocols.upnp_client import UpnpClient
+from testprotocols.usp_agent import UspAgent
 from testprotocols.vlan_client import VlanClient
+from testprotocols.voice_gateway import VoiceGateway
 from testprotocols.wan_connection import WanConnection
 from testprotocols.wan_link_admin import WanLinkAdmin
 from testprotocols.wifi_bss import WifiBss
@@ -230,7 +232,9 @@ __all__ = [
     "UplinkPortRef",
     "UplinkPorts",
     "UpnpClient",
+    "UspAgent",
     "VlanClient",
+    "VoiceGateway",
     "WanConnection",
     "WanLinkAdmin",
     "WanServerDevice",

@@ -1,5 +1,5 @@
-"""Voice vocabularies and records: SIP phone states and the SIP server's observation
-records.
+"""Voice vocabularies and records: SIP phone states, the SIP server's observation
+records and the gateway's own SIP accounts and analogue lines.
 
 ``PhoneState`` is a ``StrEnum`` whose members equal the strings the released contract and
 its implementers used. Presence statuses and SIP methods are the provider's own words and
@@ -78,3 +78,60 @@ class OfflineMessage:
     sender: str
     body: str
     stored_at: datetime | None
+
+
+class SipRegistrationState(StrEnum):
+    """The registration state of one of the gateway's SIP accounts."""
+
+    REGISTERED = "registered"
+    REGISTERING = "registering"
+    UNREGISTERED = "unregistered"
+    FAILED = "failed"
+
+
+class FxsHookState(StrEnum):
+    """The hook state of an analogue line."""
+
+    ON_HOOK = "on_hook"
+    OFF_HOOK = "off_hook"
+    RINGING = "ringing"
+
+
+@dataclass(frozen=True)
+class SipAccount:
+    """One of the gateway's own SIP accounts. *password* is required on a write and ``None``
+    on every read: no family returns a stored secret, and the written value is confirmed by
+    ``SipRegistrationState.REGISTERED``. *domain* and *display_name* are ``None`` where the
+    account sets none."""
+
+    name: str
+    username: str
+    password: str | None
+    registrar: str
+    domain: str | None = None
+    display_name: str | None = None
+    enabled: bool = True
+
+
+@dataclass(frozen=True)
+class SipRegistration:
+    """The registration state of the account *account*; *registrar* and *expires_s* are
+    ``None`` while the account is not registered or where the family publishes no such
+    figure."""
+
+    account: str
+    state: SipRegistrationState
+    registrar: str | None
+    expires_s: int | None
+
+
+@dataclass(frozen=True)
+class FxsLine:
+    """One analogue line: its *name*, whether it is *enabled*, its *hook_state* (``None``
+    where the family publishes the port but not its state) and the *account* it is bound to
+    (``None`` for an unbound line)."""
+
+    name: str
+    enabled: bool
+    hook_state: FxsHookState | None
+    account: str | None

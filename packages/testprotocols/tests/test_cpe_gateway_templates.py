@@ -59,6 +59,22 @@ PROTOCOLS = [
         {"set_enabled", "get_enabled", "list_mappings"},
     ),
     ("AdminCredential", "testprotocols.admin_credential", {"set_password", "list_accounts"}),
+    (
+        "VoiceGateway",
+        "testprotocols.voice_gateway",
+        {
+            "set_sip_account",
+            "remove_sip_account",
+            "list_sip_accounts",
+            "get_sip_registration",
+            "list_fxs_lines",
+        },
+    ),
+    (
+        "UspAgent",
+        "testprotocols.usp_agent",
+        {"set_controller", "get_controller", "get_agent_state"},
+    ),
 ]
 
 MULTI_STEP_WRITES = {
@@ -66,6 +82,8 @@ MULTI_STEP_WRITES = {
     "set_upstreams": ("testprotocols.dns_forwarder", "DnsForwarder"),
     "create_bridge": ("testprotocols.l2_bridge", "L2Bridge"),
     "block_host": ("testprotocols.host_filter", "HostFilter"),
+    "set_sip_account": ("testprotocols.voice_gateway", "VoiceGateway"),
+    "set_controller": ("testprotocols.usp_agent", "UspAgent"),
 }
 
 

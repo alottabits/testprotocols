@@ -211,10 +211,15 @@ from testprotocols.models.traffic import (
     TransportProtocol,
 )
 from testprotocols.models.voice import (
+    FxsHookState,
+    FxsLine,
     MwiStatus,
     OfflineMessage,
     PhoneState,
     RtpStats,
+    SipAccount,
+    SipRegistration,
+    SipRegistrationState,
 )
 from testprotocols.models.wan_edge import (  # type: ignore[deprecated]  # re-exported as released
     AppFlow,
@@ -314,6 +319,8 @@ __all__ = [
     "FirewallRule",
     "FirewallRuleAction",
     "FlowMatch",
+    "FxsHookState",
+    "FxsLine",
     # networking
     "GroupRecord",
     "HTTPResult",
@@ -425,6 +432,9 @@ __all__ = [
     "ServiceStatus",
     "ShapingPriority",
     "ShapingRule",
+    "SipAccount",
+    "SipRegistration",
+    "SipRegistrationState",
     "SiteToSiteVpnConfig",
     "SnmpValueType",
     "StaticAddressing",
