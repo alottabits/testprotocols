@@ -33,6 +33,7 @@ from testprotocols.models.cpe_gateway import (
 from testprotocols.models.device_management import (
     CpuLoad,
     EventLogEntry,
+    ImageSource,
     MemoryUtilization,
     ProcessInfo,
     SyslogSeverity,
@@ -200,7 +201,7 @@ from testprotocols.models.switch_routing import (
     RedundancyRole,
     RoutedInterface,
 )
-from testprotocols.models.tr069 import CpeConnectionStatus
+from testprotocols.models.tr069 import AcsConfig, CpeConnectionStatus
 from testprotocols.models.traffic import (
     IperfProcess,
     TrafficResult,
@@ -253,6 +254,7 @@ __all__ = [
     "AccessPolicy",
     "AccessPolicyType",
     "AclDirection",
+    "AcsConfig",
     "AggregationMode",
     # wan_edge
     "AppFlow",
@@ -315,6 +317,7 @@ __all__ = [
     "HttpScheme",
     "ICMPPacketData",
     "IPAddresses",
+    "ImageSource",
     # impairment
     "ImpairmentProfile",
     # switch_routing

@@ -15,7 +15,7 @@ PROTOCOLS = [
     (
         "Tr069Client",
         "testprotocols.tr069_client",
-        {"is_tr069_connected", "get_tr069_log"},
+        {"is_tr069_connected", "get_tr069_log", "get_id", "force_inform", "set_acs", "get_acs"},
     ),
     (
         "Tr069Server",
@@ -63,6 +63,10 @@ PROTOCOLS = [
         "testprotocols.device_lifecycle",
         {
             "verify_cpe_is_booting",
+            "verify_booting",
+            "upgrade_firmware",
+            "export_configuration",
+            "import_configuration",
             "wait_for_boot",
             "factory_reset",
             "reset",

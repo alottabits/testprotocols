@@ -104,6 +104,7 @@ The design records behind the current rows are in
 | `NatRule.src_cidr`, `dst_cidr`, `translated_src`, `translated_dst` (`""`: absent) | `str \| None`, `None` absent (announced) | field | 0.13.0 | 2027-04-15 |
 | `L3Rule.src_cidr`, `dst_cidr` (`"any"`), `UplinkStatus.ip`, `gateway`, `public_ip`, `primary_dns` and `NetworkAttachment.segment` (`""`) | `str \| None`, `None` unconstrained or not reported (announced) | field | 0.13.0 | 2027-04-15 |
 | `LinkStatus.ip_address` (`""`: no address) | `str \| None` (announced) | field | 0.13.0 | 2027-04-15 |
+| `testprotocols.device_lifecycle:DeviceLifecycle.verify_cpe_is_booting` | `verify_booting` | member | next release | next release + 6 months |
 
 **testoperations**
 

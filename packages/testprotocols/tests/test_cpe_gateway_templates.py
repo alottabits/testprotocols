@@ -132,3 +132,59 @@ def test_cpu_load_record() -> None:
 
     assert [f.name for f in dataclasses.fields(CpuLoad)] == ["percent", "load_average_1m"]
     assert CpuLoad.__dataclass_params__.frozen  # type: ignore[attr-defined]
+
+
+def test_device_info_identity_properties() -> None:
+    from testprotocols.device_info import DeviceInfo
+
+    assert protocol_attrs(DeviceInfo) == {
+        "model",
+        "manufacturer",
+        "serial_number",
+        "software_version",
+        "oui",
+        "hardware_version",
+    }
+    for name in ("manufacturer", "serial_number", "software_version", "oui", "hardware_version"):
+        assert isinstance(inspect.getattr_static(DeviceInfo, name), property)
+
+
+def test_lifecycle_extension_and_rename() -> None:
+    from testprotocols.device_lifecycle import DeviceLifecycle
+
+    assert {
+        "upgrade_firmware",
+        "export_configuration",
+        "import_configuration",
+        "verify_booting",
+        "verify_cpe_is_booting",
+    } <= protocol_attrs(DeviceLifecycle)
+    doc = inspect.getdoc(getattr(DeviceLifecycle, "verify_cpe_is_booting")) or ""
+    assert "Deprecated: use verify_booting." in doc
+
+
+def test_tr069_client_acs_members_and_neutral_inform() -> None:
+    from testprotocols.tr069_client import Tr069Client
+
+    assert {"set_acs", "get_acs"} <= protocol_attrs(Tr069Client)
+    doc = inspect.getdoc(Tr069Client.force_inform) or ""
+    assert "ubus" not in doc
+    assert "NotSupportedError" in doc
+
+
+def test_acs_config_and_image_source_records() -> None:
+    from testprotocols.models.device_management import ImageSource
+    from testprotocols.models.tr069 import AcsConfig
+
+    assert [f.name for f in dataclasses.fields(AcsConfig)] == [
+        "enabled",
+        "url",
+        "username",
+        "password",
+        "periodic_inform_enabled",
+        "periodic_inform_interval_s",
+        "connection_request_username",
+        "connection_request_password",
+    ]
+    assert dataclasses.fields(ImageSource)[1].default is None
+    assert ImageSource.__dataclass_params__.frozen  # type: ignore[attr-defined]

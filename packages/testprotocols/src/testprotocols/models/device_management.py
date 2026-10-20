@@ -1,4 +1,5 @@
-"""Device health records: processor load, memory, processes and the event log.
+"""Device health records — processor load, memory, processes and the event log — and the
+lifecycle's image source.
 
 The typed forms of what ``DeviceManagement.get_memory_utilization``, ``get_running_processes``
 and ``read_event_logs`` returned as dicts. Every field comes from the released docstrings and
@@ -88,3 +89,13 @@ class EventLogEntry:
     def severity(self) -> SyslogSeverity | None:
         """The severity carried in *priority*, or ``None`` when the line has no priority."""
         return None if self.priority is None else SyslogSeverity(self.priority % 8)
+
+
+@dataclass(frozen=True)
+class ImageSource:
+    """Where ``DeviceLifecycle.upgrade_firmware`` fetches the image: its *url* and, where the
+    caller wants the transfer verified, the image's *checksum_sha256* (``None`` to skip the
+    check)."""
+
+    url: str
+    checksum_sha256: str | None = None
