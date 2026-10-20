@@ -1,15 +1,16 @@
 """NTP-server configuration — the time-sync sibling of syslog_config.
 
 Small and generic. Distinct from the operational ``ntp_client`` (get/set/sync
-time): this is server-list config. A cloud-managed product that sets time
-itself (timezone-only) raises unsupported-capability.
+time): this is server-list config plus the synchronisation state the list
+produces. A cloud-managed product that sets time itself (timezone-only) raises
+unsupported-capability.
 """
 
 from __future__ import annotations
 
 from typing import Protocol, runtime_checkable
 
-from testprotocols.models.switch import NtpServer
+from testprotocols.models.switch import NtpServer, NtpSyncState
 
 
 @runtime_checkable
@@ -28,4 +29,13 @@ class NtpConfig(Protocol):
 
     def get_ntp_servers(self) -> list[NtpServer]:
         """Return the configured NTP servers."""
+        ...
+
+    def get_sync_state(self) -> NtpSyncState:
+        """Return the clock's synchronisation state, the effect of the server list.
+
+        ``server`` is the peer the clock follows; ``offset_ms`` and ``last_sync`` are ``None``
+        where the family publishes no such figure. Raises ``NotSupportedError`` where the
+        family publishes no synchronisation state at all.
+        """
         ...

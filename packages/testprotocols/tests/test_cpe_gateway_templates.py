@@ -188,3 +188,50 @@ def test_acs_config_and_image_source_records() -> None:
     ]
     assert dataclasses.fields(ImageSource)[1].default is None
     assert ImageSource.__dataclass_params__.frozen  # type: ignore[attr-defined]
+
+
+def test_ntp_sync_state_extension() -> None:
+    from testprotocols.models.switch import NtpSyncState, NtpSyncStatus
+    from testprotocols.ntp_config import NtpConfig
+
+    assert protocol_attrs(NtpConfig) == {"set_ntp_servers", "get_ntp_servers", "get_sync_state"}
+    assert [m.name for m in NtpSyncStatus] == ["SYNCHRONISED", "UNSYNCHRONISED", "DISABLED"]
+    assert [f.name for f in dataclasses.fields(NtpSyncState)] == [
+        "status",
+        "server",
+        "offset_ms",
+        "last_sync",
+    ]
+
+
+def test_wps_cancel_and_state() -> None:
+    from testprotocols.models.wifi import WpsMethod, WpsSessionState, WpsState
+    from testprotocols.wifi_onboarding import WifiOnboarding
+
+    assert {"cancel_wps", "get_wps_state"} <= protocol_attrs(WifiOnboarding)
+    assert [m.name for m in WpsSessionState] == ["IDLE", "ACTIVE", "SUCCESS", "FAILED", "TIMEOUT"]
+    assert [m.name for m in WpsMethod] == ["PUSH_BUTTON", "PIN"]
+    assert [f.name for f in dataclasses.fields(WpsState)] == ["session", "method", "remaining_s"]
+    module_doc = inspect.getdoc(importlib.import_module("testprotocols.wifi_onboarding")) or ""
+    assert "NotImplementedError" not in module_doc
+
+
+def test_defaulted_fields() -> None:
+    from testprotocols.models.switch_routing import InterfaceDhcpConfig
+    from testprotocols.models.wifi import MeshRole, WifiMeshNode
+
+    cfg = InterfaceDhcpConfig("br-lan")
+    assert cfg.pool_start is None
+    assert cfg.pool_end is None
+    node = WifiMeshNode("aa:bb:cc:dd:ee:ff", MeshRole.AGENT, None, 1)
+    assert node.backhaul_link is None
+
+
+def test_generalised_docstrings() -> None:
+    for module in ("testprotocols.wan_link_admin", "testprotocols.wifi_mesh"):
+        doc = inspect.getdoc(importlib.import_module(module)) or ""
+        assert "NotImplementedError" not in doc
+    # M28: the lever is published by closed gateways too, not only by the Linux twin
+    assert "closed gateway" in (
+        inspect.getdoc(importlib.import_module("testprotocols.wan_link_admin")) or ""
+    )

@@ -10,6 +10,7 @@ product name, vendor id, or ``native`` bucket appears in this module.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from datetime import datetime
 from enum import StrEnum
 
 from testprotocols.models.l2_common import StpGuard
@@ -347,3 +348,23 @@ class NtpServer:
 
     host: str
     prefer: bool = False
+
+
+class NtpSyncStatus(StrEnum):
+    """Whether the device's clock follows an NTP server."""
+
+    SYNCHRONISED = "synchronised"
+    UNSYNCHRONISED = "unsynchronised"
+    DISABLED = "disabled"
+
+
+@dataclass(frozen=True)
+class NtpSyncState:
+    """The clock's synchronisation state beside the server list. *server* is the peer the
+    clock follows, ``None`` while it follows none; *offset_ms* and *last_sync* are ``None``
+    where the family publishes no such figure."""
+
+    status: NtpSyncStatus
+    server: str | None
+    offset_ms: float | None
+    last_sync: datetime | None

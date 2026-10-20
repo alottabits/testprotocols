@@ -279,3 +279,9 @@ def test_radio_stats_retry_counts_may_be_unreported() -> None:
     for f in fields[5:7]:
         assert f.default is dataclasses.MISSING
         assert f.default_factory is dataclasses.MISSING
+
+
+def test_mesh_node_backhaul_link_defaults_to_none() -> None:
+    node = WifiMeshNode("aa:bb:cc:dd:ee:ff", MeshRole.AGENT, "11:22:33:44:55:66", 1)
+    assert node.backhaul_link is None
+    assert dataclasses.fields(WifiMeshNode)[-1].name == "backhaul_link"

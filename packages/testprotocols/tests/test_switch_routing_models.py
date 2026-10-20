@@ -82,3 +82,15 @@ def test_interface_dhcp_config_reserved_ranges_are_reserved_range_records() -> N
     assert {f.name: f.type for f in fields(InterfaceDhcpConfig)}["reserved_ranges"] == (
         "list[ReservedRange]"
     )
+
+
+def test_interface_dhcp_config_pool_bounds_default_to_the_whole_subnet() -> None:
+    from dataclasses import fields
+
+    from testprotocols.models.switch_routing import InterfaceDhcpConfig
+
+    names = [f.name for f in fields(InterfaceDhcpConfig)]
+    assert names[-3:] == ["relay_targets", "pool_start", "pool_end"]
+    d = InterfaceDhcpConfig("vlan10")
+    assert d.pool_start is None
+    assert d.pool_end is None

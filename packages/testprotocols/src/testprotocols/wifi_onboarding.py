@@ -2,13 +2,15 @@
 
 Defines the abstract contract for WPS and DPP (EasyConnect) client
 onboarding on a WiFi-capable device: per-BSS WPS enable, PBC / PIN
-trigger, device-PIN read, and DPP-based client enrollment.
+trigger, cancel, the session-state read, device-PIN read, and DPP-based
+client enrollment.
 
-Vendor uniformity is low-medium: residential / RDK-B / prpl / OpenWrt
-stacks expose all of these as first-class operations; enterprise stacks
-commonly disable WPS entirely and offer DPP only sporadically. Drivers
-without support for a specific onboarding method raise
-NotImplementedError.
+Vendor uniformity is low-medium: residential gateway stacks expose all of
+these as first-class operations; enterprise stacks commonly disable WPS
+entirely and offer DPP only sporadically. A driver whose family publishes no
+such operation raises ``NotSupportedError`` for that member: a family that
+publishes the push-button start only raises on the cancel, the state read and
+the PIN trigger.
 
 Mesh agent onboarding (M1/M2 / DPP between APs) lives on WifiMesh;
 this template is exclusively for STA-side (client) onboarding.
@@ -17,6 +19,8 @@ this template is exclusively for STA-side (client) onboarding.
 from __future__ import annotations
 
 from typing import Protocol, runtime_checkable
+
+from testprotocols.models.wifi import WpsState
 
 
 @runtime_checkable
@@ -73,6 +77,25 @@ class WifiOnboarding(Protocol):
         can use to enroll without an explicitly-set PIN session. Useful in
         tests where the client drives WPS-PIN onboarding and needs to know
         the AP's PIN.
+
+        Raises KeyError if *bss_name* is not registered.
+        """
+        ...
+
+    def cancel_wps(self, bss_name: str) -> None:
+        """Close the open WPS window on *bss_name*.
+
+        A lever confirmed by ``get_wps_state`` showing ``WpsSessionState.IDLE``. Raises
+        ``NotSupportedError`` where the family publishes no cancel.
+
+        Raises KeyError if *bss_name* is not registered.
+        """
+        ...
+
+    def get_wps_state(self, bss_name: str) -> WpsState:
+        """Return the WPS session state of *bss_name*: the paired read of ``trigger_wps_pbc``,
+        ``trigger_wps_pin`` and ``cancel_wps``. Raises ``NotSupportedError`` where the family
+        publishes no session state.
 
         Raises KeyError if *bss_name* is not registered.
         """

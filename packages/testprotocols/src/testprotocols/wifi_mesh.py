@@ -15,7 +15,7 @@ multi-AP protocols; EasyMesh R1/R2/R3 lives in prpl, OneWiFi (RDK-B),
 OpenWrt prplMesh, and select carrier-grade SKUs. Each driver translates
 the uniform contract here to its underlying vendor RPCs (EasyMesh M1/M2,
 proprietary controller add-agent calls, vendor-specific steering APIs).
-Drivers without support for specific operations raise NotImplementedError.
+A driver whose family publishes no such operation raises ``NotSupportedError``.
 """
 
 from __future__ import annotations
@@ -73,14 +73,14 @@ class WifiMesh(Protocol):
         Releasing returns the device to whatever band-selection policy
         the mesh controller / driver default uses. Drivers without
         backhaul-band override (typical of controller-only nodes that
-        have no uplink) raise NotImplementedError.
+        have no uplink) raise ``NotSupportedError``.
         """
         ...
 
     def set_backhaul_channel(self, channel: int | None) -> None:
         """Force the backhaul radio to *channel*, or pass None to release the constraint.
 
-        Drivers without backhaul-channel override raise NotImplementedError.
+        Drivers without backhaul-channel override raise ``NotSupportedError``.
         Raises ValueError if *channel* is not supported on the current
         backhaul band.
         """
@@ -112,7 +112,7 @@ class WifiMesh(Protocol):
         Raises ValueError if zero or multiple credentials are passed.
         Raises TimeoutError if onboarding does not complete within *timeout*.
         Drivers that do not support an onboarding method raise
-        NotImplementedError when that credential is passed.
+        ``NotSupportedError`` when that credential is passed.
         """
         ...
 
@@ -136,7 +136,7 @@ class WifiMesh(Protocol):
         (e.g. ``DPP:C:81/1;K:MDkw...;;``). Tests fetch it from the new agent,
         then pass it to the controller's ``add_agent(dpp_uri=...)``.
 
-        Drivers without DPP enrollee support raise NotImplementedError.
+        Drivers without DPP enrollee support raise ``NotSupportedError``.
         """
         ...
 
@@ -148,7 +148,7 @@ class WifiMesh(Protocol):
         is 120s); after that, the listener closes whether or not
         onboarding completed.
 
-        Drivers without DPP enrollee support raise NotImplementedError.
+        Drivers without DPP enrollee support raise ``NotSupportedError``.
         Drivers where the enrollee listener is always-on (no explicit
         trigger needed) implement this as a no-op.
         """
@@ -175,7 +175,7 @@ class WifiMesh(Protocol):
         *pin* is 4 or 8 digits per WPS spec, as ``str`` (preserves leading zeros).
         Drivers raise ValueError on malformed PINs.
 
-        Drivers without WPS enrollee support raise NotImplementedError.
+        Drivers without WPS enrollee support raise ``NotSupportedError``.
         """
         ...
 
@@ -186,7 +186,7 @@ class WifiMesh(Protocol):
         with the mesh PSK and the controller accepts agents presenting that
         PSK. Pass None to clear a previously-set PSK.
 
-        Drivers without PSK-based mesh enrollment raise NotImplementedError.
+        Drivers without PSK-based mesh enrollment raise ``NotSupportedError``.
         Read-side intentionally omitted: PSK is write-only across the contract.
         """
         ...

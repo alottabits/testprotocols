@@ -174,6 +174,8 @@ from testprotocols.models.switch import (
     LinkState,
     LldpNeighbor,
     NtpServer,
+    NtpSyncState,
+    NtpSyncStatus,
     PoePortStatus,
     PoePriority,
     PoeStatus,
@@ -247,6 +249,9 @@ from testprotocols.models.wifi import (
     WifiSecurityMode,
     WifiStation,
     WifiTransitionConfig,
+    WpsMethod,
+    WpsSessionState,
+    WpsState,
 )
 
 __all__ = [
@@ -363,6 +368,8 @@ __all__ = [
     "NmapPortState",
     "NmapResult",
     "NtpServer",
+    "NtpSyncState",
+    "NtpSyncStatus",
     "OfflineMessage",
     "OneToManyNatRule",
     "OneToOneNatRule",
@@ -485,6 +492,9 @@ __all__ = [
     "WifiSecurityMode",
     "WifiStation",
     "WifiTransitionConfig",
+    "WpsMethod",
+    "WpsSessionState",
+    "WpsState",
     "Zone",
     "ZonePolicy",
 ]
