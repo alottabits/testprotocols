@@ -54,7 +54,10 @@ class DnsForwarder(Protocol):
         ...
 
     def remove_host_override(self, name: str) -> None:
-        """Remove the override for *name*; paired read ``list_host_overrides``."""
+        """Remove the override for *name*; paired read ``list_host_overrides``.
+
+        Raises ``KeyError`` if no override for *name* exists.
+        """
         ...
 
     def list_host_overrides(self) -> list[DnsHostOverride]:

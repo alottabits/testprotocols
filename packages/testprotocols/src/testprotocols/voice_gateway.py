@@ -39,7 +39,14 @@ class VoiceGateway(Protocol):
         ...
 
     def remove_sip_account(self, name: str) -> None:
-        """Remove the SIP account *name*; paired read ``list_sip_accounts``."""
+        """Remove the SIP account *name*; paired read ``list_sip_accounts``.
+
+        Raises ``KeyError`` if no account named *name* exists.
+
+        A write rejected at any step raises naming the step; the driver puts nothing back. The
+        state is then the as-found account list where the family commits atomically, otherwise
+        the steps applied before the rejection.
+        """
         ...
 
     def list_sip_accounts(self) -> list[SipAccount]:
@@ -47,7 +54,10 @@ class VoiceGateway(Protocol):
         ...
 
     def get_sip_registration(self, name: str) -> SipRegistration:
-        """Return the registration state of the account *name*."""
+        """Return the registration state of the account *name*.
+
+        Raises ``KeyError`` if no account named *name* exists.
+        """
         ...
 
     def list_fxs_lines(self) -> list[FxsLine]:

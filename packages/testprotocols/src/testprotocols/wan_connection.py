@@ -44,7 +44,10 @@ class WanConnection(Protocol):
         ...
 
     def get_wan_connection(self, name: str) -> WanConnectionConfig:
-        """Return the configuration of the connection *name*, every secret ``None``."""
+        """Return the configuration of the connection *name*, every secret ``None``.
+
+        Raises ``KeyError`` if no connection named *name* exists.
+        """
         ...
 
     def list_wan_connections(self) -> list[WanConnectionConfig]:
@@ -55,7 +58,8 @@ class WanConnection(Protocol):
         """Return the observed state of the connection *name*.
 
         ``dns_servers`` are the resolvers the connection supplies, not the forwarder's
-        configured upstreams (``dns_forwarder.get_upstreams``).
+        configured upstreams (``dns_forwarder.get_upstreams``). Raises ``KeyError`` if no
+        connection named *name* exists.
         """
         ...
 
@@ -67,5 +71,6 @@ class WanConnection(Protocol):
         ``NotSupportedError``: use ``dhcp_client`` (release and renew) for the lease and
         ``wan_admin`` (down and up, with the connection's name as the label) for the
         administrative state; their paired read on a gateway is ``get_wan_state``.
+        Raises ``KeyError`` if no connection named *name* exists.
         """
         ...

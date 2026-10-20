@@ -27,7 +27,8 @@ class AdminCredential(Protocol):
 
         A lever: confirmed by a new management session the test opens with the credential.
         The driver's own session continues and its configuration is not updated;
-        ``list_accounts`` is the read that finds the account.
+        ``list_accounts`` is the read that finds the account. Raises ``KeyError`` if no local
+        account named *account* exists.
         """
         ...
 

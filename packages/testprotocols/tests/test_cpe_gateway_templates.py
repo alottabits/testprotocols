@@ -84,7 +84,29 @@ MULTI_STEP_WRITES = {
     "block_host": ("testprotocols.host_filter", "HostFilter"),
     "set_sip_account": ("testprotocols.voice_gateway", "VoiceGateway"),
     "set_controller": ("testprotocols.usp_agent", "UspAgent"),
+    # the removals the §6 "Method grain" table pairs with the multi-step writes above
+    "unblock_host": ("testprotocols.host_filter", "HostFilter"),
+    "remove_sip_account": ("testprotocols.voice_gateway", "VoiceGateway"),
+    "delete_bridge": ("testprotocols.l2_bridge", "L2Bridge"),
 }
+
+BY_NAME_MEMBERS = [
+    ("testprotocols.wan_connection", "WanConnection", "get_wan_connection"),
+    ("testprotocols.wan_connection", "WanConnection", "get_wan_state"),
+    ("testprotocols.wan_connection", "WanConnection", "reset_session"),
+    ("testprotocols.dns_forwarder", "DnsForwarder", "remove_host_override"),
+    ("testprotocols.l2_bridge", "L2Bridge", "delete_bridge"),
+    ("testprotocols.l2_bridge", "L2Bridge", "get_bridge"),
+    ("testprotocols.l2_bridge", "L2Bridge", "add_member"),
+    ("testprotocols.l2_bridge", "L2Bridge", "remove_member"),
+    ("testprotocols.l2_bridge", "L2Bridge", "get_members"),
+    ("testprotocols.host_table", "HostTable", "get_host"),
+    ("testprotocols.host_filter", "HostFilter", "unblock_host"),
+    ("testprotocols.host_filter", "HostFilter", "get_host_block"),
+    ("testprotocols.admin_credential", "AdminCredential", "set_password"),
+    ("testprotocols.voice_gateway", "VoiceGateway", "remove_sip_account"),
+    ("testprotocols.voice_gateway", "VoiceGateway", "get_sip_registration"),
+]
 
 
 @pytest.mark.parametrize(("name", "module", "members"), PROTOCOLS, ids=[p[0] for p in PROTOCOLS])
@@ -253,3 +275,14 @@ def test_generalised_docstrings() -> None:
     assert "closed gateway" in (
         inspect.getdoc(importlib.import_module("testprotocols.wan_link_admin")) or ""
     )
+
+
+@pytest.mark.parametrize(
+    ("module", "name", "member"), BY_NAME_MEMBERS, ids=[m[2] for m in BY_NAME_MEMBERS]
+)
+def test_by_name_members_state_the_unknown_name_outcome(
+    module: str, name: str, member: str
+) -> None:
+    """A member keyed by a name says what an unknown name does (the house form: ``KeyError``)."""
+    owner = getattr(importlib.import_module(module), name)
+    assert "Raises ``KeyError``" in (inspect.getdoc(getattr(owner, member)) or "")

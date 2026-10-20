@@ -44,11 +44,21 @@ class HostFilter(Protocol):
         ...
 
     def unblock_host(self, mac: str) -> None:
-        """Remove the block on *mac* (any case accepted); paired read ``list_host_blocks``."""
+        """Remove the block on *mac* (any case accepted); paired read ``list_host_blocks``.
+
+        Raises ``KeyError`` if no block on that address exists.
+
+        A write rejected at any step raises naming the step; the driver puts nothing back. The
+        state is then the as-found block list where the family commits atomically, otherwise
+        the steps applied before the rejection.
+        """
         ...
 
     def get_host_block(self, mac: str) -> HostBlock:
-        """Return the block on *mac* (any case accepted), its ``mac`` canonical."""
+        """Return the block on *mac* (any case accepted), its ``mac`` canonical.
+
+        Raises ``KeyError`` if no block on that address exists.
+        """
         ...
 
     def list_host_blocks(self) -> list[HostBlock]:

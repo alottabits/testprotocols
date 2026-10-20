@@ -34,5 +34,8 @@ class HostTable(Protocol):
 
     def get_host(self, mac: str) -> LanHost:
         """Return the host *mac*; any case is accepted and normalised to the canonical
-        lowercase colon-separated form before the lookup."""
+        lowercase colon-separated form before the lookup.
+
+        Raises ``KeyError`` if the gateway knows no host with that address.
+        """
         ...
