@@ -519,7 +519,7 @@ class CpeGatewayUspTier(CpeGatewayDevice, Protocol):
 
 The voice tier is `tier-staged` (M3, M32): stage 4 found R54–R55 supported
 on columns 3 and 4 only, two of five. Its shape stays recorded for the
-trigger that reopens it (a second family publishing the SIP account, or a
+trigger that reopens it (a third column supporting the SIP account (R54) beside columns 3 and 4, the majority of five, or a
 consumer): `CpeGatewayVoiceTier(CpeGatewayDevice, Protocol)` adding `voice:
 VoiceGateway` (§6), unregistered like the two built tiers.
 
@@ -1058,8 +1058,8 @@ plugin's default branch publishes no parameter (R54–R55 ✗). *Voice, column 2
 flipped — the PBX publishes no operation a voice member calls (R54–R55 ✗).
 With column 5 ✗ already, voice holds on columns 3 and 4, two of five, below
 the majority: the tier drops to `tier-staged` and M3 and M32 are re-outcomed;
-its trigger is a second family publishing the SIP account (column 1's plugin
-releasing its voice data model would be one), or a consumer. *Mesh, column 3:*
+its trigger is a third column supporting the SIP account (R54) beside columns 3 and 4, the majority of five (column 1's plugin releasing its voice data model would be
+one), or a consumer. *Mesh, column 3:*
 confirmed — the controller is carried on the family's mesh build variant, so
 the cells stay ◐ and the tier stays built (the topology on four of five); the
 six controller-side configuration members raise there.
@@ -2396,7 +2396,7 @@ serves a new capability travels in that capability's row.
 | --- | --- | --- | --- | --- | --- | --- |
 | M1 | new archetype | `testprotocols.devices.cpe_gateway:CpeGatewayDevice` (registered `cpe_gateway`) | archetype | core | no | accepted, 2026-10-20 |
 | M2 | deprecation | `testprotocols.devices.cpe:CpeDevice` (registry key `linux_cpe`): kept intact, marked deprecated, `class` row; replacement `CpeGatewayDevice` / `cpe_gateway`; period one MINOR and six months (§6) | deprecate | core | no | accepted, 2026-10-20 |
-| M3 | new tier | `testprotocols.devices.cpe_gateway:CpeGatewayVoiceTier` (`voice: VoiceGateway`; not registered, pinned by `isinstance`) | archetype | tier-staged — a second family publishing the SIP account (R54), or a consumer | no | tier-staged (stage 4: voice R54–R55 ✗ on columns 1, 2 and 5 — 2 of 5 — 2026-10-20) |
+| M3 | new tier | `testprotocols.devices.cpe_gateway:CpeGatewayVoiceTier` (`voice: VoiceGateway`; not registered, pinned by `isinstance`) | archetype | tier-staged — a third column supporting the SIP account (R54) beside columns 3 and 4, the majority of five, or a consumer | no | tier-staged (stage 4: voice R54–R55 ✗ on columns 1, 2 and 5 — 2 of 5 — 2026-10-20) |
 | M4 | new tier | `testprotocols.devices.cpe_gateway:CpeGatewayMeshTier` (`wifi_mesh: WifiMesh`; not registered) | archetype | tier — mesh | no | accepted, 2026-10-20 |
 | M5 | new tier | `testprotocols.devices.cpe_gateway:CpeGatewayUspTier` (`usp_agent: UspAgent`; not registered) | archetype | tier — usp | no | accepted, 2026-10-20 |
 | M6 | new protocol | `testprotocols.wan_connection:WanConnection` (`set_wan_connection`, `get_wan_connection`, `list_wan_connections`, `get_wan_state`, `reset_session`) with `testprotocols.models.cpe_gateway:WanMode`, `WanIpv6Mode`, `WanStatus`, `ProvisioningMode`, `PppoeCredentials`, `StaticAddressing`, `WanVlan`, `WanIpv6`, `WanConnectionConfig`, `WanConnectionState` | new capability | core | no | accepted with conditions (C4, C6; stage 4: R3–R4 ◐ on column 3, no PPP manager in the reference build), 2026-10-20 |
@@ -2425,7 +2425,7 @@ serves a new capability travels in that capability's row.
 | M29 | SPLITS entry | `WanLinkAdmin` composed by a closed product: the 2026-06-12 rationale ("implemented only by the Linux twin") narrowed to "not by API-managed appliances", on the matrix evidence of R9 | record | core | no | accepted, 2026-10-20 |
 | M30 | composition | `testprotocols.port_status:PortStatus`, `testprotocols.dhcp_client:DhcpClient`, `testprotocols.interface_dhcp:InterfaceDhcp`, `testprotocols.syslog_config:SyslogConfig`, `testprotocols.network_endpoint:NetworkEndpoint` on `CpeGatewayDevice` | reuse | core | no | accepted, 2026-10-20 |
 | M31 | composition | `testprotocols.wifi_radio:WifiRadio`, `testprotocols.wifi_bss:WifiBss`, `testprotocols.wifi_stations:WifiStations`, `testprotocols.wifi_transitions:WifiTransitions`, `testprotocols.firewall:Firewall`, `testprotocols.firewall_zones:FirewallZones` on `CpeGatewayDevice`; their members without a matrix row are verification items (§9); the `firewall` driver refuses rule writes on a host block (§6) | reuse | core | no | accepted with conditions (C7; stage 4: R23 ◐ on column 4 and R22's power limit on column 3, the radio reads and setters named in §6 raise there), 2026-10-20 |
-| M32 | new protocol (tier) | `testprotocols.voice_gateway:VoiceGateway` (`set_sip_account`, `remove_sip_account`, `list_sip_accounts`, `get_sip_registration`, `list_fxs_lines`) with `testprotocols.models.voice:SipRegistrationState`, `FxsHookState`, `SipAccount`, `SipRegistration`, `FxsLine` | new capability | tier-staged — a second family publishing the SIP account (R54), or a consumer | no | tier-staged (stage 4: voice R54–R55 ✗ on columns 1, 2 and 5 — 2 of 5 — 2026-10-20) |
+| M32 | new protocol (tier) | `testprotocols.voice_gateway:VoiceGateway` (`set_sip_account`, `remove_sip_account`, `list_sip_accounts`, `get_sip_registration`, `list_fxs_lines`) with `testprotocols.models.voice:SipRegistrationState`, `FxsHookState`, `SipAccount`, `SipRegistration`, `FxsLine` | new capability | tier-staged — a third column supporting the SIP account (R54) beside columns 3 and 4, the majority of five, or a consumer | no | tier-staged (stage 4: voice R54–R55 ✗ on columns 1, 2 and 5 — 2 of 5 — 2026-10-20) |
 | M33 | composition (tier) | `testprotocols.wifi_mesh:WifiMesh` on `CpeGatewayMeshTier`; its agent-side members are verification items (§9); module docstring's `NotImplementedError` wording replaced by the documented unsupported case | reuse | tier — mesh | no | accepted with conditions (stage 4: R58 ✗ on column 5, `steer_client` raises there; column 3 confirmed on the mesh build variant), 2026-10-20 |
 | M34 | new field (tier) | `testprotocols.models.wifi:WifiMeshNode.backhaul_link` (`WifiMeshLink \| None = None`; `None` also for a wired backhaul) | defaulted field | tier — mesh | no | accepted, 2026-10-20 |
 | M35 | new protocol (tier) | `testprotocols.usp_agent:UspAgent` (`set_controller`, `get_controller`, `get_agent_state`) with `testprotocols.models.cpe_gateway:UspTransport`, `UspController`, `UspAgentState` (`endpoint_id` only) | new capability | tier — usp | no | accepted with conditions (stage 4: `UspAgentState.connected` dropped, no column publishes a connection state), 2026-10-20 |
@@ -2569,8 +2569,12 @@ relies on rather than contradicts; M3, M21 and M32 are the `tier-staged` rows
   The §4 listing's lifecycle comment corrected to the one-member decision of
   §6. Stage 4b (the reference drivers) follows in the private corpus.
 - **2026-10-20 — stage 4b: reference drivers written in the private corpus.**
-  Five drivers (one per column) at corpus commit `9c2812b`, pinned to this
-  PR's head `47954b1`; MATRIX (core, 154 members, ✓/✗): column 1 140/14,
+  Five drivers (one per column) at corpus commit `9c2812b`, run against this
+  PR's head `47954b1` through the corpus's `.testprotocols` checkout (its
+  `TESTPROTOCOLS_REF` is still `main`); after this fold-back the corpus
+  followed the voice withdrawal and the `connected` drop at `f5a5075`, run
+  against this PR's `3a13607` (`9c2812b` imports the withdrawn tier and does not
+  run against it); the stage-4b closing step (Task 9) writes the real pin. MATRIX (core, 154 members, ✓/✗): column 1 140/14,
   column 2 148/6, column 3 129/25, column 4 86/68, column 5 124/30; tiers as
   built: voice on none (`tier-staged`), mesh on columns 1, 3, 4 and 5, USP on
   columns 1, 3 and 4. Findings folded:
@@ -2579,7 +2583,11 @@ relies on rather than contradicts; M3, M21 and M32 are the `tier-staged` rows
     (column 2), R16 and R22 (column 3), R22 (column 4) and R54–R58 (column 3)
     corrected (§2, §10);
   - cells that stand with a per-method case (44): recorded in §6, §8 and the
-    §9 member table;
+    §9 member table, except five low-value items (unverified or not graded)
+    that stay in the corpus's FINDINGS and EVIDENCE only: column 1's R1–R7
+    secondary paths and its R57 "could be ✓", column 3's R30 zone-preset
+    reading, column 4's upstream-link selection for R57, and column 5's
+    further per-value refusals;
   - design-text corrections (32): §6, §8 and §9 as listed in this entry's
     rulings and the sections themselves (the column-2 change-file flag and its
     per-session path, the column-1 and column-3 chain models, the
@@ -2602,7 +2610,8 @@ relies on rather than contradicts; M3, M21 and M32 are the `tier-staged` rows
     on columns 3 and 4 only, two of five. The tier Protocol, `VoiceGateway`
     and its five records are withdrawn from this PR (the pre-existing voice
     models stay); M3 and M32 re-outcomed `tier-staged` with their trigger (a
-    second family publishing the SIP account, or a consumer); the `GAPS.md`
+    third column supporting the SIP account beside columns 3 and 4, the
+    majority of five, or a consumer); the `GAPS.md`
     CPE gateway entry points at them. **Finding for the owner:** this
     design's denominator ("a majority of the five") is stricter than the
     public README's evidence bar ("a majority of the ratified list"), under

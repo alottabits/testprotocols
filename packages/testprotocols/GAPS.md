@@ -1253,9 +1253,10 @@ decided against building now, each with the trigger that reopens it.
   core and the pair is staged here.
 - *The voice tier* (`CpeGatewayVoiceTier` adding `voice: VoiceGateway`, with its SIP account,
   registration and analogue-line records; manifest rows M3 and M32, `tier-staged`; design
-  `docs/architecture/cpe-gateway-protocol-design.md` §4, §6 "Mesh and voice"): a second
-  reviewed family publishing the SIP account and its registration state (R54), or a consumer
-  whose tests need the gateway's own voice lines. The reference drivers found two of the five
+  `docs/architecture/cpe-gateway-protocol-design.md` §4, §6 "Mesh and voice"): a third
+  reviewed family supporting the SIP account and its registration state (R54) beside the two
+  that do, so that a majority of the five supports it, or a consumer whose tests need the
+  gateway's own voice lines. The reference drivers found two of the five
   reviewed families publishing it, below the majority the design requires for a tier, so the
   shape is recorded in the design and nothing lands until then.
 - *The dropped members* `wifi_rf` and `network_probe` (M37): a sourced matrix row for the
