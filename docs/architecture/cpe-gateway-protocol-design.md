@@ -289,7 +289,8 @@ prplOS 4.0.3 (the triggering consumer's public example) may lift a prplOS
 cell to ✓ when cited as an observation with its path. The columns are the
 five ratified families at the charter's version lines; the OpenWrt column is
 the 24.10 line with icwmp from the iopsys feed as its TR-069 client. Every
-◐ and ✗ cell is a stage-4 verification item (§9). The `Id` column is a
+◐ and ✗ cell is a stage-4 verification item (§9); the cells stage 4 re-graded
+(review record, stage 4b) carry the limit the reference driver found. The `Id` column is a
 working id for the exploration and the review; the design decides whether
 it stays.
 
@@ -298,8 +299,8 @@ it stays.
 | | **WAN connection** |  |  |  |  |  |
 | R1 | Set the WAN connection mode (DHCP, static, PPPoE, IPoE) | ✓ [1] | ✓ [1] | ✓ [1] | ◐ SetConnectionType only routed/bridged; no static/DHCP/IPoE selector [1] | ◐ no WAN-mode selector; add dhcp-client, pppoe-client or address object [1] |
 | R2 | Read WAN connection state, address and lease | ✓ [2] | ✓ [2] | ✓ [2] | ◐ status, address, uptime, DNS; no lease-time field [2] | ✓ [2] |
-| R3 | Set PPPoE credentials and service name | ✓ [3] | ✓ [3] | ✓ [3] | ◐ credentials only; PPPoEServiceName "Not supported, returns ''" [3] | ✓ [3] |
-| R4 | Reset the PPPoE session | ✓ [4] | ✓ [4] | ✓ [4] | ✓ [4] | ◐ no reset command; disable then enable the pppoe-client interface [4] |
+| R3 | Set PPPoE credentials and service name | ✓ [3] | ✓ [3] | ◐ ppp-manager not in the reference build; the CcspPandM `PPP.Interface` parameters are written, their backend without ppp-manager unverified [3] | ◐ credentials only; PPPoEServiceName "Not supported, returns ''" [3] | ✓ [3] |
+| R4 | Reset the PPPoE session | ✓ [4] | ✓ [4] | ◐ ppp-manager not in the reference build; without a PPPoE client the reset's status cycle cannot be observed [4] | ✓ [4] | ◐ no reset command; disable then enable the pppoe-client interface [4] |
 | R5 | Set the WAN VLAN id and priority | ✓ [5] | ◐ VLAN id via `8021q` `vid`; 802.1p priority mapping undocumented [5] | ✓ [5] | ✗ no WAN VLAN action; WANEthernetLinkConfig has only GetEthernetLinkStatus [5] | ◐ 802.1p only via mangle/bridge-filter set-priority, not a VLAN property [5] |
 | R6 | Set the IPv6 WAN mode; read the delegated prefix | ✓ [6] | ✓ [6] | ✓ [6] | ◐ read only via UPnP IGD; no IPv6 WAN-mode Set action [6] | ✓ [6] |
 | R7 | Read the provisioning mode (v4, v6, dual) | ✓ [7] | ◐ no mode field; derive from wan/wan6 interface status [7] | ✓ [7] | ◐ derivable from v4/v6 ConnectionStatus and DsliteStatus; no mode field [7] | ◐ no provisioning-mode object; derive from v4 and v6 client status [7] |
@@ -312,20 +313,20 @@ it stays.
 | R13 | Configure static leases | ✓ [13] | ✓ [13] | ✓ [13] | ✗ ReservedAddresses is out-only in GetInfo; no Set action [13] | ✓ [13] |
 | R14 | Read active leases | ✓ [14] | ◐ dnsmasq leases are a file; ubus `dhcp ipv4leases` is odhcpd-only [14] | ✓ [14] | ✓ [14] | ✓ [14] |
 | R15 | Configure DNS forwarder upstreams | ✓ [15] | ✓ [15] | ✓ [15] | ✗ X_SetDNSServers "The action is not supported"; LAN GetDNSServer read-only [15] | ✓ [15] |
-| R16 | Configure local host overrides | ✓ [16] | ✓ [16] | ◐ shell only: Utopia dnsmasq `address=/` lines, no data-model parameter [16] | ◐ only X_AVM-DE_SetHostNameByMACAddress; no arbitrary name/record override [16] | ✓ [16] |
+| R16 | Configure local host overrides | ✓ [16] | ✓ [16] | ◐ shell only: marked `/etc/hosts` lines and dnsmasq's SIGHUP, rewritten when the host file is regenerated; no data-model parameter [16] | ◐ only X_AVM-DE_SetHostNameByMACAddress; no arbitrary name/record override [16] | ✓ [16] |
 | R17 | Configure DNS rebind protection | ✓ [17] | ✓ [17] | ◐ always on: hard-coded dnsmasq `--stop-dns-rebind`, not configurable [17] | ✗ no rebind-protection action in any listed TR-064 service [17] | ✗ no rebind or private-address answer filter on the DNS page [17] |
 | R18 | Configure bridge membership (ports, wireless networks) | ✓ [18] | ✓ [18] | ✓ [18] | ✗ no bridge/port-membership action; LAN services configure IP and DHCP only [18] | ✓ [18] |
 | R19 | Read bridge and port membership | ✓ [19] | ◐ UCI `ports` gives config; live membership via `bridge` shell [19] | ✓ [19] | ◐ per-host port/guest flag only; no bridge object [19] | ✓ [19] |
 | R20 | Configure a guest segment | ✓ [20] | ✓ [20] | ◐ no guest object; composed from LanManagementEntry table + a dedicated SSID [20] | ◐ Wi-Fi guest AP via its own WLANConfiguration instance; no LAN guest-port action [20] | ◐ no guest object; composed from bridge VLAN, address, DHCP and firewall [20] |
-| R21 | Read LAN port status (link, speed, duplex) | ✓ [21] | ◐ `link` via network.device status; speed/duplex need ethtool/swconfig [21] | ✓ [21] | ◐ single LANEthernetInterfaceConfig instance; per-port only via host entries [21] | ✓ [21] |
+| R21 | Read LAN port status (link, speed, duplex) | ✓ [21] | ◐ `link` documented; speed and duplex are the device status's `speed` field (`"1000F"`), source-only; no ethtool [21] | ✓ [21] | ◐ single LANEthernetInterfaceConfig instance; per-port only via host entries [21] | ✓ [21] |
 | | **Wi-Fi access points** |  |  |  |  |  |
-| R22 | Configure radio (band, channel, width, power, enable) | ✓ [22] | ✓ [22] | ◐ band fixed per radio: OperatingFrequencyBand is read-only [22] | ◐ SetEnable/SetChannel; no channel-width or TX-power action [22] | ✓ [22] |
-| R23 | Read radio state | ✓ [23] | ✓ [23] | ✓ [23] | ✓ [23] | ◐ wifi package: monitor fields undocumented; state via running/inactive flags [23] |
+| R22 | Configure radio (band, channel, width, power, enable) | ✓ [22] | ✓ [22] | ◐ band fixed per radio: OperatingFrequencyBand is read-only; TransmitPower is a percentage with no dBm maximum [22] | ◐ channel and enable only (SetEnable/SetChannel); no channel-width, TX-power, country or DFS action [22] | ✓ [22] |
+| R23 | Read radio state | ✓ [23] | ✓ [23] | ✓ [23] | ◐ enable, status, channel and band read; no transmit power, regulatory domain or DFS state [23] | ◐ wifi package: monitor fields undocumented; state via running/inactive flags [23] |
 | R24 | Configure a BSS (SSID, security mode, passphrase, hidden) | ✓ [24] | ✓ [24] | ✓ [24] | ✓ [24] | ✓ [24] |
 | R25 | Read BSS state | ✓ [25] | ✓ [25] | ✓ [25] | ✓ [25] | ◐ wifi package: print flags/detail only; no BSS monitor field table [25] |
 | R26 | Read connected stations (signal, rate) | ✓ [26] | ✓ [26] | ✓ [26] | ✓ [26] | ✓ [26] |
 | R27 | Disconnect a station | ✓ [27] | ◐ `del_client` only in hostapd ubus source, no wiki page [27] | ✓ [27] | ✗ no deauthenticate/disconnect-station action in WLANConfiguration [27] | ✓ [27] |
-| R28 | Start / cancel push-button or PIN onboarding; read its state | ✓ [28] | ◐ PBC via `wps_pushbutton`/hostapd_cli; `wps_start`/`wps_status` source-only [28] | ✓ [28] | ✓ [28] | ◐ wifi package: push-button start only; no cancel, state read or PIN [28] |
+| R28 | Start / cancel push-button or PIN onboarding; read its state | ✓ [28] | ◐ PBC via `wps_pushbutton`/hostapd_cli; `wps_start`/`wps_status` source-only [28] | ✓ [28] | ◐ push-button only: start, stop and status; the PIN variables are obsolete [28] | ◐ wifi package: push-button start only; no cancel, state read or PIN [28] |
 | R29 | Configure band steering and 11k/v/r | ✓ [29] | ✓ [29] | ◐ band steering and 11k/11v writable; no 802.11r parameter found [29] | ✗ no steering/11k/v/r action; mesh JSON exposes read-only flags [29] | ◐ wifi package: 11k/v/r properties; no explicit band-steering switch [29] |
 | | **Security posture** |  |  |  |  |  |
 | R30 | Read zone defaults and zone membership | ◐ TR-181 Firewall uses Level/Chain, no zone objects; UCI zones shell-only [30] | ✓ [30] | ◐ no zone model; firewall level presets only [30] | ✗ no zone/firewall object; only per-host WANAccess granted/denied [30] | ◐ no zone object; WAN/LAN interface lists and defconf filter rules [30] |
@@ -356,12 +357,12 @@ it stays.
 | R52 | Trigger an inform; read connection-request state | ◐ inform only through the substrate bus object; session state, no connection-request state [52] | ◐ `status` reports session state, not connection-request state [52] | ◐ ConnectionRequestURL readable; no inform-trigger parameter [52] | ◐ no inform-trigger action; only ConnectionRequestURL/Username readable [52] | ◐ no inform-trigger command; connection-request settings undocumented; status read-only [52] |
 | R53 | Configure the USP controller endpoint and transport; read agent state | ◐ source-only: build profile and CI scripts; agent state not documented [53] | ✗ no USP agent (obuspa) in 24.10 packages/luci/routing/telephony feeds [53] | ◐ obuspa config via factory-reset file; Device.LocalAgent not on dmcli/rbus [53] | ◐ endpoint, MTP (websocket/mqtt), host, path, TLS writable; no agent connection state [53] | ✗ no USP/TR-369 agent; only the CWMP tr069-client exists [53] |
 | | **Voice** |  |  |  |  |  |
-| R54 | Configure a SIP account; read registration state | ◐ tr104-voip repo is a 3-line stub; no VoiceService parameters published [54] | ◐ Asterisk PBX config files + CLI; no UCI/ubus voice model [54] | ◐ telco-voice-manager is an optional component, not in the reference-build list; MTA model is DOCSIS-eMTA only [54] | ✓ [54] | ✗ no SIP user agent; SIP appears only as a NAT helper [54] |
-| R55 | Read FXS line state | ◐ VoiceService:2 stub only; FXS line objects unpublished [55] | ◐ asterisk-chan-lantiq Lantiq SoC FXS only; state via Asterisk CLI [55] | ◐ same component caveat: voice manager optional; X_CISCO_COM_MTA.LineTable only on DOCSIS eMTA builds [55] | ◐ X_AVM-DE_GetPhonePort returns port name only; no hook/line state [55] | ✗ no FXS or telephony port in the feature list [55] |
+| R54 | Configure a SIP account; read registration state | ✗ the plugin's default branch publishes no parameter: LICENSE and a one-sentence README, no ODL [54] | ✗ Asterisk PBX config files + CLI; no operation a gateway voice member calls [54] | ◐ telco-voice-manager installed; the TR-104 v2 switch is misspelt in the platform layer, so the v2 model may not be the one built; MTA model is DOCSIS-eMTA only [54] | ✓ [54] | ✗ no SIP user agent; SIP appears only as a NAT helper [54] |
+| R55 | Read FXS line state | ✗ no `POTS.FXS` object on the plugin's default branch [55] | ✗ asterisk-chan-lantiq Lantiq SoC FXS only; state via Asterisk CLI, no operation a gateway voice member calls [55] | ◐ same component caveat: voice manager installed, v2 model unverified; X_CISCO_COM_MTA.LineTable only on DOCSIS eMTA builds [55] | ◐ X_AVM-DE_GetPhonePort returns port name only; no hook/line state [55] | ✗ no FXS or telephony port in the feature list [55] |
 | | **Mesh controller** |  |  |  |  |  |
-| R56 | Read mesh topology (agents, backhaul links) | ✓ [56] | ✗ no EasyMesh controller; 802.11s is a peer mesh [56] | ◐ controller source only; BPI R4 porting marked ongoing/TBD, no RDK doc of the paths [56] | ✓ [56] | ◐ CAPsMAN, not EasyMesh; CAP list without backhaul links [56] |
-| R57 | Read backhaul link health | ◐ Backhaul object gives link type/MACs; signal/rate only via parent BSS STA entry [57] | ✗ 802.11s peer links via `iw station dump`, not EasyMesh backhaul [57] | ◐ controller source only; BPI R4 porting marked ongoing/TBD [57] | ◐ link metrics present; no explicit backhaul flag (is_upstream is LAN-only) [57] | ✗ no backhaul-link metrics; remote-cap shows connected-time only [57] |
-| R58 | Steer a client to another agent | ✓ [58] | ◐ usteer roams clients between plain APs; no EasyMesh agents [58] | ◐ controller rbus method in source only; BPI R4 porting marked ongoing/TBD [58] | ✗ no steering action; schema steering_enabled is a read-only flag [58] | ◐ no EasyMesh steer; 802.11v BSS-transition suggestion via steering only [58] |
+| R56 | Read mesh topology (agents, backhaul links) | ✓ [56] | ✗ no EasyMesh controller; 802.11s is a peer mesh [56] | ◐ controller on the EasyMesh build variant (`FEATURE_TYPE=EasyMesh`); data-element paths in controller source only [56] | ✓ [56] | ◐ CAPsMAN, not EasyMesh; CAP list without backhaul links [56] |
+| R57 | Read backhaul link health | ◐ Backhaul object gives link type/MACs; signal/rate only via parent BSS STA entry [57] | ✗ 802.11s peer links via `iw station dump`, not EasyMesh backhaul [57] | ◐ EasyMesh build variant; `MultiAPDevice.Backhaul.Stats` in controller source only [57] | ◐ link metrics present; no explicit backhaul flag (is_upstream is LAN-only) [57] | ✗ no backhaul-link metrics; remote-cap shows connected-time only [57] |
+| R58 | Steer a client to another agent | ✓ [58] | ◐ usteer roams clients between plain APs; no EasyMesh agents [58] | ◐ EasyMesh build variant; `ClientSteer()` rbus method in controller source only [58] | ✗ no steering action; schema steering_enabled is a read-only flag [58] | ✗ no per-client steer command: Steering is properties only (802.11v requests to a neighbor group) [58] |
 
 ## 3. Decision
 
@@ -382,14 +383,16 @@ majority of the five columns support, a caveated cell (◐) counting as
 support with its limit becoming the member's documented per-column behaviour
 or a per-method unsupported case (the maintainer's decision of 2026-10-19,
 review record): 52 of the 58 operations, R1–R52; the six operations of the
-tiers below also meet the count on four of them. It composes existing
-capabilities wherever their shape holds (§5), and introduces ten capabilities
+tiers below meet the count on four of them as stage 4 graded them (R53 and
+R56–R58; the two voice rows fell to two of five). It composes existing
+capabilities wherever their shape holds (§5), and designs ten capabilities
 no protocol on `main` owns, each argued on the placement ladder in §5 and
 §6: `WanConnection`, `DnsForwarder`, `L2Bridge` (the `GAPS.md`
 entry of 2026-05-02 whose trigger is this class), `HostTable`, `HostFilter`,
 `AutoPortMapping`, `AdminCredential`, `DeviceHealth` (a read-only base split
 off the host-shaped `DeviceManagement`, which inherits it) and, on the tiers,
-`VoiceGateway` and `UspAgent`. Six existing protocols are extended (rung 5):
+`VoiceGateway` and `UspAgent`; nine land, and `VoiceGateway` is staged with
+its tier (below). Six existing protocols are extended (rung 5):
 `DeviceInfo` with the identity facts, `DeviceLifecycle` with the firmware
 upgrade and configuration transfer, `Tr069Client` with the ACS configuration,
 `NtpConfig` with the synchronisation state, `WifiOnboarding` with the cancel
@@ -399,21 +402,27 @@ configuration members are worded for any closed network product, not for
 this class alone, so the chartered router sibling can compose them when its
 design lands (the maintainer's decision of 2026-10-19, review record).
 
-Three **optional tiers** are built in this pass. Voice and the mesh
-controller are facets the charter places "on many models", not on the class:
-a bridged modem or an operator gateway without telephony publishes neither,
-so both are tiers whatever the count says, and the count (four of five
-columns support voice, three or four support each mesh operation) meets the
-amended evidence bar, so both are implemented and tested like the core. USP is
-a tier because one trigger column publishes no agent (R53, column 2) while
-three columns do. Each tier is a Protocol a driver satisfies in addition to
+Three **optional tiers** are designed; two are built in this pass and the
+third is `tier-staged`. Voice and the mesh controller are facets the charter
+places "on many models", not on the class: a bridged modem or an operator
+gateway without telephony publishes neither, so both are tiers whatever the
+count says. The mesh count (three or four of five columns support each mesh
+operation) meets the amended evidence bar, so the mesh tier is implemented and
+tested like the core. The voice count was four of five at the exploration;
+stage 4 found the nominal cells of columns 1 and 2 unsupported in substance,
+so voice holds on two of five (columns 3 and 4) and is `tier-staged` (§6, the
+nominal cells), its shape kept in this design for the trigger that reopens it.
+USP is a tier because one trigger column publishes no agent (R53, column 2)
+while three columns do. Each tier is a Protocol a driver satisfies in addition to
 the core; §9 names the columns expected to implement each tier member and
 the ones expected to raise. The cells that support a tier only nominally (a
 stub plugin, a PBX from a package feed, controller source whose porting is
 marked ongoing) are the design's stated risk, listed by id in §9: if stage 4
 finds one of them unsupported in substance, the member becomes a per-column
 unsupported case or the tier drops to `tier-staged`, and its manifest rows
-are re-outcomed without reopening the design.
+are re-outcomed without reopening the design. Stage 4 settled them: voice
+dropped to `tier-staged` (M3, M32), the mesh cells of column 3 held on the
+controller's build variant (§9 Stated risks).
 
 The superseded shape drops what no closed gateway publishes: the hardware
 console and the four host-substrate levers (`hw_console`, `ip_interface`,
@@ -433,9 +442,10 @@ proprietary CLI, with no Wi-Fi assumption beyond the radios the matrix shows
 every column publishes and no voice or mesh member. Where a column supports
 an operation only in part (◐ in §2), the member keeps its neutral shape and
 the driver raises the documented unsupported case for the part the column
-lacks, or maps with a stated loss (§8); the three facets that fail the core
-threshold or the class definition are independent optional tier Protocols,
-so a driver satisfies any combination of them.
+lacks, or maps with a stated loss (§8); of the three facets that fail the core
+threshold or the class definition, the two built ones (mesh, USP) are
+independent optional tier Protocols, so a driver satisfies any combination of
+them, and the third (voice) is `tier-staged` (§6).
 
 ```python
 @runtime_checkable
@@ -476,10 +486,11 @@ class CpeGatewayDevice(BaseDeviceProtocol, Protocol):
 register_device_type("cpe_gateway", CpeGatewayDevice)
 ```
 
-**Ten new capabilities at seed, each argued in §5 and §6:** seven on the
+**Ten new capabilities designed, each argued in §5 and §6:** seven on the
 core (`WanConnection`, `DnsForwarder`, `L2Bridge`, `HostTable`, `HostFilter`,
 `AutoPortMapping`, `AdminCredential`), one split (`DeviceHealth`) and two on
-tiers (`VoiceGateway`, `UspAgent`). Every other member exists today; each
+tiers (`VoiceGateway`, `UspAgent`); nine land at seed, `VoiceGateway` staging
+with its tier (M32). Every other member exists today; each
 change to an existing one is placed on the ladder in §5 and listed in §12.
 Where a disposition has a fallback, §6 states the condition that would move
 to it.
@@ -489,15 +500,6 @@ superset adding one facet, built in this pass on the matrix evidence under
 the amended evidence bar:
 
 ```python
-@runtime_checkable
-class CpeGatewayVoiceTier(CpeGatewayDevice, Protocol):
-    """Adds the voice facet: SIP accounts and their registration, FXS lines
-    and their state. Present on operator gateways and on retail gateways
-    with telephony; absent on bridged modems and on the fifth reviewed
-    column. Evidence: four of five columns (R54–R55, one at ✓, three
-    caveated; §9 names the nominal cells)."""
-    voice: VoiceGateway                  # NEW (tier) — SIP accounts, registration state, FXS line state (§6)
-
 @runtime_checkable
 class CpeGatewayMeshTier(CpeGatewayDevice, Protocol):
     """Adds the mesh-controller facet: the agents and their backhaul links,
@@ -510,17 +512,24 @@ class CpeGatewayMeshTier(CpeGatewayDevice, Protocol):
 @runtime_checkable
 class CpeGatewayUspTier(CpeGatewayDevice, Protocol):
     """Adds the USP agent: the controller endpoint and its transport, the
-    agent's state. Evidence: three of five columns (R53, all caveated); the
-    second trigger column packages no agent and raises."""
-    usp_agent: UspAgent                  # NEW (tier) — controller endpoint and transport, agent state (§6)
+    agent's own endpoint identifier. Evidence: three of five columns (R53,
+    all caveated); the second trigger column packages no agent and raises."""
+    usp_agent: UspAgent                  # NEW (tier) — controller endpoint and transport, the agent's endpoint identifier (§6)
 ```
+
+The voice tier is `tier-staged` (M3, M32): stage 4 found R54–R55 supported
+on columns 3 and 4 only, two of five. Its shape stays recorded for the
+trigger that reopens it (a second family publishing the SIP account, or a
+consumer): `CpeGatewayVoiceTier(CpeGatewayDevice, Protocol)` adding `voice:
+VoiceGateway` (§6), unregistered like the two built tiers.
 
 The tiers are not registered: one registry key, `cpe_gateway`, names the
 class, and a test that needs a facet pins against the tier Protocol with
 `isinstance`, exactly as the white-box tests pin against an extension (§7).
-Three of the five columns satisfy all three tiers, so a key per facet would
+Three of the five columns satisfy both built tiers, so a key per facet would
 name the minority case and a combined key the power set; the structural
-check already answers "does this driver publish voice" without either.
+check already answers "does this driver publish a mesh controller" without
+either.
 
 **Concerns, dispositions and evidence.** One row per concern of §1; the
 X-vendor column gives the count of the concern's weakest matrix row as
@@ -542,7 +551,7 @@ supporting and at least three of five.
 | Radios | `WifiRadio` | reuse | 3 + 2 ◐ | R22–R23; the band is the radio's address, not a setting (§6) |
 | Networks (BSS) | `WifiBss` | reuse | 4 + 1 ◐ | R24–R25 |
 | Stations, disconnect | `WifiStations` | reuse | 3 + 1 ◐ + 1 ✗ | R26–R27; column 4 cannot disconnect |
-| Onboarding: start, cancel, state | `WifiOnboarding` | **extend** | 3 + 2 ◐ | R28; cancel and state read added |
+| Onboarding: start, cancel, state | `WifiOnboarding` | **extend** | 2 + 3 ◐ | R28; cancel and state read added; columns 4 and 5 push-button only |
 | Band steering, 11k/v/r | `WifiTransitions` | reuse | 2 + 2 ◐ + 1 ✗ | R29; band steering by composition of the 11v members (§6) |
 | Zone defaults and membership | `FirewallZones` | reuse | 1 + 3 ◐ + 1 ✗ | R30; four columns have no zone object: mapped or per-method unsupported (§6) |
 | Port forwards, DMZ host | `Firewall` | reuse | 4 + 1 ◐ | R31–R32; column 4 forwards to the calling host only |
@@ -560,7 +569,7 @@ supporting and at least three of five.
 | Local administrator credential | `AdminCredential` | **new** | 5 | R50 |
 | ACS configuration, inform, connection-request state | `Tr069Client` | **extend** | 0 + 5 ◐ | R51 (5 ✓) and R52 (5 ◐): ACS configuration added; the inform's meaning stated, the connection-request state read nowhere (§6) |
 | USP controller endpoint, transport, agent state | `UspAgent` | **new (tier)** | 0 + 3 ◐ + 2 ✗ | R53; column 2 packages no agent: tier `usp` |
-| Voice: SIP accounts, registration, FXS lines | `VoiceGateway` | **new (tier)** | 0 + 4 ◐ + 1 ✗ | R54–R55; the class definition makes it a tier; column 5 raises |
+| Voice: SIP accounts, registration, FXS lines | `VoiceGateway` | **new (tier)**, `tier-staged` | 0 + 2 ◐ + 3 ✗ | R54–R55; the class definition makes it a tier; columns 1, 2 and 5 ✗ at stage 4, two of five: staged (§6) |
 | Mesh controller: topology, backhaul health, steering | `WifiMesh` | reuse (tier) | 0 + 3 ◐ + 2 ✗ | R56–R58; weakest R57; column 2 publishes no controller: tier `mesh`; one defaulted field for backhaul health per agent (§6) |
 
 **Test-bed role objects.** `wan_endpoint` and `lan_endpoint` are not
@@ -689,9 +698,9 @@ one would leave an archetype that composes it permanently unsupported.
 | R50 | `AdminCredential` | 6 | new capability | no protocol owns a local credential; `radius_client` is a server registry and an `extend` of it would put a local-account write on every AAA-client implementer |
 | R51–R52 | `Tr069Client` | 5 | extend | the protocol owns the ACS relationship and has the connection state, identifier and inform; the ACS configuration is two members on the same concern; composed by the superseded class only |
 | R53 | `UspAgent` | 6 | new capability (tier) | USP is a second management protocol with its own endpoint and transport, not a TR-069 field: an `extend` of `Tr069Client` would mix two protocols' lifecycles on one member set and leave the two columns without an agent permanently unsupported on the core |
-| R54–R55 | `VoiceGateway` | 6 | new capability (tier) | `sip_phone` and `sip_server` are the test-bed far ends; no protocol owns the gateway's own accounts and lines |
+| R54–R55 | `VoiceGateway` | 6 | new capability (tier) | `sip_phone` and `sip_server` are the test-bed far ends; no protocol owns the gateway's own accounts and lines; `tier-staged` at stage 4 (two of five, §6) |
 | R56–R58 | `WifiMesh` | 3 | defaulted field | `get_topology`, `get_mesh_status`, `steer_client` unchanged; `WifiMeshNode.backhaul_link: WifiMeshLink | None = None` carries each agent's backhaul health |
-| class | `CpeGatewayDevice`, three tier Protocols | — | archetype | the archetype and its tiers (§4) |
+| class | `CpeGatewayDevice`, three tier Protocols | — | archetype | the archetype and its tiers (§4); two built, the voice tier staged |
 | class | `CpeDevice` | 5 | deprecate | superseded, intact under `linux_cpe` for the period (§6) |
 
 ### Shared with the appliance
@@ -828,8 +837,9 @@ column but the fourth: one set per parameter on columns 1 and 3 (column 3 with
 an apply step for some objects), interface, protocol, credential and tag
 objects on columns 2 and 5. A rejection at any step raises naming the step and
 the driver writes nothing more; the family's own mechanism decides whether the
-as-found state returns (column 2 stages every step under a change-file path of
-the write's own and commits only when every step is accepted, so a rejected
+as-found state returns (column 2 stages every step under a change-file path
+unique to the driver's session and fresh per write, and commits only when every
+step is accepted, so a rejected
 write's steps are never committed; columns 1, 3 and 5 apply each step, so the
 steps before the rejection stand) — stated per column in §8 and in the drivers'
 `lossy:` lines.
@@ -888,7 +898,20 @@ inherits `PacketFilter`, the same member also carries the egress rules
 (R33–R34): `add_rule` on the forward chain with `src_cidr` the LAN host and
 `dst_cidr` / `dst_ports` the destination. Column 3 matches no destination
 address (R33 ◐: a rule with `dst_cidr` other than any is the unsupported
-case); column 4 publishes profiles, not rules (R33 ✗, R34 ◐: both raise).
+case); column 4 publishes profiles, not rules (R33 ✗: the rule writes raise;
+R34 ◐: `list_rules` and `get_rule` read the filter profiles as forward-chain
+rules named after the profile, allow for the standard and unrestricted
+profiles, deny otherwise). Stage 4 found the chain models per column: column
+1's firewall is level- and policy-based with forward chains only — the
+forward chain maps to the outbound custom chain, the input and output chains
+are per-value refusals on every chain member, the default policy is the
+custom level's one policy, and rules take effect while the custom level is
+active; column 3 is forward-only too (the internet-access policy table, no
+default policy, a hit log rather than counters). Per inherited chain member
+as built: `flush_chain` maps on columns 1, 2 and 3, `set_default_policy` /
+`get_default_policy` on columns 1 and 2, the counter pair on column 2 only;
+each raises elsewhere. Column 5 keeps per-rule counters, but their fields are
+undocumented, so its counter members raise too (§8).
 
 **Overturn.** A column that cannot add one mapping without rewriting the
 table (none in §2), which would make the list-replacing shape the honest
@@ -965,11 +988,11 @@ str` (the controller's endpoint identifier), `transport: UspTransport`
 column's agent documentation lists it, and joins by a dated note), `host: str`,
 `port: int`, `path: str | None` (the WebSocket resource path; `None` on the
 other transports, which have none) and `tls: bool`; `UspAgentState` carries the
-agent's `endpoint_id` and `connected: bool | None`, `None` where the family
-publishes the configuration but no connection state — every column that
-implements the tier today (R53 ◐), so the field's worth is the verification
-item: the first column to publish a state fills it, and if none does by stage 4
-the field is dropped from the record before it lands. Columns 1 and 3 configure
+agent's `endpoint_id`. The design offered a `connected: bool | None` beside it,
+to be dropped if no family published a connection state by stage 4: none does
+(columns 1, 3 and 4 read the configuration only, R53 ◐), so the field was
+dropped before landing and a column that publishes the state adds it by a
+`feat:` change. Columns 1 and 3 configure
 the agent through its own files rather than a data-model object: a mapping with
 a `source:` line, not a limit. Column 2 packages no agent and column 5 has
 none: both raise, and both drivers satisfy the core without the tier.
@@ -989,13 +1012,15 @@ a published shape, and splitting the protocol by row would be the single-verb
 smell. One defaulted field is added (rung 3): `WifiMeshNode.backhaul_link:
 WifiMeshLink | None = None`, so the topology read carries each agent's
 wireless backhaul link (band, channel, signal, capacity) where the family
-publishes it (columns 1 and 4 in part; R57 ◐) and `None` where it does not
+publishes it (columns 1, 3 and 4, each in part; R57 ◐) and `None` where it does not
 or where the backhaul is wired (a wired link has none of the four facts);
 the existing `WifiMeshStatus.backhaul_link` keeps describing the queried
 node.
 The extender is never a device of this archetype (§1).
 
-Voice is the `voice` tier: `VoiceGateway` (`voice`) with `set_sip_account(
+Voice is designed as the `voice` tier and is `tier-staged` (the nominal
+cells, below); the shape it takes when its trigger lands is: `VoiceGateway`
+(`voice`) with `set_sip_account(
 account: SipAccount) -> None`, `remove_sip_account(name) -> None`,
 `list_sip_accounts() -> list[SipAccount]`, `get_sip_registration(name) ->
 SipRegistration` and `list_fxs_lines() -> list[FxsLine]`. `SipAccount`
@@ -1009,7 +1034,9 @@ carries `account`, `state: SipRegistrationState` (`REGISTERED`,
 FxsHookState | None` (`ON_HOOK`, `OFF_HOOK`, `RINGING`; `None` where the
 family publishes the port but not its state, column 4) and `account: str |
 None`. The test-bed `sip_phone` and `sip_server` are the far ends; this
-capability is the gateway's own account and lines.
+capability is the gateway's own account and lines. None of these symbols lands
+with this PR (M3, M32); the stage-4 evidence of columns 3 and 4, kept in the
+private corpus, is what the `GAPS.md` pointer rests on.
 
 **The nominal cells.** Three groups of ◐ cells support a tier only in name:
 voice on column 1 (the family lists a voice plugin that publishes nothing,
@@ -1025,6 +1052,17 @@ becomes a documented per-column unsupported case inside the tier, as a core
 member with a ◐ cell does; a tier whose defining operation falls below the
 majority drops to `tier-staged` with its rows re-outcomed in the review
 record.
+
+Stage 4 outcome (review record, stage 4b). *Voice, column 1:* flipped — the
+plugin's default branch publishes no parameter (R54–R55 ✗). *Voice, column 2:*
+flipped — the PBX publishes no operation a voice member calls (R54–R55 ✗).
+With column 5 ✗ already, voice holds on columns 3 and 4, two of five, below
+the majority: the tier drops to `tier-staged` and M3 and M32 are re-outcomed;
+its trigger is a second family publishing the SIP account (column 1's plugin
+releasing its voice data model would be one), or a consumer. *Mesh, column 3:*
+confirmed — the controller is carried on the family's mesh build variant, so
+the cells stay ◐ and the tier stays built (the topology on four of five); the
+six controller-side configuration members raise there.
 
 **Overturn.** The flip above taking a tier below the majority; or a consumer
 driving an extender directly, which is a separate request.
@@ -1092,8 +1130,9 @@ This follows the recorded decision of `GAPS.md` 2026-06-11 (the host-shaped
 protocol is not reused on a closed product) and the `RoutingRead` precedent (a
 read-only protocol split off `Router`, `SPLITS.md`). Column 4 publishes uptime
 only (R40 ◐, R41 ✗): memory, processes and the load record raise there; column
-5 publishes per-class usage without PIDs (R41 ◐): `ProcessInfo.pid` is the
-unsupported case there.
+5 publishes per-class usage without process ids (R41 ◐): `read_running_processes`
+raises there (`ProcessInfo.pid` is a required `int`, so no record can be
+built).
 
 **Overturn.** A test that needs the kernel's three load averages as a
 record, which would widen `CpuLoad` by defaulted fields.
@@ -1127,7 +1166,7 @@ sibling composes the same members when its design lands:
   `import_configuration(archive: bytes) -> None` (R48–R49): the archive is the
   family's own, opaque to the contract; the import is a lever confirmed by
   `wait_for_boot` where the family reboots and by the test reading back a
-  setting it changed before the export (`wifi_bss. get_bss_config` is the
+  setting it changed after the export (`wifi_bss.get_bss_config` is the
   natural one; the orchestration is a `testoperations` candidate). Column 3
   realises both through the shell store (◐, a `source:` line).
   `DeviceLifecycle` is composed by the superseded class only, so the extension
@@ -1185,12 +1224,17 @@ WpsSessionState, method: WpsMethod | None, remaining_s: int | None)`,
 `WpsSessionState` (`IDLE`, `ACTIVE`, `SUCCESS`, `FAILED`, `TIMEOUT`) and
 `WpsMethod` (`PUSH_BUTTON`, `PIN`); the triggers keep their names and the
 state read is their paired read. Column 5 publishes the push-button start
-only (R28 ◐): cancel, the state read and the PIN trigger raise there.
+only (R28 ◐): cancel, the state read and the PIN trigger raise there. Column
+4 publishes push-button only (R28 ◐: start, stop, status): the PIN trigger and
+`get_wps_device_pin` raise there.
 `WifiRadio` is unchanged: "configure band" (R22) is satisfied by addressing
 every radio by its band, which is how the contract already works and how
-three columns publish it (the band is fixed per radio on column 3, R22 ◐);
-column 4 publishes no width or power write (R22 ◐): those setters raise
-there. `WifiStations.disconnect_station` is the disconnect (R27); column 4
+three columns publish it (the band is fixed per radio on column 3, R22 ◐;
+there the transmit power is a percentage with no dBm maximum, so
+`set_tx_power` / `get_tx_power` raise); column 4 publishes the channel and the
+enable only (R22 ◐, R23 ◐): the width, power and country setters raise, and so
+do `get_tx_power`, `get_country` and `get_dfs_state`. `get_dfs_state` raises
+on column 3 and column 5 as well (no channel-availability state published). `WifiStations.disconnect_station` is the disconnect (R27); column 4
 raises. Band steering (R29) is composed from `WifiTransitions`'s 11v
 members (`set_btm_enabled`, `send_btm_request`) and `wifi_bss` placement,
 not a member of its own; column 4 raises on the 11k/v/r setters.
@@ -1313,8 +1357,14 @@ PortMappingProtocol, internal_host: str, internal_port: int, origin:
 AutoMappingProtocol | None, remaining_lease_s: int | None, description: str
 | None)`, `origin` `None` where the family does not say which protocol
 created the mapping (column 4, R37 ◐). Per-column: PCP is absent on columns
-3, 4 and 5 (R36 ◐: `set_enabled(PCP, …)` raises there) and NAT-PMP on all
-but column 1; column 4's toggle enables or disables UPnP as a whole (R36 ◐:
+3, 4 and 5 (R36 ◐: `set_enabled(PCP, …)` raises there) and NAT-PMP on columns
+3, 4 and 5. Column 2 publishes NAT-PMP jointly with PCP (one switch for both):
+`set_enabled` on either is a per-value refusal and `get_enabled` reads the
+joint switch. Column 1's NAT-PMP is the IGD daemon's own switch, shared with
+that daemon's PCP server, while the PCP the column-1 R36–R37 cells cite is a
+client whose entries are mappings requested upstream; the IGD's mappings may
+be readable in the port-mapping table with their origin (stage 4,
+unverified; §8). Column 4's toggle enables or disables UPnP as a whole (R36 ◐:
 stated in the docstring, the driver maps `UPNP_IGD` onto it); column 1
 reads PCP mappings only (R37 ◐: the UPnP lease table is the unsupported
 case); columns 2 and 3 read the table from the lease file or the IGD service
@@ -1349,7 +1399,7 @@ recorded in §8 and in the drivers' `lossy:` lines.
 
 | Write | Paired read / observation | Multi-step? failure outcome |
 | --- | --- | --- |
-| `WanConnection.set_wan_connection` | `get_wan_connection`, `get_wan_state` (`CONNECTED` after `AUTHENTICATING` confirms the password) | yes on columns 1, 2, 3 and 5: raises naming the step; column 2's steps are staged under the write's own change-file path and never committed, columns 1, 3 and 5 leave the steps before |
+| `WanConnection.set_wan_connection` | `get_wan_connection`, `get_wan_state` (`CONNECTED` after `AUTHENTICATING` confirms the password) | yes on columns 1, 2, 3 and 5: raises naming the step; column 2's steps are staged under a change-file path unique to the session and fresh per write and never committed, columns 1, 3 and 5 leave the steps before |
 | `WanConnection.reset_session` (PPPoE lever; raises on the other modes) | `get_wan_state` status cycling; `await_reachability` from a LAN client | no |
 | `DnsForwarder.set_upstreams` (list replace) | `get_upstreams` (set equality) | yes on columns 1 and 3 (existing instances rewritten in place, the difference added or deleted, so no step leaves the forwarder without an upstream; one set per parameter): raises naming the step; one commit on column 2, one property set on column 5 |
 | `DnsForwarder.add_host_override` / `remove_host_override` | `list_host_overrides` | no |
@@ -1361,14 +1411,25 @@ recorded in §8 and in the drivers' `lossy:` lines.
 | `AdminCredential.set_password` (lever) | a new management session authenticating with the credential, opened by the test; `list_accounts` finds the account | no |
 | `NtpConfig.set_ntp_servers` (existing) | `get_ntp_servers`; `get_sync_state` for the effect | as today |
 | `DeviceLifecycle.upgrade_firmware` (lever) | `wait_for_boot`, then `info.software_version` | yes on column 5 (upload, then reboot): raises naming the step |
-| `DeviceLifecycle.import_configuration` (lever) | `wait_for_boot` where the family reboots; the test re-reads a setting it changed before the export (`wifi_bss.get_bss_config`) | no (one archive) |
+| `DeviceLifecycle.import_configuration` (lever) | `wait_for_boot` where the family reboots; the test re-reads a setting it changed after the export (`wifi_bss.get_bss_config`) | no (one archive) |
 | `Tr069Client.set_acs` | `get_acs` (passwords `None`); `is_tr069_connected` after the next inform confirms the credentials | yes on columns 1, 3 and 4 (one set or one action per parameter group): raises naming the step |
 | `Tr069Client.force_inform` (lever) | `is_tr069_connected`; the test-bed ACS's inform record | no |
-| `UspAgent.set_controller` | `get_controller`; `get_agent_state` for the effect | yes on columns 1, 3 and 4 (write the agent's file and restart the agent; one set per parameter on column 4): raises naming the step |
-| `VoiceGateway.set_sip_account` / `remove_sip_account` | `list_sip_accounts` (password `None`); `get_sip_registration` `REGISTERED` confirms the credentials | yes on columns 1, 2, 3 and 4 (one set per parameter; account section then reload on column 2; one action per parameter group on column 4): raises naming the step |
+| `UspAgent.set_controller` | `get_controller` | yes on columns 1, 3 and 4 (write the agent's file and restart the agent; one set per parameter on column 4): raises naming the step |
+| `VoiceGateway.set_sip_account` / `remove_sip_account` (`tier-staged`, M32: the grain it takes when it lands) | `list_sip_accounts` (password `None`); `get_sip_registration` `REGISTERED` confirms the credentials | yes on columns 1, 2, 3 and 4 (one set per parameter; account section then reload on column 2; one action per parameter group on column 4): raises naming the step |
 | `WifiOnboarding.cancel_wps` (lever) | `get_wps_state` | no |
 | `WifiMesh.steer_client` (existing lever) | `get_topology` showing the station on the target agent | as today |
 | `DeviceLifecycle.upgrade_firmware` (lever) on column 5 | as above | yes on column 5 (upload, then reboot): raises naming the step; every other lever above is one device step |
+
+**A write the as-found state already satisfies** (stage 4, all columns). An
+idempotent write whose requested state already holds, as the member's own
+lookup shows — a removal of what is absent, a clear of what is empty, a
+replace with the set already held — may return without sending anything; its
+docstring in the driver carries the `acknowledged:` line "a request the
+as-found state already satisfies sends nothing". A write with nothing to act
+on (a country with no radio to set it on, a WAN write with nothing to write)
+is not such a case and raises. The reference drivers apply the rule on
+clearing the DMZ host, clearing a network's access list and writing an empty
+log-server list (§8).
 
 Each member is one transition between stable states; nothing here orchestrates
 (a guest segment, a WAN failover, a reboot-and-verify is a `testoperations`
@@ -1404,7 +1465,9 @@ reads it),
 `remaining_lease_s: int | None`, `description: str | None`), `CpuLoad`,
 `ImageSource` (`url`, `checksum_sha256: str | None`), `AcsConfig`,
 `NtpSyncState`, `WpsState`, `UspController`,
-`UspAgentState`, `SipAccount`, `SipRegistration`, `FxsLine`. Reused:
+`UspAgentState` (the endpoint identifier only), and, staged with the voice
+tier (M32), `SipAccount`, `SipRegistration`, `FxsLine` and the two voice enums
+above. Reused:
 `PortMapping`, `PortMappingProtocol`, `FirewallRule`, `Zone`,
 `InterfaceDhcpConfig` and its sub-models, `DhcpLease`, `NtpServer`,
 `SyslogServer`, `PortStatusEntry`, `MemoryUtilization`, `ProcessInfo`,
@@ -1435,12 +1498,22 @@ which is the verification stage 4 runs.
 - **Reference-image inclusion** (§11 Q11): the column-3 driver cites the
   reference build's component list for every manager its `source:` lines
   rest on (§10 column 3 entries 1, 3, 5–8); a manager absent from the build
-  flips its cells to ◐ with the component named.
-- **Two CWMP clients on column 1** (§11 Q12): the column-1 driver takes the
-  data-model route for `set_acs` / `get_acs` (the object every column of the
-  data-model kind publishes) and the client's own bus interface for
-  `force_inform`; the alternative client is named in the driver's `source:`
-  lines and the choice is recorded in the review record at stage 4.
+  flips its cells to ◐ with the component named. Stage 4: the PPP manager is
+  absent, so R3–R4 on column 3 are ◐ (whether the platform's own PPP
+  parameters are served without it is unverified); the voice manager is
+  installed with its data-model version unverified; the mesh controller is
+  carried on the family's mesh build variant; the USP agent is in the build
+  (§10 column 3).
+- **Two CWMP clients on column 1** (§11 Q12): decided at stage 4. The
+  column-1 driver takes the data-model route for `set_acs` / `get_acs` (the
+  management-server object, one set per parameter: enable, URL, username,
+  password, periodic-inform enable and interval) and the CWMP client's own bus
+  object for `force_inform` and `is_tr069_connected`, because the
+  management-server object publishes no inform method. The two halves rest
+  on two clients' documentation (§10 column 1 entries 51 and 52): whether an
+  image with the data-model client registers the same bus object is
+  unverified, and stays a verification item until a source settles it.
+  Recorded in the review record (stage 4b).
 
 ## 7. Levels
 
@@ -1564,7 +1637,38 @@ documentation page for the path and the observed output of the public
 example image where the exploration lifted a cell to ✓ (R56–R58, R52).
 Multi-step writes: one set per parameter, so a rejection leaves the sets
 before it applied; the `lossy:` line says so for the WAN connection and the
-guest segment.
+guest segment. Stage 4 recorded the family facts the driver states. The
+firewall is level- and policy-based (tr181-firewall 0cfb99f) with forward
+chains only: `FORWARD` maps to `FORWARD_L_Custom_Out`, `INPUT` and `OUTPUT`
+are per-value refusals on every chain member, the default policy is the
+custom level's one DefaultPolicy, rules take effect while the custom level
+is active, and no per-rule counter is published (both counter members raise).
+The TR-069 route: `set_acs` / `get_acs` through `Device.ManagementServer.`
+(tr069-manager v1.31.3, §10 [51]: EnableCWMP, URL, Username,
+Password, PeriodicInformEnable, PeriodicInformInterval), one set per
+parameter; `force_inform` and `is_tr069_connected` through the CWMP client's
+bus object (`ubus call tr069 inform '{"event":"6 CONNECTION REQUEST"}'`,
+`ubus call tr069 status`; §10 [52], observed on prplOS 4.0.3), because
+`ManagementServer.` publishes no inform method. The two halves cite two
+clients' documents: [51] is tr069-manager's page (the `mgmt` build profile
+packages `tr069-manager`), [52]'s `tr069` bus object is icwmp's; whether a
+tr069-manager image registers the same object is unverified. NAT-PMP is
+miniupnpd's `X_PRPL-COM_IGDConfig.NATPMPPCPSupport` (one `%protected` switch
+with the daemon's own PCP server), the PCP of §10 [36]/[37] is tr181-pcp, a
+client, and IGD mappings may appear in `NAT.PortMapping` with `Origin=UPnP`
+(unverified). DPP has no data-model object: enrolment goes through the
+hostapd control interface beneath pwhm (README-DPP), source-only. The USP
+agent's only documented write path, the CI scripts, stops obuspa, installs
+the reset file and removes `/etc/obuspa.db`, resetting every run-time value
+(unverified). Radio and network limits (pwhm d98e872): TransmitPower is a
+percentage of full power (-1 auto), mapped to the dBm contract through pwhm's
+`getMaxTransmitPowerdBm(channel)` / `getCurrentTransmitPowerdBm()`
+(unverified); PossibleChannels is marked "NOT SUPPORTED YET", so
+`list_supported_channels` reads nothing on an image that leaves it empty;
+MultiAPVlanId is the backhaul's, so a per-network VLAN tag is a per-value
+refusal. The controller ODL (prplMesh eda905b) carries no agent removal and
+no backhaul constraint, and `MultiAPDevice.Backhaul.Stats` exists though the
+driver reads the parent's station entry for the backhaul link (`partial:`).
 
 **Column 2 — OpenWrt 24.10 line with icwmp.** Transport: SSH to the box; the
 configuration store through `uci` (set, add, delete, then `commit` on the
@@ -1578,25 +1682,50 @@ staged until `commit`, and staged changes outlive the call that made them: `uci
 changes` lists them and the next `commit` of that configuration applies them,
 so the leftovers of a rejected write would ride the driver's next commit. The
 driver therefore stages every write under a change-file path of its own (`uci
--P <path>` on each `set`, `add`, `delete` and on the `commit`), fresh per
-write: a rejected write's staged steps are never committed, nothing is written
-on the failure path, and the leftovers are a file in the temporary file system
-that the reboot clears. The `lossy:` line states the family fact that a commit
-also applies whatever another session staged in the default path.
+-t <path>` on each `set`, `add`, `delete` and on the `commit`), unique to the
+session and fresh per write (`/tmp/.uci-<nonce>-write_<n>`; a `-t` commit under
+a reused name would commit a rejected write's leftover delta): a rejected
+write's staged steps are never committed, nothing is written on the failure
+path, and the leftovers are a file in the temporary file system that the
+reboot clears. The flag is `-t`, not `-P`: at the 24.10 pin (uci
+16ff0badbde7e17ec3bd1f827ffe45922956cf86, cli.c:330-333) `-P` also sets
+`CLI_FLAG_NOCOMMIT`, under which `commit` returns 0 having applied nothing
+(cli.c:737-746), so a `-P` write would "succeed" with nothing applied; `-t`
+sets the save directory only. The `lossy:` line states the family fact that a
+`-t` commit also applies whatever another session staged for the same
+configuration in the default path and leaves that delta staged there, applied
+again on the other session's own commit, and that a plain `uci show` shows it
+before either commit (source-only: libuci.c:63-64, delta.c:108-123,
+delta.c:329-345; no page documents it).
 Normalisations: list options re-ordered on commit (the contract promises the
 set, §6), anonymous sections renamed (`cfg0a3b...`; the driver names every
 section it creates), booleans written as `1`/`0`. Refusal shapes are text lines
 on stderr; the driver matches them, never the success path. `source:` lines
 cite the wiki page for the section or the bus object and, for the three hostapd
 methods the wiki does not document (R27, R28), the project source at the 24.10
-tag with "source-only" stated. Voice (R54–R55) and mesh (R56–R58) are nominal
-here: the driver raises `NotSupportedError` for the PBX and for the 802.11s
-peer mesh with the source, unless stage 4 finds a published operation (§9).
+tag with "source-only" stated; hostapd also registers `wps_cancel` at the tag
+(`cancel_wps` maps, source-only). Netifd at the pin prints field names the
+ubus page does not show (`ipv4-address`, `ipv6-address`, `ipv6-prefix`,
+`dns-server`, `carrier`, `speed`; §10 [2], [8], [21]), cited source-only.
+The access point sends no Neighbor Report Request: the member sends
+`rrm_beacon_req` (`lossy:`), and `bss_transition_request` takes
+neighbour-report elements, so a BTM candidate list is a per-value refusal; no
+static tag is documented for an AP network (`wifi-vlan` serves 802.1X dynamic
+VLANs), so `set_vlan` with a tag is a per-value refusal; miniupnpd's
+`enable_natpmp` switches NAT-PMP and PCP together, so `set_enabled` on either
+is a per-value refusal; one remote log destination (`log_ip`), so more
+than one server is a per-value refusal; netifd publishes the granted lease
+time (`data.leasetime`), not its remaining part, so the driver derives an
+upper bound. Voice (R54–R55) is ✗ here at stage 4 (the PBX publishes
+no operation a voice member calls) and the mesh (R56–R58) has no controller:
+the driver composes neither tier.
 
 **Column 3 — RDK-B (rdkb-2025q4-kirkstone and later).** Transport: SSH or
 serial to the box; the TR-181 data model through `dmcli eRT` (`getv`,
 `setv`, `addtable`, `deltable`). A write is acknowledged by the tool's
-result line ("Execution succeed." / "Execution fail(error code: ...)"); a
+result line ("Execution succeed." / "Execution fail(error code:<name>(<code>))." — the
+tool prints no space after the colon, data-model-cli develop 83e0a58
+ccsp_message_bus_client_tool.c; the driver's pattern accepts both); a
 destination component that is not running yields its own error. Some write
 groups take effect only after the family's apply parameter is set (Wi-Fi:
 the radio and access-point apply flags), which the driver names as the step
@@ -1608,7 +1737,28 @@ R48, R49) are realised through the store or the file system with the
 command cited as a `source:` line and a `lossy:` line for the format. The
 reference-image question (§6, verification items) binds every `source:`
 that rests on an optional manager: the driver cites the build's component
-list beside the manager's documentation.
+list beside the manager's documentation. Stage 4 found, against the BPI layer
+(meta-cmf-bananapi `rdkb-2025q4-kirkstone` 76849e6): ppp-manager is not built
+(`rdk-ppp-manager` only with `rdkb_xdsl_ppp_manager`, unset), so R3–R4 are ◐
+and the driver writes CcspPandM's `PPP.Interface` parameters; the
+telco-voice-manager is installed, but the TR-104 v2 switch is written as
+`DISTRO_FEATURE_append` (singular, not read by bitbake) and the shared
+packagegroup keys `rdktelcovoicemanager` on that same feature, so which voice
+model is built is unverified; unified-wifi-mesh is carried on the EasyMesh
+build variant (`FEATURE_TYPE=EasyMesh`), whose data elements publish no
+network enable, agent onboarding or removal, backhaul band or channel or
+enrolment credential (the six controller-side members raise; topology,
+`Backhaul.Stats` and `ClientSteer()` map); the USP agent is built (`usppa`),
+with no agent state. The firewall is the internet-access policy table:
+forward-only (`INPUT` and `OUTPUT` refused per value), no default policy for
+forwarded traffic (FirewallLevel is a preset), and `InternetAccess.LogEntry`
+is a hit log, not a counter, so the policy pair and both counter members
+raise. OneWifi's SSID and access-point tables are static: `create_bss` claims
+the band's first unnamed disabled slot and `delete_bss` disables it
+(`lossy:`). Host overrides are marked `/etc/hosts` lines plus dnsmasq's
+SIGHUP (§10 [16]). No DHCPv6 release trigger is published (`release_ipv6`
+raises), no 802.11r parameter and no BTM or measurement request (those
+members raise).
 
 **Column 4 — FRITZ!OS 8.20 and later.** Transport: HTTP(S) on the LAN side
 only — TR-064 SOAP actions on the device's service port with digest
@@ -1620,35 +1770,88 @@ HTTP 200 with the action's response envelope; a refusal is a SOAP fault
 whose `errorCode` the driver maps (invalid action, invalid arguments, action
 failed, internal error, and the per-action codes the service documents
 list); a silent 200 on an action the service document marks as having no
-effect is treated as a refusal by the driver when the document says so.
+effect is treated as a refusal by the driver when the document says so — the
+one action so marked is `LANEthernetInterfaceConfig` SetEnable ("Writeable
+but internally ignored.", TR-064_LAN_Ethernet_Interface_Config.pdf Table 1),
+which backs no member, so the rule is the session's and no write relies on
+it. The driver relies on three reads at login (TR-064_First_Steps.pdf §3.1,
+§5.1, §6.1.3): the device description (`/tr64desc.xml`), Layer3Forwarding
+GetDefaultConnectionService (the R1 mode refusal rests on it: an IP
+connection reads `DHCP`, its addressing method unpublished, so `STATIC` never
+matches, and every accepted write sends SetConnectionType `IP_Routed`) and
+the session's own LAN address (the R31 host refusal).
 Normalisations: hostnames re-written to the family's allowed character set,
 SSIDs applied at once with a Wi-Fi restart, per-host settings keyed by the
 host's MAC. The write-narrow side of the matrix is here: thirteen ✗ cells
-and twenty-four ◐ cells (§9), each raised as `NotSupportedError` with the
+and twenty-six ◐ cells (§9), each raised as `NotSupportedError` with the
 service document as the source, or mapped with the limit stated. `source:`
 lines cite the service document (title and the action's section), retrieved
 as PDF; several documents carry wrong metadata titles, so the driver cites
-the document's file name and the action, not the metadata.
+the document's file name and the action, not the metadata. Beyond titles the
+documents carry argument-direction and table errors the driver works around
+(SetPassword's NewPassword listed "out"; UPnP SetConfig's arguments "out";
+the Hosts service's swapped host-name length limits; the USP_Controller and
+Host_Filter action lists titled "the service Hosts"). Stage 4 also recorded:
+WPS is push-button only (`X_AVM-DE_SetWPSConfig` takes pbc and stop; the PIN
+variables obsolete since history v45), so the PIN members raise (R28 ◐); the
+radio service publishes no transmit power, regulatory domain or DFS state
+(R23 ◐); the Hosts service's only mesh action is the topology path, so every
+controller-side mesh write and steering raise; the filter profiles read as
+forward-chain rules (R34); the pool's lease time has neither a Set action nor
+a state variable (the driver reports ten days, unverified); ManagementServer
+GetInfo publishes no TR-069 enable or session state; the agent's own USP
+EndpointID is in no action (the driver reports the TR-369 `os::` form built
+from DeviceInfo).
 
-**Column 5 — MikroTik RouterOS v7.** Transport: SSH to the CLI (the REST
-API is an alternative the driver may take; the operations are the same
-menus). A write is a menu command (`add`, `set`, `remove`, `enable`,
+**Column 5 — MikroTik RouterOS v7.** Transport: SSH to the CLI, or the REST
+API (the operations are the same menus; the reference driver takes REST). On
+the CLI a write is a menu command (`add`, `set`, `remove`, `enable`,
 `disable`); a success is **silent** (no output) and cited as such from the
 manual; a refusal is a text line ("failure: ...", "input does not match any
 value of ...", "no such item", "invalid value for argument"), which the
-driver matches. Reads use `print` with the terse or as-value forms. There
+driver matches. On REST (REST API page 47579162, "HTTP Methods", "Errors")
+the acknowledgement is the 2xx (a PUT returns the created object with its
+`.id`; without one the driver raises its no-acknowledgement error), a refusal is a
+status of 400 or above with `{"error","message","detail"}`, and there is no
+silent success; record-less menus (`/ip dns`, `/ip upnp`, `/system ntp
+client`, `/tr069-client`, `/interface/wifi/capsman`) are changed with POST
+`/rest/<menu>/set`, not PATCH (PATCH on a record-less menu unverified). Reads use `print` with the terse or as-value forms. There
 is no commit: each command applies at once, so a rejection in a multi-step
 write leaves the commands before it applied, and the `lossy:` line says
 so. Normalisations: item ordering by the menu's own order, `disabled=no`
 filled in, MAC addresses upper-cased, the `wifi` package versus the legacy
 `wireless` package (the driver cites the package per model; the ✓ Wi-Fi
-cells rest on the `wifi` package, named in their §10 entries). The reboot
-asks for confirmation (the driver answers it; the lever's observation is
-`wait_for_boot`). Mesh is CAPsMAN, not EasyMesh (R56–R58 ◐): the driver
-maps the controller's access-point list onto the topology with no backhaul
-links and raises for backhaul health, with the source. The documentation
+cells rest on the `wifi` package, named in their §10 entries). On the CLI the
+reboot asks for confirmation (the driver answers it); on REST the POST runs
+the reboot and no prompt arises (unverified); the lever's observation is
+`wait_for_boot`. Mesh is CAPsMAN, not EasyMesh (R56 ◐): the driver maps the
+controller's access-point list onto the topology with no backhaul links, maps
+the CAPsMAN switch (`set_enabled`) and raises for backhaul health (R57 ✗),
+for steering (R58 ✗: the Steering section has properties only, no command
+addressing one client) and for the other controller-side writes (a CAP joins
+from its own side), with the source. 802.11r is published (`security.ft`,
+`security.ft-over-ds`), so `set_ft_enabled` maps; the band-steering switch and
+the three frame senders raise. Per-rule firewall counters exist (a
+`passthrough` rule increments them) but their fields are undocumented on the
+Filter page, so both counter members raise; the three predefined chains have
+no default policy (the policy pair and the flush raise). The profiler reports
+CPU usage per process class without process ids, so `read_running_processes`
+raises. The `wifi` package documents no CAC or non-occupancy read
+(`get_dfs_state` raises), and the country is a country name mapped through a
+table of ISO codes (`lossy:`). Kid Control holds one allowed range per
+weekday: a block that is not one range per day is a per-value refusal. The documentation
 site the exploration cited carries a "frozen" banner pointing at its
 successor (§10); the driver cites the successor page where one exists.
+
+**All columns — a write the as-found state already satisfies** (§6, method
+grain). The reference drivers return without sending when the member's own
+lookup shows the requested state already holds, and say so in an
+`acknowledged:` line ("a request the as-found state already satisfies sends
+nothing"): `set_dmz_host(None)` with no DMZ entry (columns 1, 2 and 5),
+`clear_acl` with no entries (columns 1, 2, 3 and 5), `set_syslog_servers([])`
+with none of the driver's log actions present (columns 1, 2 and 5). A write
+with nothing to act on raises instead (column 5's `set_country` with no radio
+to set it on).
 
 ## 9. Verification
 
@@ -1663,12 +1866,13 @@ Columns are named by their position in §2.
 
 - **Column 1 (trigger family 1):** every core member realised through the
   data model, with the configuration store beneath it for the zone reads
-  (R30) and the inform trigger (R52); the three tiers implemented (voice
-  with the nominal cells below; mesh through the controller's data model;
-  USP through the agent's own files, `connected` as `None`). The TR-069
-  route is decided here (§6, verification items): the data-model object for
-  `set_acs` / `get_acs`, the client's bus object for `force_inform`, the
-  choice recorded in the review record.
+  (R30) and the inform trigger (R52); two tiers implemented (mesh through
+  the controller's data model, the controller side in part: `remove_agent`
+  and the backhaul band and channel raise, backhaul health in part; USP
+  through the agent's own files), voice absent (R54–R55 ✗ at stage 4). The
+  TR-069 route is decided (§6, verification items): the data-model object for
+  `set_acs` / `get_acs`, the client's bus object for `force_inform` and
+  `is_tr069_connected`, recorded in the review record.
 - **Column 2 (trigger family 2):** every core member realised through the
   configuration store and the bus, with the staged-commit failure outcome
   stated, except the three documented per-method unsupported cases on this
@@ -1676,46 +1880,53 @@ Columns are named by their position in §2.
   board read publishes neither) and `ntp.get_sync_state` (R44 ◐), listed
   under Stated risks; the three access-point bus methods the wiki leaves undocumented
   cited as source-only (R27, R28); no tier
-  satisfied: the voice and mesh members raise `NotSupportedError` with the
-  package feed and the peer-mesh source (R54–R58), the USP tier is absent
-  (R53 ✗).
+  satisfied: voice is ✗ (R54–R55, the PBX publishes no operation a member
+  calls), the mesh has no controller (R56–R57 ✗; R58's plain-AP roaming has
+  no member to carry it) and the USP tier is absent (R53 ✗).
 - **Column 3:** every core member realised through the data-model tool,
   with the apply-parameter step named for the Wi-Fi writes and the shell
   store cited for the three "shell only" cells (R16, R48, R49);
-  `tr069_client.force_inform` raises (R52 ◐, no trigger published); the voice
-  and mesh tiers implemented against the optional components, each
-  `source:` beside the reference build's component list (§6, verification
-  items), and flipped to ◐ or ✗ where the component is absent; USP
-  implemented through the agent's file with `connected` as `None`.
+  `tr069_client.force_inform` raises (R52 ◐, no trigger published); the
+  `source:` lines beside the reference build's component list (§6,
+  verification items): R3–R4 ◐ (no PPP manager in the build); the mesh tier
+  implemented on the family's mesh build variant (topology, backhaul health
+  and steering map, the six controller-side configuration members raise);
+  USP implemented through the agent's file; voice, installed with its
+  data-model version unverified, holds the tier on two columns only and is
+  staged with it.
 - **Column 4:** the read-rich, write-narrow column: every core member
   present, with the thirteen ✗ cells raising `NotSupportedError` and the
-  twenty-four ◐ cells mapped with their limit or raising for the part the
+  twenty-six ◐ cells mapped with their limit or raising for the part the
   column lacks (R1 mode changes, R5, R9, R13, R15, R17, R18, R27, R29, R30,
   R33, R41, R43, R58 raise; R2, R3, R6, R7, R10, R11, R12, R16, R19, R20,
-  R21, R22, R31, R34, R36, R37, R40, R44, R47, R52, R53, R55, R57 map or
-  raise in part; `force_inform` and `get_sync_state` raise); the voice tier implemented (SIP accounts at ✓, FXS hook
-  state `None`); the mesh tier implemented from the topology JSON behind the
-  session-ID login (backhaul health in part, no steering); the USP tier
-  implemented from the service document with `connected` as `None`. No
-  white-box extension satisfied.
-- **Column 5:** every core member realised through the CLI with the silent
-  success cited; the five ✗ cells raising (R17, R53, R54, R55, R57) and
-  `force_inform` raising (R52 ◐); the
-  mesh tier implemented from the controller's access-point list (topology
-  without backhaul links; steering as the 802.11v suggestion; backhaul
-  health raising); the voice and USP tiers absent; the `wifi` package cited
-  per model for the Wi-Fi cells.
+  R21, R22, R23, R28, R31, R34, R36, R37, R40, R44, R47, R52, R53, R55, R57
+  map or raise in part; `force_inform` and `get_sync_state` raise, and so do
+  the PIN members, `get_tx_power`, `get_country` and `get_dfs_state`); the
+  mesh tier implemented from the topology JSON behind the session-ID login
+  (backhaul health in part; every controller-side write and steering raise);
+  the USP tier implemented from the service document; voice (SIP accounts at
+  ✓, FXS hook state unpublished) staged with its tier. No white-box extension
+  satisfied.
+- **Column 5:** every core member realised through the management API
+  (CLI or REST; §8 names the acknowledgement of each); the six ✗ cells raising
+  (R17, R53, R54, R55, R57, R58) and `force_inform` raising (R52 ◐); the
+  mesh tier implemented in part from the controller's access-point list
+  (topology without backhaul links and the controller switch; backhaul
+  health and steering raising); the voice and USP tiers absent; the `wifi`
+  package cited per model for the Wi-Fi cells.
 
 ### Reference-driver expectations per tier
 
 | Tier | Column 1 | Column 2 | Column 3 | Column 4 | Column 5 |
 | --- | --- | --- | --- | --- | --- |
-| `voice` (`VoiceGateway`) | implemented (nominal: a stub plugin; see Stated risks) | implemented through the PBX's own configuration and CLI (nominal; see Stated risks) | implemented (optional component; see verification items) | implemented; `hook_state` `None` | absent (R54–R55 ✗) |
-| `mesh` (`WifiMesh`) | implemented; backhaul health in part (R57 ◐) | absent (R56–R57 ✗; R58 is plain-AP roaming, raises) | implemented (controller source; nominal) | implemented; steering raises (R58 ✗) | implemented in part: topology without backhaul links, backhaul health raises (R57 ✗), steering as 802.11v suggestion |
-| `usp` (`UspAgent`) | implemented; `connected` `None` | absent (R53 ✗) | implemented; `connected` `None` | implemented; `connected` `None` | absent (R53 ✗) |
+| `voice` (`VoiceGateway`; `tier-staged`) | absent (R54–R55 ✗) | absent (R54–R55 ✗) | evidenced (installed; data-model version unverified) | evidenced (`hook_state` unpublished) | absent (R54–R55 ✗) |
+| `mesh` (`WifiMesh`) | implemented; controller side in part (`remove_agent`, backhaul band and channel raise); backhaul health in part (R57 ◐) | absent (R56–R57 ✗; R58 is plain-AP roaming, no member) | implemented on the mesh build variant; the six controller-side configuration members raise | implemented; every controller-side write and steering raise (R58 ✗) | implemented in part: topology without backhaul links and `set_enabled`; backhaul health (R57 ✗) and steering (R58 ✗) raise |
+| `usp` (`UspAgent`) | implemented | absent (R53 ✗) | implemented | implemented | absent (R53 ✗) |
 
-A column whose driver does not satisfy a tier registers under `cpe_gateway`
-only; a column that satisfies a tier in part implements the tier with the
+As built at stage 4: the voice tier is staged (two columns evidence it, so
+it is in no driver); the mesh tier is on columns 1, 3, 4 and 5 and the USP
+tier on columns 1, 3 and 4. A column whose driver does not satisfy a tier
+registers under `cpe_gateway` only; a column that satisfies a tier in part implements the tier with the
 documented per-method unsupported cases, as a core member with a ◐ cell
 does.
 
@@ -1732,10 +1943,10 @@ per-column unsupported case inside the tier.
 
 | Cells | What the cell rests on | If stage 4 finds no operation |
 | --- | --- | --- |
-| R54–R55, column 1 | a voice plugin repository that publishes no parameters | cells flip to ✗; voice keeps columns 2, 3 and 4 (three of five) and stays built; the column-1 driver raises |
-| R54–R55, column 2 | a PBX from a package feed, reached through its own configuration files and CLI | cells flip to ✗; voice keeps columns 1, 3 and 4 and stays built; if columns 1 **and** 2 both flip, voice keeps columns 3 and 4 only and drops to `tier-staged` with its rows re-outcomed |
-| R56–R58, column 3 | controller source whose porting to the reference platform is marked ongoing, no documentation of the paths | cells flip to ✗; the topology (R56) keeps columns 1, 4 and 5 and the tier stays built; steering (R58) keeps columns 1, 2 and 5 by count but is implemented on columns 1 and 5 only, column 2's cell being plain-AP roaming whose driver raises (above); backhaul health (R57) keeps columns 1 and 4 only and becomes a per-column unsupported case on columns 2, 3 and 5 |
-| R53, column 1 | build-profile and CI scripts, no agent-state documentation | the cell flips to ✗; USP keeps columns 3 and 4 only and drops to `tier-staged` with its rows re-outcomed |
+| R54–R55, column 1 | a voice plugin repository that publishes no parameters | cells flip to ✗; voice keeps columns 2, 3 and 4 (three of five) and stays built; the column-1 driver raises. **Stage 4: flipped** (the default branch publishes no parameter) |
+| R54–R55, column 2 | a PBX from a package feed, reached through its own configuration files and CLI | cells flip to ✗; voice keeps columns 1, 3 and 4 and stays built; if columns 1 **and** 2 both flip, voice keeps columns 3 and 4 only and drops to `tier-staged` with its rows re-outcomed. **Stage 4: flipped**, with column 1: voice keeps columns 3 and 4, two of five, and is `tier-staged` (M3, M32) |
+| R56–R58, column 3 | controller source whose porting to the reference platform is marked ongoing, no documentation of the paths | cells flip to ✗; the topology (R56) keeps columns 1, 4 and 5 and the tier stays built; steering (R58) keeps columns 1, 2 and 5 by count but is implemented on columns 1 and 5 only, column 2's cell being plain-AP roaming whose driver raises (above); backhaul health (R57) keeps columns 1 and 4 only and becomes a per-column unsupported case on columns 2, 3 and 5. **Stage 4: no flip** — the controller is carried on the family's mesh build variant, the cells stay ◐. With R58 ✗ on column 5: the topology keeps columns 1, 3, 4 and 5 and the tier stays built; steering keeps columns 1, 2 and 3 by count and is implemented on columns 1 and 3; backhaul health keeps columns 1, 3 and 4 and is a per-column unsupported case on columns 2 and 5 |
+| R53, column 1 | build-profile and CI scripts, no agent-state documentation | the cell flips to ✗; USP keeps columns 3 and 4 only and drops to `tier-staged` with its rows re-outcomed. **Stage 4: no flip** — the driver configures the agent through the build profile's reset file and its CLI; USP keeps columns 1, 3 and 4 and stays built |
 | R30, columns 1, 3, 4 and 5 | zone defaults readable in part or not at all; the zone writes of `FirewallZones` are published by column 2 only | no flip: the zone writes are a per-method unsupported case on four columns, including trigger column 1, so a test of zone writes runs on one family |
 | R39, column 2 | the board read publishes model and software version but neither manufacturer nor serial number | no flip: two of five identity properties raise on a trigger column, a documented per-method unsupported case; if a board-level read is sourced at stage 4 the case closes |
 | R44, column 2 | the server list is published; the synchronisation state needs a package the family does not document | no flip: `get_sync_state` raises on a trigger column (and on column 4), a documented per-method unsupported case |
@@ -1754,17 +1965,17 @@ PHY-specific reads; columns 1, 2 and 3 map most of them.
 | Protocol | Members without a row | Expected |
 | --- | --- | --- |
 | `FirewallZones` | `create_zone`, `delete_zone`, `add_zone_interface`, `remove_zone_interface`, `add_zone_network`, `remove_zone_network`, `set_zone_defaults`, `set_forwarding`, `list_forwarding` (R30 is the read) | mapped on column 2 (a zone model); raise on columns 1, 3, 4 and 5 (no zone object, R30 ◐/✗) |
-| `Firewall` | `set_dmz_host`, `get_dmz_host`, `set_port_mapping_enabled`; the inherited `flush_chain`, `set_default_policy`, `get_default_policy`, `get_rule_counter_values` | DMZ mapped on columns 1, 2, 3 and 5, raises on column 4; the chain members mapped on columns 1, 2 and 3, raise on columns 4 and 5 |
-| `WifiRadio` | `set_mode`, `get_mode`, `get_modes`, `set_country`, `get_country`, `get_dfs_state`, `list_supported_channels` | mapped on columns 1, 2, 3 and 5; column 4 raises the setters |
-| `WifiBss` | `set_acl_mode`, `add_acl_entry`, `remove_acl_entry`, `clear_acl`, `get_acl`, `set_vlan`, `set_max_clients`, `set_dtim_period`, `set_captive_portal`, `create_bss`, `delete_bss` | mapped on columns 1, 2, 3 and 5 except the captive portal (raises everywhere but column 2); column 4 raises the access list, VLAN, DTIM and portal members |
+| `Firewall` | `set_dmz_host`, `get_dmz_host`, `set_port_mapping_enabled`; the inherited `flush_chain`, `set_default_policy`, `get_default_policy`, `get_rule_counter_values` | DMZ mapped on columns 1, 2, 3 and 5, raises on column 4; as built at stage 4, `flush_chain` maps on columns 1, 2 and 3, the default-policy pair on columns 1 and 2, the counter pair on column 2 only, each raising elsewhere (columns 1 and 3 have forward chains only; column 5's counters exist with undocumented fields, §6 Port forwards) |
+| `WifiRadio` | `set_mode`, `get_mode`, `get_modes`, `set_country`, `get_country`, `get_dfs_state`, `list_supported_channels` | mapped on columns 1, 2, 3 and 5, except `get_dfs_state`, which raises on columns 3, 4 and 5 (no channel-availability state); column 4 raises the setters and `get_country` (and, of the row-bearing reads, `get_tx_power`); column 3 raises the dBm power pair (a percentage only, R22) |
+| `WifiBss` | `set_acl_mode`, `add_acl_entry`, `remove_acl_entry`, `clear_acl`, `get_acl`, `set_vlan`, `set_max_clients`, `set_dtim_period`, `set_captive_portal`, `create_bss`, `delete_bss` | mapped on columns 1, 2, 3 and 5 except the captive portal (raises everywhere but column 2); `set_vlan` with a tag is a per-value refusal on columns 1, 2 and 3 (no static per-network tag) and maps on column 5; column 3's `create_bss` / `delete_bss` claim and release a static slot; column 4 raises the access list, VLAN, DTIM and portal members and `set_max_clients` and `get_acl`, reads DTIM 1, and maps `create_bss` / `delete_bss` onto the guest network |
 | `WifiStations` | `get_station` | mapped on all five |
-| `WifiTransitions` | `get_transition_config`, `send_btm_request`, `send_neighbor_report_request`, `send_deauth` | mapped on columns 1, 2 and 3; column 4 raises all four; column 5 maps the config read and raises the frame senders |
-| `WifiOnboarding` | `set_wps_enabled`, `get_wps_enabled`, `get_wps_device_pin`, `enroll_client_via_dpp` | enable and PIN mapped on columns 1, 2, 3 and 4 (column 5 raises the PIN); DPP mapped on column 1, raises elsewhere |
-| `DhcpClient` | `release_ipv6`, `renew_ipv6`, `observe_lease`, `release_observed_lease` | the IPv6 pair mapped on columns 1, 2, 3 and 5, raises on column 4; the observation pair is a host lever and raises on every column |
+| `WifiTransitions` | `get_transition_config`, `send_btm_request`, `send_neighbor_report_request`, `send_deauth` | column 4 raises all four; columns 1 and 2 map them, the "neighbour report request" sent as a radio-measurement (beacon) request (`lossy:`), column 2 refusing a BTM candidate list per value; column 3 maps the config read and the deauth (the forced disassociation) and raises both request senders and `set_ft_enabled` (no 802.11r); column 5 maps the config read and 802.11r (`set_ft_enabled`) and raises the three frame senders |
+| `WifiOnboarding` | `set_wps_enabled`, `get_wps_enabled`, `get_wps_device_pin`, `enroll_client_via_dpp` | enable mapped on columns 1, 2, 3 and 4; the PIN on columns 1, 2 and 3 (columns 4 and 5 raise it: obsolete on column 4); DPP mapped on column 1 (through the access-point daemon's control interface, source-only), raises elsewhere; column 2 also maps `cancel_wps` (source-only) |
+| `DhcpClient` | `release_ipv6`, `renew_ipv6`, `observe_lease`, `release_observed_lease` | the IPv6 pair mapped on columns 1, 2 and 5, raises on column 4; column 3 maps `renew_ipv6` and raises `release_ipv6` (no release trigger); the observation pair is a host lever and raises on every column |
 | `DeviceLifecycle` | `finalize_boot` | mapped on all five (a no-op completion where the family has nothing to finalise, stated in the docstring) |
 | `Tr069Client` | `get_id`, `get_tr069_log` | mapped on all five; the log read raises on column 4 |
 | `DeviceHealth` | `is_online` | mapped on all five (the session answers) |
-| `WifiMesh` (tier) | `set_enabled`, `set_backhaul_band`, `set_backhaul_channel`, `add_agent`, `remove_agent`, `set_mesh_psk_for_enrollment` (controller side); `get_dpp_uri`, `start_dpp_enrollee`, `trigger_wps_enrollee` (agent side) | controller-side members mapped on columns 1 and 4, in part on column 5, raise on column 3 until its controller lands; the agent-side members raise on every column whose device acts as controller only — they exist for a device that is also an agent (the protocol's `CONTROLLER_AND_AGENT` role), which this archetype does not drive (§1) |
+| `WifiMesh` (tier) | `set_enabled`, `set_backhaul_band`, `set_backhaul_channel`, `add_agent`, `remove_agent`, `set_mesh_psk_for_enrollment` (controller side); `get_dpp_uri`, `start_dpp_enrollee`, `trigger_wps_enrollee` (agent side) | controller-side members as built at stage 4: column 1 in part (`set_enabled`, `add_agent` with push-button, PIN and passphrase, `set_mesh_psk_for_enrollment` map; `remove_agent` and the backhaul band and channel raise); column 3 none (all six raise on the mesh build variant); column 4 none (the mesh surface is a read-only topology, §10 column 4 [58]); column 5 `set_enabled` only; the agent-side members raise on every column whose device acts as controller only — they exist for a device that is also an agent (the protocol's `CONTROLLER_AND_AGENT` role), which this archetype does not drive (§1) |
 
 The protocols without such members are `PortStatus`, `DhcpClient`'s v4 pair,
 `InterfaceDhcp`, `SyslogConfig`, `NtpConfig`, `WanLinkAdmin` and
@@ -1772,19 +1983,24 @@ The protocols without such members are `PortStatus`, `DhcpClient`'s v4 pair,
 
 ### Verification items (exploration)
 
-Every ◐ and ✗ cell of §2 as it stands, by column and row id (the cell text
-and its source stand in §2 and §10); stage 4 settles each as an explicit
-`NotSupportedError` with a source or as a sourced mapping. 105 items.
+Every ◐ and ✗ cell of §2 as it stands after stage 4, by column and row id
+(the cell text and its source stand in §2 and §10); stage 4 settled each as
+an explicit `NotSupportedError` with a source or as a sourced mapping. 109
+items: the exploration's 105, with four ✓ cells re-graded to ◐ (R3 and R4 on
+column 3, R23 and R28 on column 4) and five ◐ cells flipped to ✗ (R54 and R55
+on columns 1 and 2, R58 on column 5), which moves no count.
 
-- **Column 1 (trigger family 1)** (8): ◐ R30, R37, R47, R52, R53, R54, R55, R57; ✗ none
-- **Column 2 (trigger family 2)** (20): ◐ R5, R7, R10, R14, R19, R21, R27, R28, R37, R38, R39, R44, R47, R52, R54, R55, R58; ✗ R53, R56, R57
-- **Column 3** (18): ◐ R16, R17, R20, R22, R29, R30, R33, R36, R37, R48, R49, R52, R53, R54, R55, R56, R57, R58; ✗ none
-- **Column 4** (37): ◐ R1, R2, R3, R6, R7, R10, R11, R12, R16, R19, R20, R21, R22, R31, R34, R36, R37, R40, R44, R47, R52, R53, R55, R57; ✗ R5, R9, R13, R15, R17, R18, R27, R29, R30, R33, R41, R43, R58
-- **Column 5** (22): ◐ R1, R4, R5, R7, R20, R23, R25, R28, R29, R30, R36, R38, R41, R47, R52, R56, R58; ✗ R17, R53, R54, R55, R57
+- **Column 1 (trigger family 1)** (8): ◐ R30, R37, R47, R52, R53, R57; ✗ R54, R55
+- **Column 2 (trigger family 2)** (20): ◐ R5, R7, R10, R14, R19, R21, R27, R28, R37, R38, R39, R44, R47, R52, R58; ✗ R53, R54, R55, R56, R57
+- **Column 3** (20): ◐ R3, R4, R16, R17, R20, R22, R29, R30, R33, R36, R37, R48, R49, R52, R53, R54, R55, R56, R57, R58; ✗ none
+- **Column 4** (39): ◐ R1, R2, R3, R6, R7, R10, R11, R12, R16, R19, R20, R21, R22, R23, R28, R31, R34, R36, R37, R40, R44, R47, R52, R53, R55, R57; ✗ R5, R9, R13, R15, R17, R18, R27, R29, R30, R33, R41, R43, R58
+- **Column 5** (22): ◐ R1, R4, R5, R7, R20, R23, R25, R28, R29, R30, R36, R38, R41, R47, R52, R56; ✗ R17, R53, R54, R55, R57, R58
 
-Three further items from §6: the TR-069 route on column 1, the reference
-build's component list on column 3, and the re-check of every cited URL
-when the drivers cite it.
+Three further items from §6, settled at stage 4: the TR-069 route on column
+1 (decided; the two-clients question stays unverified), the reference build's
+component list on column 3 (checked; R3–R4 re-graded), and the re-check of
+every cited URL when the drivers cite it (done through their `source:`
+lines).
 
 ### Precise types in the corpus
 
@@ -1856,10 +2072,10 @@ in the package source, not in this design record.
 49. tr181-deviceinfo (README + odl) — <https://gitlab.com/prpl-foundation/components/core/plugins/tr181-deviceinfo> — odl/deviceinfo-manager_definition.odl `%async void Restore(URL, Username, Password, FileSize, TargetFileName, CheckSumAlgorithm, CheckSum)` — DM: `DeviceInfo.VendorConfigFile.{i}.Restore(URL=…)` downloads and applies a configuration file
 50. tr181-usermanagement ODL — <https://gitlab.com/prpl-foundation/components/core/plugins/tr181-usermanagement/-/tree/main/odl> — tr181-usermanagement_user.odl `User[]` `Username`, `Password`, `'${global_vendor_prefix_}HashedPassword'`, `Enable`, `RoleParticipation` — DM: `Users.User.{i}.Password` (or `X_PRPL-COM_HashedPassword`) writable; change events are applied to the system account
 51. prplOS TR-181 Data Model documentation — <https://prpl-foundation.gitlab.io/prplos/feeds/feed-prpl/> — page `ManagementServer..html` (tr069-manager v1.31.3): `EnableCWMP`, `URL`, `Username`, `Password`, `PeriodicInformEnable`, `PeriodicInformInterval`, `PeriodicInformTime` (persistent) — DM: tr069-manager's `ManagementServer.URL/Username/Password/PeriodicInformEnable/PeriodicInformInterval` are writable; substrate alternative UCI `cwmp.acs.url/username/password/periodic_inform_enable/periodic_inform_interval` (prplOS wiki "ucwmpd"; icwmp docs/api/uci/cwmp.md)
-52. iCWMP ubus API (tr069) — <https://dev.iopsys.eu/bbf/icwmp/-/blob/devel/docs/api/ubus/tr069.md> — methods `inform` ("Ubus method to handle RPC"), `status` ("last_session", "next_session") — UCI/ubus substrate: `ubus call tr069 inform` triggers a session, `ubus call tr069 status` reports session state — both observed, prplOS 4.0.3, impls/cpe_tr069.py; DM side (tr069-manager) reads `ManagementServer.State.SessionStatus` (Initializing/idle/busy/failure), `LastSession`, `ConnRequest.ConnRequestPort/Path` and offers `updateConnectionRequestURL()` but no inform-trigger method
+52. iCWMP ubus API (tr069) — <https://dev.iopsys.eu/bbf/icwmp/-/blob/devel/docs/api/ubus/tr069.md> — methods `inform` ("Ubus method to handle RPC"), `status` ("last_session", "next_session") — UCI/ubus substrate: `ubus call tr069 inform` triggers a session, `ubus call tr069 status` reports session state — both observed, prplOS 4.0.3, impls/cpe_tr069.py; DM side (tr069-manager) reads `ManagementServer.State.SessionStatus` (Initializing/idle/busy/failure), `LastSession`, `ConnRequest.ConnRequestPort/Path` and offers `updateConnectionRequestURL()` but no inform-trigger method. Stage 4 route: `set_acs` / `get_acs` through `Device.ManagementServer.` ([51], tr069-manager v1.31.3), `force_inform` and `is_tr069_connected` through this `tr069` bus object (icwmp's); whether a tr069-manager image registers the same bus object is unverified
 53. prplos (build profiles + CI DUT scripts) — <https://gitlab.com/prpl-foundation/prplos/prplos> — profiles/mgmt.yml (`obuspa`, `mod-amxb-usp`, `CONFIG_OBUSPA_WEBSOCKET_MTP_SUPPORT`); .gitlab/scripts/dut-init/obuspa_param_reset-mqtt.txt (`Device.LocalAgent.Controller.1.EndpointID/Enable/MTP.1.Protocol/MQTT.Reference/MQTT.Topic`); cdrouter-dut-configure-usp-common.sh (`obuspa -c get Device.LocalAgent.MTP.1.Protocol`) — USP agent (obuspa) in the prplOS `mgmt` profile: controller endpoint and MTP (MQTT/WebSocket) are written through obuspa's factory-reset file `/etc/config/obuspa_param_reset.txt` and read back with `obuspa -c get Device.LocalAgent.…` — obuspa CLI, not ba-cli
-54. tr104-voip plugin repository — <https://gitlab.com/prpl-foundation/components/core/plugins/tr104-voip> — README: "tr181-voip is a service providing VoiceService:2 data model" (repo contains only LICENSE + README) — prplOS lists a voice plugin but publishes no ODL/README naming SIP account (`VoiceService.{i}.SIP.Client`) or registration state; not in any prplos build profile
-55. tr104-voip plugin repository — <https://gitlab.com/prpl-foundation/components/core/plugins/tr104-voip> — README (single sentence) — No prplOS source names FXS/POTS line state (`VoiceService.{i}.POTS.FXS`); only the TR-104 stub exists
+54. tr104-voip plugin repository — <https://gitlab.com/prpl-foundation/components/core/plugins/tr104-voip> — README: "tr181-voip is a service providing VoiceService:2 data model" (repo contains only LICENSE + README) — prplOS lists a voice plugin but publishes no ODL/README naming SIP account (`VoiceService.{i}.SIP.Client`) or registration state; not in any prplos build profile. Stage 4: the default branch `main` at 65f9575 (the only tag v0.0.0) holds LICENSE and the one-sentence README, no ODL — R54 ✗
+55. tr104-voip plugin repository — <https://gitlab.com/prpl-foundation/components/core/plugins/tr104-voip> — README (single sentence) — No prplOS source names FXS/POTS line state (`VoiceService.{i}.POTS.FXS`); only the TR-104 stub exists. Stage 4: no `POTS.FXS` object on the default branch at 65f9575 — R55 ✗
 56. prplOS TR-181 Data Model documentation — <https://prpl-foundation.gitlab.io/prplos/feeds/feed-prpl/> — pages `Device.WiFi.DataElements.Network.Device.{i}..html` (`ID`, `Manufacturer`, `SerialNumber`, `SoftwareVersion`, `InterfaceNumberOfEntries`) and `…Device.{i}.MultiAPDevice.Backhaul..html` (`LinkType`, `BackhaulMACAddress`, `BackhaulDeviceID`, `MACAddress`) — prplMesh 4.2.3 controller.odl/device.odl — DM (prplMesh controller): `Device.WiFi.DataElements.Network.Device.{i}` lists agents, `Radio.{i}`/`Interface.{i}.Neighbor.{i}` the links and `MultiAPDevice.Backhaul` the upstream link type/MACs, read-only via ba-cli
 57. prplOS TR-181 Data Model documentation — <https://prpl-foundation.gitlab.io/prplos/feeds/feed-prpl/> — pages `…MultiAPDevice.Backhaul..html` (`LinkType`, `BackhaulMACAddress`), `…Radio.{i}.BackhaulSta..html` (`MACAddress`), `…Radio.{i}.BSS.{i}.STA.{i}..html` (`SignalStrength`, `EstMACDataRateDownlink/Uplink`, `LastDataDownlinkRate`, `UtilizationReceive`) — DM: the backhaul link itself exposes only type and MACs; health metrics must be read from the backhaul STA's entry under the parent agent's `BSS.{i}.STA.{i}` (prplMesh 4.2.3)
 58. prplOS TR-181 Data Model documentation — <https://prpl-foundation.gitlab.io/prplos/feeds/feed-prpl/> — page `Device.WiFi.DataElements.Network..html`: `void ClientSteering(in <mandatory> string station_mac, in <mandatory> string target_bssid)` (prplMesh 4.2.3 controller.odl) — DM (prplMesh controller): `Device.WiFi.DataElements.Network.ClientSteering(station_mac=…, target_bssid=…)` steers a client to another agent's BSS; `BTMSteeringDisallowedSTAList`/`SteerEvent.{i}` are the related read objects
@@ -1867,13 +2083,13 @@ in the package source, not in this design record.
 ### OpenWrt 24.10 line with icwmp
 
 1. IPv4 configuration — <https://openwrt.org/docs/guide-user/network/ipv4/configuration> — Protocol "static" / Protocol "dhcp" (`proto`, `ipaddr`, `netmask`, `gateway`) — option tables for `proto static` and `proto dhcp` on the WAN interface; PPPoE is `proto pppoe` on the WAN protocols page; IPoE = dhcp/static
-2. ubus (techref) — <https://openwrt.org/docs/techref/ubus> — `ubus call network.interface.wan status` (`up`, `pending`, `uptime`, `address`, `route`, `data`) — status call returns interface up/pending state, uptime and address list (lease data in `data`; `ifstatus wan6` shows prefix lifetimes on the IPv6 page)
+2. ubus (techref) — <https://openwrt.org/docs/techref/ubus> — `ubus call network.interface.wan status` (`up`, `pending`, `uptime`, `address`, `route`, `data`) — status call returns interface up/pending state, uptime and address list (lease data in `data`; `ifstatus wan6` shows prefix lifetimes on the IPv6 page). Stage 4: netifd at the 24.10 pin (7901e66, ubus.c) prints `ipv4-address`, `ipv6-address`, `ipv6-prefix` and `dns-server`, not the page's `address`; the field names are cited source-only, the operation stands on the page
 3. WAN interface protocols — <https://openwrt.org/docs/guide-user/network/wan/wan_interface_protocols> — `pppoe`: `username`, `password`, `service`, `ac` — the PPPoE option table names username, password and service (plus ac, keepalive, padi_*)
 4. Network configuration /etc/config/network — <https://openwrt.org/docs/guide-user/network/network_configuration> — `ifdown <name>` / `ifup <name>` (`ubus list network.interface.*`) — interfaces are brought down and up individually with ifdown/ifup, which restarts the PPPoE session
 5. ISP configurations — <https://openwrt.org/docs/guide-user/network/wan/isp-configurations> — `config device` / `option type '8021q'` / `option ifname 'wan'` / `option vid '…'`; `option device 'wan.<vid>'` — many ISP examples define a tagged WAN device by `type 8021q` + `vid` (or legacy `eth0.7`); no `ingress/egress_qos_mapping` on any wiki page
 6. IPv6 configuration — <https://openwrt.org/docs/guide-user/network/ipv6/configuration> — Protocol "dhcpv6": `reqaddress`, `reqprefix`; LAN `ip6assign`; `ifstatus wan6` → `ipv6-prefix` — wan6 is `proto dhcpv6` with `reqprefix` (auto/no/1-64), and `ifstatus wan6` lists the delegated `ipv6-prefix` with lifetimes and `assigned` sub-prefixes
 7. ubus (techref) — <https://openwrt.org/docs/techref/ubus> — `network.interface.<name> status` (`up`, `address`) — there is no provisioning-mode object; v4/v6/dual is inferred from which of wan/wan6 is up with addresses
-8. ubus (techref) — <https://openwrt.org/docs/techref/ubus> — `ubus call network.device status '{"name":"eth0"}'` → `up`, `link`, `mtu`, `macaddr`, `statistics` — device status reports the carrier `link` flag and counters for the WAN device
+8. ubus (techref) — <https://openwrt.org/docs/techref/ubus> — `ubus call network.device status '{"name":"eth0"}'` → `up`, `link`, `mtu`, `macaddr`, `statistics` — device status reports the carrier `link` flag and counters for the WAN device. Stage 4: netifd at the 24.10 pin (7901e66, device.c) prints `carrier`; the field name is cited source-only
 9. Network configuration /etc/config/network — <https://openwrt.org/docs/guide-user/network/network_configuration> — interface options `disabled`, `auto`; `ifup`/`ifdown` — interface section has `disabled` and `auto` options; ifup/ifdown change the running state
 10. Network configuration /etc/config/network — <https://openwrt.org/docs/guide-user/network/network_configuration> — `ifdown wan` ; `ifup wan` — lease release/re-acquire is documented only as ifdown then ifup (netifd's `network.interface.<name> renew` exists in ubus.c but no wiki page shows it)
 11. DHCP and DNS configuration — <https://openwrt.org/docs/guide-user/base-system/dhcp> — `config dhcp`: `start`, `limit`, `leasetime`, `interface`, `ignore` — pool section defines offset, size and lease time per interface
@@ -1886,7 +2102,7 @@ in the package source, not in this design record.
 18. Network configuration /etc/config/network — <https://openwrt.org/docs/guide-user/network/network_configuration> — `config device` `type bridge`, `list ports`; wifi-iface `network` (wireless page) — bridge membership is the device `ports` list; wireless networks join via the wifi-iface `network` option
 19. Network configuration /etc/config/network — <https://openwrt.org/docs/guide-user/network/network_configuration> — `config device` `ports` (read with `uci show network`) — configured membership is readable from UCI; the DSA page reads live VLAN/port tables with `bridge v`, no ubus field is documented
 20. Guest Wi-Fi basics — <https://openwrt.org/docs/guide-user/network/wifi/guestwifi/guest-wlan> — `uci set network.guest=interface` … `firewall.guest=zone` `input=REJECT` `forward=REJECT`, `forwarding guest→wan` — full UCI recipe for an isolated guest bridge, SSID, DHCP pool and zone
-21. ubus (techref) — <https://openwrt.org/docs/techref/ubus> — `network.device status` → `link`, `up` — only link state is exposed uniformly; speed/duplex appear as device write options (`speed`, `duplex`, `autoneg`) and swconfig's `link` attribute, not a uniform read API
+21. ubus (techref) — <https://openwrt.org/docs/techref/ubus> — `network.device status` → `link`, `up` — only link state is exposed uniformly; speed/duplex appear as device write options (`speed`, `duplex`, `autoneg`) and swconfig's `link` attribute, not a uniform read API. Stage 4: the same reply carries `speed` (`"1000F"`: speed and duplex) at the 24.10 pin — netifd 7901e66 system-linux.c `system_if_dump_info`, device.c `device_dump_status`, source-only; no `ethtool`
 22. Wi-Fi /etc/config/wireless — <https://openwrt.org/docs/guide-user/network/wifi/basic> — `wifi-device`: `band`, `channel`, `htmode`, `txpower`, `disabled`, `country` — radio section sets band, channel, width (htmode), power and enable
 23. ubus (techref) — <https://openwrt.org/docs/techref/ubus> — `network.wireless status`; rpcd `iwinfo` `devices`/`info`/`freqlist`/`txpowerlist` — radio/running wireless state is exposed by netifd `network.wireless status` and the rpcd iwinfo object (method names listed, fields not expanded)
 24. Wi-Fi /etc/config/wireless — <https://openwrt.org/docs/guide-user/network/wifi/basic> — `wifi-iface`: `ssid`, `encryption`, `key`, `hidden`, `mode ap`, `network`, `disabled` — BSS section with SSID, security mode, passphrase and hidden flag
@@ -1929,8 +2145,8 @@ in the package source, not in this design record.
 
 1. CcspPandM TR181-USGv2.XML (provisioning-and-management) — <https://github.com/rdkcentral/provisioning-and-management/blob/develop/config-arm/TR181-USGv2.XML> — Device.X_CISCO_COM_DeviceControl.WanAddressMode (RW: DHCP/Static/DHALIP), WanStaticIPAddress/SubnetMask/GatewayIP (RW); Device.X_RDK_WanManager.Interface.{i}.VirtualInterface.{i}.IP.IPv4Source (RW: Static/DHCP/PPP) in RdkWanManager_v2.xml — writable mode selectors cover DHCP/IPoE, static and PPP(oE) WAN addressing
 2. CcspPandM TR181-USGv2.XML — <https://github.com/rdkcentral/provisioning-and-management/blob/develop/config-arm/TR181-USGv2.XML> — Device.DHCPv4.Client.{i}.DHCPStatus, IPAddress, SubnetMask, IPRouters, DNSServers, LeaseTimeRemaining, DHCPServer (all RO); Device.IP.Interface.{i}.Status — WAN DHCP client state, address and remaining lease are readable
-3. RdkPppManager.xml (ppp-manager) — <https://github.com/rdkcentral/ppp-manager/blob/main/config/RdkPppManager.xml> — Device.PPP.Interface.{i}.Username (RW), Password (RW), PPPoE.ServiceName (RW), PPPoE.ACName (RW); same params in CcspPandM XML — PPPoE credentials and service name are writable
-4. RdkPppManager.xml (ppp-manager) — <https://github.com/rdkcentral/ppp-manager/blob/main/config/RdkPppManager.xml> — Device.PPP.Interface.{i}.Reset (RW boolean); ConnectionStatus (RO) — writable Reset re-establishes the PPP session; status readable
+3. RdkPppManager.xml (ppp-manager) — <https://github.com/rdkcentral/ppp-manager/blob/main/config/RdkPppManager.xml> — Device.PPP.Interface.{i}.Username (RW), Password (RW), PPPoE.ServiceName (RW), PPPoE.ACName (RW); same params in CcspPandM XML — PPPoE credentials and service name are writable. Stage 4: ppp-manager is not in the reference build (meta-cmf-bananapi `rdkb-2025q4-kirkstone` 76849e6 rdk-bpi.inc and rdk-generic-broadband-image.bbappend: `rdk-ppp-manager` only with `rdkb_xdsl_ppp_manager`, unset; `ppp-enabled` commented out; meta-cmf develop 2f49787 packagegroup-rdk-ccsp-broadband.bbappend; `rp-pppoe` removed; PPPoE under the 2025Q4 release page's "Future"); CcspPandM declares `Device.PPP.Interface`, whether it serves it without ppp-manager is unverified — R3 ◐
+4. RdkPppManager.xml (ppp-manager) — <https://github.com/rdkcentral/ppp-manager/blob/main/config/RdkPppManager.xml> — Device.PPP.Interface.{i}.Reset (RW boolean); ConnectionStatus (RO) — writable Reset re-establishes the PPP session; status readable. Stage 4: as [3], ppp-manager is not in the reference build; with no PPPoE client the reset's observation cannot be made — R4 ◐
 5. RdkVlanManager.xml (vlan-manager) + RdkWanManager_v2.xml — <https://github.com/rdkcentral/vlan-manager/blob/main/config/RdkVlanManager.xml> — Device.X_RDK_Ethernet.VLANTermination.{i}.VLANID (RW), TPID (RW); Device.X_RDK_WanManager.Interface.{i}.Marking.{i}.EthernetPriorityMark (RW, writable table) — WAN VLAN id and 802.1p priority are writable (VLAN manager + WAN manager, not CcspPandM)
 6. RdkWanManager_v2.xml (wan-manager) + CcspPandM XML — <https://github.com/rdkcentral/wan-manager/blob/main/config/RdkWanManager_v2.xml> — Device.X_RDK_WanManager.Interface.{i}.VirtualInterface.{i}.IP.Mode (RW: IPv4 Only/IPv6 Only/Dual Stack/No IP), IP.IPv6Source (RW); Device.DHCPv6.Client.{i}.RequestPrefixes (RW); Device.IP.Interface.{i}.IPv6Prefix.{i}.Prefix/Origin=PrefixDelegation and Device.DHCPv6.Server.Pool.{i}.IAPDPrefixes (RO) — IPv6 WAN mode writable; delegated prefix readable
 7. CcspPandM TR181-USGv2.XML — <https://github.com/rdkcentral/provisioning-and-management/blob/develop/config-arm/TR181-USGv2.XML> — Device.X_CISCO_COM_DeviceControl.DeviceMode (Bridge/Ipv4/Ipv6/Dualstack); Device.X_RDK_WanManager...IP.Mode — provisioning mode (v4/v6/dual/bridge) is readable
@@ -1942,13 +2158,13 @@ in the package source, not in this design record.
 13. CcspPandM TR181-USGv2.XML — <https://github.com/rdkcentral/provisioning-and-management/blob/develop/config-arm/TR181-USGv2.XML> — Device.DHCPv4.Server.Pool.{i}.StaticAddress.{i} (writable table, add/del): Chaddr, Yiaddr, Enable, X_CISCO_COM_DeviceName (RW) — static leases are add/delete-able with writable MAC and address
 14. CcspPandM TR181-USGv2.XML — <https://github.com/rdkcentral/provisioning-and-management/blob/develop/config-arm/TR181-USGv2.XML> — Device.DHCPv4.Server.Pool.{i}.Client.{i}.Chaddr, Active, X_CISCO_COM_HostName (RO); Client.{i}.IPv4Address.{i}.IPAddress, LeaseTimeRemaining (RO) — active leases with remaining time are readable
 15. CcspPandM TR181-USGv2.XML — <https://github.com/rdkcentral/provisioning-and-management/blob/develop/config-arm/TR181-USGv2.XML> — Device.X_CISCO_COM_DeviceControl.EnableStaticNameServer, NameServer1, NameServer2 (RW); Device.DNS.Client.Server.{i}.DNSServer (RW, writable table add/del); Device.DHCPv4.Server.Pool.{i}.DNSServers (RW) — upstream resolver addresses for the gateway's DNS proxy are writable
-16. Utopia dhcp_server_functions.sh — <https://github.com/rdkcentral/utopia/blob/develop/source/scripts/init/service.d/service_dhcp_server/dhcp_server_functions.sh> — `echo "address=/$LOCDOMAIN_NAME/$locaddr" >> $LOCAL_DHCP_CONF` — local name overrides are generated by the dnsmasq start script; no TR-181 parameter exposes them
+16. Utopia dhcp_server_functions.sh — <https://github.com/rdkcentral/utopia/blob/develop/source/scripts/init/service.d/service_dhcp_server/dhcp_server_functions.sh> — `echo "address=/$LOCDOMAIN_NAME/$locaddr" >> $LOCAL_DHCP_CONF` — local name overrides are generated by the dnsmasq start script; no TR-181 parameter exposes them. Stage 4 (Utopia 383ae69 service_dhcp_server.sh: the launch line without `--no-hosts`, `dns_start`, `prepare_hostname`; dnsmasq(8) SIGHUP): the `address=/` line serves the secure web UI's FQDN only and the file is regenerated on every DNS restart; an override is a marked `/etc/hosts` line plus dnsmasq's SIGHUP, lasting until `prepare_hostname` rewrites the host file (that `/etc/hosts` is writable on the reference image is unverified)
 17. Utopia service_dhcp_server.sh — <https://github.com/rdkcentral/utopia/blob/develop/source/scripts/init/service.d/service_dhcp_server.sh> — dnsmasq launch line `... --proxy-dnssec --cache-size=0 --stop-dns-rebind ...` — rebind protection exists but only as a fixed command-line flag, no parameter
 18. CcspPandM TR181-USGv2.XML — <https://github.com/rdkcentral/provisioning-and-management/blob/develop/config-arm/TR181-USGv2.XML> — Device.Bridging.Bridge.{i} and Bridge.{i}.Port.{i} (writable tables, add/del): Port.{i}.LowerLayers (RW), Enable (RW), PVID (RW); Device.Ethernet.X_RDK_Interface.{i}.AddToLanBridge (RW) — bridge membership is configured by writable ports with LowerLayers references
 19. CcspPandM TR181-USGv2.XML — <https://github.com/rdkcentral/provisioning-and-management/blob/develop/config-arm/TR181-USGv2.XML> — Device.Bridging.Bridge.{i}.Status, Port.{i}.Name, Port.{i}.Status, Port.{i}.PortState (RO), Port.{i}.LowerLayers — bridge and port membership/state are readable
 20. CcspPandM TR181-USGv2.XML + OneWifi XML — <https://github.com/rdkcentral/provisioning-and-management/blob/develop/config-arm/TR181-USGv2.XML> — Device.X_CISCO_COM_DeviceControl.LanManagementEntry.{i} (writable table add/del): LanMode, LanIPAddress, LanSubnetMask, LanDhcpServer, LanNaptEnable (RW); Device.WiFi.SSID.{i}/AccessPoint.{i} — an extra LAN segment with its own DHCP/NAPT can be created, but a guest segment is not a named operation
 21. CcspPandM TR181-USGv2.XML — <https://github.com/rdkcentral/provisioning-and-management/blob/develop/config-arm/TR181-USGv2.XML> — Device.Ethernet.Interface.{i}.Status (Up/Down/...), CurrentBitRate, MaxBitRate (RO), DuplexMode (Half/Full/Auto) — LAN port link, speed and duplex are readable
-22. OneWifi TR181-WiFi-USGv2.XML — <https://github.com/rdkcentral/OneWifi/blob/develop/config/TR181-WiFi-USGv2.XML> — Device.WiFi.Radio.{i}.Enable (RW), Channel (RW), AutoChannelEnable (RW), OperatingChannelBandwidth (RW: 20/40/80/160/320MHz), TransmitPower (RW), OperatingStandards (RW); OperatingFrequencyBand (RO) — channel, width, power and enable are writable; band cannot be set
+22. OneWifi TR181-WiFi-USGv2.XML — <https://github.com/rdkcentral/OneWifi/blob/develop/config/TR181-WiFi-USGv2.XML> — Device.WiFi.Radio.{i}.Enable (RW), Channel (RW), AutoChannelEnable (RW), OperatingChannelBandwidth (RW: 20/40/80/160/320MHz), TransmitPower (RW), OperatingStandards (RW); OperatingFrequencyBand (RO) — channel, width, power and enable are writable; band cannot be set. Stage 4 (OneWifi develop 7b3a6cc): `TransmitPower` is int[-1:100], a percentage with no dBm maximum (`TransmitPowerSupported`), so the dBm power members raise
 23. OneWifi TR181-WiFi-USGv2.XML — <https://github.com/rdkcentral/OneWifi/blob/develop/config/TR181-WiFi-USGv2.XML> — Device.WiFi.Radio.{i}.Status (RO Up/Down/...), ChannelsInUse (RO), Channel, OperatingFrequencyBand (RO), TransmitPowerSupported (RO) — radio operational state is readable
 24. OneWifi TR181-WiFi-USGv2.XML — <https://github.com/rdkcentral/OneWifi/blob/develop/config/TR181-WiFi-USGv2.XML> — Device.WiFi.SSID.{i}.SSID (RW), Enable (RW); Device.WiFi.AccessPoint.{i}.Security.ModeEnabled (RW), KeyPassphrase (RW), PreSharedKey (RW), MFPConfig (RW); AccessPoint.{i}.SSIDAdvertisementEnabled (RW) — SSID, security mode, passphrase and hidden flag are writable
 25. OneWifi TR181-WiFi-USGv2.XML — <https://github.com/rdkcentral/OneWifi/blob/develop/config/TR181-WiFi-USGv2.XML> — Device.WiFi.SSID.{i}.Status (RO), BSSID (RO), MACAddress (RO); Device.WiFi.AccessPoint.{i}.Status (RO), AssociatedDeviceNumberOfEntries (RO) — BSS state is readable
@@ -1979,12 +2195,12 @@ in the package source, not in this design record.
 50. CcspPandM TR181-USGv2.XML — <https://github.com/rdkcentral/provisioning-and-management/blob/develop/config-arm/TR181-USGv2.XML> — Device.Users.User.{i}.Username (RW), Password (RW), Enable (RW), X_CISCO_COM_AccessPermission (RW: Admin/HomeUser/...), X_RDKCENTRAL-COM_PasswordReset (RW) — local admin credential is writable
 51. tr069-protocol-agent ccsp_management_server.c (parameter table) — <https://github.com/rdkcentral/tr069-protocol-agent/blob/develop/source-embedded/DslhManagementServer/ccsp_management_server.c> — Device.ManagementServer.EnableCWMP, URL, Username, Password, PeriodicInformEnable, PeriodicInformInterval, PeriodicInformTime all CCSP_RW; ConnectionRequestUsername/Password CCSP_RW — ACS URL, credentials and periodic inform are writable in the TR-069 PA's own data model
 52. tr069-protocol-agent ccsp_management_server.c — <https://github.com/rdkcentral/tr069-protocol-agent/blob/develop/source-embedded/DslhManagementServer/ccsp_management_server.c> — ConnectionRequestURL CCSP_RO, UDPConnectionRequestAddress CCSP_RO, KickURL CCSP_RO; no ForceInform/X_RDKCENTRAL-COM inform parameter in table or mapper — connection-request state is readable but an inform can only be provoked indirectly (e.g. toggling EnableCWMP)
-53. RDK Reference USP controller documentation (RDK wiki) — <https://wiki.rdkcentral.com/x/pAbyHQ> — `obuspa -p -v 4 -r factory_reset_example.txt`; Device.LocalAgent.Controller.1.EndpointID, Controller.1.MTP.1.Protocol "MQTT", Controller.1.MTP.1.MQTT.Topic, Device.LocalAgent.MTP.1.MQTT.Reference, Device.MQTT.Client.1.BrokerAddress/BrokerPort — controller endpoint and MQTT transport are set in the agent's boot file; no agent-state parameter documented, release page does not list USP in the reference build
-54. RdkTelcoVoiceManager_v2.xml (telco-voice-manager) — <https://github.com/rdkcentral/telco-voice-manager/blob/main/config/RdkTelcoVoiceManager_v2.xml> — Device.Services.VoiceService.{i}.SIP.Client.{i}.AuthUserName, AuthPassword, RegisterURI, Enable (RW), Status (RO: Registering/Up/Error_Registration); SIP.Network.{i}.ProxyServer, RegistrarServer (RW); SIP.Registrar.{i}.Account.{i}.RegistrationStatus (RO) — TR-104v2 SIP account and registration state exist in the voice manager; absent from CcspPandM; CcspMtaAgent has no SIP account objects
-55. RdkTelcoVoiceManager_v2.xml + CcspMtaAgent.xml — <https://github.com/rdkcentral/telco-voice-manager/blob/main/config/RdkTelcoVoiceManager_v2.xml> — Device.Services.VoiceService.{i}.POTS.FXS.{i}.Status (RO: Up/Error/Testing/Disabled), Active (RO), DiagTests.*; Device.X_CISCO_COM_MTA.LineTable.{i}.Status (RO On-Hook/Off-Hook), CALLP.LCState — FXS line state readable in both voice models, neither confirmed in the BPI R4 reference build
-56. unified-wifi-mesh inc/tr_181.h — <https://github.com/rdkcentral/unified-wifi-mesh/blob/develop/inc/tr_181.h> — Device.WiFi.DataElements.Network.Topology, Network.Device.{i}.ID, BackhaulMACAddress, BackhaulALID, BackhaulMediaType, BackhaulPHYRate, Network.Device.{i}.Radio.{i}.BackhaulSta.MACAddress; porting status per the EasyMesh porting wiki — EasyMesh topology elements are defined by the RDK-B controller code but not yet documented as part of the reference build
-57. unified-wifi-mesh inc/tr_181.h — <https://github.com/rdkcentral/unified-wifi-mesh/blob/develop/inc/tr_181.h> — Device.WiFi.DataElements.Network.Device.{i}.MultiAPDevice.Backhaul.Stats.SignalStrength, LinkUtilization, LastDataDownlinkRate, LastDataUplinkRate, BytesSent/Received, ErrorsSent/Received; Network.Device.{i}.BackhaulDown.{i} — backhaul link health elements are defined in code only
-58. unified-wifi-mesh inc/tr_181.h + docs — <https://github.com/rdkcentral/unified-wifi-mesh/blob/develop/inc/tr_181.h> — Device.WiFi.DataElements.Network.Device.{i}.Radio.{i}.BSS.{i}.STA.{i}.ClientSteer() (DE_STA_CLIENTSTEER, clientsteer_handler); MultiAPDevice.Backhaul.SteerWiFiBackhaul(); method-invocation format shown for ChannelSelectionRequest() in the unified-wifi-mesh docs — client steering is an EasyMesh controller method, not documented in RDK-B release material
+53. RDK Reference USP controller documentation (RDK wiki) — <https://wiki.rdkcentral.com/x/pAbyHQ> — `obuspa -p -v 4 -r factory_reset_example.txt`; Device.LocalAgent.Controller.1.EndpointID, Controller.1.MTP.1.Protocol "MQTT", Controller.1.MTP.1.MQTT.Topic, Device.LocalAgent.MTP.1.MQTT.Reference, Device.MQTT.Client.1.BrokerAddress/BrokerPort — controller endpoint and MQTT transport are set in the agent's boot file; no agent-state parameter documented. Stage 4: USP is in the reference build (meta-cmf-bananapi 76849e6 rdk-bpi.inc `DISTRO_FEATURES_append = " usppa"`, recipes-rdkb/usp-pa/usp-pa.bbappend); the cell stays ◐ (no agent state)
+54. RdkTelcoVoiceManager_v2.xml (telco-voice-manager) — <https://github.com/rdkcentral/telco-voice-manager/blob/main/config/RdkTelcoVoiceManager_v2.xml> — Device.Services.VoiceService.{i}.SIP.Client.{i}.AuthUserName, AuthPassword, RegisterURI, Enable (RW), Status (RO: Registering/Up/Error_Registration); SIP.Network.{i}.ProxyServer, RegistrarServer (RW); SIP.Registrar.{i}.Account.{i}.RegistrationStatus (RO) — TR-104v2 SIP account and registration state exist in the voice manager; absent from CcspPandM; CcspMtaAgent has no SIP account objects. Stage 4: the manager is installed in the reference image (meta-cmf-bananapi 76849e6 rdk-bpi.inc, rdk-generic-broadband-image.bbappend: `IMAGE_INSTALL_append … rdktelcovoicemanager asterisk hal-voice-asterisk`), but the platform writes the TR-104 v2 switch as `DISTRO_FEATURE_append` (singular, not read by bitbake) and the shared packagegroup (meta-cmf develop 2f49787 packagegroup-rdk-ccsp-broadband.bbappend line 20) keys `rdktelcovoicemanager` on that same feature, so the v2 model may not be the one built (README default v1, `VoiceProfile.{i}.Line.{i}.SIP.*`); the 2025Q4 page lists TelcoVoice under "No Release due to GitHub migration"
+55. RdkTelcoVoiceManager_v2.xml + CcspMtaAgent.xml — <https://github.com/rdkcentral/telco-voice-manager/blob/main/config/RdkTelcoVoiceManager_v2.xml> — Device.Services.VoiceService.{i}.POTS.FXS.{i}.Status (RO: Up/Error/Testing/Disabled), Active (RO), DiagTests.*; Device.X_CISCO_COM_MTA.LineTable.{i}.Status (RO On-Hook/Off-Hook), CALLP.LCState — FXS line state readable in both voice models, neither confirmed in the BPI R4 reference build. Stage 4: as [54], the manager is installed and the v2 model unverified
+56. unified-wifi-mesh inc/tr_181.h — <https://github.com/rdkcentral/unified-wifi-mesh/blob/develop/inc/tr_181.h> — Device.WiFi.DataElements.Network.Topology, Network.Device.{i}.ID, BackhaulMACAddress, BackhaulALID, BackhaulMediaType, BackhaulPHYRate, Network.Device.{i}.Radio.{i}.BackhaulSta.MACAddress — EasyMesh topology elements are defined by the RDK-B controller code. Stage 4: the controller is installed on the EasyMesh build variant of the same release (meta-cmf-bananapi 76849e6 rdk-generic-broadband-image.bbappend, rdk-bpi.inc; setup-environment-refboard-rdkb lines 86–87: `FEATURE_TYPE=EasyMesh` uncomments `DISTRO_FEATURES_append = " EasyMesh"` and the image adds `unified-wifi-mesh`; 2025Q4 release page "SD Build for Gateway with EasyMesh"); the shared packagegroup names an alternative controller (`rdk-easymesh-controller`, `easymesh-controller`) the BPI layer does not set; unified-wifi-mesh develop 1ba9529
+57. unified-wifi-mesh inc/tr_181.h — <https://github.com/rdkcentral/unified-wifi-mesh/blob/develop/inc/tr_181.h> — Device.WiFi.DataElements.Network.Device.{i}.MultiAPDevice.Backhaul.Stats.SignalStrength, LinkUtilization, LastDataDownlinkRate, LastDataUplinkRate, BytesSent/Received, ErrorsSent/Received; Network.Device.{i}.BackhaulDown.{i} — backhaul link health elements are defined in code only; on the EasyMesh build variant (as [56]) `Backhaul.Stats` fills the agent's backhaul link, source only
+58. unified-wifi-mesh inc/tr_181.h + docs — <https://github.com/rdkcentral/unified-wifi-mesh/blob/develop/inc/tr_181.h> — Device.WiFi.DataElements.Network.Device.{i}.Radio.{i}.BSS.{i}.STA.{i}.ClientSteer() (DE_STA_CLIENTSTEER, clientsteer_handler); MultiAPDevice.Backhaul.SteerWiFiBackhaul(); method-invocation format shown for ChannelSelectionRequest() in the unified-wifi-mesh docs — client steering is an EasyMesh controller method, not documented in RDK-B release material; on the EasyMesh build variant (as [56]) `ClientSteer()` carries `steer_client`, source only
 
 ### FRITZ!OS 8.20 and later
 
@@ -2004,18 +2220,18 @@ in the package source, not in this design record.
 14. TR-064 Support – Hosts (v32, 2026-01-29) — <https://fritz.support/resources/TR-064_Hosts.pdf> — §2.3 GetGenericHostEntry (IPAddress, AddressSource, LeaseTimeRemaining, Active, HostName), §2.1 GetHostNumberOfEntries — each host entry carries address source and remaining lease time
 15. TR-064 Support – WAN IP Connection (v7, 2025-12-18) — <https://fritz.support/resources/TR-064_WAN_IP_Connection.pdf> — §1.10 X_SetDNSServers (not supported); §1.9 X_GetDNSServers; history v3 "Mark X_SetDNSServer as unsupported" — the only DNS-server write action in the WAN services is explicitly marked unsupported
 16. TR-064 Support – Hosts (v32, 2026-01-29) — <https://fritz.support/resources/TR-064_Hosts.pdf> — §2.8 X_AVM-DE_SetHostNameByMACAddress, §2.17–2.19 X_AVM-DE_SetFriendlyName* — a host's name can be set per MAC, but no action defines a local DNS record or override
-17. FRITZ! interfaces index (TR-064 service list) — <https://fritz.com/en/pages/interfaces> — TR-064 service table (no DNS/rebind service) — the published service list contains no DNS forwarder service and no rebind-protection parameter
+17. FRITZ! interfaces index (TR-064 service list) — <https://fritz.com/en/pages/interfaces> — TR-064 service table (no DNS/rebind service) — the published service list contains no DNS forwarder service and no rebind-protection parameter; the row rests on this index (41 documents, none for DNS, firewall, zones, syslog or processes), not on a service document
 18. TR-064 Support – LANHostConfigManagement1 (v9, 2025-08-07) — <https://fritz.support/resources/TR-064_LAN_Host_Config_Management.pdf> — Action List (SetIPInterface, SetAddressRange, …) — the LAN-side services carry no bridge or VLAN membership write
 19. TR-064 Support – Hosts (v32, 2026-01-29) — <https://fritz.support/resources/TR-064_Hosts.pdf> — §2.10 X_AVM-DE_GetSpecificHostEntryByIP (InterfaceType, X_AVM-DE_Port, X_AVM-DE_Speed, X_AVM-DE_Guest) — which LAN port or guest segment a host sits on is readable per host, not as a bridge table
 20. TR-064 Support – WLANConfiguration (v49, 2026-03-10) — <https://fritz.support/resources/TR-064_WLAN_Configuration.pdf> — §1 introduction (logical guest AP as service #2/#3/#4), §2.1 SetEnable, §2.12 SetSSID, §2.4 SetSecurityKeys, §2.33 X_AVM-DE_GetWLANExtInfo (APType normal/guest, UserIsolation) — the guest Wi-Fi is a separate service instance with the full Set* action set; wired guest access is not covered
 21. TR-064 Support – LAN Ethernet Interface Config (v3, 2025-08-07) — <https://fritz.support/resources/TR-064_LAN_Ethernet_Interface_Config.pdf> — GetInfo (Status, MaxBitRate, DuplexMode, MACAddress), GetStatistics; Hosts X_AVM-DE_Port/X_AVM-DE_Speed — link status, rate and duplex are read for one LAN interface; per-port speed is only visible on connected hosts
-22. TR-064 Support – WLANConfiguration (v49, 2026-03-10) — <https://fritz.support/resources/TR-064_WLAN_Configuration.pdf> — §2.1 SetEnable, §2.16 SetChannel (0 = auto), §2.3 SetConfig, §2.34 X_AVM-DE_SetWLANGlobalEnable; band = service instance — radio enable and channel are writable per band instance; width and power have no action
-23. TR-064 Support – WLANConfiguration (v49, 2026-03-10) — <https://fritz.support/resources/TR-064_WLAN_Configuration.pdf> — §2.2 GetInfo (Enable, Status Up/Disabled, Channel, Standard, X_AVM-DE_FrequencyBand), §2.15 GetChannelInfo (PossibleChannels, X_AVM-DE_AutoChannelEnabled) — radio enable, status, channel, band and auto-channel state are returned
+22. TR-064 Support – WLANConfiguration (v49, 2026-03-10) — <https://fritz.support/resources/TR-064_WLAN_Configuration.pdf> — §2.1 SetEnable, §2.16 SetChannel (0 = auto), §2.3 SetConfig, §2.34 X_AVM-DE_SetWLANGlobalEnable; band = service instance — radio enable and channel are writable per band instance; width, power, country and DFS have no action
+23. TR-064 Support – WLANConfiguration (v49, 2026-03-10) — <https://fritz.support/resources/TR-064_WLAN_Configuration.pdf> — §2.2 GetInfo (Enable, Status Up/Disabled, Channel, Standard, X_AVM-DE_FrequencyBand), §2.15 GetChannelInfo (PossibleChannels, X_AVM-DE_AutoChannelEnabled) — radio enable, status, channel, band and auto-channel state are returned; no transmit power, regulatory domain or DFS state is published (R23 ◐, stage 4)
 24. TR-064 Support – WLANConfiguration (v49, 2026-03-10) — <https://fritz.support/resources/TR-064_WLAN_Configuration.pdf> — §2.12 SetSSID, §2.14 SetBeaconType (None, WPA, 11i, WPAand11i, WPA3, 11iandWPA3, OWE, OWETrans), §2.4 SetSecurityKeys (KeyPassphrase/PreSharedKey), §2.18 SetBeaconAdvertisement (hidden) — SSID, security mode, passphrase and SSID broadcast are each set by a documented action
 25. TR-064 Support – WLANConfiguration (v49, 2026-03-10) — <https://fritz.support/resources/TR-064_WLAN_Configuration.pdf> — §2.2 GetInfo (SSID, BSSID, BeaconType, Enable, Status), §2.17 GetBeaconAdvertisement, §2.19 GetTotalAssociations — BSS identity, security mode, enable/status and association count are readable
 26. TR-064 Support – WLANConfiguration (v49, 2026-03-10) — <https://fritz.support/resources/TR-064_WLAN_Configuration.pdf> — §2.20 GetGenericAssociatedDeviceInfo (MAC, IP, AuthState, X_AVM-DE_Speed, X_AVM-DE_SignalStrength, X_AVM-DE_ChannelWidth), §2.23 X_AVM-DE_GetWLANDeviceListPath — per-station signal strength, rate and channel width are listed
 27. TR-064 Support – WLANConfiguration (v49, 2026-03-10) — <https://fritz.support/resources/TR-064_WLAN_Configuration.pdf> — §2 Action List (38 actions, none acting on a single station) — the service's full action list has no kick/deauth action
-28. TR-064 Support – WLANConfiguration (v49, 2026-03-10) — <https://fritz.support/resources/TR-064_WLAN_Configuration.pdf> — §2.36 X_AVM-DE_SetWPSConfig (WPSMode pbc / stop), §2.35 X_AVM-DE_GetWPSInfo (WPSStatus off, inactive, active, success, err_*), §2.37 X_AVM-DE_SetWPSEnable — push-button WPS can be started and stopped and its status read (PIN variables marked obsolete)
+28. TR-064 Support – WLANConfiguration (v49, 2026-03-10) — <https://fritz.support/resources/TR-064_WLAN_Configuration.pdf> — §2.36 X_AVM-DE_SetWPSConfig (WPSMode pbc / stop), §2.35 X_AVM-DE_GetWPSInfo (WPSStatus off, inactive, active, success, err_*), §2.37 X_AVM-DE_SetWPSEnable — push-button WPS can be started and stopped and its status read; Service States Table: X_AVM-DE_WPSAPPIN and X_AVM-DE_WPSClientPIN obsolete (history v45), and SetWPSConfig takes pbc and stop only ("WPS is supported with Push Button Configuration") — R28 ◐, push-button only
 29. TR-064 Support – WLANConfiguration (v49, 2026-03-10) — <https://fritz.support/resources/TR-064_WLAN_Configuration.pdf> — §2 Action List; Mesh schema node_interfaces.steering_enabled, 11k_friendly, 11v_friendly (read-only) — neither the Wi-Fi service nor the mesh JSON offers a write for steering or 802.11k/v/r
 30. TR-064 Support – X_AVM-DE_HostFilter (v8, 2025-09-11) — <https://fritz.support/resources/TR-064_Host_Filter.pdf> — §2.4 GetWANAccessByIP (WANAccess granted/denied/error); no zone action anywhere — the security surface is per-host WAN access, with no zone defaults or membership
 31. TR-064 Support – WAN IP Connection (v7, 2025-12-18) — <https://fritz.support/resources/TR-064_WAN_IP_Connection.pdf> — §1.14 AddPortMapping (restriction text), §1.15 DeletePortMapping; same in WAN PPP Connection §1.18/§1.19 — add/delete actions exist but the document limits adds to the requesting host and excludes guest hosts
@@ -2028,7 +2244,7 @@ in the package source, not in this design record.
 38. TR-064 Support – Hosts (v32, 2026-01-29) — <https://fritz.support/resources/TR-064_Hosts.pdf> — §2.3 GetGenericHostEntry (MAC, IP, HostName, InterfaceType Ethernet/802.11, Active), §2.10 X_AVM-DE_GetSpecificHostEntryByIP (X_AVM-DE_Port, X_AVM-DE_Guest), §2.14 X_AVM-DE_GetHostListPath (XML list) — the host table with address, name and attachment (interface type, port, guest) is enumerable
 39. TR-064: Supported Actions of Device Info (v11, 2025-08-07) — <https://fritz.support/resources/TR-064_Device_Info.pdf> — GetInfo (ManufacturerName, ManufacturerOUI, ModelName, SerialNumber, SoftwareVersion, HardwareVersion, ProductClass) — all five identity fields are returned by one action
 40. TR-064: Supported Actions of Device Info (v11, 2025-08-07) — <https://fritz.support/resources/TR-064_Device_Info.pdf> — GetInfo NewUpTime (ui4) — uptime is readable; no service exposes CPU load or memory
-41. FRITZ! interfaces index (TR-064 service list) — <https://fritz.com/en/pages/interfaces> — TR-064 service table — the published services (DeviceInfo, DeviceConfig, …) contain nothing about processes
+41. FRITZ! interfaces index (TR-064 service list) — <https://fritz.com/en/pages/interfaces> — TR-064 service table — the published services (DeviceInfo, DeviceConfig, …) contain nothing about processes; the row rests on this index, not on a service document
 42. TR-064: Supported Actions of Device Info (v11, 2025-08-07) — <https://fritz.support/resources/TR-064_Device_Info.pdf> — GetDeviceLog (NewDeviceLog), X_AVM-DE_GetDeviceLogPath (XML events; filter all/sys/net/fon/wlan/usb) — the device log is readable as text and as filtered XML
 43. TR-064 Support – DeviceConfig (v12, 2025-12-01) — <https://fritz.support/resources/TR-064_Device_Config.pdf> — §2.12 X_AVM-DE_SendSupportData (mode normal/mesh), §2.14 X_AVM-DE_SetSupportDataEnable — the only log-shipping action sends support data to the vendor; no syslog destination is configurable
 44. TR-064 Support – Time (v5, 2025-08-07) — <https://fritz.support/resources/TR-064_Time.pdf> — SetNTPServers (NTPServer1, NTPServer2), GetInfo (CurrentLocalTime; LocalTimeZone etc. not supported) — two NTP servers are settable and current time readable, but no synchronisation status exists
@@ -2106,7 +2322,7 @@ in the package source, not in this design record.
 55. Software Specifications — <https://help.mikrotik.com/docs/spaces/ROS/pages/19136707/Software+Specifications> — feature areas (Firewall, Routing, Wireless, DHCP, Hotspot, QoS, Tools, Other) — No analog-line (FXS) feature is listed anywhere
 56. WiFi — <https://help.mikrotik.com/docs/spaces/ROS/pages/224559120/WiFi> — wifi package: `/interface/wifi/capsman/remote-cap print detail` `address`, `identity`, `board-name`, `serial`, `version`, `connected-time`, `uptime` — WiFi CAPsMAN lists managed CAPs with identity/model/version/uptime; it is a central AP controller, not an EasyMesh controller, and shows no backhaul topology
 57. WiFi — <https://help.mikrotik.com/docs/spaces/ROS/pages/224559120/WiFi> — wifi package: Remote CAP property table — The remote-cap table has no link quality, rate or backhaul-type fields; CAPs attach over any IP/L2 path
-58. WiFi — <https://help.mikrotik.com/docs/spaces/ROS/pages/224559120/WiFi> — wifi package Steering `wnm`, `neighbor-group`, `transition-threshold`, `transition-request-count`, `transition-time` — Clients can be nudged to neighbor-group APs by (unsolicited, 7.21+) 802.11v BSS-transition requests and optionally de-authenticated; there is no per-client "steer to agent X" command
+58. WiFi — <https://help.mikrotik.com/docs/spaces/ROS/pages/224559120/WiFi> — wifi package Steering `wnm`, `neighbor-group`, `transition-threshold`, `transition-request-count`, `transition-time` — Clients can be nudged to neighbor-group APs by (unsolicited, 7.21+) 802.11v BSS-transition requests and optionally de-authenticated; there is no per-client "steer to agent X" command: the Steering section has properties only, none addressing one client or naming a target — R58 ✗ (stage 4)
 
 ### Citation maintenance (stage 3)
 
@@ -2150,8 +2366,9 @@ condition that would overturn the answer:
 6. Remote management — §6, "Remote management": the ACS configuration as an
    extend, the inform's meaning stated, no connection-request read, USP as
    a tier.
-7. Mesh and voice tiers — §6, "Mesh and voice": both built, the nominal
-   cells named (§9 Stated risks).
+7. Mesh and voice tiers — §6, "Mesh and voice": both designed, the nominal
+   cells named (§9 Stated risks); at stage 4 the mesh tier is built and the
+   voice tier `tier-staged`.
 8. `CpeDevice` supersession — §6, "Supersession": new class and key, the old
    shape intact and deprecated as a `class` row.
 9. Health reads — §6, "Health": `DeviceHealth` split with `read_cpu_load`.
@@ -2161,15 +2378,17 @@ condition that would overturn the answer:
 10. Source maintenance — §6, "Decided as verification items"; §10 re-points
     what it can.
 11. Reference-image inclusion — §6, "Decided as verification items".
-12. Two CWMP clients on column 1 — §6, "Decided as verification items".
+12. Two CWMP clients on column 1 — §6, "Decided as verification items";
+    decided at stage 4 (review record).
 
 ## 12. Landing manifest
 
 Every symbol change the body proposes. `core` and `tier` rows land on this
 design's `archetype:` PR at stage 4 with changelog entries citing this document
-and the row id; the one `tier-staged` row becomes a `GAPS.md` pointer at merge.
+and the row id; the `tier-staged` rows become `GAPS.md` pointers at merge.
 Outcomes record the design review rounds (round 1, 2026-10-20: approve with
-conditions C1–C8; a row carries the conditions folded into it). A new record
+conditions C1–C8; a row carries the conditions folded into it) and the
+stage-4 re-outcomes (stage 4b, review record). A new record
 that serves an extension travels in the extension's row; a new record that
 serves a new capability travels in that capability's row.
 
@@ -2177,10 +2396,10 @@ serves a new capability travels in that capability's row.
 | --- | --- | --- | --- | --- | --- | --- |
 | M1 | new archetype | `testprotocols.devices.cpe_gateway:CpeGatewayDevice` (registered `cpe_gateway`) | archetype | core | no | accepted, 2026-10-20 |
 | M2 | deprecation | `testprotocols.devices.cpe:CpeDevice` (registry key `linux_cpe`): kept intact, marked deprecated, `class` row; replacement `CpeGatewayDevice` / `cpe_gateway`; period one MINOR and six months (§6) | deprecate | core | no | accepted, 2026-10-20 |
-| M3 | new tier | `testprotocols.devices.cpe_gateway:CpeGatewayVoiceTier` (`voice: VoiceGateway`; not registered, pinned by `isinstance`) | archetype | tier — voice | no | accepted, 2026-10-20 |
+| M3 | new tier | `testprotocols.devices.cpe_gateway:CpeGatewayVoiceTier` (`voice: VoiceGateway`; not registered, pinned by `isinstance`) | archetype | tier-staged — a second family publishing the SIP account (R54), or a consumer | no | tier-staged (stage 4: voice R54–R55 ✗ on columns 1, 2 and 5 — 2 of 5 — 2026-10-20) |
 | M4 | new tier | `testprotocols.devices.cpe_gateway:CpeGatewayMeshTier` (`wifi_mesh: WifiMesh`; not registered) | archetype | tier — mesh | no | accepted, 2026-10-20 |
 | M5 | new tier | `testprotocols.devices.cpe_gateway:CpeGatewayUspTier` (`usp_agent: UspAgent`; not registered) | archetype | tier — usp | no | accepted, 2026-10-20 |
-| M6 | new protocol | `testprotocols.wan_connection:WanConnection` (`set_wan_connection`, `get_wan_connection`, `list_wan_connections`, `get_wan_state`, `reset_session`) with `testprotocols.models.cpe_gateway:WanMode`, `WanIpv6Mode`, `WanStatus`, `ProvisioningMode`, `PppoeCredentials`, `StaticAddressing`, `WanVlan`, `WanIpv6`, `WanConnectionConfig`, `WanConnectionState` | new capability | core | no | accepted with conditions (C4, C6), 2026-10-20 |
+| M6 | new protocol | `testprotocols.wan_connection:WanConnection` (`set_wan_connection`, `get_wan_connection`, `list_wan_connections`, `get_wan_state`, `reset_session`) with `testprotocols.models.cpe_gateway:WanMode`, `WanIpv6Mode`, `WanStatus`, `ProvisioningMode`, `PppoeCredentials`, `StaticAddressing`, `WanVlan`, `WanIpv6`, `WanConnectionConfig`, `WanConnectionState` | new capability | core | no | accepted with conditions (C4, C6; stage 4: R3–R4 ◐ on column 3, no PPP manager in the reference build), 2026-10-20 |
 | M7 | new protocol | `testprotocols.dns_forwarder:DnsForwarder` (`set_upstreams`, `get_upstreams`, `add_host_override`, `remove_host_override`, `list_host_overrides`, `set_rebind_protection`, `get_rebind_protection`) with `testprotocols.models.cpe_gateway:DnsUpstream`, `DnsHostOverride` | new capability | core | no | accepted with conditions (C3, C8), 2026-10-20 |
 | M8 | new protocol | `testprotocols.l2_bridge:L2Bridge` (`create_bridge`, `delete_bridge`, `list_bridges`, `get_bridge`, `add_member`, `remove_member`, `get_members`) with `testprotocols.models.cpe_gateway:BridgeMemberKind`, `BridgeMember`, `BridgeConfig`, `BridgeMemberState` (importing `StpMode`, `StpPortState` from `models/l2_common.py`); realises the `GAPS.md` 2026-05-02 entry's membership half | new capability | core | no | accepted with conditions (C3, C5), 2026-10-20 |
 | M9 | GAPS entry | `GAPS.md` 2026-05-02 `L2Bridge`: closed for membership by M8; the STP tuning and the forwarding-table read stay open under a dated note, the table read as the `L2BridgeWhiteBox` candidate (M27) | record | core | no | accepted, 2026-10-20 |
@@ -2198,25 +2417,26 @@ serves a new capability travels in that capability's row.
 | M21 | GAPS entry | the staged firmware pair (`stage_image` / `activate_image`) as the finer grain of M19's `upgrade_firmware`: no reviewed column publishes a staged-image read (§6) | record | tier-staged — the first dual-image product that needs the staged state read | no | accepted, 2026-10-20 |
 | M22 | protocol extension | `testprotocols.tr069_client:Tr069Client`: `set_acs`, `get_acs`; `force_inform` docstring states the per-column meaning (§6) and names no vendor command or daemon; with `testprotocols.models.tr069:AcsConfig` | extend | core | yes | accepted, 2026-10-20 |
 | M23 | protocol extension | `testprotocols.ntp_config:NtpConfig.get_sync_state`; with `testprotocols.models.switch:NtpSyncStatus`, `NtpSyncState` beside `NtpServer` | extend | core | yes | accepted, 2026-10-20 |
-| M24 | protocol extension | `testprotocols.wifi_onboarding:WifiOnboarding`: `cancel_wps`, `get_wps_state`; module docstring's `NotImplementedError` wording replaced by the documented unsupported case; with `testprotocols.models.wifi:WpsSessionState`, `WpsMethod`, `WpsState` | extend | core | yes | accepted, 2026-10-20 |
+| M24 | protocol extension | `testprotocols.wifi_onboarding:WifiOnboarding`: `cancel_wps`, `get_wps_state`; module docstring's `NotImplementedError` wording replaced by the documented unsupported case; with `testprotocols.models.wifi:WpsSessionState`, `WpsMethod`, `WpsState` | extend | core | yes | accepted with conditions (stage 4: R28 ◐ on column 4, push-button only, the PIN members raise), 2026-10-20 |
 | M25 | new field | `testprotocols.models.switch_routing:InterfaceDhcpConfig.pool_start`, `pool_end` (`str \| None = None`; `None` = the whole subnet minus the reserved ranges, the shape served today) | defaulted field | core | no | accepted, 2026-10-20 |
 | M26 | SPLITS entry | `InterfaceDhcpConfig` gains the pool bounds with the appliance meaning preserved as the default (M25); the port-forward shapes (`Firewall` per-mapping for gateways, `ApplianceNat` list-replacing for appliances) recorded as two shapes for two device classes | record | core | no | accepted, 2026-10-20 |
 | M27 | LEVELS entry | the white-box candidates of §7 recorded as candidates, not seeded (`WanConnectionWhiteBox`, `L2BridgeWhiteBox`, `HostFilterWhiteBox`, `DnsForwarderWhiteBox`, `DeviceHealthWhiteBox`, `Tr069ClientWhiteBox`, `UspAgentWhiteBox`, `InterfaceDhcpWhiteBox`), with the columns expected to satisfy (1, 2, 3, 5) and not (4) | record | core | no | accepted, 2026-10-20 |
 | M28 | composition | `testprotocols.wan_link_admin:WanLinkAdmin` on `CpeGatewayDevice` as `wan_admin`, `get_wan_state` its paired read on this class; module docstring generalised at stage 4 (the lever is published by four of five gateway columns) | reuse | core | no | accepted, 2026-10-20 |
 | M29 | SPLITS entry | `WanLinkAdmin` composed by a closed product: the 2026-06-12 rationale ("implemented only by the Linux twin") narrowed to "not by API-managed appliances", on the matrix evidence of R9 | record | core | no | accepted, 2026-10-20 |
 | M30 | composition | `testprotocols.port_status:PortStatus`, `testprotocols.dhcp_client:DhcpClient`, `testprotocols.interface_dhcp:InterfaceDhcp`, `testprotocols.syslog_config:SyslogConfig`, `testprotocols.network_endpoint:NetworkEndpoint` on `CpeGatewayDevice` | reuse | core | no | accepted, 2026-10-20 |
-| M31 | composition | `testprotocols.wifi_radio:WifiRadio`, `testprotocols.wifi_bss:WifiBss`, `testprotocols.wifi_stations:WifiStations`, `testprotocols.wifi_transitions:WifiTransitions`, `testprotocols.firewall:Firewall`, `testprotocols.firewall_zones:FirewallZones` on `CpeGatewayDevice`; their members without a matrix row are verification items (§9); the `firewall` driver refuses rule writes on a host block (§6) | reuse | core | no | accepted with conditions (C7), 2026-10-20 |
-| M32 | new protocol (tier) | `testprotocols.voice_gateway:VoiceGateway` (`set_sip_account`, `remove_sip_account`, `list_sip_accounts`, `get_sip_registration`, `list_fxs_lines`) with `testprotocols.models.voice:SipRegistrationState`, `FxsHookState`, `SipAccount`, `SipRegistration`, `FxsLine` | new capability | tier — voice | no | accepted, 2026-10-20 |
-| M33 | composition (tier) | `testprotocols.wifi_mesh:WifiMesh` on `CpeGatewayMeshTier`; its agent-side members are verification items (§9); module docstring's `NotImplementedError` wording replaced by the documented unsupported case | reuse | tier — mesh | no | accepted, 2026-10-20 |
+| M31 | composition | `testprotocols.wifi_radio:WifiRadio`, `testprotocols.wifi_bss:WifiBss`, `testprotocols.wifi_stations:WifiStations`, `testprotocols.wifi_transitions:WifiTransitions`, `testprotocols.firewall:Firewall`, `testprotocols.firewall_zones:FirewallZones` on `CpeGatewayDevice`; their members without a matrix row are verification items (§9); the `firewall` driver refuses rule writes on a host block (§6) | reuse | core | no | accepted with conditions (C7; stage 4: R23 ◐ on column 4 and R22's power limit on column 3, the radio reads and setters named in §6 raise there), 2026-10-20 |
+| M32 | new protocol (tier) | `testprotocols.voice_gateway:VoiceGateway` (`set_sip_account`, `remove_sip_account`, `list_sip_accounts`, `get_sip_registration`, `list_fxs_lines`) with `testprotocols.models.voice:SipRegistrationState`, `FxsHookState`, `SipAccount`, `SipRegistration`, `FxsLine` | new capability | tier-staged — a second family publishing the SIP account (R54), or a consumer | no | tier-staged (stage 4: voice R54–R55 ✗ on columns 1, 2 and 5 — 2 of 5 — 2026-10-20) |
+| M33 | composition (tier) | `testprotocols.wifi_mesh:WifiMesh` on `CpeGatewayMeshTier`; its agent-side members are verification items (§9); module docstring's `NotImplementedError` wording replaced by the documented unsupported case | reuse | tier — mesh | no | accepted with conditions (stage 4: R58 ✗ on column 5, `steer_client` raises there; column 3 confirmed on the mesh build variant), 2026-10-20 |
 | M34 | new field (tier) | `testprotocols.models.wifi:WifiMeshNode.backhaul_link` (`WifiMeshLink \| None = None`; `None` also for a wired backhaul) | defaulted field | tier — mesh | no | accepted, 2026-10-20 |
-| M35 | new protocol (tier) | `testprotocols.usp_agent:UspAgent` (`set_controller`, `get_controller`, `get_agent_state`) with `testprotocols.models.cpe_gateway:UspTransport`, `UspController`, `UspAgentState` | new capability | tier — usp | no | accepted, 2026-10-20 |
+| M35 | new protocol (tier) | `testprotocols.usp_agent:UspAgent` (`set_controller`, `get_controller`, `get_agent_state`) with `testprotocols.models.cpe_gateway:UspTransport`, `UspController`, `UspAgentState` (`endpoint_id` only) | new capability | tier — usp | no | accepted with conditions (stage 4: `UspAgentState.connected` dropped, no column publishes a connection state), 2026-10-20 |
 | M36 | DEPRECATIONS entry | the `class` row of M2 in `packages/testprotocols/DEPRECATIONS.md` (`next release` / `next release + 6 months`), beside the *Deprecated* changelog entry; the M20 `member` row | record | core | no | accepted, 2026-10-20 |
 | M37 | GAPS entry | `CpeGatewayDevice` design record and matrix (this document); the dropped members `wifi_rf` and `network_probe` with their trigger (a sourced matrix row); DS-Lite as a `WanIpv6` part with its trigger (a matrix row) | record | core | no | accepted, 2026-10-20 |
 | M38 | testoperations change | `testoperations.device_management:wait_for_reboot_completion` widened from `DeviceManagement` to the health base of M14, so it accepts both classes (`is_cpe_online` takes `Tr069Server` and is unaffected); the candidates of §6 (guest segment, WAN reconnect, second-session credential check, export-change-import-compare) recorded for the stage-4 collector | record | core | no | accepted with conditions (C1), 2026-10-20 |
 
 M9's note keeps the unrealised half of the `L2Bridge` entry (STP tuning,
 forwarding-table read) visible; M17, M26 and M29 update records this design
-relies on rather than contradicts; M21 is the one `tier-staged` row.
+relies on rather than contradicts; M3, M21 and M32 are the `tier-staged` rows
+(M3 and M32 since stage 4).
 
 ## Review record
 
@@ -2340,7 +2560,7 @@ relies on rather than contradicts; M21 is the one `tier-staged` row.
   `wifi_bss` VLAN boundary stated; N10 the connection's resolvers kept apart
   from the configured upstreams, `set_upstreams` never touching them.
 - **2026-10-20 — stage 4a: core code landed on this PR.** Every `core` and
-  `tier` row of §12 is implemented (commits `0313df9..d7e819c`, plus the
+  `tier` row of §12 is implemented (commits `d2abb3c..d7e819c`, plus the
   records commit carrying this entry): ten capability
   protocols, six extensions, the archetype and three unregistered tier
   Protocols, the superseded class and one method deprecated with their
@@ -2348,3 +2568,62 @@ relies on rather than contradicts; M21 is the one `tier-staged` row.
   M17, M21, M26, M27, M29, M36, M37 and the `testoperations` widening M38.
   The §4 listing's lifecycle comment corrected to the one-member decision of
   §6. Stage 4b (the reference drivers) follows in the private corpus.
+- **2026-10-20 — stage 4b: reference drivers written in the private corpus.**
+  Five drivers (one per column) at corpus commit `9c2812b`, pinned to this
+  PR's head `47954b1`; MATRIX (core, 154 members, ✓/✗): column 1 140/14,
+  column 2 148/6, column 3 129/25, column 4 86/68, column 5 124/30; tiers as
+  built: voice on none (`tier-staged`), mesh on columns 1, 3, 4 and 5, USP on
+  columns 1, 3 and 4. Findings folded:
+  - cell corrections (13): R54–R55 ✗ on columns 1 and 2; R3–R4 ◐ on column 3;
+    R58 ✗ on column 5; R23 and R28 ◐ on column 4; the limit text of R21
+    (column 2), R16 and R22 (column 3), R22 (column 4) and R54–R58 (column 3)
+    corrected (§2, §10);
+  - cells that stand with a per-method case (44): recorded in §6, §8 and the
+    §9 member table;
+  - design-text corrections (32): §6, §8 and §9 as listed in this entry's
+    rulings and the sections themselves (the column-2 change-file flag and its
+    per-session path, the column-1 and column-3 chain models, the
+    satisfied-state write, the column-4 login reads, the column-5 REST route,
+    the column-3 build facts);
+  - `lossy:`, `partial:` and `unverified:` lines: recorded in the corpus, not
+    in this design;
+  - six corpus-only records: settled in the corpus, not folded.
+  The TR-069 route on column 1 decided: `set_acs` / `get_acs` through the
+  data model's management-server object, `force_inform` and
+  `is_tr069_connected` through the CWMP client's own bus object (§6 Decided
+  as verification items); the two halves cite two clients' documents, and
+  whether the data-model client's image registers the same bus object is
+  unverified. 182 `lossy:` and 91 `partial:` lines recorded in the corpus
+  (49 `unverified:`). Nominal cells: voice flipped (columns 1 and 2), mesh on
+  column 3 confirmed on the family's mesh build variant, USP on column 1
+  confirmed. Maintainer rulings applied:
+  - (1) the voice tier drops to `tier-staged`: §6's rule (a tier stays built
+    while a majority of the five supports its defining operation) with R54
+    on columns 3 and 4 only, two of five. The tier Protocol, `VoiceGateway`
+    and its five records are withdrawn from this PR (the pre-existing voice
+    models stay); M3 and M32 re-outcomed `tier-staged` with their trigger (a
+    second family publishing the SIP account, or a consumer); the `GAPS.md`
+    CPE gateway entry points at them. **Finding for the owner:** this
+    design's denominator ("a majority of the five") is stricter than the
+    public README's evidence bar ("a majority of the ratified list"), under
+    one reading of which voice at two of three would have stayed built; the
+    owner decides later whether to align them, and this PR follows the
+    design.
+  - (2) `UspAgentState.connected` dropped (§6's own condition: no column
+    publishes a connection state; columns 1, 3 and 4 read `None`); M35
+    re-outcomed.
+  - (3) R22/R23 and R28 on column 4 graded ◐ with the limit named (channel
+    and enable published, power, width, country and DFS not; WPS push-button
+    start, stop and status published, the PIN obsolete); the family evidence
+    had them ✓; M24 and M31 re-outcomed.
+  - (4) R58 on column 5 is ✗ (no per-client steering), not the stage-3 ◐;
+    M33 re-outcomed.
+  - (5) three stage-4a text minors: the `import_configuration` observation
+    worded the same way in §6, the method-grain table and the protocol
+    docstring (the test re-reads a setting it changed after the export); the
+    stage-4a commit range written `d2abb3c..d7e819c` (a git range excludes its
+    left commit); the changelog's archetype entry recounted after the voice
+    withdrawal (eight of the twenty-six capability members are new
+    protocols, the split health base among them).
+  - (6) every other cell and text correction of the corpus findings applied
+    as listed above; M6 re-outcomed for R3–R4.

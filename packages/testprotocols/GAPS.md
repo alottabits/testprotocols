@@ -1240,9 +1240,9 @@ When picking up a deferred capability:
 
 ---
 
-## 2026-10-20 — `CpeGatewayDevice`: staged firmware pair, dropped members, DS-Lite [priority: low]
+## 2026-10-20 — `CpeGatewayDevice`: staged firmware pair, voice tier, dropped members, DS-Lite [priority: low]
 
-**Signal:** The CPE gateway archetype track (`docs/architecture/cpe-gateway-protocol-design.md`, §6, §12). Three things the design
+**Signal:** The CPE gateway archetype track (`docs/architecture/cpe-gateway-protocol-design.md`, §6, §12). Four things the design
 decided against building now, each with the trigger that reopens it.
 
 **Trigger to act:**
@@ -1251,6 +1251,13 @@ decided against building now, each with the trigger that reopens it.
   product whose tests need the staged-image state read. Three of the five reviewed families
   upgrade in one action and none publishes a staged-image read, so the unsplit member is on the
   core and the pair is staged here.
+- *The voice tier* (`CpeGatewayVoiceTier` adding `voice: VoiceGateway`, with its SIP account,
+  registration and analogue-line records; manifest rows M3 and M32, `tier-staged`; design
+  `docs/architecture/cpe-gateway-protocol-design.md` §4, §6 "Mesh and voice"): a second
+  reviewed family publishing the SIP account and its registration state (R54), or a consumer
+  whose tests need the gateway's own voice lines. The reference drivers found two of the five
+  reviewed families publishing it, below the majority the design requires for a tier, so the
+  shape is recorded in the design and nothing lands until then.
 - *The dropped members* `wifi_rf` and `network_probe` (M37): a sourced matrix row for the
   operation on a majority of the reviewed families. Neither has a row in the design's §2; a
   consumer that needs one on a gateway composes it plugin-local until then.
@@ -1262,9 +1269,11 @@ the reviewed families) or has no matrix row; the design record is the archetype'
 document itself.
 
 **Design notes (when picked up):** the staged pair keeps `upgrade_firmware` as the one-step
-member and adds the two levers plus a staged-image read on `DeviceLifecycle`; DS-Lite is a
+member and adds the two levers plus a staged-image read on `DeviceLifecycle`; the voice tier
+lands as the design's §6 states it (five members over the TR-104 account and line objects,
+the password `None` on every read); DS-Lite is a
 `WanIpv6Mode` value or a `WanIpv6` field with its tunnel endpoint.
 
 **Cross-references:** `docs/architecture/cpe-gateway-protocol-design.md` (§4 "Dropped members", §6 "The WAN connection" and "The generic
-introductions", §12 M21 and M37); `devices/cpe_gateway.py`; `device_lifecycle.py`;
+introductions", §6 "Mesh and voice", §12 M3, M21, M32 and M37); `devices/cpe_gateway.py`; `device_lifecycle.py`;
 `models/cpe_gateway.py`.
