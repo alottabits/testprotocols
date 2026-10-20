@@ -765,3 +765,38 @@ namespace publishes its in-namespace name); empty when it has no test leg.
   entry); the release commit body carries this migration line for external
   driver authors: *implement `test_interface` on every `NetworkAttachment`
   view before bumping the pin.*
+
+---
+
+## 2026-10-20 — `DeviceHealth` split off `DeviceManagement` (read-only health base)
+
+**Signal:** The CPE gateway design (`docs/architecture/cpe-gateway-protocol-design.md`,
+§6 "Health") composes the health reads a closed product publishes about itself —
+online, uptime, processor load, memory, processes, event log — without the
+host-shaped members of `DeviceManagement` (`get_file_content`, `get_board_logs`,
+`get_boottime_log`, the deprecated pairs), which a closed gateway cannot satisfy.
+`GAPS.md` 2026-06-11 had already recorded that the host-shaped protocol is not to be
+reused on a closed product.
+
+**Decision:** split — a new read-only protocol `device_health.DeviceHealth`
+(`is_online`, `get_seconds_uptime`, `read_cpu_load`, `read_memory_utilization`,
+`read_running_processes`, `read_log_entries`); `DeviceManagement` inherits it and
+keeps its host-shaped members and `get_load_avg` unchanged. `read_cpu_load ->
+CpuLoad(percent, load_average_1m)` is added on the base, so it reaches
+`DeviceManagement` as one new member.
+
+**Rationale:**
+- `GAPS.md` 2026-06-11: a closed product gets a small health protocol, not the
+  host-shaped one; the gateway design is that product's first trigger.
+- The `RoutingRead` precedent: a read-only protocol split off `Router` so the read
+  surface is shared and the levers ride on the substrate that has them.
+- Inheritance rather than a sibling, so `testoperations.device_management.
+  wait_for_reboot_completion` is widened to the base without a second code path.
+
+**Migration impact:**
+- `testprotocols`: implementers of `DeviceManagement` gain one mandatory member,
+  `read_cpu_load` (**source-breaking** under the `isinstance` gate; raise
+  `NotSupportedError` where the host publishes no load figure). Every other member
+  keeps its name, signature and meaning. Manifest rows M14–M17 of the design.
+- `testoperations`: `wait_for_reboot_completion(device_mgmt: DeviceHealth, …)` —
+  the annotation widened, the parameter name and behaviour unchanged (M38).

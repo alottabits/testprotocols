@@ -31,6 +31,7 @@ from testprotocols.models.cpe_gateway import (
     WeeklySchedule,
 )
 from testprotocols.models.device_management import (
+    CpuLoad,
     EventLogEntry,
     MemoryUtilization,
     ProcessInfo,
@@ -280,6 +281,7 @@ __all__ = [
     "ContentCategory",
     # tr069
     "CpeConnectionStatus",
+    "CpuLoad",
     # dhcp
     "DHCPTraceData",
     "DHCPV6TraceData",

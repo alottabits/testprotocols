@@ -13,6 +13,7 @@ from testprotocols.bgp import Bgp
 from testprotocols.config_ownership import ConfigOwnership
 from testprotocols.conntrack import Conntrack, ConntrackWhiteBox
 from testprotocols.content_filtering import ContentFiltering
+from testprotocols.device_health import DeviceHealth
 from testprotocols.device_info import DeviceInfo
 from testprotocols.device_lifecycle import DeviceLifecycle
 from testprotocols.device_management import DeviceManagement
@@ -138,6 +139,7 @@ __all__ = [
     "Console",
     "ContentFiltering",
     "CpeDevice",
+    "DeviceHealth",
     "DeviceInfo",
     "DeviceLifecycle",
     "DeviceManagement",

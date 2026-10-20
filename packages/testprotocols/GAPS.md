@@ -581,6 +581,16 @@ seeded. Do **not** reuse the host-shaped `DeviceManagement`.
 **Cross-references:** `devices/sdwan.py` (`SdwanApplianceDevice`),
 `device_management.py` (the host-shaped one to NOT reuse), `appliance_uplinks.py`.
 
+**Update 2026-10-20 (CPE gateway design, M17):** the read-only base landed as
+`testprotocols.device_health:DeviceHealth` (`is_online`, `get_seconds_uptime`,
+`read_cpu_load`, `read_memory_utilization`, `read_running_processes`,
+`read_log_entries`), split off `DeviceManagement`, which inherits it (`SPLITS.md`
+2026-10-20). It differs from the sketch above in two ways: `get_seconds_uptime`
+returns `float`, not `float | None` (an appliance that publishes no uptime raises
+`NotSupportedError`), and the base carries the process-list read, which a closed
+product may raise on. The appliance composes it as `health: DeviceHealth` when its
+own trigger fires; the sketch's `reboot()` is `device_lifecycle`'s.
+
 ---
 
 ## 2026-06-14 — `IgmpSnooping` [priority: HIGH]

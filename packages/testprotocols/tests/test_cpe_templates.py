@@ -46,6 +46,7 @@ PROTOCOLS = [
             "get_seconds_uptime",
             "is_online",
             "get_load_avg",
+            "read_cpu_load",
             "get_memory_utilization",
             "read_memory_utilization",
             "read_running_processes",

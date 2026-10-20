@@ -1,6 +1,6 @@
 """Device management operations — reboot polling loop.
 
-Receives a resolved ``device_mgmt`` template instance from the caller.
+Receives a resolved health instance (any ``DeviceHealth``) from the caller.
 The thin wrapper ``get_seconds_uptime`` is deleted — step definitions call
 the template method directly.
 """
@@ -9,18 +9,20 @@ from __future__ import annotations
 
 import time
 
-from testprotocols.device_management import DeviceManagement
+from testprotocols.device_health import DeviceHealth
 
 
 def wait_for_reboot_completion(
-    device_mgmt: DeviceManagement,
+    device_mgmt: DeviceHealth,
     timeout: int = 60,
 ) -> None:
     """Block until the device has completed a reboot cycle.
 
-    Polls ``device_mgmt.is_online()`` until it transitions from True -> False
-    -> True (or starts from False).  Raises ``TimeoutError`` if *timeout*
-    seconds elapse before the device comes back online.
+    Accepts any ``DeviceHealth``: a host's ``DeviceManagement`` and a closed
+    product's ``health`` alike. Polls ``device_mgmt.is_online()`` until it
+    transitions from True -> False -> True (or starts from False). Raises
+    ``TimeoutError`` if *timeout* seconds elapse before the device comes back
+    online.
     """
     deadline = time.monotonic() + timeout
 

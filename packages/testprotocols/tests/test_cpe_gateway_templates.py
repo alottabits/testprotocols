@@ -106,3 +106,29 @@ def test_reexported() -> None:
 
 # `dataclasses` is used by the extension tests appended in later tasks.
 _ = dataclasses
+
+
+def test_device_health_split() -> None:
+    from _helpers import protocol_mro
+    from testprotocols.device_health import DeviceHealth
+    from testprotocols.device_management import DeviceManagement
+
+    assert protocol_attrs(DeviceHealth) == {
+        "is_online",
+        "get_seconds_uptime",
+        "read_cpu_load",
+        "read_memory_utilization",
+        "read_running_processes",
+        "read_log_entries",
+    }
+    assert DeviceHealth in protocol_mro(DeviceManagement)
+    assert "read_cpu_load" in protocol_attrs(DeviceManagement)
+    assert "get_load_avg" in protocol_attrs(DeviceManagement)
+    assert protocol_attrs(DeviceHealth) < protocol_attrs(DeviceManagement)
+
+
+def test_cpu_load_record() -> None:
+    from testprotocols.models.device_management import CpuLoad
+
+    assert [f.name for f in dataclasses.fields(CpuLoad)] == ["percent", "load_average_1m"]
+    assert CpuLoad.__dataclass_params__.frozen  # type: ignore[attr-defined]

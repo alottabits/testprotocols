@@ -1,4 +1,4 @@
-"""Device health records: memory, processes and the event log.
+"""Device health records: processor load, memory, processes and the event log.
 
 The typed forms of what ``DeviceManagement.get_memory_utilization``, ``get_running_processes``
 and ``read_event_logs`` returned as dicts. Every field comes from the released docstrings and
@@ -11,6 +11,16 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import timedelta
 from enum import IntEnum
+
+
+@dataclass(frozen=True)
+class CpuLoad:
+    """A device's processor load: *percent*, the family's processor-usage figure, and
+    *load_average_1m*, the kernel's one-minute load average, each ``None`` where the family
+    publishes no such figure."""
+
+    percent: float | None
+    load_average_1m: float | None
 
 
 @dataclass(frozen=True)
