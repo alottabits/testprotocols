@@ -2601,8 +2601,8 @@ relies on rather than contradicts; M3, M21 and M32 are the `tier-staged` rows
   `is_tr069_connected` through the CWMP client's own bus object (§6 Decided
   as verification items); the two halves cite two clients' documents, and
   whether the data-model client's image registers the same bus object is
-  unverified. 182 `lossy:` and 91 `partial:` lines recorded in the corpus
-  (49 `unverified:`). Nominal cells: voice flipped (columns 1 and 2), mesh on
+  unverified. 180 `lossy:` and 89 `partial:` lines recorded in the corpus
+  (48 `unverified:`). Nominal cells: voice flipped (columns 1 and 2), mesh on
   column 3 confirmed on the family's mesh build variant, USP on column 1
   confirmed. Maintainer rulings applied:
   - (1) the voice tier drops to `tier-staged`: §6's rule (a tier stays built
