@@ -2,11 +2,13 @@
 
 __version__ = "0.13.0"
 
+from testprotocols.admin_credential import AdminCredential
 from testprotocols.aftr_gateway import AftrGateway
 from testprotocols.appliance_nat import ApplianceNat
 from testprotocols.appliance_uplinks import ApplianceUplinks
 from testprotocols.appliance_vlans import ApplianceVlans
 from testprotocols.arp_client import ArpClient
+from testprotocols.auto_port_mapping import AutoPortMapping
 from testprotocols.bgp import Bgp
 from testprotocols.config_ownership import ConfigOwnership
 from testprotocols.conntrack import Conntrack, ConntrackWhiteBox
@@ -41,12 +43,15 @@ from testprotocols.dhcp_client import DhcpClient
 from testprotocols.dhcp_server import DhcpServer
 from testprotocols.discovery import Discovery
 from testprotocols.dns_client import DnsClient
+from testprotocols.dns_forwarder import DnsForwarder
 from testprotocols.file_transfer import FileTransfer
 from testprotocols.firewall import Firewall, FirewallWhiteBox
 from testprotocols.firewall_zones import FirewallZones
 from testprotocols.first_hop_security import FirstHopSecurity
 from testprotocols.gateway_redundancy import GatewayRedundancy
 from testprotocols.held_prefixes import HeldPrefixes
+from testprotocols.host_filter import HostFilter
+from testprotocols.host_table import HostTable
 from testprotocols.http_client import HttpClient
 from testprotocols.http_server import HttpServer
 from testprotocols.hw_console import Console, HwConsole
@@ -56,6 +61,7 @@ from testprotocols.ip_routing import IpRouting
 from testprotocols.iperf_client import IperfClient
 from testprotocols.iperf_generator import IperfGenerator
 from testprotocols.iperf_server import IperfServer
+from testprotocols.l2_bridge import L2Bridge
 from testprotocols.l3_firewall import L3Firewall
 from testprotocols.l7_firewall import L7Firewall
 from testprotocols.link_aggregation import LinkAggregation
@@ -104,6 +110,7 @@ from testprotocols.traffic_shaping import TrafficShaping
 from testprotocols.uplink_ports import UplinkPortRef, UplinkPorts
 from testprotocols.upnp_client import UpnpClient
 from testprotocols.vlan_client import VlanClient
+from testprotocols.wan_connection import WanConnection
 from testprotocols.wan_link_admin import WanLinkAdmin
 from testprotocols.wifi_bss import WifiBss
 from testprotocols.wifi_client import WifiClient
@@ -116,11 +123,13 @@ from testprotocols.wifi_transitions import WifiTransitions
 
 __all__ = [
     "AcsDevice",
+    "AdminCredential",
     "AftrGateway",
     "ApplianceNat",
     "ApplianceUplinks",
     "ApplianceVlans",
     "ArpClient",
+    "AutoPortMapping",
     "BaseDeviceProtocol",
     "Bgp",
     "ConfigOwnership",
@@ -136,6 +145,7 @@ __all__ = [
     "DhcpServer",
     "Discovery",
     "DnsClient",
+    "DnsForwarder",
     "FileTransfer",
     "Firewall",
     "FirewallWhiteBox",
@@ -143,6 +153,8 @@ __all__ = [
     "FirstHopSecurity",
     "GatewayRedundancy",
     "HeldPrefixes",
+    "HostFilter",
+    "HostTable",
     "HttpClient",
     "HttpServer",
     "HwConsole",
@@ -153,6 +165,7 @@ __all__ = [
     "IperfGenerator",
     "IperfServer",
     "IperfTrafficGeneratorDevice",
+    "L2Bridge",
     "L2Switch",
     "L3Firewall",
     "L3Switch",
@@ -216,6 +229,7 @@ __all__ = [
     "UplinkPorts",
     "UpnpClient",
     "VlanClient",
+    "WanConnection",
     "WanLinkAdmin",
     "WanServerDevice",
     "WifiBss",
