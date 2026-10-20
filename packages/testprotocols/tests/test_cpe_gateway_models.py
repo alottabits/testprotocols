@@ -135,3 +135,8 @@ def test_reexported_from_models_package() -> None:
     ):
         assert name in models.__all__
         assert hasattr(models, name)
+
+
+def test_usp_agent_state_carries_the_endpoint_only() -> None:
+    """No reviewed family publishes a connection state, so ``connected`` is dropped (§6)."""
+    assert list(_fields(m.UspAgentState)) == ["endpoint_id"]

@@ -30,7 +30,6 @@ from testprotocols.devices.cpe_gateway import (
     CpeGatewayDevice,
     CpeGatewayMeshTier,
     CpeGatewayUspTier,
-    CpeGatewayVoiceTier,
 )
 from testprotocols.devices.infra import (
     AcsDevice,
@@ -120,7 +119,6 @@ from testprotocols.uplink_ports import UplinkPortRef, UplinkPorts
 from testprotocols.upnp_client import UpnpClient
 from testprotocols.usp_agent import UspAgent
 from testprotocols.vlan_client import VlanClient
-from testprotocols.voice_gateway import VoiceGateway
 from testprotocols.wan_connection import WanConnection
 from testprotocols.wan_link_admin import WanLinkAdmin
 from testprotocols.wifi_bss import WifiBss
@@ -152,7 +150,6 @@ __all__ = [
     "CpeGatewayDevice",
     "CpeGatewayMeshTier",
     "CpeGatewayUspTier",
-    "CpeGatewayVoiceTier",
     "DeviceHealth",
     "DeviceInfo",
     "DeviceLifecycle",
@@ -246,7 +243,6 @@ __all__ = [
     "UpnpClient",
     "UspAgent",
     "VlanClient",
-    "VoiceGateway",
     "WanConnection",
     "WanLinkAdmin",
     "WanServerDevice",

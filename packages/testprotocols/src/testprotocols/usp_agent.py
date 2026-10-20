@@ -2,11 +2,11 @@
 
 The agent connects to a controller over a message transport and exposes the
 device's data model to it. This capability is the agent's controller
-configuration and its connection state. TR-069 is the other management
+configuration and its own endpoint identifier. TR-069 is the other management
 protocol and stays on ``tr069_client``.
 
 In scope: the controller endpoint and transport (write, read), the agent's own
-state.
+endpoint identifier.
 
 Out of scope: the CWMP client (see ``tr069_client``), the controller itself
 (a test-bed role), the data model the agent exposes.
@@ -24,8 +24,7 @@ class UspAgent(Protocol):
     """Abstract contract for the gateway's USP agent."""
 
     def set_controller(self, controller: UspController) -> None:
-        """Write the agent's *controller*; paired read ``get_controller``, and
-        ``get_agent_state`` for the effect.
+        """Write the agent's *controller*; paired read ``get_controller``.
 
         ``UspController.path`` is the WebSocket resource path and ``None`` on the other
         transports. A family that configures the agent through its own files writes them and
@@ -42,6 +41,5 @@ class UspAgent(Protocol):
         ...
 
     def get_agent_state(self) -> UspAgentState:
-        """Return the agent's own endpoint identifier and connection state; ``connected`` is
-        ``None`` where the family publishes the configuration but no connection state."""
+        """Return the agent's own endpoint identifier."""
         ...

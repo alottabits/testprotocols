@@ -54,13 +54,13 @@ their tags and PR history.
 #### Added
 
 - **device archetype** `testprotocols.devices.cpe_gateway:CpeGatewayDevice` — the CPE gateway
-  (registered `cpe_gateway`): twenty-six capability members, seven of them new, over any
+  (registered `cpe_gateway`): twenty-six capability members, eight of them new, over any
   gateway's management plane; supersedes `CpeDevice` (`linux_cpe`), which stays registered for
   its deprecation period. no proposal; design `docs/architecture/cpe-gateway-protocol-design.md` M1; PR #101.
-- **tier protocols** `testprotocols.devices.cpe_gateway:CpeGatewayVoiceTier`,
-  `CpeGatewayMeshTier`, `CpeGatewayUspTier` — each a strict superset of `CpeGatewayDevice`
-  adding one facet (`voice: VoiceGateway`, `wifi_mesh: WifiMesh`, `usp_agent: UspAgent`); not
-  registered, a test pins against them with `isinstance`. no proposal; design `docs/architecture/cpe-gateway-protocol-design.md` M3, M4, M5; PR #101.
+- **tier protocols** `testprotocols.devices.cpe_gateway:CpeGatewayMeshTier`,
+  `CpeGatewayUspTier` — each a strict superset of `CpeGatewayDevice` adding one facet
+  (`wifi_mesh: WifiMesh`, `usp_agent: UspAgent`); not registered, a test pins against them with
+  `isinstance`. no proposal; design `docs/architecture/cpe-gateway-protocol-design.md` M4, M5; PR #101.
 - **capability protocol** `testprotocols.wan_connection:WanConnection` — the gateway's WAN
   connection as one object with a mode (`set_wan_connection`, `get_wan_connection`,
   `list_wan_connections`, `get_wan_state`, `reset_session`); the reset is the PPPoE session
@@ -89,12 +89,8 @@ their tags and PR history.
   `read_memory_utilization`, `read_running_processes`, `read_log_entries`), split off
   `DeviceManagement`, which inherits it (`SPLITS.md` 2026-10-20; `GAPS.md` 2026-06-11 updated).
   no proposal; design `docs/architecture/cpe-gateway-protocol-design.md` M14, M16, M17; PR #101.
-- **capability protocol** `testprotocols.voice_gateway:VoiceGateway` — the gateway's own SIP
-  accounts, their registration state and its analogue lines (`set_sip_account`,
-  `remove_sip_account`, `list_sip_accounts`, `get_sip_registration`, `list_fxs_lines`); the
-  `voice` tier. no proposal; design `docs/architecture/cpe-gateway-protocol-design.md` M32; PR #101.
 - **capability protocol** `testprotocols.usp_agent:UspAgent` — the USP agent's controller
-  endpoint and transport and its own state (`set_controller`, `get_controller`,
+  endpoint and transport and its own endpoint identifier (`set_controller`, `get_controller`,
   `get_agent_state`); the `usp` tier. no proposal; design `docs/architecture/cpe-gateway-protocol-design.md` M35; PR #101.
 - **models** `testprotocols.models.cpe_gateway:WanMode`, `WanIpv6Mode`, `WanStatus`,
   `ProvisioningMode`, `PppoeCredentials`, `StaticAddressing`, `WanVlan`, `WanIpv6`,
@@ -103,7 +99,8 @@ their tags and PR history.
   `LanHost`, `Weekday`, `WeeklySchedule`, `HostBlock`, `AutoMappingProtocol`,
   `AutoPortMappingEntry`, `UspTransport`, `UspController`, `UspAgentState` — the gateway
   records and vocabularies, every record frozen, every closed set a `StrEnum` (`Weekday` an
-  ISO-numbered `IntEnum`); each `X | None` field's absence meaning is in its record's docstring.
+  ISO-numbered `IntEnum`); each `X | None` field's absence meaning is in its record's docstring;
+  `UspAgentState` carries the agent's endpoint identifier only.
   no proposal; design `docs/architecture/cpe-gateway-protocol-design.md` M6, M7, M8, M10, M11, M12, M35; PR #101.
 - **models** `testprotocols.models.device_management:CpuLoad`, `ImageSource` — the processor
   load (`percent`, `load_average_1m`, each `None` where unpublished) and the firmware image's
@@ -114,9 +111,6 @@ their tags and PR history.
   passwords required on a write and `None` on every read. no proposal; design `docs/architecture/cpe-gateway-protocol-design.md` M22; PR #101.
 - **models** `testprotocols.models.wifi:WpsSessionState`, `WpsMethod`, `WpsState` — a BSS's WPS
   session state. no proposal; design `docs/architecture/cpe-gateway-protocol-design.md` M24; PR #101.
-- **models** `testprotocols.models.voice:SipRegistrationState`, `FxsHookState`, `SipAccount`,
-  `SipRegistration`, `FxsLine` — the gateway's own SIP accounts, their registration and its
-  analogue lines; `SipAccount.password` `None` on every read. no proposal; design `docs/architecture/cpe-gateway-protocol-design.md` M32; PR #101.
 
 #### Changed
 

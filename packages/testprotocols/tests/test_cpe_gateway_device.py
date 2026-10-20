@@ -11,7 +11,6 @@ from testprotocols.devices.cpe_gateway import (
     CpeGatewayDevice,
     CpeGatewayMeshTier,
     CpeGatewayUspTier,
-    CpeGatewayVoiceTier,
 )
 
 CORE = frozenset(
@@ -58,7 +57,6 @@ def test_core_members_and_registration() -> None:
 @pytest.mark.parametrize(
     ("tier", "member"),
     [
-        (CpeGatewayVoiceTier, "voice"),
         (CpeGatewayMeshTier, "wifi_mesh"),
         (CpeGatewayUspTier, "usp_agent"),
     ],
@@ -92,9 +90,33 @@ def test_reexported() -> None:
 
     for name in (
         "CpeGatewayDevice",
-        "CpeGatewayVoiceTier",
         "CpeGatewayMeshTier",
         "CpeGatewayUspTier",
     ):
         assert name in testprotocols.__all__
         assert hasattr(testprotocols, name)
+
+
+def test_voice_tier_is_staged_not_built() -> None:
+    """The voice tier is `tier-staged` (design §4, §12 M3 and M32): no tier Protocol, no
+    capability Protocol and no gateway voice records are published."""
+    import importlib.util
+
+    import testprotocols
+    import testprotocols.devices.cpe_gateway as gateway
+    import testprotocols.models as models
+    from testprotocols.models import voice
+
+    assert not hasattr(gateway, "CpeGatewayVoiceTier")
+    assert importlib.util.find_spec("testprotocols.voice_gateway") is None
+    for name in ("CpeGatewayVoiceTier", "VoiceGateway"):
+        assert name not in testprotocols.__all__
+    for name in (
+        "SipRegistrationState",
+        "FxsHookState",
+        "SipAccount",
+        "SipRegistration",
+        "FxsLine",
+    ):
+        assert not hasattr(voice, name)
+        assert name not in models.__all__

@@ -60,17 +60,6 @@ PROTOCOLS = [
     ),
     ("AdminCredential", "testprotocols.admin_credential", {"set_password", "list_accounts"}),
     (
-        "VoiceGateway",
-        "testprotocols.voice_gateway",
-        {
-            "set_sip_account",
-            "remove_sip_account",
-            "list_sip_accounts",
-            "get_sip_registration",
-            "list_fxs_lines",
-        },
-    ),
-    (
         "UspAgent",
         "testprotocols.usp_agent",
         {"set_controller", "get_controller", "get_agent_state"},
@@ -82,11 +71,9 @@ MULTI_STEP_WRITES = {
     "set_upstreams": ("testprotocols.dns_forwarder", "DnsForwarder"),
     "create_bridge": ("testprotocols.l2_bridge", "L2Bridge"),
     "block_host": ("testprotocols.host_filter", "HostFilter"),
-    "set_sip_account": ("testprotocols.voice_gateway", "VoiceGateway"),
     "set_controller": ("testprotocols.usp_agent", "UspAgent"),
     # the removals the §6 "Method grain" table pairs with the multi-step writes above
     "unblock_host": ("testprotocols.host_filter", "HostFilter"),
-    "remove_sip_account": ("testprotocols.voice_gateway", "VoiceGateway"),
     "delete_bridge": ("testprotocols.l2_bridge", "L2Bridge"),
 }
 
@@ -104,8 +91,6 @@ BY_NAME_MEMBERS = [
     ("testprotocols.host_filter", "HostFilter", "unblock_host"),
     ("testprotocols.host_filter", "HostFilter", "get_host_block"),
     ("testprotocols.admin_credential", "AdminCredential", "set_password"),
-    ("testprotocols.voice_gateway", "VoiceGateway", "remove_sip_account"),
-    ("testprotocols.voice_gateway", "VoiceGateway", "get_sip_registration"),
 ]
 
 

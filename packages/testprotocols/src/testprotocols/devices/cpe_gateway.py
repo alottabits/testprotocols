@@ -3,10 +3,11 @@
 ``CpeGatewayDevice`` is the universal core of a residential or small-business
 gateway as its management plane publishes it: the WAN connection, the LAN
 (DHCP, DNS forwarder, bridges, hosts), Wi-Fi, the firewall, identity and health,
-time, lifecycle, the local credential and TR-069. The three facets that fail the
-core threshold or the class definition — voice, the mesh controller and the USP
-agent — are optional tier Protocols, each a strict superset of the core, so a
-driver satisfies any combination of them. Design:
+time, lifecycle, the local credential and TR-069. The two facets that fail the
+core threshold or the class definition — the mesh controller and the USP agent —
+are optional tier Protocols, each a strict superset of the core, so a driver
+satisfies any combination of them; a third, voice, is staged until a majority of
+the reviewed families publishes it. Design:
 docs/architecture/cpe-gateway-protocol-design.md (§4, §6). It supersedes
 ``CpeDevice`` (registry key ``linux_cpe``), which stays registered for its
 deprecation period.
@@ -37,7 +38,6 @@ from testprotocols.port_status import PortStatus
 from testprotocols.syslog_config import SyslogConfig
 from testprotocols.tr069_client import Tr069Client
 from testprotocols.usp_agent import UspAgent
-from testprotocols.voice_gateway import VoiceGateway
 from testprotocols.wan_connection import WanConnection
 from testprotocols.wan_link_admin import WanLinkAdmin
 from testprotocols.wifi_bss import WifiBss
@@ -117,19 +117,6 @@ register_device_type("cpe_gateway", CpeGatewayDevice)
 
 
 @runtime_checkable
-class CpeGatewayVoiceTier(CpeGatewayDevice, Protocol):
-    """Adds the voice facet: SIP accounts and their registration, FXS lines
-    and their state. Present on operator gateways and on retail gateways
-    with telephony; absent on bridged modems and on the fifth reviewed
-    column. Evidence: four of five columns (R54 to R55, one at ✓, three
-    caveated; §9 names the nominal cells). Not registered: a test pins
-    against it with ``isinstance``."""
-
-    # NEW (tier) — SIP accounts, registration state, FXS line state
-    voice: VoiceGateway
-
-
-@runtime_checkable
 class CpeGatewayMeshTier(CpeGatewayDevice, Protocol):
     """Adds the mesh-controller facet: the agents and their backhaul links,
     client steering between agents. The extender is not a device of this
@@ -145,9 +132,9 @@ class CpeGatewayMeshTier(CpeGatewayDevice, Protocol):
 @runtime_checkable
 class CpeGatewayUspTier(CpeGatewayDevice, Protocol):
     """Adds the USP agent: the controller endpoint and its transport, the
-    agent's state. Evidence: three of five columns (R53, all caveated); the
+    agent's own endpoint identifier. Evidence: three of five columns (R53, all caveated); the
     second trigger column packages no agent and raises. Not registered: a
     test pins against it with ``isinstance``."""
 
-    # NEW (tier) — controller endpoint and transport, agent state
+    # NEW (tier) — controller endpoint and transport, the agent's endpoint identifier
     usp_agent: UspAgent

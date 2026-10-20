@@ -312,8 +312,7 @@ class UspController:
 
 @dataclass(frozen=True)
 class UspAgentState:
-    """The agent's own *endpoint_id* and whether it is *connected* to its controller;
-    ``None`` where the family publishes the configuration but no connection state."""
+    """The agent's own *endpoint_id*. No reviewed family publishes the agent's connection
+    state, so the record carries none."""
 
     endpoint_id: str
-    connected: bool | None
