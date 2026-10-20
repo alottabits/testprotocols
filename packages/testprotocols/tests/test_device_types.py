@@ -19,7 +19,7 @@ from testprotocols.devices.client import (
     QoeMeasurementClientDevice,
     WlanClientDevice,
 )
-from testprotocols.devices.cpe import CpeDevice
+from testprotocols.devices.cpe_gateway import CpeGatewayDevice
 from testprotocols.devices.infra import AcsDevice, ProvisionerDevice, TftpDevice
 from testprotocols.devices.sdwan import SdwanApplianceDevice, SdwanRouterDevice
 from testprotocols.devices.switch import L2Switch, L3Switch, L3SwitchRouted
@@ -30,9 +30,15 @@ from testprotocols.devices.traffic import (
 from testprotocols.devices.voice import SipPhoneDevice, SipServerDevice
 from testprotocols.devices.wan import WanServerDevice
 
+# The superseded class is read through the registry: a direct import is deprecated.
+_linux_cpe = get_device_type("linux_cpe")
+assert _linux_cpe is not None
+CpeDevice: type = _linux_cpe.protocol
+
 _ALL_ARCHETYPES = (
     AcsDevice,
     CpeDevice,
+    CpeGatewayDevice,
     IperfTrafficGeneratorDevice,
     L2Switch,
     L3Switch,
@@ -67,6 +73,7 @@ def test_all_device_types_registered() -> None:
         "linux_qoe_client",
         "linux_qoe_measurement_client",
         "linux_cpe",
+        "cpe_gateway",
         "linux_acs",
         "linux_provisioner",
         "linux_tftp",
@@ -99,6 +106,12 @@ def test_sdwan_appliance_registered() -> None:
     spec = get_device_type("sdwan_appliance")
     assert isinstance(spec, DeviceTypeSpec)
     assert spec.protocol is SdwanApplianceDevice
+
+
+def test_cpe_gateway_registered() -> None:
+    spec = get_device_type("cpe_gateway")
+    assert spec is not None
+    assert spec.protocol is CpeGatewayDevice
 
 
 def test_cpe_registered() -> None:

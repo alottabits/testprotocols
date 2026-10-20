@@ -1,9 +1,15 @@
-"""CPE (Customer Premises Equipment) device archetype."""
+"""CPE (Customer Premises Equipment) device archetype — the superseded Linux-twin shape.
+
+Superseded by ``testprotocols.devices.cpe_gateway:CpeGatewayDevice`` (registry key
+``cpe_gateway``); kept intact and registered under ``linux_cpe`` for its deprecation
+period (``DEPRECATIONS.md``).
+"""
 
 from __future__ import annotations
 
 from typing import Protocol, runtime_checkable
 
+from testprotocols._compat import deprecated
 from testprotocols.conntrack import Conntrack
 from testprotocols.device_lifecycle import DeviceLifecycle
 from testprotocols.device_management import DeviceManagement
@@ -28,8 +34,16 @@ from testprotocols.wifi_transitions import WifiTransitions
 
 
 @runtime_checkable
+@deprecated(
+    "Deprecated: use CpeGatewayDevice (registry key cpe_gateway). Removal not before the "
+    "first release 6 months after the release that deprecates it.",
+    category=None,
+)
 class CpeDevice(BaseDeviceProtocol, Protocol):
     """CPE device archetype — black-box surface for residential / SMB gateways.
+
+    Deprecated: use CpeGatewayDevice (registry key cpe_gateway). Removal not before the
+    first release 6 months after the release that deprecates it.
 
     Aggregates the capability protocols any conforming CPE driver must provide:
     TR-069 management, lifecycle, hardware console, the full Wi-Fi stack
@@ -63,4 +77,4 @@ class CpeDevice(BaseDeviceProtocol, Protocol):
     lan_endpoint: NetworkEndpoint
 
 
-register_device_type("linux_cpe", CpeDevice)
+register_device_type("linux_cpe", CpeDevice)  # type: ignore[deprecated]  # pyright: ignore[reportDeprecated]  # registered as released until removal

@@ -23,7 +23,15 @@ from testprotocols.devices.client import (
     QoeClientDevice,
     WlanClientDevice,
 )
-from testprotocols.devices.cpe import CpeDevice
+from testprotocols.devices.cpe import (  # type: ignore[deprecated]  # re-exported as released
+    CpeDevice,  # pyright: ignore[reportDeprecated]  # re-exported as released
+)
+from testprotocols.devices.cpe_gateway import (
+    CpeGatewayDevice,
+    CpeGatewayMeshTier,
+    CpeGatewayUspTier,
+    CpeGatewayVoiceTier,
+)
 from testprotocols.devices.infra import (
     AcsDevice,
     ProvisionerDevice,
@@ -141,6 +149,10 @@ __all__ = [
     "Console",
     "ContentFiltering",
     "CpeDevice",
+    "CpeGatewayDevice",
+    "CpeGatewayMeshTier",
+    "CpeGatewayUspTier",
+    "CpeGatewayVoiceTier",
     "DeviceHealth",
     "DeviceInfo",
     "DeviceLifecycle",
