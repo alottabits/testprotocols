@@ -2,7 +2,7 @@
 
 | Field | Value |
 | --- | --- |
-| Status | accepted for verification |
+| Status | verified |
 | Author | rjvisser |
 | Date | 2026-10-19 |
 | Related | `docs/archetypes/README.md` (the track), `docs/architecture/managed-router-protocol-design.md` (the chartered sibling), `packages/testprotocols/src/testprotocols/devices/cpe.py` (the archetype this charter rebuilds), `packages/testprotocols/GAPS.md` (`L2Bridge`, 2026-05-02), `docs/architecture/l2-switch-protocol-design.md` (the shared STP/FDB vocabulary), `packages/testprotocols/SPLITS.md`, `packages/testprotocols/LEVELS.md` |
@@ -312,7 +312,7 @@ it stays.
 | R12 | Configure DHCP options | ✓ [12] | ✓ [12] | ✓ [12] | ◐ only router and subnet options (SetIPRouter, SetSubnetMask); DNS/domain read-only [12] | ✓ [12] |
 | R13 | Configure static leases | ✓ [13] | ✓ [13] | ✓ [13] | ✗ ReservedAddresses is out-only in GetInfo; no Set action [13] | ✓ [13] |
 | R14 | Read active leases | ✓ [14] | ◐ dnsmasq leases are a file; ubus `dhcp ipv4leases` is odhcpd-only [14] | ✓ [14] | ✓ [14] | ✓ [14] |
-| R15 | Configure DNS forwarder upstreams | ✓ [15] | ✓ [15] | ✓ [15] | ✗ X_SetDNSServers "The action is not supported"; LAN GetDNSServer read-only [15] | ✓ [15] |
+| R15 | Configure DNS forwarder upstreams | ✓ [15] | ✓ [15] | ◐ the static name-server parameters are declared only under the data model's `BCI` or `_ONESTACK_PRODUCT_REQ_` build flag; whether the reference build sets either is unverified [15] | ✗ X_SetDNSServers "The action is not supported"; LAN GetDNSServer read-only [15] | ✓ [15] |
 | R16 | Configure local host overrides | ✓ [16] | ✓ [16] | ◐ shell only: marked `/etc/hosts` lines and dnsmasq's SIGHUP, rewritten when the host file is regenerated; no data-model parameter [16] | ◐ only X_AVM-DE_SetHostNameByMACAddress; no arbitrary name/record override [16] | ✓ [16] |
 | R17 | Configure DNS rebind protection | ✓ [17] | ✓ [17] | ◐ always on: hard-coded dnsmasq `--stop-dns-rebind`, not configurable [17] | ✗ no rebind-protection action in any listed TR-064 service [17] | ✗ no rebind or private-address answer filter on the DNS page [17] |
 | R18 | Configure bridge membership (ports, wireless networks) | ✓ [18] | ✓ [18] | ✓ [18] | ✗ no bridge/port-membership action; LAN services configure IP and DHCP only [18] | ✓ [18] |
@@ -935,14 +935,22 @@ keys on; an address-keyed block is not offered. It is not `WifiBss`'s
 per-network MAC access list either: that list admits or refuses a station's
 association on one network, while a host block denies a host's traffic through
 the gateway, wired or wireless, on a schedule. The write is one device step on
-columns 3, 4 and 5; on column 1 it is one set per parameter and on column 2 a
-rule plus a schedule section, and a rejection raises naming the step. On
-columns 1 and 2 the realised block is a firewall rule, so `firewall.list_rules`
-shows it too, named after the host so a reader can tell the two apart. The
-block has one owner, `host_filter`: the `firewall` driver of those columns
-refuses `remove_rule` on a rule that realises a host block, and `flush_chain`
-and `set_default_policy` on the chain that holds one, with `NotSupportedError`
-naming the owner, so no `firewall` write disturbs a block. The `mac` of
+columns 4 and 5. On column 1 it is the host access-control entry (the hosts
+plugin's access-control object, not a firewall rule), one set per parameter and
+one add per schedule window; on column 2 a rule plus a schedule section; on
+column 3 an internet-access policy, one set per parameter; a rejection raises
+naming the step. The device resource is shared with `firewall` on columns 2
+and 3: on column 2 the realised block is a firewall rule, so
+`firewall.list_rules` shows it too, named after the host so a reader can tell
+the two apart; on column 3 the block is a policy in the same internet-access
+table that `firewall` writes its rules to, and the `firewall` driver keeps the
+host-block policies out of `list_rules` and `flush_chain` by their name. The
+block has one owner, `host_filter`: on column 2 the `firewall` driver refuses
+`remove_rule` on a rule that realises a host block, and `flush_chain` and
+`set_default_policy` on the chain that holds one, with `NotSupportedError`
+naming the owner; on column 3 it never sees one. So no `firewall` write
+disturbs a block. Column 1's access-control object is `firewall`'s concern on
+no column. The `mac` of
 `HostBlock`, and the argument of `unblock_host` and `get_host_block`, is the
 canonical lowercase colon-separated form `WifiMeshNode.mac` already uses: the
 driver canonicalises every MAC it reads (columns 3 and 5 upper-case theirs) and
@@ -1400,13 +1408,13 @@ recorded in §8 and in the drivers' `lossy:` lines.
 | Write | Paired read / observation | Multi-step? failure outcome |
 | --- | --- | --- |
 | `WanConnection.set_wan_connection` | `get_wan_connection`, `get_wan_state` (`CONNECTED` after `AUTHENTICATING` confirms the password) | yes on columns 1, 2, 3 and 5: raises naming the step; column 2's steps are staged under a change-file path unique to the session and fresh per write and never committed, columns 1, 3 and 5 leave the steps before |
-| `WanConnection.reset_session` (PPPoE lever; raises on the other modes) | `get_wan_state` status cycling; `await_reachability` from a LAN client | no |
+| `WanConnection.reset_session` (PPPoE lever; raises on the other modes) | `get_wan_state` status cycling; `await_reachability` from a LAN client | yes on columns 2, 4 and 5 (the session is torn down, then re-established: two device steps); a refusal at the second step names it and leaves the session down; one parameter write on columns 1 and 3 |
 | `DnsForwarder.set_upstreams` (list replace) | `get_upstreams` (set equality) | yes on columns 1 and 3 (existing instances rewritten in place, the difference added or deleted, so no step leaves the forwarder without an upstream; one set per parameter): raises naming the step; one commit on column 2, one property set on column 5 |
 | `DnsForwarder.add_host_override` / `remove_host_override` | `list_host_overrides` | no |
 | `DnsForwarder.set_rebind_protection` | `get_rebind_protection` | no |
 | `L2Bridge.create_bridge` / `delete_bridge` | `list_bridges`, `get_bridge` | yes on columns 1 and 3 (the object add, then the STP parameter): raises naming the step; one staged write on column 2, one command on column 5 |
 | `L2Bridge.add_member` / `remove_member` | `get_members` | no |
-| `HostFilter.block_host` / `unblock_host` | `get_host_block`, `list_host_blocks` | yes on columns 1 and 2 (rule + schedule, one set per parameter on column 1): raises naming the step |
+| `HostFilter.block_host` / `unblock_host` | `get_host_block`, `list_host_blocks` | yes on columns 1, 2 and 3 (column 1: the host access-control entry, then one set per parameter and one add per schedule window; column 2: a rule plus a schedule section; column 3: the internet-access policy, then one set per parameter): raises naming the step; one step on columns 4 and 5 |
 | `AutoPortMapping.set_enabled` | `get_enabled` | no |
 | `AdminCredential.set_password` (lever) | a new management session authenticating with the credential, opened by the test; `list_accounts` finds the account | no |
 | `NtpConfig.set_ntp_servers` (existing) | `get_ntp_servers`; `get_sync_state` for the effect | as today |
@@ -1675,8 +1683,11 @@ configuration store through `uci` (set, add, delete, then `commit` on the
 configuration, then the service reload or `reload_config`), the runtime through
 `ubus` (JSON replies) and the service CLIs (`hostapd_cli`, `iwinfo`, `wifi
 reload`). A write is acknowledged by `uci`'s exit status and `commit`
-(refusals: "Entry not found", "Invalid argument", "Parse error") and by the
-bus's reply ("Command failed: Not found / Invalid argument"); the TR-069 client
+(refusals: "Entry not found", "Invalid argument", "Parse error"), the driver
+requiring the status of every shell step, and by the
+bus's reply ("Command failed: Not found / Invalid argument"); the PPPoE
+session reset is two steps, the interface brought down and then up, and a
+refusal at the second leaves it down; the TR-069 client
 answers on its `tr069` bus object and in the `cwmp` section. The store is
 staged until `commit`, and staged changes outlive the call that made them: `uci
 changes` lists them and the next `commit` of that configuration applies them,
@@ -1766,7 +1777,9 @@ authentication, the mesh topology as JSON behind the HTTP session-ID login,
 UPnP IGD for the mapping table. There is no CLI (the knowledge base states
 Telnet is unsupported since 6.25) and TR-064 is not reachable from the WAN;
 the reference driver runs from a LAN host. A write is acknowledged by an
-HTTP 200 with the action's response envelope; a refusal is a SOAP fault
+HTTP 200 with the action's response envelope (the PPPoE session reset is two
+actions, the termination and then the connection request, and a fault at the
+second leaves the session down); a refusal is a SOAP fault
 whose `errorCode` the driver maps (invalid action, invalid arguments, action
 failed, internal error, and the per-action codes the service documents
 list); a silent 200 on an action the service document marks as having no
@@ -1811,7 +1824,9 @@ manual; a refusal is a text line ("failure: ...", "input does not match any
 value of ...", "no such item", "invalid value for argument"), which the
 driver matches. On REST (REST API page 47579162, "HTTP Methods", "Errors")
 the acknowledgement is the 2xx (a PUT returns the created object with its
-`.id`; without one the driver raises its no-acknowledgement error), a refusal is a
+`.id`; without one the driver raises its no-acknowledgement error; the PPPoE
+session reset is two requests, the client disabled and then enabled, and a
+refusal at the second leaves it disabled), a refusal is a
 status of 400 or above with `{"error","message","detail"}`, and there is no
 silent success; record-less menus (`/ip dns`, `/ip upnp`, `/system ntp
 client`, `/tr069-client`, `/interface/wifi/capsman`) are changed with POST
@@ -2157,7 +2172,7 @@ in the package source, not in this design record.
 12. CcspPandM TR181-USGv2.XML — <https://github.com/rdkcentral/provisioning-and-management/blob/develop/config-arm/TR181-USGv2.XML> — Device.DHCPv4.Server.Pool.{i}.Option.{i} (writable table with AddEntry/DelEntry): Tag, Value, Enable (RW); Device.DHCPv6.Server.Pool.{i}.Option.{i} likewise — DHCP options are add/delete-able with writable tag and hex value
 13. CcspPandM TR181-USGv2.XML — <https://github.com/rdkcentral/provisioning-and-management/blob/develop/config-arm/TR181-USGv2.XML> — Device.DHCPv4.Server.Pool.{i}.StaticAddress.{i} (writable table, add/del): Chaddr, Yiaddr, Enable, X_CISCO_COM_DeviceName (RW) — static leases are add/delete-able with writable MAC and address
 14. CcspPandM TR181-USGv2.XML — <https://github.com/rdkcentral/provisioning-and-management/blob/develop/config-arm/TR181-USGv2.XML> — Device.DHCPv4.Server.Pool.{i}.Client.{i}.Chaddr, Active, X_CISCO_COM_HostName (RO); Client.{i}.IPv4Address.{i}.IPAddress, LeaseTimeRemaining (RO) — active leases with remaining time are readable
-15. CcspPandM TR181-USGv2.XML — <https://github.com/rdkcentral/provisioning-and-management/blob/develop/config-arm/TR181-USGv2.XML> — Device.X_CISCO_COM_DeviceControl.EnableStaticNameServer, NameServer1, NameServer2 (RW); Device.DNS.Client.Server.{i}.DNSServer (RW, writable table add/del); Device.DHCPv4.Server.Pool.{i}.DNSServers (RW) — upstream resolver addresses for the gateway's DNS proxy are writable
+15. CcspPandM TR181-USGv2.XML — <https://github.com/rdkcentral/provisioning-and-management/blob/develop/config-arm/TR181-USGv2.XML> — Device.X_CISCO_COM_DeviceControl.EnableStaticNameServer, NameServer1, NameServer2 (RW; declared inside `<?ifdef BCI | _ONESTACK_PRODUCT_REQ_?>`, so present only on a build that sets that flag); Device.DNS.Client.Server.{i}.DNSServer (RW, writable table add/del); Device.DHCPv4.Server.Pool.{i}.DNSServers (RW) — upstream resolver addresses for the gateway's DNS proxy are writable
 16. Utopia dhcp_server_functions.sh — <https://github.com/rdkcentral/utopia/blob/develop/source/scripts/init/service.d/service_dhcp_server/dhcp_server_functions.sh> — `echo "address=/$LOCDOMAIN_NAME/$locaddr" >> $LOCAL_DHCP_CONF` — local name overrides are generated by the dnsmasq start script; no TR-181 parameter exposes them. Stage 4 (Utopia 383ae69 service_dhcp_server.sh: the launch line without `--no-hosts`, `dns_start`, `prepare_hostname`; dnsmasq(8) SIGHUP): the `address=/` line serves the secure web UI's FQDN only and the file is regenerated on every DNS restart; an override is a marked `/etc/hosts` line plus dnsmasq's SIGHUP, lasting until `prepare_hostname` rewrites the host file (that `/etc/hosts` is writable on the reference image is unverified)
 17. Utopia service_dhcp_server.sh — <https://github.com/rdkcentral/utopia/blob/develop/source/scripts/init/service.d/service_dhcp_server.sh> — dnsmasq launch line `... --proxy-dnssec --cache-size=0 --stop-dns-rebind ...` — rebind protection exists but only as a fixed command-line flag, no parameter
 18. CcspPandM TR181-USGv2.XML — <https://github.com/rdkcentral/provisioning-and-management/blob/develop/config-arm/TR181-USGv2.XML> — Device.Bridging.Bridge.{i} and Bridge.{i}.Port.{i} (writable tables, add/del): Port.{i}.LowerLayers (RW), Enable (RW), PVID (RW); Device.Ethernet.X_RDK_Interface.{i}.AddToLanBridge (RW) — bridge membership is configured by writable ports with LowerLayers references
@@ -2571,10 +2586,11 @@ relies on rather than contradicts; M3, M21 and M32 are the `tier-staged` rows
 - **2026-10-20 — stage 4b: reference drivers written in the private corpus.**
   Five drivers (one per column) at corpus commit `9c2812b`, run against this
   PR's head `47954b1` through the corpus's `.testprotocols` checkout (its
-  `TESTPROTOCOLS_REF` is still `main`); after this fold-back the corpus
+  `TESTPROTOCOLS_REF` then still `main`); after this fold-back the corpus
   followed the voice withdrawal and the `connected` drop at `f5a5075`, run
   against this PR's `3a13607` (`9c2812b` imports the withdrawn tier and does not
-  run against it); the stage-4b closing step (Task 9) writes the real pin. MATRIX (core, 154 members, ✓/✗): column 1 140/14,
+  run against it); the pin to this PR's head `56b3cdc` is corpus commit
+  `026d684`, the commit the verification review ran against. MATRIX (core, 154 members, ✓/✗): column 1 140/14,
   column 2 148/6, column 3 129/25, column 4 86/68, column 5 124/30; tiers as
   built: voice on none (`tier-staged`), mesh on columns 1, 3, 4 and 5, USP on
   columns 1, 3 and 4. Findings folded:
@@ -2603,8 +2619,7 @@ relies on rather than contradicts; M3, M21 and M32 are the `tier-staged` rows
   whether the data-model client's image registers the same bus object is
   unverified. 180 `lossy:` and 89 `partial:` lines recorded in the corpus
   (48 `unverified:`), as recounted after the final-review fix wave at corpus
-  commit `0123313` (the stage-4b closing step, Task 9, writes the pinned
-  commit). Nominal cells: voice flipped (columns 1 and 2), mesh on
+  commit `0123313`, pinned at `026d684`. Nominal cells: voice flipped (columns 1 and 2), mesh on
   column 3 confirmed on the family's mesh build variant, USP on column 1
   confirmed. Maintainer rulings applied:
   - (1) the voice tier drops to `tier-staged`: §6's rule (a tier stays built
