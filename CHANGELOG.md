@@ -46,7 +46,9 @@ their tags and PR history.
   `read_log_entries` — `read_cpu_load` is a new mandatory member returning a `CpuLoad`; the
   other five are unchanged in name, signature and meaning and are now declared by the new
   read-only base `testprotocols.device_health:DeviceHealth`, which `DeviceManagement` extends,
-  so a conformance check sees them through the base. Migration: implement `read_cpu_load` (the
+  so a conformance check sees them through the base (the base's docstrings for
+  `get_seconds_uptime`, `read_memory_utilization` and `read_running_processes` add that a
+  closed product may raise `NotSupportedError`; a host driver is unaffected). Migration: implement `read_cpu_load` (the
   host's one-minute load average as `load_average_1m`, `percent` `None` unless the host
   publishes a usage figure); nothing changes for the five; `get_load_avg` is unchanged.
   no proposal; design `docs/architecture/cpe-gateway-protocol-design.md` M14, M15; PR #101.
@@ -76,8 +78,9 @@ their tags and PR history.
   (`list_hosts`, `get_host`), MACs canonical lowercase colon-separated. no proposal; design `docs/architecture/cpe-gateway-protocol-design.md` M10; PR #101.
 - **capability protocol** `testprotocols.host_filter:HostFilter` — a per-host block of traffic
   through the gateway, at all times or on a weekly schedule (`block_host`, `unblock_host`,
-  `get_host_block`, `list_host_blocks`); the block has one owner, so a `firewall` driver refuses
-  rule writes on a rule that realises one. no proposal; design `docs/architecture/cpe-gateway-protocol-design.md` M11; PR #101.
+  `get_host_block`, `list_host_blocks`); the block has one owner, so a `firewall` driver that
+  shares the device resource refuses rule writes on a rule that realises one, or keeps the
+  block out of its rule list. no proposal; design `docs/architecture/cpe-gateway-protocol-design.md` M11; PR #101.
 - **capability protocol** `testprotocols.auto_port_mapping:AutoPortMapping` — the protocols by
   which LAN hosts request their own mappings, enabled per protocol, and their one table
   (`set_enabled`, `get_enabled`, `list_mappings`). no proposal; design `docs/architecture/cpe-gateway-protocol-design.md` M12; PR #101.
@@ -128,7 +131,9 @@ their tags and PR history.
   gateways too, not only by the Linux twin (`SPLITS.md` 2026-10-20); the mesh and onboarding
   modules state the documented unsupported case (`NotSupportedError`) instead of
   `NotImplementedError`; `force_inform` says what it provokes and names no vendor command or
-  daemon. Text only, no change to a signature or a behaviour. no proposal; design `docs/architecture/cpe-gateway-protocol-design.md` M28, M33, M22, M24;
+  daemon. Text only, no change to a signature or a behaviour; a caller that caught
+  `NotImplementedError` on those members catches `NotSupportedError` there now, the
+  exception the contract documents. no proposal; design `docs/architecture/cpe-gateway-protocol-design.md` M28, M33, M22, M24;
   PR #101.
 
 #### Deprecated

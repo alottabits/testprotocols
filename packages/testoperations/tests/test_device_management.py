@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock
 
+import pytest
 from testoperations.device_management import wait_for_reboot_completion
 from testprotocols.device_health import DeviceHealth
 from testprotocols.models.device_management import (
@@ -35,6 +36,32 @@ class TestWaitForRebootCompletion:
         assert mgmt.is_online.call_count >= 2
 
 
+def test_a_health_only_fake_that_never_comes_back_raises() -> None:
+    """The widened operation keeps its other outcome: no return within the budget raises."""
+
+    class NeverBack:
+        def is_online(self) -> bool:
+            return False
+
+        def get_seconds_uptime(self) -> float:
+            return 1.0
+
+        def read_cpu_load(self) -> CpuLoad:
+            return CpuLoad(None, None)
+
+        def read_memory_utilization(self) -> MemoryUtilization:
+            return MemoryUtilization(1, 0, 1)
+
+        def read_running_processes(self) -> list[ProcessInfo]:
+            return []
+
+        def read_log_entries(self) -> list[EventLogEntry]:
+            return []
+
+    with pytest.raises(TimeoutError):
+        wait_for_reboot_completion(NeverBack(), timeout=0)
+
+
 def test_accepts_a_health_only_fake() -> None:
     """A fake with the six DeviceHealth members and nothing host-shaped is accepted (design M38)."""
 
@@ -44,7 +71,7 @@ def test_accepts_a_health_only_fake() -> None:
 
         def is_online(self) -> bool:
             self.calls += 1
-            return self.calls != 1  # online, then offline once, then online
+            return self.calls != 1  # offline on the first poll, then online
 
         def get_seconds_uptime(self) -> float:
             return 1.0

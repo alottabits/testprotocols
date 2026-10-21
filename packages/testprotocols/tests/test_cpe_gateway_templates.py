@@ -156,7 +156,7 @@ def test_cpu_load_record() -> None:
     from testprotocols.models.device_management import CpuLoad
 
     assert [f.name for f in dataclasses.fields(CpuLoad)] == ["percent", "load_average_1m"]
-    assert CpuLoad.__dataclass_params__.frozen  # type: ignore[attr-defined]
+    assert CpuLoad.__dataclass_params__.frozen  # type: ignore[attr-defined]  # CPython dataclass bookkeeping, not in typeshed
 
 
 def test_device_info_identity_properties() -> None:
@@ -212,7 +212,7 @@ def test_acs_config_and_image_source_records() -> None:
         "connection_request_password",
     ]
     assert dataclasses.fields(ImageSource)[1].default is None
-    assert ImageSource.__dataclass_params__.frozen  # type: ignore[attr-defined]
+    assert ImageSource.__dataclass_params__.frozen  # type: ignore[attr-defined]  # CPython dataclass bookkeeping, not in typeshed
 
 
 def test_ntp_sync_state_extension() -> None:

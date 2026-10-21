@@ -47,7 +47,7 @@ class DnsForwarder(Protocol):
         """Add the host *override*; paired read ``list_host_overrides``.
 
         A name the family would rewrite (a character outside its allowed set) is rejected
-        before the write with the reason, so a read-back equals the write. A family that
+        before the write with the reason, so the paired read returns what was written. A family that
         publishes overrides only as a LAN host's name raises ``NotSupportedError`` for a name
         that is not one.
         """

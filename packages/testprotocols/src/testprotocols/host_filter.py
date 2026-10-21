@@ -32,10 +32,10 @@ class HostFilter(Protocol):
         """Write the host *block*; paired read ``get_host_block``.
 
         ``HostBlock.mac`` accepts any case and is normalised to the canonical lowercase
-        colon-separated form before the device sees it, so a read-back equals the write. A
-        ``WeeklySchedule`` whose ``end`` is before its ``start`` runs past midnight; ``None``
-        blocks at all times. On a family that realises the block as a firewall rule, the rule
-        appears in ``firewall.list_rules`` too, named after the host.
+        colon-separated form before the device sees it, so the paired read returns what was
+        written. A ``WeeklySchedule`` whose ``end`` is before its ``start`` runs past midnight;
+        ``None`` blocks at all times. On a family that realises the block as a firewall rule,
+        the rule appears in ``firewall.list_rules`` too, named after the host.
 
         A write rejected at any step raises naming the step; the driver puts nothing back. The
         state is then the as-found block list where the family commits atomically, otherwise

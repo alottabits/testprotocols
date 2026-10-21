@@ -74,7 +74,7 @@ def test_weekday_is_iso_numbered() -> None:
 )
 def test_records_are_frozen(cls: type) -> None:
     assert dataclasses.is_dataclass(cls)
-    assert cls.__dataclass_params__.frozen  # type: ignore[attr-defined]
+    assert cls.__dataclass_params__.frozen  # type: ignore[attr-defined]  # CPython dataclass bookkeeping, not in typeshed
 
 
 def test_record_fields() -> None:
