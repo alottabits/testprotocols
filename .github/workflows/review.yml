@@ -204,7 +204,9 @@ jobs:
           GH_TOKEN: ${{ steps.corpus_app.outputs.token }}
         run: |
           set -euo pipefail
-          if jq -r '.[].filename' review-work/files.json | grep -q '^packages/[^/]*/src/'; then
+          # Whole list first, then the test (see conformance-dispatch.yml).
+          files=$(jq -r '.[].filename' review-work/files.json)
+          if grep -q '^packages/[^/]*/src/' <<<"$files"; then
             jq -n --arg repo "$REPO" --argjson pr "$PR" --arg sha "$HEAD_SHA" --arg ref "$HEAD_REF" \
               '{event_type: "conformance-requested",
                 client_payload: {repo: $repo, pr: $pr, sha: $sha, head_ref: $ref}}' \
