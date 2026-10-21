@@ -37,8 +37,11 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          if gh api --paginate "repos/$REPO/pulls/$PR/files" --jq '.[].filename' \
-               | grep -q '^packages/[^/]*/src/'; then
+          # Collect the whole list before testing it: `grep -q` exits on the
+          # first match, and under pipefail a still-paginating `gh api` would
+          # then die on the closed pipe and read as "no package source".
+          files=$(gh api --paginate "repos/$REPO/pulls/$PR/files" --jq '.[].filename')
+          if grep -q '^packages/[^/]*/src/' <<<"$files"; then
             echo "source=true" >> "$GITHUB_OUTPUT"
           else
             echo "source=false" >> "$GITHUB_OUTPUT"
