@@ -1641,7 +1641,12 @@ parameter set or an object add on a data-model path; the acknowledgement is
 the CLI's reply (an error line and a non-zero status on refusal: an
 unknown path, an invalid value, a bus ACL denial), applied by the owning
 plugin at once with no commit step; a write that the model marks read-only
-is refused, not ignored. Normalisations: MAC addresses lower-cased, Wi-Fi
+is refused, not ignored. The driver requires the set's echo of the parameter
+and the exit status of every shell step beside the data model (the agent's
+service and file steps, the bus call, the access-point daemon's `OK`); a
+data-model method call's silent success is undocumented and stays an
+unverified acknowledgement, the lever's paired observation being the check.
+Normalisations: MAC addresses lower-cased, Wi-Fi
 and connection object instances re-numbered on add (the driver keys on the
 alias parameter it sets, never on the instance number), enumerations returned in the
 model's spelling. The driver's `source:` lines cite the plugin's data-model
@@ -1882,9 +1887,10 @@ every lossy mapping recorded in the document), per column, named by the
 protocol it maps and the member where the line sits on one; a line on the
 protocol covers its whole mapping, a line on the session the family's
 transport. The texts are the drivers' own, as folded at the verification
-review (corpus commit `c58db69`); a later driver change re-records them here.
+review (corpus commit `1448bb8`); a later driver change re-records them here.
 
-**Column 1** (36 lines)
+
+**Column 1** (37 lines)
 
 - the session: an instance found by alias is written through the numbered path the same call read
 - `AdminCredential`: the account is found by its `Username`; the password is never read back (the model returns no stored secret).
@@ -1909,9 +1915,10 @@ review (corpus commit `c58db69`); a later driver change re-records them here.
 - `PortStatus`: `Status` values other than `Up` read DOWN (DISABLED when `Enable` is false); `CurrentBitRate` 0 or -1 (no link, unknown) is ``None``.
 - `SyslogConfig`: the driver owns the actions it names `remote<k>`; a write deletes them (from the last) and adds one per server, one step each; the roles are not stored (a server reads back with the event log role); the transport is UDP.
 - `Tr069Client`: the passwords are never returned (``None``); one set per parameter, applied at once: a rejection leaves the sets before it.
-- `UspAgent`: a write replaces the controller-1 lines of the factory-reset file (the other lines kept), then removes the agent's database so the file is read again: every value the agent stored at run time is reset; the controller's MQTT broker is `Device.MQTT.Client.1`. One step per shell command, applied at once.
-- `WanConnection`: one set per parameter, applied at once (§8 column 1): a rejection leaves the sets before it applied. The name keys every object of the stack: an image whose stack objects carry other aliases is not found (``KeyError``). The PPPoE credentials go to wan-manager's interface (`UserName`, `Password`, which override the PPP object's, §10 [3]), the service name to the PPP object. ``ipv6=None`` and ``WanIpv6Mode.DISABLED`` both write `IPv6Mode` `none` and read back as ``None``; ``SLAAC`` is wan-manager's `ppp6` (PPPoE only). The driver renders the static resolvers as `DNS.Client.Server` instances `<name>-dns<k>` (or the first free `<name>-dns<j>` with j > k; the connection's entries rewritten in place in table order, one added per resolver beyond them, the surplus deleted from the last) and the gateway as the router's `IPv4Forwarding` instance named after the connection.
-- `WanConnection.get_wan_state`: the uptime is the IP interface's `LastChange` while it is `Up` (the time in its current state); a DSL/DS-Lite `IPv4Mode` reports the IP interface's state
+- `UspAgent`: a write replaces the controller-1 lines of the factory-reset file (the other lines kept), then removes the agent's database so the file is read again: every value the agent stored at run time is reset; the controller's MQTT broker is `Device.MQTT.Client.1`. One step per shell command, applied at once: a step refused or unacknowledged leaves the steps before it (after the stop, the agent stays stopped).
+- `UspAgent.get_controller`: an absent WebSocket path reads ``None``; a reply without the controller's endpoint, host, port, encryption setting, MQTT client reference or broker parameters is ``NoAcknowledgement`` naming the parameter (a value the agent prints, an empty one included, is returned as printed)
+- `WanConnection`: one set per parameter, applied at once (§8 column 1): a rejection leaves the sets before it applied. The name keys every object of the stack: an image whose stack objects carry other aliases is not found (``KeyError``). The PPPoE credentials go to wan-manager's interface (`UserName`, `Password`, which override the PPP object's, §10 [3]), the service name to the PPP object. ``ipv6=None`` and ``WanIpv6Mode.DISABLED`` both write `IPv6Mode` `none` and read back as ``None``; ``SLAAC`` is wan-manager's `ppp6` (PPPoE only). The driver renders the static resolvers as `DNS.Client.Server` instances `<name>-dns<k>` (or the first free `<name>-dns<j>` with j > k; the connection's entries rewritten in place in table order, one added per resolver beyond them, the surplus deleted from the last) and the gateway as the router's `IPv4Forwarding` instance named after the connection; a write in another mode deletes those objects after its own sets (the resolvers from the last, then the route), so they do not stay enabled beside the lease's — a rejection partway leaves the new mode set and the objects before it deleted, the rest still enabled. The IP interface's first `IPv4Address` instance the static mode wrote is the interface's own, left to the new mode.
+- `WanConnection.get_wan_state`: the uptime is the IP interface's `LastChange` while it is `Up` (the time in its current state); a DSL/DS-Lite `IPv4Mode` reports the IP interface's state; the provisioning mode is the configured families (`IPv4Mode`/`IPv6Mode` not `none`) while the IP interface is `Up` with an address or a delegated prefix, ``None`` otherwise (the `WanConnectionState` contract)
 - `WanLinkAdmin`: the IP layer goes down, the layers beneath it (Ethernet, PPP) keep their own `Enable`; the setting is persistent (`%persistent`), so it survives a reboot
 - `WifiBss`: the DTIM period is the radio's (`WiFi.Radio.{i}.DTIMPeriod`): a write changes it for every network on the radio; a mode outside the map keeps the model's spelling; a `MaxAssociatedDevices` of 0 reads as no limit (unverified: 0 lifts the limit). One step per add, delete or set, applied at once: a rejection leaves the steps before it.
 - `WifiMesh`: the signal is the station's RCPI (`SignalStrength`, dBm = RCPI ÷ 2 - 110), the capacity its estimated downlink MAC rate; the band follows the parent radio's channel and operating class; the hop count walks `BackhaulDeviceID` up to the controller; a steer names the target agent's first BSS (`ClientSteering` has no disassociation- imminent argument).
@@ -2014,7 +2021,7 @@ review (corpus commit `c58db69`); a later driver change re-records them here.
 - `WifiStations.disconnect_station`: *reason_code* is not passed (the parameter takes the MAC only)
 - `WifiTransitions`: 802.11k is `X_RDKCENTRAL-COM_NeighborReportActivated` (neighbour reports), 802.11v `X_RDKCENTRAL-COM_BSSTransitionActivated`; a deauthentication is the forced disassociation (`ClientForceDisassociation`), its reason code not passed.
 
-**Column 4** (27 lines)
+**Column 4** (28 lines)
 
 - the session: one action per step, applied at once: a rejection leaves the steps before it
 - `AutoPortMapping`: `SetConfig` carries the media-server switch too, which the driver writes as it read it; the table is the IGD's whole mapping table (the administrator's forwards included, without an origin); a `LeaseDuration` of 0 (no lease) reads ``None``; an empty description reads ``None``.
@@ -2026,6 +2033,7 @@ review (corpus commit `c58db69`); a later driver change re-records them here.
 - `DnsForwarder.get_upstreams`: the connection's resolvers stand for the forwarder's upstreams (port 53, no domain)
 - `Firewall`: a TCP-and-UDP forward is two entries (`AddPortMapping` once per protocol) and reads back as one when both carry the same name and ports; the forward's name is its `PortMappingDescription`; a source restriction and an external interface are refused (the entry has `RemoteHost` only); `set_port_mapping_enabled` re-adds the forward with the new `Enabled` (the IGD semantics of an add on an existing triple); a profile reads as a FORWARD rule named after the profile, `allow` for the standard and the unrestricted profile and `deny` otherwise, any protocol, address and port.
 - `HostFilter`: the host is reached by the address the host table holds for its MAC; a profile of type `Standard` or `Unrestricted`, or one without a timetable, is no block; one action per step, applied at once: a rejection leaves the steps before it.
+- `HostFilter.block_host`: a scheduled block over a block at all times is two actions, the profile first: a rejected disallow clear leaves the host in the profile and still disallowed at all times (blocked throughout, never unblocked between the steps)
 - `HostTable`: no IPv6 addresses per host (empty); a HomePlug host's attachment is ``None`` (outside the set); no interface name is published per entry (``None``; the port is in the per-host entry by address, which `l2_bridge.get_members` reads); MACs read canonical.
 - `InterfaceDhcp`: the reservations the pool reports in aggregate (`ReservedAddresses`, addresses without MACs) read as none; the options read back as ``IP``; one action per step, applied at once: a rejection leaves the steps before it.
 - `InterfaceDhcp.get_dhcp_leases`: `vlan_id` is 0; the guest network's leases are listed beside the LAN's
@@ -2881,9 +2889,40 @@ relies on rather than contradicts; M3, M21 and M32 are the `tier-staged` rows
   reservations under the same rule), C3 (every OpenWrt write step
   acknowledged by its exit status) and C5 (the build condition in the
   column-3 source line), at corpus commits `0c311ae..c58db69`; the pin to
-  this PR's new head follows `c58db69` on the companion branch. Counts after
+  this PR's head `174c69a` is corpus commit `be0f1c6`, the commit the second
+  verification review (2026-10-22) ran against. Counts after
   the fold: 180 `lossy:`, 89 `partial:` and 48 `unverified:` lines in the
   drivers (one new: a column-3 write that moves a reservation's name between
   hosts may meet a duplicate-alias refusal partway, naming the step). Family
   facts stated: the column-1 reservation rename (§8). Owner items unchanged:
   the tier denominator and the satisfied-state write (above).
+- **2026-10-22 — stage 4b: second verification review folded.**
+  The second verification review ran on this PR's head `174c69a` against
+  corpus commit `be0f1c6`, the pin to that head (`conformance`: 5 of 5
+  families). Code leg: approve with conditions (C1, `DeviceHealth` in the
+  negative-path shape tests) and notes N1–N5. Archetype leg: approve with
+  conditions C1 (every column-1 write step acknowledged; the controller read
+  raising on a reply without the controller's host or port) and C2 (the
+  column-4 and column-5 host-filter step counts in §6 and the method-grain
+  table) and notes N1–N8. Neither review text was posted by the review runner
+  (a refused write on one leg, a withheld text on the other, both since fixed
+  in the runner); the verdicts and conditions are taken from the kept
+  transcripts. Folded: code C1 and N1, N2, N3, N5 and archetype C2, N7
+  (`16a21e3`); archetype N6, the column-1 acknowledgement rule in §8, §8
+  "Lossy mappings as built" re-recorded, and this entry (the commit after it);
+  corpus C1 and notes N1 (the ubus command-line client's source cited for the
+  `Command failed:` refusal), N3 (a scheduled block on column 4 clears a block
+  at all times), N4 (a column-1 mode change off `STATIC` removes the static
+  route and resolvers the driver wrote) and N5 (column 1 reports no
+  provisioning mode while no address is up), at corpus commits
+  `103a53e..1448bb8`; the pin to this PR's new head follows `1448bb8` on the
+  companion branch. Counts after the fold: 182 `lossy:`, 89 `partial:` and 50
+  `unverified:` lines in the drivers (new `lossy:`: the column-1 controller
+  read that raises on a reply without the controller's parameters, and the
+  column-4 two-action scheduled block over a block at all times; new
+  `unverified:` on column 1: a data-model method call's silent success, and
+  the set echo documented in an interactive session while the driver runs
+  one-shot commands). Deferred: N8 (the column-5 mode-change order; its
+  `lossy:` line states the order). Owner items: the tier denominator and the
+  satisfied-state write (above); code N4, the contract-surface script not
+  following an inherited base (a tooling follow-up).
