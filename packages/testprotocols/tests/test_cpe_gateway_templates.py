@@ -129,7 +129,6 @@ def test_reexported() -> None:
         assert hasattr(testprotocols, name)
 
 
-
 def test_device_health_split() -> None:
     from _helpers import protocol_mro
     from testprotocols.device_health import DeviceHealth
