@@ -122,7 +122,9 @@ their tags and PR history.
   whole interface subnet minus the reserved ranges, so no caller changes. Every reserved range
   must lie inside the bounds; a driver rejects a configuration whose range lies outside them
   before any write, and a family with no pool-bounds setting rejects non-`None` bounds the same
-  way (`NotSupportedError` before any write) (`SPLITS.md` 2026-10-20). no proposal; design `docs/architecture/cpe-gateway-protocol-design.md` M25, M26; PR #101.
+  way (`NotSupportedError` before any write); every existing `InterfaceDhcp` driver (the switch
+  and appliance archetypes' too) owes that refusal, never a silently ignored bound
+  (`SPLITS.md` 2026-10-20). no proposal; design `docs/architecture/cpe-gateway-protocol-design.md` M25, M26; PR #101.
 - **field** `testprotocols.models.wifi:WifiMeshNode.backhaul_link` (`WifiMeshLink | None = None`)
   — each agent's wireless backhaul link where the family publishes it; `None` where it does not
   or where the backhaul is wired. no proposal; design `docs/architecture/cpe-gateway-protocol-design.md` M34; PR #101.
@@ -132,9 +134,7 @@ their tags and PR history.
   gateways too, not only by the Linux twin (`SPLITS.md` 2026-10-20); the mesh and onboarding
   modules state the documented unsupported case (`NotSupportedError`) instead of
   `NotImplementedError`; `force_inform` says what it provokes and names no vendor command or
-  daemon. Text only, no change to a signature; a caller that caught
-  `NotImplementedError` on those members catches `NotSupportedError` there now, the
-  exception the contract documents. no proposal; design `docs/architecture/cpe-gateway-protocol-design.md` M28, M33, M22, M24;
+  daemon. Text only, no change to a signature. no proposal; design `docs/architecture/cpe-gateway-protocol-design.md` M28, M33, M22, M24;
   PR #101.
 
 #### Deprecated
@@ -204,6 +204,14 @@ their tags and PR history.
   entry for the two `SwitchQos` writes (`set_trust_mode`, `set_dscp_cos_map`) that have no read
   showing their effect. Text only; no proposal (wording and a gap record, not a contract change);
   PR #93.
+
+#### Consumer action
+
+- **docstrings** `testprotocols.wifi_mesh:WifiMesh`, `testprotocols.wifi_onboarding:WifiOnboarding` —
+  a caller that caught `NotImplementedError` on the members whose docstrings now state the
+  documented unsupported case catches the test framework's `NotSupportedError` there, the
+  exception the contract documents; `testprotocols` defines neither exception. no proposal;
+  design `docs/architecture/cpe-gateway-protocol-design.md` M33, M24; PR #101.
 
 ### testoperations
 

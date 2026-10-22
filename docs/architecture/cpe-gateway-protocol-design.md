@@ -334,7 +334,7 @@ it stays.
 | R32 | Read the port-forward table | ✓ [32] | ✓ [32] | ✓ [32] | ✓ [32] | ✓ [32] |
 | R33 | Add / remove an egress filter rule | ✓ [33] | ✓ [33] | ◐ LAN-host/port/protocol access policy; no destination-address match [33] | ✗ no L3/L4 rule action; only per-host WAN disallow and filter profiles [33] | ✓ [33] |
 | R34 | Read filter rules | ✓ [34] | ✓ [34] | ✓ [34] | ◐ only filter profiles (time budgets/timetables), not address/port rules [34] | ✓ [34] |
-| R35 | Block a host, on demand or on a schedule | ✓ [35] | ✓ [35] | ✓ [35] | ✓ [35] | ✓ [35] |
+| R35 | Block a host, on demand or on a schedule | ✓ [35] | ✓ [35] | ✓ [35] | ◐ a scheduled block only on a timetable an existing profile holds; no stored form for a disabled block [35] | ✓ [35] |
 | R36 | Enable / disable automatic port mapping (UPnP IGD, PCP) | ✓ [36] | ✓ [36] | ◐ UPnP IGD only; PCP absent [36] | ◐ X_UPnP SetConfig Enable toggles UPnP generally; PCP not covered [36] | ◐ UPnP IGD only; no PCP or NAT-PMP [36] |
 | R37 | Read automatic port mappings | ◐ PCP mappings readable; UPnP IGD lease table not in data model [37] | ◐ lease file only; no documented read command [37] | ◐ no TR-181 table; UPnP IGD service action only (shell/UPnP side) [37] | ◐ mappings listed; origin (UPnP vs manual) not flagged [37] | ✓ [37] |
 | | **Host table** |  |  |  |  |  |
@@ -351,7 +351,7 @@ it stays.
 | R47 | Reboot; read readiness | ◐ Reboot() exists; no boot-readiness parameter, infer from DeviceInfo.UpTime [47] | ◐ `reboot` documented; readiness inferred from `system info` uptime, no flag [47] | ✓ [47] | ◐ Reboot action; readiness only inferable via DeviceInfo GetInfo UpTime [47] | ◐ no readiness state; infer from reachability and resource uptime [47] |
 | R48 | Export configuration | ✓ [48] | ✓ [48] | ◐ shell only (syscfg/PSM store); no data-model export parameter [48] | ✓ [48] | ✓ [48] |
 | R49 | Import configuration | ✓ [49] | ✓ [49] | ◐ shell only (syscfg/PSM store); no data-model import parameter [49] | ✓ [49] | ✓ [49] |
-| R50 | Set the local administrator credential | ✓ [50] | ✓ [50] | ✓ [50] | ✓ [50] | ✓ [50] |
+| R50 | Set the local administrator credential | ✓ [50] | ✓ [50] | ✓ [50] | ◐ the session's own user's password only [50] | ✓ [50] |
 | | **Remote management** |  |  |  |  |  |
 | R51 | Configure ACS URL, credentials and periodic inform | ✓ [51] | ✓ [51] | ✓ [51] | ✓ [51] | ✓ [51] |
 | R52 | Trigger an inform; read connection-request state | ◐ inform only through the substrate bus object; session state, no connection-request state [52] | ◐ `status` reports session state, not connection-request state [52] | ◐ ConnectionRequestURL readable; no inform-trigger parameter [52] | ◐ no inform-trigger action; only ConnectionRequestURL/Username readable [52] | ◐ no inform-trigger command; connection-request settings undocumented; status read-only [52] |
@@ -556,7 +556,7 @@ supporting and at least three of five.
 | Zone defaults and membership | `FirewallZones` | reuse | 1 + 3 ◐ + 1 ✗ | R30; four columns have no zone object: mapped or per-method unsupported (§6) |
 | Port forwards, DMZ host | `Firewall` | reuse | 4 + 1 ◐ | R31–R32; column 4 forwards to the calling host only |
 | Egress filter rules | `Firewall` (the inherited rule members) | reuse | 3 + 1 ◐ + 1 ✗ | R33–R34; column 4 publishes profiles, not rules |
-| Host block with schedule | `HostFilter` | **new** | 5 | R35 |
+| Host block with schedule | `HostFilter` | **new** | 4 + 1 ◐ | R35; column 4 schedules a block only on a timetable an existing profile holds, and stores no inactive block |
 | Automatic port mapping | `AutoPortMapping` | **new** | 1 + 4 ◐ | R36–R37; PCP absent on three columns, per-protocol unsupported |
 | Host table | `HostTable` | **new** | 3 + 2 ◐ | R38; two columns join leases, neighbours and station lists |
 | Identity | `DeviceInfo` | **extend** | 4 + 1 ◐ | R39; manufacturer, serial number, OUI, hardware and software version added (generic introduction); column 2 publishes neither manufacturer nor serial (§9 Stated risks) |
@@ -566,7 +566,7 @@ supporting and at least three of five.
 | Firmware upgrade | `DeviceLifecycle` | **extend** | 5 | R45; one upgrade member added (generic introduction); a staged pair is `tier-staged` (§6) |
 | Factory reset; reboot and readiness | `DeviceLifecycle` | reuse | 1 + 4 ◐ | R46–R47; readiness is the boot wait on uptime or reachability on four columns |
 | Configuration export and import | `DeviceLifecycle` | **extend** | 4 + 1 ◐ | R48–R49 (generic introduction); column 3 through the shell store |
-| Local administrator credential | `AdminCredential` | **new** | 5 | R50 |
+| Local administrator credential | `AdminCredential` | **new** | 4 + 1 ◐ | R50; column 4 sets the session's own user's password only |
 | ACS configuration, inform, connection-request state | `Tr069Client` | **extend** | 0 + 5 ◐ | R51 (5 ✓) and R52 (5 ◐): ACS configuration added; the inform's meaning stated, the connection-request state read nowhere (§6) |
 | USP controller endpoint, transport, agent state | `UspAgent` | **new (tier)** | 0 + 3 ◐ + 2 ✗ | R53; column 2 packages no agent: tier `usp` |
 | Voice: SIP accounts, registration, FXS lines | `VoiceGateway` | **new (tier)**, `tier-staged` | 0 + 2 ◐ + 3 ✗ | R54–R55; the class definition makes it a tier; columns 1, 2 and 5 ✗ at stage 4, two of five: staged (§6) |
@@ -875,7 +875,11 @@ no lease-time or reservation write (R11 ◐, R13 ✗): its driver rejects a
 `lease_seconds` other than the device's and any `reservations` with the
 unsupported case before writing. Column 2's active-lease read joins a lease
 file with a bus method (R14 ◐): a mapping with a `source:` line, not a
-limit. `set_interface_dhcp` is a whole-interface replace on every column; a
+limit. `reserved_ranges` and the relay mode are mapped on column 5 only: on
+columns 1 to 4 a configuration with a reserved range, or in relay mode, is a
+per-value refusal before any write (column 2's pool is one range; columns 1
+and 3 publish no reserved range and no relay in the pool object; column 4
+publishes neither). `set_interface_dhcp` is a whole-interface replace on every column; a
 rejection raises naming the step and the family's own mechanism decides the
 as-found question (§8).
 
@@ -959,7 +963,10 @@ no column. The `mac` of
 canonical lowercase colon-separated form `WifiMeshNode.mac` already uses: the
 driver canonicalises every MAC it reads (columns 3 and 5 upper-case theirs) and
 accepts any case on a write, normalising before the device sees it, so what a
-test reads back equals what it wrote.
+test reads back equals what it wrote. Column 4 is ◐ (R35, re-graded at stage
+4b): no action creates a filter profile, so a scheduled block is possible only
+for a schedule an existing profile's timetable holds, and a block that is not
+enabled has no stored form; both are per-value refusals before any write.
 
 **Overturn.** A schedule field acceptable on `packet_filter` rules for all
 its consumers (the hosts, the twin, the superseded class), which would move
@@ -1198,7 +1205,8 @@ state that a test must read (none in §2), which would add `stage_image` /
 list[str]`. No protocol on `main` owns a local credential (`radius_client`
 is a server registry; the chartered sibling's operator-login demand is a
 policy over such servers, a different concern), and all five columns publish
-the write (R50, five ✓). The write is a lever: its confirming observation is
+the write (R50, four ✓ and one ◐: column 4 sets the password of the session's
+own user only, so another account is a per-value refusal before any write). The write is a lever: its confirming observation is
 a new management session authenticating with the credential, which the
 **test** performs (a `testoperations` candidate: connect a second driver
 instance with the new credential), never the driver after its own write.
@@ -1808,7 +1816,7 @@ the session's own LAN address (the R31 host refusal).
 Normalisations: hostnames re-written to the family's allowed character set,
 SSIDs applied at once with a Wi-Fi restart, per-host settings keyed by the
 host's MAC. The write-narrow side of the matrix is here: thirteen ✗ cells
-and twenty-six ◐ cells (§9), each raised as `NotSupportedError` with the
+and twenty-eight ◐ cells (§9), each raised as `NotSupportedError` with the
 service document as the source, or mapped with the limit stated. `source:`
 lines cite the service document (title and the action's section), retrieved
 as PDF; several documents carry wrong metadata titles, so the driver cites
@@ -1887,10 +1895,11 @@ every lossy mapping recorded in the document), per column, named by the
 protocol it maps and the member where the line sits on one; a line on the
 protocol covers its whole mapping, a line on the session the family's
 transport. The texts are the drivers' own, as folded at the verification
-review (corpus commit `1448bb8`); a later driver change re-records them here.
+review (corpus commit `0becd5e`); a later driver change re-records them here.
 
 
-**Column 1** (37 lines)
+
+**Column 1** (38 lines)
 
 - the session: an instance found by alias is written through the numbered path the same call read
 - `AdminCredential`: the account is found by its `Username`; the password is never read back (the model returns no stored secret).
@@ -1917,6 +1926,7 @@ review (corpus commit `1448bb8`); a later driver change re-records them here.
 - `Tr069Client`: the passwords are never returned (``None``); one set per parameter, applied at once: a rejection leaves the sets before it.
 - `UspAgent`: a write replaces the controller-1 lines of the factory-reset file (the other lines kept), then removes the agent's database so the file is read again: every value the agent stored at run time is reset; the controller's MQTT broker is `Device.MQTT.Client.1`. One step per shell command, applied at once: a step refused or unacknowledged leaves the steps before it (after the stop, the agent stays stopped).
 - `UspAgent.get_controller`: an absent WebSocket path reads ``None``; a reply without the controller's endpoint, host, port, encryption setting, MQTT client reference or broker parameters is ``NoAcknowledgement`` naming the parameter (a value the agent prints, an empty one included, is returned as printed)
+- `UspAgent.get_agent_state`: a reply without the endpoint identifier is ``NoAcknowledgement`` naming the parameter (an incomplete device reply, as in `get_controller`)
 - `WanConnection`: one set per parameter, applied at once (§8 column 1): a rejection leaves the sets before it applied. The name keys every object of the stack: an image whose stack objects carry other aliases is not found (``KeyError``). The PPPoE credentials go to wan-manager's interface (`UserName`, `Password`, which override the PPP object's, §10 [3]), the service name to the PPP object. ``ipv6=None`` and ``WanIpv6Mode.DISABLED`` both write `IPv6Mode` `none` and read back as ``None``; ``SLAAC`` is wan-manager's `ppp6` (PPPoE only). The driver renders the static resolvers as `DNS.Client.Server` instances `<name>-dns<k>` (or the first free `<name>-dns<j>` with j > k; the connection's entries rewritten in place in table order, one added per resolver beyond them, the surplus deleted from the last) and the gateway as the router's `IPv4Forwarding` instance named after the connection; a write in another mode deletes those objects after its own sets (the resolvers from the last, then the route), so they do not stay enabled beside the lease's — a rejection partway leaves the new mode set and the objects before it deleted, the rest still enabled. The IP interface's first `IPv4Address` instance the static mode wrote is the interface's own, left to the new mode.
 - `WanConnection.get_wan_state`: the uptime is the IP interface's `LastChange` while it is `Up` (the time in its current state); a DSL/DS-Lite `IPv4Mode` reports the IP interface's state; the provisioning mode is the configured families (`IPv4Mode`/`IPv6Mode` not `none`) while the IP interface is `Up` with an address or a delegated prefix, ``None`` otherwise (the `WanConnectionState` contract)
 - `WanLinkAdmin`: the IP layer goes down, the layers beneath it (Ethernet, PPP) keep their own `Enable`; the setting is persistent (`%persistent`), so it survives a reboot
@@ -2130,11 +2140,11 @@ Columns are named by their position in §2.
   staged with it.
 - **Column 4:** the read-rich, write-narrow column: every core member
   present, with the thirteen ✗ cells raising `NotSupportedError` and the
-  twenty-six ◐ cells mapped with their limit or raising for the part the
+  twenty-eight ◐ cells mapped with their limit or raising for the part the
   column lacks (R1 mode changes, R5, R9, R13, R15, R17, R18, R27, R29, R30,
   R33, R41, R43, R58 raise; R2, R3, R6, R7, R10, R11, R12, R16, R19, R20,
-  R21, R22, R23, R28, R31, R34, R36, R37, R40, R44, R47, R52, R53, R55, R57
-  map or raise in part; `force_inform` and `get_sync_state` raise, and so do
+  R21, R22, R23, R28, R31, R34, R35, R36, R37, R40, R44, R47, R50, R52, R53,
+  R55, R57 map or raise in part; `force_inform` and `get_sync_state` raise, and so do
   the PIN members, `get_tx_power`, `get_country` and `get_dfs_state`); the
   mesh tier implemented from the topology JSON behind the session-ID login
   (backhaul health in part; every controller-side write and steering raise);
@@ -2472,7 +2482,7 @@ in the package source, not in this design record.
 32. TR-064 Support – WAN IP Connection (v7, 2025-12-18) — <https://fritz.support/resources/TR-064_WAN_IP_Connection.pdf> — §1.11 GetPortMappingNumberOfEntries, §1.12 GetGenericPortMappingEntry (RemoteHost, ExternalPort, Protocol, InternalPort, InternalClient, Enabled, Description, LeaseDuration) — the full mapping table is enumerable by index
 33. TR-064 Support – X_AVM-DE_HostFilter (v8, 2025-09-11) — <https://fritz.support/resources/TR-064_Host_Filter.pdf> — §2 Action List (DisallowWANAccessByIP, AddHostEntryToFilterProfile, tickets) — the host-filter service blocks hosts and assigns time profiles; no address/port/protocol rule can be written
 34. TR-064 Support – X_AVM-DE_HostFilter (v8, 2025-09-11) — <https://fritz.support/resources/TR-064_Host_Filter.pdf> — §2.10 GetFilterProfiles, §2.7 GetFilterProfileByID, §4.1 FilterProfile XML (TimeTable Time/Action) — readable rules are per-profile allow/disallow timetables, not packet-filter rules
-35. TR-064 Support – X_AVM-DE_HostFilter (v8, 2025-09-11) — <https://fritz.support/resources/TR-064_Host_Filter.pdf> — §2.1 DisallowWANAccessByIP (Disallow 1/0), §2.9 AddHostEntryToFilterProfile (profile with timetable), §2.8 AddTicketTimeToHostEntryByIP — a host can be blocked immediately or bound to a scheduled filter profile
+35. TR-064 Support – X_AVM-DE_HostFilter (v8, 2025-09-11) — <https://fritz.support/resources/TR-064_Host_Filter.pdf> — §2.1 DisallowWANAccessByIP (Disallow 1/0), §2.9 AddHostEntryToFilterProfile (profile with timetable), §2.8 AddTicketTimeToHostEntryByIP — a host can be blocked immediately or bound to a scheduled filter profile (◐: no action creates a profile, so a schedule only an existing profile's timetable holds; no stored form for a disabled block)
 36. TR-064 Support – X_UPnP (v3, 2025-08-08) — <https://fritz.support/resources/TR-064_UPnP.pdf> — SetConfig (Enable "UPnP functionality enabled", UPnPMediaServer); IGD GetAddonInfos UpnpControlEnabled "True, if portmappings allowed" (read) — UPnP can be switched on/off by action; the port-mapping permission is only readable and PCP is absent
 37. Internet Gateway Device Support v2 (FRITZ!OS 6.93 baseline, 2023-01-20) — <https://fritz.support/resources/IGD_v2.pdf> — WANIPConnection:2 GetListOfPortMappings, GetGenericPortMappingEntry; TR-064 GetGenericPortMappingEntry — the mapping table is readable over IGD and TR-064 but entries carry no automatic/static origin marker
 38. TR-064 Support – Hosts (v32, 2026-01-29) — <https://fritz.support/resources/TR-064_Hosts.pdf> — §2.3 GetGenericHostEntry (MAC, IP, HostName, InterfaceType Ethernet/802.11, Active), §2.10 X_AVM-DE_GetSpecificHostEntryByIP (X_AVM-DE_Port, X_AVM-DE_Guest), §2.14 X_AVM-DE_GetHostListPath (XML list) — the host table with address, name and attachment (interface type, port, guest) is enumerable
@@ -2487,7 +2497,7 @@ in the package source, not in this design record.
 47. TR-064 Support – DeviceConfig (v12, 2025-12-01) — <https://fritz.support/resources/TR-064_Device_Config.pdf> — §2.6 Reboot (no arguments); DeviceInfo GetInfo NewUpTime — reboot exists; no readiness/boot-complete indicator is documented
 48. TR-064 Support – DeviceConfig (v12, 2025-12-01) — <https://fritz.support/resources/TR-064_Device_Config.pdf> — §2.8 X_AVM-DE_GetConfigFile (Password in, ConfigFileUrl out; URL valid <30 s, digest-protected, LAN-only per Remote Access §5.1) — an encrypted configuration export is produced on demand and fetched from a short-lived URL
 49. TR-064 Support – DeviceConfig (v12, 2025-12-01) — <https://fritz.support/resources/TR-064_Device_Config.pdf> — §2.9 X_AVM-DE_SetConfigFile (Password, ConfigFileUrl http/https); Special Actions §3.1 POST ConfigImportFile — a configuration file is imported from a client-hosted URL or by multipart POST
-50. TR-064 Support – LANConfigSecurity (v12, 2025-08-07) — <https://fritz.support/resources/TR-064_LAN_Config_Security.pdf> — §2.4 SetConfigPassword (NewPassword; "needs up to 20 seconds"), §2.5 X_AVM-DE_GetUserList, §2.1 GetInfo X_AVM-DE_IsDefaultPasswordActive — the administrator password is settable by action; user creation is not (password only)
+50. TR-064 Support – LANConfigSecurity (v12, 2025-08-07) — <https://fritz.support/resources/TR-064_LAN_Config_Security.pdf> — §2.4 SetConfigPassword (NewPassword; "needs up to 20 seconds"), §2.5 X_AVM-DE_GetUserList, §2.1 GetInfo X_AVM-DE_IsDefaultPasswordActive — the administrator password is settable by action; user creation is not (password only) (◐: the session's own user's password only)
 51. TR-064 Support – ManagementServer (v10, 2025-08-07) — <https://fritz.support/resources/TR-064_Management_Server.pdf> — §1.2 SetManagementServerURL, §1.3 SetManagementServerUsername, §1.4 SetManagementServerPassword, §1.5 SetPeriodicInform (Enable, Interval, Time), §1.8 X_SetTR069Enable — ACS URL, credentials and periodic inform are each writable (URL change may demand second-factor auth, codes 866–868)
 52. TR-064 Support – ManagementServer (v10, 2025-08-07) — <https://fritz.support/resources/TR-064_Management_Server.pdf> — §1.1 GetInfo (ConnectionRequestURL, ConnectionRequestUsername, ParameterKey), §1.6 SetConnectionRequestAuthentication — connection-request URL and credentials are exposed but nothing triggers an Inform or reports its state
 53. TR-064 Support – X_AVM-DE_USPController (v6, 2025-08-08) — <https://fritz.support/resources/TR-064_USP_Controller.pdf> — §2.4 AddUSPController (EndpointID, MTP, Hostname, Path, Port, UseTLS, MQTT topics, Username/Password, AccessRight*), §2.6 SetUSPControllerEnableByIndex, §2.2 GetUSPControllerByIndex — a USP controller endpoint and transport are fully configurable; the service table has no agent/connection status variable
@@ -2926,3 +2936,27 @@ relies on rather than contradicts; M3, M21 and M32 are the `tier-staged` rows
   `lossy:` line states the order). Owner items: the tier denominator and the
   satisfied-state write (above); code N4, the contract-surface script not
   following an inherited base (a tooling follow-up).
+- **2026-10-22 — stage 4b: third verification review folded (the first posted in full).**
+  The third verification review ran on this PR's head `0b468d6` against
+  corpus commit `0d2cba3`, the pin to that head (`conformance`: 5 of 5
+  families); both legs posted. Code leg: approve, no conditions, notes N1–N5.
+  Archetype leg: approve with conditions, C1 (Q3, Q8): three per-column
+  limits the drivers record and the design omitted — R35 column 4 ◐ (a
+  scheduled block only on a timetable an existing profile holds; no stored
+  form for a disabled block), R50 column 4 ◐ (the session's own user's
+  password only), and `reserved_ranges` with the relay mode as per-value
+  refusals on columns 1 to 4, mapped on column 5 only — folded in §2, §4, §6
+  (Host filtering, The administrator credential, DHCP server), §8, §9 and
+  §10 (this commit); no manifest Outcome or placement changes (◐ counts as
+  support, D9). Notes: archetype N1, the column-1 agent-state read raising
+  no-acknowledgement on a reply without the endpoint identifier (corpus
+  `0becd5e`; 183 `lossy:` lines, §8 re-recorded); N2, the released
+  `WifiMesh.add_agent` bundling an onboarding write with a topology wait, a
+  follow-up proposal, not this PR; N3, this entry. Code N2 (the pool-bounds
+  duty on existing `InterfaceDhcp` drivers) and N3 (the caller-side sentence
+  under *Consumer action*) in the changelog; N4 in the PR body; N5, the
+  empty-string host in `EventLogEntry` on two columns, a `GAPS.md` line; N1,
+  the contract-surface script and inherited bases, the recorded tooling
+  follow-up. The pin to this PR's new head follows `0becd5e` on the companion
+  branch. Counts after the fold: 183 `lossy:`, 89 `partial:` and 50
+  `unverified:` lines; twenty-eight ◐ cells on column 4.

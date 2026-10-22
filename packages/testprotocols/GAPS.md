@@ -1278,3 +1278,17 @@ the password `None` on every read); DS-Lite is a
 **Cross-references:** `docs/architecture/cpe-gateway-protocol-design.md` (§4 "Dropped members", §6 "The WAN connection" and "The generic
 introductions", §6 "Mesh and voice", §12 M3, M21, M32 and M37); `devices/cpe_gateway.py`; `device_lifecycle.py`;
 `models/cpe_gateway.py`.
+
+## 2026-10-22 — `EventLogEntry.hostname`: an empty string where a family publishes no host [priority: low]
+
+**Signal:** the CPE gateway verification (stage 4b) found two reference families whose event
+log carries no reporting host; their drivers fill the required `str` field `hostname` with
+`""`, an empty-string sentinel the precise-types rule would type as `str | None` (absence
+stated). `EventLogEntry` is unchanged by the CPE gateway PR (#101): the record predates it
+and the retype is a `Breaking for driver authors` change of its own, beside the 2026-10-05
+precise-types gaps. Trigger: the next change to `EventLogEntry`, or a second archetype that
+composes `DeviceHealth` on a family without a host in its log lines.
+
+**Cross-references:** `models/device_management.py` (`EventLogEntry`);
+`docs/architecture/cpe-gateway-protocol-design.md` (§8 "Lossy mappings as built", columns 1 and
+2, `DeviceHealth`); the 2026-10-05 entry above.
