@@ -35,7 +35,14 @@ def test_placement_ports_members() -> None:
 
 
 def test_device_info_members() -> None:
-    assert protocol_attrs(DeviceInfo) == {"model"}
+    assert protocol_attrs(DeviceInfo) == {
+        "model",
+        "manufacturer",
+        "serial_number",
+        "software_version",
+        "oui",
+        "hardware_version",
+    }
 
 
 def test_config_ownership_members() -> None:

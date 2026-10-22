@@ -1,7 +1,11 @@
-"""Device management template.
+"""Device management template — the host-shaped device reads.
 
-Defines the abstract contract for querying runtime health and operational
-state of a managed device, including uptime, memory, processes, and logs.
+Defines the abstract contract for querying the runtime health and operational
+state of a managed Linux host: file content, the board and boot-time logs and
+the load average, over the read-only health base ``device_health.DeviceHealth``
+(online, uptime, processor load, memory, processes, event log), which this
+protocol inherits and a closed product composes alone (``SPLITS.md``
+2026-10-20).
 """
 
 from __future__ import annotations
@@ -9,24 +13,12 @@ from __future__ import annotations
 from typing import Any, Protocol, runtime_checkable
 
 from testprotocols._compat import deprecated
-from testprotocols.models.device_management import (
-    EventLogEntry,
-    MemoryUtilization,
-    ProcessInfo,
-)
+from testprotocols.device_health import DeviceHealth
 
 
 @runtime_checkable
-class DeviceManagement(Protocol):
+class DeviceManagement(DeviceHealth, Protocol):
     """Abstract contract for device management and health monitoring operations."""
-
-    def get_seconds_uptime(self) -> float:
-        """Return the device uptime in seconds."""
-        ...
-
-    def is_online(self) -> bool:
-        """Return True if the device is reachable and operational."""
-        ...
 
     def get_load_avg(self) -> float:
         """Return the current 1-minute load average of the device."""
@@ -47,10 +39,6 @@ class DeviceManagement(Protocol):
         """
         ...
 
-    def read_memory_utilization(self) -> MemoryUtilization:
-        """Return the device's memory figures, in bytes."""
-        ...
-
     @deprecated(
         "Deprecated: use read_running_processes. Removal not before the first release "
         "6 months after the release that deprecates it.",
@@ -68,10 +56,6 @@ class DeviceManagement(Protocol):
         Deprecated: use :meth:`read_running_processes`. Removal not before the first release 6
         months after the release that deprecates it.
         """
-        ...
-
-    def read_running_processes(self) -> list[ProcessInfo]:
-        """Return every process running on the device (``ps -A`` on a Linux host)."""
         ...
 
     def get_board_logs(self, timeout: int = 300) -> str:
@@ -95,11 +79,6 @@ class DeviceManagement(Protocol):
         Deprecated: use :meth:`read_log_entries`. Removal not before the first release 6 months
         after the release that deprecates it.
         """
-        ...
-
-    def read_log_entries(self) -> list[EventLogEntry]:
-        """Return the entries of the device's event log, oldest first. A line the driver
-        cannot parse as a syslog entry is left out."""
         ...
 
     def get_boottime_log(self) -> list[str]:

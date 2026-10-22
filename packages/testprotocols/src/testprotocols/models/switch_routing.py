@@ -81,7 +81,14 @@ class InterfaceDhcpConfig:
     """Per-interface DHCP server/relay config (reuses appliance DHCP sub-models).
 
     ``reserved_ranges`` are :class:`ReservedRange` records excluded from the
-    dynamic pool, each carrying its optional label.
+    dynamic pool, each carrying its optional label. ``pool_start`` and
+    ``pool_end`` are the first and last dynamic address; ``None`` means the
+    whole interface subnet minus the reserved ranges. Every reserved range
+    must lie inside the bounds: a configuration whose range lies wholly or
+    partly outside them is rejected by the driver before any write (with
+    ``None`` bounds nothing is outside). A family with no pool-bounds setting
+    raises ``NotSupportedError`` before any write when either bound is not
+    ``None``; it never ignores a bound.
     """
 
     interface: str
@@ -92,6 +99,8 @@ class InterfaceDhcpConfig:
     reservations: list[DhcpReservation] = field(default_factory=list[DhcpReservation])
     reserved_ranges: list[ReservedRange] = field(default_factory=list[ReservedRange])
     relay_targets: list[str] = field(default_factory=list[str])
+    pool_start: str | None = None
+    pool_end: str | None = None
 
 
 @dataclass

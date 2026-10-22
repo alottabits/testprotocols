@@ -59,7 +59,11 @@ PROTOCOLS = [
         "testprotocols.switch_qos",
         {"set_trust_mode", "set_dscp_cos_map", "set_rules", "get_rules"},
     ),
-    ("NtpConfig", "testprotocols.ntp_config", {"set_ntp_servers", "get_ntp_servers"}),
+    (
+        "NtpConfig",
+        "testprotocols.ntp_config",
+        {"set_ntp_servers", "get_ntp_servers", "get_sync_state"},
+    ),
     (
         "RoutedInterfaces",
         "testprotocols.routed_interfaces",

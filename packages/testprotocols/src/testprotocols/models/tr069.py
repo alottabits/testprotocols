@@ -1,4 +1,4 @@
-"""TR-069 ACS data models."""
+"""TR-069 data models: the ACS-side view of a CPE and the CPE-side ACS configuration."""
 
 from __future__ import annotations
 
@@ -33,3 +33,24 @@ class CpeConnectionStatus:
     cached_serial_number: str | None = None
     cached_hardware_version: str | None = None
     cached_software_version: str | None = None
+
+
+@dataclass(frozen=True)
+class AcsConfig:
+    """The CPE's own ACS configuration.
+
+    *username* and *password* authenticate the CPE to the ACS, *connection_request_username*
+    and *connection_request_password* the ACS to the CPE; each is ``None`` where the ACS does
+    not authenticate that direction. The two passwords are required on a write when the ACS
+    authenticates and ``None`` on every read: no family returns a stored secret, and the
+    written value is confirmed by ``Tr069Client.is_tr069_connected`` after the next inform.
+    """
+
+    enabled: bool
+    url: str
+    username: str | None
+    password: str | None
+    periodic_inform_enabled: bool
+    periodic_inform_interval_s: int
+    connection_request_username: str | None
+    connection_request_password: str | None

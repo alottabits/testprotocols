@@ -2,8 +2,38 @@
 
 from __future__ import annotations
 
+from testprotocols.models.cpe_gateway import (
+    AutoMappingProtocol,
+    AutoPortMappingEntry,
+    BridgeConfig,
+    BridgeMember,
+    BridgeMemberKind,
+    BridgeMemberState,
+    DnsHostOverride,
+    DnsUpstream,
+    HostAttachment,
+    HostBlock,
+    LanHost,
+    PppoeCredentials,
+    ProvisioningMode,
+    StaticAddressing,
+    UspAgentState,
+    UspController,
+    UspTransport,
+    WanConnectionConfig,
+    WanConnectionState,
+    WanIpv6,
+    WanIpv6Mode,
+    WanMode,
+    WanStatus,
+    WanVlan,
+    Weekday,
+    WeeklySchedule,
+)
 from testprotocols.models.device_management import (
+    CpuLoad,
     EventLogEntry,
+    ImageSource,
     MemoryUtilization,
     ProcessInfo,
     SyslogSeverity,
@@ -144,6 +174,8 @@ from testprotocols.models.switch import (
     LinkState,
     LldpNeighbor,
     NtpServer,
+    NtpSyncState,
+    NtpSyncStatus,
     PoePortStatus,
     PoePriority,
     PoeStatus,
@@ -171,7 +203,7 @@ from testprotocols.models.switch_routing import (
     RedundancyRole,
     RoutedInterface,
 )
-from testprotocols.models.tr069 import CpeConnectionStatus
+from testprotocols.models.tr069 import AcsConfig, CpeConnectionStatus
 from testprotocols.models.traffic import (
     IperfProcess,
     TrafficResult,
@@ -217,6 +249,9 @@ from testprotocols.models.wifi import (
     WifiSecurityMode,
     WifiStation,
     WifiTransitionConfig,
+    WpsMethod,
+    WpsSessionState,
+    WpsState,
 )
 
 __all__ = [
@@ -224,18 +259,26 @@ __all__ = [
     "AccessPolicy",
     "AccessPolicyType",
     "AclDirection",
+    "AcsConfig",
     "AggregationMode",
     # wan_edge
     "AppFlow",
     # sdwan_appliance
     "ApplicationCategory",
     "ArpEntry",
+    # cpe_gateway
+    "AutoMappingProtocol",
+    "AutoPortMappingEntry",
     "BgpConfig",
     "BgpNeighbor",
     "BgpPeerStatus",
     "BgpSessionState",
     "BindingSource",
     "Blackout",
+    "BridgeConfig",
+    "BridgeMember",
+    "BridgeMemberKind",
+    "BridgeMemberState",
     "Brownout",
     "Chain",
     "ChannelWidth",
@@ -245,6 +288,7 @@ __all__ = [
     "ContentCategory",
     # tr069
     "CpeConnectionStatus",
+    "CpuLoad",
     # dhcp
     "DHCPTraceData",
     "DHCPV6TraceData",
@@ -256,8 +300,10 @@ __all__ = [
     "DhcpOptionType",
     "DhcpReservation",
     "DiscoveryProtocol",
+    "DnsHostOverride",
     "DnsRecord",
     "DnsRecordType",
+    "DnsUpstream",
     "Duplex",
     # emission
     "EmitResult",
@@ -271,9 +317,12 @@ __all__ = [
     # networking
     "GroupRecord",
     "HTTPResult",
+    "HostAttachment",
+    "HostBlock",
     "HttpScheme",
     "ICMPPacketData",
     "IPAddresses",
+    "ImageSource",
     # impairment
     "ImpairmentProfile",
     # switch_routing
@@ -288,6 +337,7 @@ __all__ = [
     "L3Rule",
     "L7MatchType",
     "L7Rule",
+    "LanHost",
     "LatencySpike",
     "LinkAdminState",
     "LinkAggregationGroup",
@@ -318,6 +368,8 @@ __all__ = [
     "NmapPortState",
     "NmapResult",
     "NtpServer",
+    "NtpSyncState",
+    "NtpSyncStatus",
     "OfflineMessage",
     "OneToManyNatRule",
     "OneToOneNatRule",
@@ -339,7 +391,9 @@ __all__ = [
     "PortMode",
     "PortRange",
     "PortStatusEntry",
+    "PppoeCredentials",
     "ProcessInfo",
+    "ProvisioningMode",
     "QoEResult",
     "QoeCompletion",
     "QoeScenario",
@@ -373,6 +427,7 @@ __all__ = [
     "ShapingRule",
     "SiteToSiteVpnConfig",
     "SnmpValueType",
+    "StaticAddressing",
     "StaticRoute",
     "SteeringScope",
     "StormControlConfig",
@@ -399,6 +454,9 @@ __all__ = [
     "UplinkState",
     "UplinkStatus",
     "UrlRules",
+    "UspAgentState",
+    "UspController",
+    "UspTransport",
     "VPNPeerStatus",
     "VlanConfig",
     "VlanDef",
@@ -407,6 +465,15 @@ __all__ = [
     "VpnPeerStatus",
     "VpnRole",
     "VpnSubnet",
+    "WanConnectionConfig",
+    "WanConnectionState",
+    "WanIpv6",
+    "WanIpv6Mode",
+    "WanMode",
+    "WanStatus",
+    "WanVlan",
+    "Weekday",
+    "WeeklySchedule",
     # wifi
     "WifiAcl",
     "WifiAclMode",
@@ -425,6 +492,9 @@ __all__ = [
     "WifiSecurityMode",
     "WifiStation",
     "WifiTransitionConfig",
+    "WpsMethod",
+    "WpsSessionState",
+    "WpsState",
     "Zone",
     "ZonePolicy",
 ]

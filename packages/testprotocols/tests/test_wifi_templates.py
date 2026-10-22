@@ -165,6 +165,8 @@ PROTOCOLS = [
             "trigger_wps_pbc",
             "trigger_wps_pin",
             "get_wps_device_pin",
+            "cancel_wps",
+            "get_wps_state",
             # DPP — AP as configurator
             "enroll_client_via_dpp",
         },

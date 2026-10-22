@@ -270,6 +270,9 @@ class WifiMeshNode:
     role: MeshRole | str
     parent_mac: str | None  # None for the controller / root
     hop_count: int
+    # the agent's wireless backhaul link where the family publishes it; None where it does
+    # not, or where the backhaul is wired (a wired link has none of the four facts)
+    backhaul_link: WifiMeshLink | None = None
 
 
 @dataclass
@@ -282,3 +285,31 @@ class WifiMeshTopology:
 
     controller_mac: str
     agents: list[WifiMeshNode] = field(default_factory=list[WifiMeshNode])
+
+
+class WpsSessionState(StrEnum):
+    """The state of a BSS's WPS session window."""
+
+    IDLE = "idle"
+    ACTIVE = "active"
+    SUCCESS = "success"
+    FAILED = "failed"
+    TIMEOUT = "timeout"
+
+
+class WpsMethod(StrEnum):
+    """The WPS method a session was opened with."""
+
+    PUSH_BUTTON = "push_button"
+    PIN = "pin"
+
+
+@dataclass(frozen=True)
+class WpsState:
+    """A BSS's WPS session: its *session* state, the *method* it was opened with (``None``
+    while ``IDLE``) and the seconds remaining in the window (``None`` while no window is
+    open or where the family publishes no remaining time)."""
+
+    session: WpsSessionState
+    method: WpsMethod | None
+    remaining_s: int | None
