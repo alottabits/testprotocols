@@ -2229,15 +2229,16 @@ The protocols without such members are `PortStatus`, `DhcpClient`'s v4 pair,
 
 Every ◐ and ✗ cell of §2 as it stands after stage 4, by column and row id
 (the cell text and its source stand in §2 and §10); stage 4 settled each as
-an explicit `NotSupportedError` with a source or as a sourced mapping. 109
-items: the exploration's 105, with four ✓ cells re-graded to ◐ (R3 and R4 on
-column 3, R23 and R28 on column 4) and five ◐ cells flipped to ✗ (R54 and R55
-on columns 1 and 2, R58 on column 5), which moves no count.
+an explicit `NotSupportedError` with a source or as a sourced mapping. 111
+items: the exploration's 105, with six ✓ cells re-graded to ◐ (R3 and R4 on
+column 3 and R23 and R28 on column 4 at stage 4a; R35 and R50 on column 4 at
+stage 4b, with the limits the reference driver found) and five ◐ cells flipped
+to ✗ (R54 and R55 on columns 1 and 2, R58 on column 5), which moves no count.
 
 - **Column 1 (trigger family 1)** (8): ◐ R30, R37, R47, R52, R53, R57; ✗ R54, R55
 - **Column 2 (trigger family 2)** (20): ◐ R5, R7, R10, R14, R19, R21, R27, R28, R37, R38, R39, R44, R47, R52, R58; ✗ R53, R54, R55, R56, R57
 - **Column 3** (20): ◐ R3, R4, R16, R17, R20, R22, R29, R30, R33, R36, R37, R48, R49, R52, R53, R54, R55, R56, R57, R58; ✗ none
-- **Column 4** (39): ◐ R1, R2, R3, R6, R7, R10, R11, R12, R16, R19, R20, R21, R22, R23, R28, R31, R34, R36, R37, R40, R44, R47, R52, R53, R55, R57; ✗ R5, R9, R13, R15, R17, R18, R27, R29, R30, R33, R41, R43, R58
+- **Column 4** (41): ◐ R1, R2, R3, R6, R7, R10, R11, R12, R16, R19, R20, R21, R22, R23, R28, R31, R34, R35, R36, R37, R40, R44, R47, R50, R52, R53, R55, R57; ✗ R5, R9, R13, R15, R17, R18, R27, R29, R30, R33, R41, R43, R58
 - **Column 5** (22): ◐ R1, R4, R5, R7, R20, R23, R25, R28, R29, R30, R36, R38, R41, R47, R52, R56; ✗ R17, R53, R54, R55, R57, R58
 
 Three further items from §6, settled at stage 4: the TR-069 route on column
@@ -2959,4 +2960,6 @@ relies on rather than contradicts; M3, M21 and M32 are the `tier-staged` rows
   the contract-surface script and inherited bases, the recorded tooling
   follow-up. The pin to this PR's new head follows `0becd5e` on the companion
   branch. Counts after the fold: 183 `lossy:`, 89 `partial:` and 50
-  `unverified:` lines; twenty-eight ◐ cells on column 4.
+  `unverified:` lines; twenty-eight ◐ cells on column 4. Status refresh on
+  `0d93772`: C1's remaining part, the §9 "Verification items" column-4 list
+  (41) and total (111), completed (the commit after it).
