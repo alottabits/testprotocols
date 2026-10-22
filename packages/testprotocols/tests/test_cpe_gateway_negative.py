@@ -13,6 +13,7 @@ import pytest
 from _helpers import protocol_attrs
 from testprotocols.admin_credential import AdminCredential
 from testprotocols.auto_port_mapping import AutoPortMapping
+from testprotocols.device_health import DeviceHealth
 from testprotocols.device_info import DeviceInfo
 from testprotocols.device_lifecycle import DeviceLifecycle
 from testprotocols.device_management import DeviceManagement
@@ -54,6 +55,7 @@ NEW_PROTOCOLS: tuple[type, ...] = (
     AutoPortMapping,
     AdminCredential,
     UspAgent,
+    DeviceHealth,  # the read-only base split off DeviceManagement
 )
 
 

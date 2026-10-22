@@ -934,9 +934,13 @@ a field it cannot honour. The block is by MAC because that is what every column
 keys on; an address-keyed block is not offered. It is not `WifiBss`'s
 per-network MAC access list either: that list admits or refuses a station's
 association on one network, while a host block denies a host's traffic through
-the gateway, wired or wireless, on a schedule. The write is one device step on
-columns 4 and 5. On column 1 it is the host access-control entry (the hosts
-plugin's access-control object, not a firewall rule), one set per parameter and
+the gateway, wired or wireless, on a schedule. On column 4 a block is one
+action and an unblock two (the host back on the standard profile, then its
+disallow cleared); on column 5 a new block is two requests (the profile, then
+the device entry) and an unblock two deletes; on both, the steps before a
+rejection stand, as the drivers' `lossy:` lines say. On column 1 it is the host
+access-control entry (the hosts plugin's access-control object, not a firewall
+rule), one set per parameter and
 one add per schedule window; on column 2 a rule plus a schedule section; on
 column 3 an internet-access policy, one set per parameter; a rejection raises
 naming the step. The device resource is shared with `firewall` on columns 2
@@ -1414,7 +1418,7 @@ recorded in §8 and in the drivers' `lossy:` lines.
 | `DnsForwarder.set_rebind_protection` | `get_rebind_protection` | no |
 | `L2Bridge.create_bridge` / `delete_bridge` | `list_bridges`, `get_bridge` | yes on columns 1 and 3 (the object add, then the STP parameter): raises naming the step; one staged write on column 2, one command on column 5 |
 | `L2Bridge.add_member` / `remove_member` | `get_members` | no |
-| `HostFilter.block_host` / `unblock_host` | `get_host_block`, `list_host_blocks` | yes on columns 1, 2 and 3 (column 1: the host access-control entry, then one set per parameter and one add per schedule window; column 2: a rule plus a schedule section; column 3: the internet-access policy, then one set per parameter): raises naming the step; one step on columns 4 and 5 |
+| `HostFilter.block_host` / `unblock_host` | `get_host_block`, `list_host_blocks` | yes on columns 1, 2 and 3 (column 1: the host access-control entry, then one set per parameter and one add per schedule window; column 2: a rule plus a schedule section; column 3: the internet-access policy, then one set per parameter): raises naming the step; column 4: one action for a block, two for an unblock (standard profile, then the disallow cleared); column 5: two requests for a new block (profile, then device entry), two deletes for an unblock; on both the steps before a rejection stand |
 | `AutoPortMapping.set_enabled` | `get_enabled` | no |
 | `AdminCredential.set_password` (lever) | a new management session authenticating with the credential, opened by the test; `list_accounts` finds the account | no |
 | `NtpConfig.set_ntp_servers` (existing) | `get_ntp_servers`; `get_sync_state` for the effect | as today |
@@ -2817,7 +2821,8 @@ relies on rather than contradicts; M3, M21 and M32 are the `tier-staged` rows
     satisfied-state write, the column-4 login reads, the column-5 REST route,
     the column-3 build facts);
   - `lossy:`, `partial:` and `unverified:` lines: recorded in the corpus, not
-    in this design;
+    in this design (since 2026-10-21 the `lossy:` lines are also in §8 "Lossy
+    mappings as built");
   - six corpus-only records: settled in the corpus, not folded.
   The TR-069 route on column 1 decided: `set_acs` / `get_acs` through the
   data model's management-server object, `force_inform` and

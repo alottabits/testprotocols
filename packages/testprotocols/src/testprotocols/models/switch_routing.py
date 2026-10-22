@@ -86,7 +86,9 @@ class InterfaceDhcpConfig:
     whole interface subnet minus the reserved ranges. Every reserved range
     must lie inside the bounds: a configuration whose range lies wholly or
     partly outside them is rejected by the driver before any write (with
-    ``None`` bounds nothing is outside).
+    ``None`` bounds nothing is outside). A family with no pool-bounds setting
+    raises ``NotSupportedError`` before any write when either bound is not
+    ``None``; it never ignores a bound.
     """
 
     interface: str

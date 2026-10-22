@@ -122,8 +122,8 @@ class CpeGatewayMeshTier(CpeGatewayDevice, Protocol):
     client steering between agents. The extender is not a device of this
     archetype; it is an agent in the controller's topology (§1). Evidence:
     three or four of five columns per operation (R56 to R58); the second
-    trigger column publishes no controller and raises. Not registered: a
-    test pins against it with ``isinstance``."""
+    trigger column publishes no controller, so its driver does not satisfy the
+    tier. Not registered: a test pins against it with ``isinstance``."""
 
     # reuse (+ one defaulted field on the topology node) — topology, backhaul, steering
     wifi_mesh: WifiMesh
@@ -133,8 +133,8 @@ class CpeGatewayMeshTier(CpeGatewayDevice, Protocol):
 class CpeGatewayUspTier(CpeGatewayDevice, Protocol):
     """Adds the USP agent: the controller endpoint and its transport, the
     agent's own endpoint identifier. Evidence: three of five columns (R53, all caveated); the
-    second trigger column packages no agent and raises. Not registered: a
-    test pins against it with ``isinstance``."""
+    second trigger column packages no agent, so its driver does not satisfy the
+    tier. Not registered: a test pins against it with ``isinstance``."""
 
     # NEW (tier) — controller endpoint and transport, the agent's endpoint identifier
     usp_agent: UspAgent

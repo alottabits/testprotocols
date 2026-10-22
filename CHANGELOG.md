@@ -22,8 +22,8 @@ their tags and PR history.
 - **protocol members** `testprotocols.device_info:DeviceInfo.manufacturer`, `serial_number`,
   `software_version`, `oui`, `hardware_version` — new mandatory read-only properties beside
   `model`; the two optional facts are `None` where the family publishes no field. Migration:
-  implement the five properties, raising `NotSupportedError` from `manufacturer` or
-  `serial_number` where the device publishes neither. no proposal; design `docs/architecture/cpe-gateway-protocol-design.md` M18; PR #101.
+  implement the five properties, raising `NotSupportedError` from the one of `manufacturer` and
+  `serial_number` the device does not publish. no proposal; design `docs/architecture/cpe-gateway-protocol-design.md` M18; PR #101.
 - **protocol members** `testprotocols.device_lifecycle:DeviceLifecycle.upgrade_firmware`,
   `export_configuration`, `import_configuration`, `verify_booting` — new mandatory members: the
   firmware upgrade from an `ImageSource`, the configuration archive out and in, and the renamed
@@ -121,7 +121,8 @@ their tags and PR history.
   (`str | None = None`) — the first and last dynamic address; `None` keeps today's meaning, the
   whole interface subnet minus the reserved ranges, so no caller changes. Every reserved range
   must lie inside the bounds; a driver rejects a configuration whose range lies outside them
-  before any write (`SPLITS.md` 2026-10-20). no proposal; design `docs/architecture/cpe-gateway-protocol-design.md` M25, M26; PR #101.
+  before any write, and a family with no pool-bounds setting rejects non-`None` bounds the same
+  way (`NotSupportedError` before any write) (`SPLITS.md` 2026-10-20). no proposal; design `docs/architecture/cpe-gateway-protocol-design.md` M25, M26; PR #101.
 - **field** `testprotocols.models.wifi:WifiMeshNode.backhaul_link` (`WifiMeshLink | None = None`)
   — each agent's wireless backhaul link where the family publishes it; `None` where it does not
   or where the backhaul is wired. no proposal; design `docs/architecture/cpe-gateway-protocol-design.md` M34; PR #101.
@@ -131,7 +132,7 @@ their tags and PR history.
   gateways too, not only by the Linux twin (`SPLITS.md` 2026-10-20); the mesh and onboarding
   modules state the documented unsupported case (`NotSupportedError`) instead of
   `NotImplementedError`; `force_inform` says what it provokes and names no vendor command or
-  daemon. Text only, no change to a signature or a behaviour; a caller that caught
+  daemon. Text only, no change to a signature; a caller that caught
   `NotImplementedError` on those members catches `NotSupportedError` there now, the
   exception the contract documents. no proposal; design `docs/architecture/cpe-gateway-protocol-design.md` M28, M33, M22, M24;
   PR #101.
