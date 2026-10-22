@@ -134,7 +134,7 @@ def check_kind_scope(pr: PullRequest) -> tuple[list[str], bool]:
             False,
         )
     if any(is_decision_file(p) for p in pr.paths):
-        return [], False  # a decision file takes the proposal reviewer: wait for /review
+        return [], False  # a decision file takes a reviewer: wait for /review
     return [], True
 
 
@@ -553,12 +553,22 @@ REVIEWED_KINDS = {
 REVIEWER_ORDER = ("code", "release", "archetype", "proposal")
 
 
+def _is_design_record(decision_files: list[str]) -> bool:
+    """Decision files that are design documents, with ``GAPS.md`` beside them at most."""
+    designs = [p for p in decision_files if fnmatch.fnmatchcase(p, "docs/architecture/*.md")]
+    return bool(designs) and all(
+        p in designs or p == "packages/testprotocols/GAPS.md" for p in decision_files
+    )
+
+
 def reviewers_for(pr: PullRequest) -> list[str]:
     """The reviewer set a PR takes.
 
     By kind; a decision file adds the proposal reviewer, except on the two
     archetype kinds, whose design document and tracking-file entries the
-    archetype reviewer reads. An ``archetype:`` PR that carries package
+    archetype reviewer reads. A ``docs:`` PR whose decision files are design
+    documents (``GAPS.md`` beside them at most) also takes the archetype
+    reviewer: it records a verification of a design. An ``archetype:`` PR that carries package
     source also takes the code reviewer.
     """
     kind = parse_kind(pr.title)
@@ -568,8 +578,11 @@ def reviewers_for(pr: PullRequest) -> list[str]:
     if kind in ARCHETYPE_KINDS:
         if any(is_source_path(p) for p in pr.paths):
             chosen.add("code")
-    elif any(is_decision_file(p) for p in pr.paths):
-        chosen.add("proposal")
+    else:
+        decision = [p for p in pr.paths if is_decision_file(p)]
+        if decision:
+            design_record = kind == "docs" and _is_design_record(decision)
+            chosen.add("archetype" if design_record else "proposal")
     return [r for r in REVIEWER_ORDER if r in chosen]
 
 
