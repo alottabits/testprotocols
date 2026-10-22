@@ -102,7 +102,7 @@ def test_protocol_members(name: str, module: str, members: set[str]) -> None:
 
 
 @pytest.mark.parametrize(("name", "module", "members"), PROTOCOLS, ids=[p[0] for p in PROTOCOLS])
-def test_every_member_has_a_docstring_without_vendor_words(
+def test_every_member_has_a_docstring_naming_the_contract_exception(
     name: str, module: str, members: set[str]
 ) -> None:
     proto = getattr(importlib.import_module(module), name)
@@ -128,9 +128,6 @@ def test_reexported() -> None:
         assert name in testprotocols.__all__
         assert hasattr(testprotocols, name)
 
-
-# `dataclasses` is used by the extension tests appended in later tasks.
-_ = dataclasses
 
 
 def test_device_health_split() -> None:

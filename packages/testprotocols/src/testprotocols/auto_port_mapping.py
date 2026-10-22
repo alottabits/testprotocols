@@ -40,6 +40,6 @@ class AutoPortMapping(Protocol):
     def list_mappings(self) -> list[AutoPortMappingEntry]:
         """Return the mappings LAN hosts requested, distinct from the administrator's
         (``firewall.list_port_mappings``) by ``origin`` and ``remaining_lease_s``; a family
-        that publishes one protocol's table only raises ``NotSupportedError`` for none and
-        reports that table."""
+        that publishes one protocol's table only does not raise; it reports the one table it
+        publishes."""
         ...
