@@ -264,10 +264,12 @@ corpus, merged to corpus `main`. A `docs:` PR then appends
 the corpus `main` commit, the families with version lines, per-family counts
 of members mapped, mapped with a stated gap and unsupported, the unsupported
 cells by symbol and family, the findings for a later change proposal, and
-the `GAPS.md` entries. Nothing else in the document or the package changes,
-and no `conformance` check runs, since the PR carries no package source.
-Such a PR takes the archetype reviewer, with the Verification record set
-below.
+the `GAPS.md` entries. Nothing else in the document changes, and no package
+source; the `GAPS.md` entries the record lists may land in the same PR, as
+entries of that file, since a record with its gaps is one decision. No
+`conformance` check runs, since the PR carries no package source. Such a PR
+takes the archetype reviewer, with the Verification record set below; its
+question 5 reads the `GAPS.md` entries as part of the record.
 
 ## What the archetype reviewer asks
 
@@ -422,9 +424,10 @@ verdicts of `docs/proposals/README.md`.
 4. **Matrix agreement.** The record's cells are checked against the design
    document's table: every disagreement has a correction line. Against the
    corpus matrix there is none.
-5. **No shape change.** The diff touches only the appended section and the
-   Status field: no package source, no other document. The findings section
-   proposes and implements nothing.
+5. **No shape change.** The diff touches only the appended section, the
+   Status field and `GAPS.md` entries the record lists: no package source, no
+   other document. The findings section and the entries propose and
+   implement nothing.
 6. **Neutrality.** Family names appear only in the record's version lines and
    cells; no customer trace; no corpus path or identifier.
 
