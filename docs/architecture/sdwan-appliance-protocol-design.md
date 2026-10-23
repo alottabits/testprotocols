@@ -506,7 +506,7 @@ harmonisation review.
 | 2 | Catalyst SD-WAN | SD-WAN Manager 20.12, configuration groups and policy groups |
 | 3 | FortiGate | FortiOS 7.4 REST API, standalone (no FortiManager), one VDOM |
 | 4 | Prisma SD-WAN | Prisma SD-WAN API as published 2026-08-24, each resource at its newest published version |
-| 5 | Arista SD-WAN (VeloCloud) | Orchestrator 6.0 portal API (corrected from 5.x: URL category filtering, which column 5 grades ✓, is new in 6.0.0) |
+| 5 | Arista SD-WAN (VeloCloud) | Orchestrator 6.0 portal API (the design named no version line; pinned at 6.0, since URL category filtering, which column 5 grades ✓, is new in 6.0.0) |
 
 **Counts over the 79 members.** Mapped; mapped with a stated gap (a `partial:` line on
 the member, or on the capability's implementation as a whole, which counts for each of
@@ -523,7 +523,8 @@ its members); unsupported.
 
 Across the five drivers: 216 `lossy:` lines (a rendering that loses information), 40
 `partial:` lines (a gap in a supported member) and 138 `unverified:` lines (a field or
-reply shape the cited page does not print).
+reply shape the cited page does not print), counting a line whose first token, after an
+optional comment marker, is the annotation.
 
 **Unsupported cells.**
 
@@ -614,8 +615,8 @@ per-client cap, given as 2/5 above, is Meraki MX and FortiGate.
 ports; `SecurityEvent.ts` → `timestamp`; `NatRule.mode` / `protocol`,
 `LinkStatus.state` and `LinkHealthReport.state` narrowing to their enums; the
 empty-string absences of `NatRule`, `L3Rule`, `UplinkStatus` and `LinkStatus.ip_address`
-→ `None`. A harmonisation change lands beside this migration, on the same
-deprecation footing, so a consumer migrates once.
+→ `None`. The findings propose that a harmonisation change land beside this
+migration, so a consumer migrates once; its deprecation period is set by that change.
 
 **`GAPS.md` entries.** `LinkHealthReport.loss_percent`: 0.0 where a family has no
 sample (new, low); `ApplianceVlans.get_dhcp_leases`: a lease table one of five
