@@ -599,6 +599,16 @@ returns `float`, not `float | None` (an appliance that publishes no uptime raise
 product may raise on. The appliance composes it as `health: DeviceHealth` when its
 own trigger fires; the sketch's `reboot()` is `device_lifecycle`'s.
 
+**Update (2026-10-23, the appliance verification record):** none of the five reviewed
+families publishes an uptime duration through `Router.read_telemetry`; every reference
+driver fills `Telemetry.uptime_seconds` with `None`. Three of the five publish a boot
+time instead. So `DeviceHealth.get_seconds_uptime`, which raises where no uptime is
+published, would raise on two families and need a derivation from the boot time on the
+other three. Whether the appliance composes `DeviceHealth`, or `Telemetry` gains a boot
+time beside the duration, is a question for the harmonisation review
+(`docs/architecture/sdwan-appliance-protocol-design.md`, "Verification record
+(2026-10-23)", findings).
+
 ---
 
 ## 2026-06-14 — `IgmpSnooping` [priority: HIGH]
@@ -1292,3 +1302,57 @@ composes `DeviceHealth` on a family without a host in its log lines.
 **Cross-references:** `models/device_management.py` (`EventLogEntry`);
 `docs/architecture/cpe-gateway-protocol-design.md` (§8 "Lossy mappings as built", columns 1 and
 2, `DeviceHealth`); the 2026-10-05 entry above.
+
+---
+
+## 2026-10-23 — `LinkHealthReport.loss_percent`: 0.0 where a family has no sample [priority: low]
+
+**Signal:** the SD-WAN appliance verification found all five reviewed families filling the
+required `float` field `loss_percent` with `0.0` when the plane holds no loss sample for
+the link, a sentinel the precise-types rule would type as `float | None` (absence
+stated), as `avg_rtt_ms` and `jitter_ms` on the same record already are. The companion
+`RouteEntry.interface` and `RouteEntry.metric` carry the same shape of sentinel (`""` and
+`0` where a plane prints neither) and are listed with it in the record's findings.
+
+**Trigger to act:** the harmonisation review of the shared SD-WAN and gateway models, or
+the next change to `LinkHealthReport`.
+
+**Out of scope right now because:** the verification took the shipped shape as fixed, and
+the retype is a `Breaking for driver authors` change that belongs beside the announced
+0.13.0 migration so a consumer migrates once.
+
+**Design notes (when picked up):** `loss_percent: float | None`, `None` where no sample
+exists; a driver that today writes `0.0` from an absent sample writes `None`, and a
+published sample keeps its number.
+
+**Cross-references:** `models/wan_edge.py` (`LinkHealthReport`, `RouteEntry`);
+`docs/architecture/sdwan-appliance-protocol-design.md` ("Verification record (2026-10-23)",
+findings); the 2026-10-05 precise-types entry and the 2026-10-22 `EventLogEntry.hostname`
+entry above (the same sentinel pattern).
+
+---
+
+## 2026-10-23 — `ApplianceVlans.get_dhcp_leases`: a lease table one of five reviewed families publishes [priority: low]
+
+**Signal:** the SD-WAN appliance verification found the member's lease table published by
+one of the five reviewed families. Two map it best-effort onto what the plane does publish
+(a client table on one, the ARP table on the other, each with a stated gap), and two
+publish no lease, binding or client-address read at all and raise unsupported.
+
+**Trigger to act:** the harmonisation review (a best-effort member with its gap stated,
+or a tier a test pins), or the first test that needs lease expiry rather than client
+presence.
+
+**Out of scope right now because:** the verification took the shipped shape as fixed;
+the member is reachable on three families today, and no test has needed the expiry
+field the two approximations cannot fill.
+
+**Design notes (when picked up):** either state the best-effort reading in the member's
+docstring (what a client table and an ARP table do and do not fill, `lease_expiry` as
+`None` there), or move the member to a tier pinned by `isinstance`, as the CPE gateway
+design does for members below its majority threshold.
+
+**Cross-references:** `appliance_vlans.py` (`ApplianceVlans.get_dhcp_leases`),
+`models/sdwan_appliance.py`; `docs/architecture/sdwan-appliance-protocol-design.md`
+("Verification record (2026-10-23)", unsupported cells, column 1 and column 2 corrections);
+`docs/architecture/cpe-gateway-protocol-design.md` (§6, the tier threshold).

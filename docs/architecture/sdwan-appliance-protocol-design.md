@@ -2,7 +2,7 @@
 
 | Field    | Value                                                                                                          |
 | -------- | ------------------------------------------------------------------------------------------------------------- |
-| Status   | Implemented                                                                                                   |
+| Status   | Implemented; verified 2026-10-23 against the reference corpus                                                 |
 | Author   | rjvisser                                                                                                       |
 | Date     | 2026-06-11 (updated 2026-06-12: `vpn: SiteToSiteVpn` + L3Firewall VPN rule set)                                |
 | Related  | `packages/testprotocols/SPLITS.md` (2026-05-02 netem removal; 2026-05-11 firewall fold; 2026-06-11 sdwan_policy firewall split), `GAPS.md` (2026-06-11 appliance follow-ons; 2026-06-12 static-route + BGP entries), `LEVELS.md`, `devices/sdwan.py`, `models/sdwan_appliance.py`, `models/wan_edge.py`, `site_to_site_vpn.py` |
@@ -487,3 +487,138 @@ ensuring no product name or vendor id appears anywhere in the `testprotocols`
 **package source** (the contract surface). Product names appear only in design
 docs like this one, where they document the cross-vendor concept check — never
 in a model, enum, or protocol.
+
+## Verification record (2026-10-23)
+
+The archetype was verified against one reference driver per reviewed family in the
+maintainers' private reference corpus, at corpus `main` commit `a616ec01691ae1a44c83a33c6edb81418feff7c0`.
+Each driver maps every member of the 17 capabilities onto the family's published
+management API, citing the document and section it follows, or raises
+unsupported-capability citing where the absence is documented. The shape was taken as
+fixed: nothing in the package changed, and the findings below are held for the
+harmonisation review.
+
+**Families and version lines.**
+
+| Column | Family | Management plane and version line |
+| --- | --- | --- |
+| 1 | Meraki MX | Dashboard API v1 (reference v1.75.1); MX 18.2 firmware line, not contradicted |
+| 2 | Catalyst SD-WAN | SD-WAN Manager 20.12, configuration groups and policy groups |
+| 3 | FortiGate | FortiOS 7.4 REST API, standalone (no FortiManager), one VDOM |
+| 4 | Prisma SD-WAN | Prisma SD-WAN API as published 2026-08-24, each resource at its newest published version |
+| 5 | Arista SD-WAN (VeloCloud) | Orchestrator 6.0 portal API (corrected from 5.x: URL category filtering, which column 5 grades ✓, is new in 6.0.0) |
+
+**Counts over the 79 members.** Mapped; mapped with a stated gap (a `partial:` line on
+the member, or on the capability's implementation as a whole, which counts for each of
+its members); unsupported.
+
+| Family | Mapped | Mapped with a stated gap | Unsupported | Total |
+| --- | --- | --- | --- | --- |
+| Meraki MX | 67 | 7 | 5 | 79 |
+| Catalyst SD-WAN | 72 | 3 | 4 | 79 |
+| FortiGate | 74 | 3 | 2 | 79 |
+| Prisma SD-WAN | 48 | 23 | 8 | 79 |
+| Arista SD-WAN (VeloCloud) | 52 | 13 | 14 | 79 |
+| **All five** | **313** | **49** | **33** | **395** |
+
+Across the five drivers: 216 `lossy:` lines (a rendering that loses information), 40
+`partial:` lines (a gap in a supported member) and 138 `unverified:` lines (a field or
+reply shape the cited page does not print).
+
+**Unsupported cells.**
+
+| Member | Families | Where the absence is documented |
+| --- | --- | --- |
+| `DeviceInfo.manufacturer` | all five | each plane's device read publishes no manufacturer field |
+| `SdwanPolicyManager.apply_policy` | all five | deprecated in 0.13.0 with no successor (`DEPRECATIONS.md`) |
+| `TrafficShaping.set_global_client_bandwidth`, `get_global_client_bandwidth` | Catalyst SD-WAN, Prisma SD-WAN, Arista SD-WAN (VeloCloud) | QoS per forwarding class and interface (Policy Groups Configuration Guide); bandwidth per business priority and per circuit (Prisma SD-WAN API); rate limiting per flow (VeloCloud 6.0 Administration Guide, "Configure Business Policy") |
+| `Bgp.get_bgp_neighbors`, `get_learned_routes` | Meraki MX | the BGP calls publish configuration only |
+| `SdwanPolicyManager.remove_policy` | Meraki MX | the uplink preferences are ordered lists with no name or id |
+| `SdwanPolicyManager.set_active_active_vpn` | Prisma SD-WAN, Arista SD-WAN (VeloCloud) | no concurrency switch: VPN links are brought up one by one (Prisma SD-WAN API); links steer by default (6.0 Administration Guide, "Configure Business Policy") |
+| `ThreatPrevention.set_malware`, `get_malware` | Prisma SD-WAN, Arista SD-WAN (VeloCloud) | the security profile group carries no antivirus profile (Prisma SD-WAN API, "Create a Security Profile Group"); no anti-malware engine (6.0 Administration Guide, "Firewall Overview") |
+| `ApplianceVlans.get_dhcp_leases` | Prisma SD-WAN, Arista SD-WAN (VeloCloud) | no lease, binding or client-address read is published |
+| `L3Firewall.set_inbound_rules`, `get_inbound_rules` | Arista SD-WAN (VeloCloud) | inbound traffic is blocked unless port-forwarding or 1:1 NAT rules admit it (6.0 Administration Guide, "Firewall Overview") |
+| `L3Firewall.set_vpn_rules`, `get_vpn_rules` | Arista SD-WAN (VeloCloud) | the firewall module holds one outbound list per segment, none scoped to overlay traffic |
+| `SdwanPolicyManager.configure_sla_policy`, `remove_sla_policy` | Arista SD-WAN (VeloCloud) | the application SLAs are fixed per traffic class (6.0 Administration Guide, "Configure Business Policy") |
+
+`Router.get_telemetry` and `ContentFiltering.get_url_rules`, deprecated in 0.13.0,
+return their successors' records in the released form on all five families.
+
+**Corrections to the neutrality table.** One rule for every column: a capability cell
+that changes, and a member graded ✗ where the design's cell does not already say ✗, is
+listed; a member graded ◐ is counted above under "mapped with a stated gap" and listed
+only where it lowers a design cell that reads plain ✓ (a cell already ◐ keeps its ◐
+members to the count). The `Router` reads are graded against the "routing / BGP /
+static" row. All columns: `DeviceInfo.manufacturer` ✗ (no row); `SdwanPolicyManager.apply_policy`
+✗ (deprecated in 0.13.0, no successor); `Router.get_link_health` ◐ (no plane publishes a
+route-installed flag) and `Router.read_telemetry` ◐ (no uptime duration). Column 1:
+`SdwanPolicyManager.remove_policy` ✗; syslog ✓ with a stated gap (the network-scope call
+is marked deprecated by the family); `Router.get_routing_table` ◐ (the static routes and
+the VLAN subnets), `SdwanPolicyManager.get_application_flows` ◐ (an aggregate per
+application and destination), `ApplianceVlans.get_dhcp_leases` ◐ (a client table).
+Column 2: the capability cells stand — no member is reachable only through the legacy
+centralized or localized policy API at 20.12; `ApplianceVlans.get_dhcp_leases` ◐ (the
+ARP table); the per-client cap ✗. Column 3: the capability cells stand;
+`Bgp.get_bgp_neighbors` ◐ (no received-prefix count). Column 4: content_filtering ✓ → ◐
+(the profile and URL categories are Strata Cloud Manager candidate configuration; the
+push to Branch Security has no target in the published push API); appliance_nat ✓ → ◐
+(the translation is an interface's NAT pool); security ✓ → ◐ (anti-malware ✗;
+intrusion as the profile attached or detached; security events are policy denials only);
+`SdwanPolicyManager.set_active_active_vpn` ✗, `get_uplink_selection_settings` ◐ and
+`get_application_flows` ◐ (a flow names a path, not a WAN interface);
+`Router.get_routing_table` ◐ (the routes each interface reports);
+`ApplianceVlans.get_dhcp_leases` ✗ and the other four `ApplianceVlans` members ◐ (the
+VLAN tag is the element subinterface's, not written); the per-client cap ✗. Column 5:
+`SdwanPolicyManager.set_active_active_vpn` ✗ and `remove_sla_policy` ✗;
+`L3Firewall.set_vpn_rules` / `get_vpn_rules` ✗; URL categories ✓ on an enterprise-wide
+object and URL rules ◐ (matched as host names); `get_malware` ✗ beside `set_malware`;
+`ApplianceVlans.get_dhcp_leases` ✗; `Router.get_routing_table` ◐ and
+`Bgp.get_learned_routes` ◐ (the overlay route table, no edge routing table). The
+per-client cap, given as 2/5 above, is Meraki MX and FortiGate.
+
+**Findings for the harmonisation review.** Each changes no shape here.
+
+- `DeviceInfo.manufacturer` is published by none of the five families (all five).
+- `SdwanPolicyManager.remove_policy(name)` has no key where the steering rules carry no name (Meraki MX).
+- Rule and route names: `UplinkSelectionRule.name` and `ShapingRule.name` are not stored (Meraki MX), `StaticRoute.name` has no field (Catalyst SD-WAN), while `L3Rule` and `L7Rule` carry no name where the plane keys rules by one (Prisma SD-WAN, Arista SD-WAN (VeloCloud)).
+- `SdwanPolicyManager.set_active_active_vpn` is a switch on one family (Meraki MX); unsupported on Prisma SD-WAN and Arista SD-WAN (VeloCloud), `False` refused on FortiGate, approximated by the overlay path limit on Catalyst SD-WAN.
+- `SdwanPolicyManager.set_default_uplink` has no default-uplink field on FortiGate (member priority, ending the other members' load balancing), Prisma SD-WAN (circuit cost) and Arista SD-WAN (VeloCloud) (a catch-all rule).
+- `LinkHealthReport.loss_percent` is a required `float` filled 0.0 where no sample exists (all five); candidate `float | None`.
+- `LinkHealthReport.route_installed` is published by no family (all five read it from the uplink state); `sla_compliant` is published by FortiGate only (the other four read it from the uplink state).
+- `Telemetry.uptime_seconds`: no family publishes an uptime duration (all five); FortiGate, Prisma SD-WAN and Arista SD-WAN (VeloCloud) publish a boot time.
+- `Router.get_routing_table` has no routing-table read on Meraki MX, Prisma SD-WAN and Arista SD-WAN (VeloCloud).
+- `SdwanPolicyManager.get_application_flows` is an aggregate, not flows, on Meraki MX, Prisma SD-WAN and Arista SD-WAN (VeloCloud).
+- `ApplianceVlans.get_dhcp_leases` is a true lease table on FortiGate only; a client table (Meraki MX), the ARP table (Catalyst SD-WAN), absent (Prisma SD-WAN, Arista SD-WAN (VeloCloud)).
+- Write scope: whole-list members realised on a shared object — organization objects (Meraki MX: VPN firewall rules, the BGP AS number), profiles a configuration group can share and the overlay topology (Catalyst SD-WAN), site-bound and tenant policy sets (Prisma SD-WAN), the enterprise profile's Cloud VPN and the URL categories (Arista SD-WAN (VeloCloud)); none on FortiGate.
+- `VlanConfig.dhcp_mode` `RELAY` names no relay servers: refused per value (all five).
+- `ApplianceVlans.delete_vlan` refuses different VLANs per family: the last or a route-referenced VLAN (Meraki MX), the last LAN network (Prisma SD-WAN, Arista SD-WAN (VeloCloud)), a referenced interface by the unit itself (FortiGate), none (Catalyst SD-WAN).
+- `VlanConfig` names no parent interface or tag binding (FortiGate, Prisma SD-WAN).
+- DHCP options: an integer option has no type (FortiGate, Catalyst SD-WAN), options are refused (Prisma SD-WAN, Arista SD-WAN (VeloCloud)); `ReservedRange.comment` is required (Meraki MX) and kept by no other family.
+- `BgpConfig.enabled` has no off switch (FortiGate, Catalyst SD-WAN, Prisma SD-WAN); `BgpNeighbor` carries no hold time or multi-hop, both required (Meraki MX).
+- NAT rule uplinks contradict: a named uplink is required (Meraki MX 1:Many, Arista SD-WAN (VeloCloud)), only `any` is expressible (Catalyst SD-WAN, Prisma SD-WAN); FortiGate's mappings need admitting policies the model does not name.
+- Uplink identifiers are family words — `wanX` (Meraki MX), tunnel colors (Catalyst SD-WAN), edge interfaces (Arista SD-WAN (VeloCloud)).
+- `UplinkSelectionRule`: no source port (FortiGate); prefixes and applications only, no performance class (Prisma SD-WAN); an internet rule names no uplink at 20.12 (Catalyst SD-WAN).
+- `L7Rule`: deny only (Meraki MX); application and category matches only (FortiGate); catalogue applications only (Prisma SD-WAN).
+- Taxonomies: `ContentCategory.MALWARE_SITES` and `PHISHING` have no content category (Meraki MX); six `ApplicationCategory` members have no category (FortiGate).
+- `ThreatPrevention`: intrusion detection and sensitivity are not settable (Prisma SD-WAN, Arista SD-WAN (VeloCloud)); security events are denials only (Prisma SD-WAN, Arista SD-WAN (VeloCloud)) or IPS alerts only (Catalyst SD-WAN).
+- `TrafficShaping`: the per-client cap is one limit for both directions (FortiGate); a per-rule kbps limit is not expressible (Prisma SD-WAN, Arista SD-WAN (VeloCloud)).
+- `SyslogServer`: no port or role field (Catalyst SD-WAN), roles not written (FortiGate), flow and URL roles refused (Arista SD-WAN (VeloCloud)).
+- IPv6: the models carry one string per address for both families; the planes keep IPv4 and IPv6 apart and the drivers refuse IPv6 values (FortiGate, Arista SD-WAN (VeloCloud)); the embedded-security rules take IPv4 only at 20.12 (Catalyst SD-WAN).
+- `RouteEntry.interface` and `metric` are required: `""` and 0 where the plane prints neither — the learned routes (Catalyst SD-WAN, FortiGate, Prisma SD-WAN) and the routing table's metrics (Meraki MX, Prisma SD-WAN); candidate `str | None` and `int | None`, the twin of `loss_percent`.
+
+**Migration already announced (0.13.0, removal 2027-04-15).** A consumer pinned below
+0.13.0 already faces: `Router.get_telemetry` → `read_telemetry`; `SdwanPolicyManager.apply_policy`
+(no successor); `ContentFiltering.get_url_rules` → `read_url_rules`;
+`TrafficShapingRule` and `VPNPeerStatus` (no successor); the port text fields of `NatRule`
+(`dst_port`, `translated_port`) and `L3Rule` (`src_port`, `dst_port`) → the typed
+ports; `SecurityEvent.ts` → `timestamp`; `NatRule.mode` / `protocol`,
+`LinkStatus.state` and `LinkHealthReport.state` narrowing to their enums; the
+empty-string absences of `NatRule`, `L3Rule`, `UplinkStatus` and `LinkStatus.ip_address`
+→ `None`. A harmonisation change lands beside this migration, on the same
+deprecation footing, so a consumer migrates once.
+
+**`GAPS.md` entries.** `LinkHealthReport.loss_percent`: 0.0 where a family has no
+sample (new, low); `ApplianceVlans.get_dhcp_leases`: a lease table one of five
+reviewed families publishes (new, low); the 2026-06-11 appliance health entry gains an
+update (no uptime duration on any family; a boot time on three). `DeviceInfo.manufacturer` is a harmonisation
+candidate on an existing member and has no entry of its own.
