@@ -254,6 +254,21 @@ maintainer runs `/review`. CONTRIBUTING.md lists the required checks. The
 review record of a verified design names the corpus commit it was verified
 against.
 
+### Verifying a design that predates the track
+
+An archetype that entered the contract before the track (Status
+`Implemented`) is verified later the same way: reference drivers in the
+corpus, merged to corpus `main`. A `docs:` PR then appends
+`## Verification record (<date>)` to its design document and sets Status to
+`Implemented; verified <date> against the reference corpus`. The record holds
+the corpus `main` commit, the families with version lines, per-family counts
+of members mapped, mapped with a stated gap and unsupported, the unsupported
+cells by symbol and family, the findings for a later change proposal, and
+the `GAPS.md` entries. Nothing else in the document or the package changes,
+and no `conformance` check runs, since the PR carries no package source.
+Such a PR takes the archetype reviewer, with the Verification record set
+below.
+
 ## What the archetype reviewer asks
 
 The reviewer answers one set per stage, in order, with the response format and
@@ -394,6 +409,24 @@ verdicts of `docs/proposals/README.md`.
     condition. A device resource the drivers find two members writing,
     which the design does not show as split or refused, is a condition
     folded back into the design.
+
+**Verification record** (`docs:` PR on a design document):
+
+1. **Corpus commit.** The record names a corpus `main` commit; the
+   reviewer's checkout is that commit or a descendant of it.
+2. **Counts.** Per family, mapped + mapped with a gap + unsupported = the
+   archetype's member total; the totals agree with the corpus matrix.
+3. **Unsupported cells sourced.** Every unsupported cell is a
+   `NotSupportedError` with a source in the corpus (at least one checked per
+   family, with one vendor page fetched).
+4. **Matrix agreement.** The record's cells are checked against the design
+   document's table: every disagreement has a correction line. Against the
+   corpus matrix there is none.
+5. **No shape change.** The diff touches only the appended section and the
+   Status field: no package source, no other document. The findings section
+   proposes and implements nothing.
+6. **Neutrality.** Family names appear only in the record's version lines and
+   cells; no customer trace; no corpus path or identifier.
 
 The posted review cites only public documentation, public protocol symbols
 and the corpus commit it verified against.

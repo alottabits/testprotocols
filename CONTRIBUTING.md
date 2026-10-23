@@ -138,7 +138,11 @@ against. A PR that touches any of them takes the proposal reviewer
 whatever its prefix, and `hygiene` does
 not set the `review` status for it; the exception is a `charter:` or
 `archetype:` PR, whose design document and tracking-file entries the
-archetype reviewer reads instead. A `feat:` PR that also adds a SPLITS
+archetype reviewer reads instead. A `docs:` PR whose decision files are
+design documents under `docs/architecture/` (with `GAPS.md` entries beside
+them, nothing else) also takes the archetype reviewer: it records a
+verification of a design, which is the archetype reviewer's question set.
+A `feat:` PR that also adds a SPLITS
 or LEVELS entry takes both the code and the proposal reviewer; the worse
 verdict wins.
 
