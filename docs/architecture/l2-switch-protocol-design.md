@@ -742,8 +742,9 @@ in the maintainers' private reference corpus, at corpus `main` commit
 composes as shipped — the 16 the archetype block lists, plus `placement: PlacementPorts`
 and `info: DeviceInfo`; 55 members — onto the family's published machine-readable or
 scripted management plane, citing the document and section it follows, or raises
-unsupported-capability citing where the absence is documented. A cell is graded by that
-published plane, never by a web UI. The shape was taken as fixed: nothing in the package
+unsupported-capability citing where the absence is documented, or, where the product has
+the feature and the published plane does not reach it, where the feature is documented. A
+cell is graded by that published plane, never by a web UI. The shape was taken as fixed: nothing in the package
 changed, and the findings below are held for the harmonisation review.
 
 **Families and version lines.**
@@ -788,10 +789,10 @@ token, after an optional comment marker, is the annotation.
 | `SwitchVlans.create_vlan`, `delete_vlan` | Meraki MS225 | VLANs are implicit: no VLAN object is published |
 | `PortPoe.set_priority` | Meraki MS225, UniFi Pro 48; TP-Link Omada SG3452P (classification unverified) | no per-port PoE priority field (Dashboard API; datasheet); the Open API carries PoE on and off only, and no published user guide settles the UI |
 | `RadiusClient.test_server_reachable` | Meraki MS225, UniFi Pro 48, TP-Link Omada SG3452P, Arista CCS-720D; Aruba Instant On 1960 (classification unverified) | Meraki and Arista publish periodic server testing, not an on-demand test (the access-policy settings; EOS "User Security", `monitor server radius`); no test is published on UniFi and Omada; the 1960 guide shows none and no datasheet was reached |
-| `FirstHopSecurity.set_dhcp_snooping_trust` | Meraki MS225, Arista CCS-720D; UniFi Pro 48 (classification unverified) | no per-port snooping trust (Dashboard API: the DHCP server policy); EOS snooping is option-82 insertion with no trust command (EOS "IPv4") |
+| `FirstHopSecurity.set_dhcp_snooping_trust` | Meraki MS225, Arista CCS-720D; UniFi Pro 48 (classification unverified) | no per-port snooping trust (Dashboard API: the DHCP server policy); EOS snooping is option-82 insertion with no trust command (EOS "IPv4"); no snooping-trust endpoint (Integration API reference), and whether the application shows one is not published |
 | `FirstHopSecurity.get_dhcp_bindings` | Meraki MS225; UniFi Pro 48 (classification unverified) | no binding-table read is published |
 | `FirstHopSecurity.set_dai`, `set_arp_trust` | UniFi Pro 48 | no ARP inspection (datasheets: "DHCP Snooping & Guarding" only) |
-| `SwitchQos.set_trust_mode` | Meraki MS225; UniFi Pro 48 (classification unverified) | no per-port trust field: DSCP trust is a QoS rule's, and a rule selects by VLAN, protocol and port |
+| `SwitchQos.set_trust_mode` | Meraki MS225; UniFi Pro 48 (classification unverified) | no per-port trust field: DSCP trust is a QoS rule's, and a rule selects by VLAN, protocol and port (Dashboard API); no QoS endpoint (Integration API reference), and whether the application shows a port trust mode is not published |
 | `SwitchQos.set_dscp_cos_map` | UniFi Pro 48 (classification unverified) | no endpoint; the QoS article names no switch-wide map |
 | `SwitchQos.get_rules`, `set_rules` | Aruba Instant On 1960 (classification unverified) | the guide's QoS rules assign queues through ACL bindings and mark no DSCP or CoS |
 | `NtpConfig.set_ntp_servers`, `get_ntp_servers`, `get_sync_state` | Meraki MS225; UniFi Pro 48 (classification unverified) | cloud time: no NTP call or field (Dashboard API); no time endpoint and no article naming a device NTP setting (UniFi) |
@@ -881,8 +882,8 @@ change.
 
 **`GAPS.md` entries.** `PortStatusEntry` error and discard counters: `0` where a family
 publishes none (new, low: no counter, no input-discard counter, or windowed counts only, on
-one column each); a RADIUS server-status read where a family publishes periodic
-probes, not an on-demand test (new, low); the 2026-06-15 per-port RADIUS-server selection
+one column each); `RadiusClient.test_server_reachable`: a server-status read where a
+family publishes periodic probes, not an on-demand test (new, low); the 2026-06-15 per-port RADIUS-server selection
 entry gains an update (a port's 802.1X bound to a network access policy on one column).
 `DeviceInfo.manufacturer` and the other findings are harmonisation candidates on existing
 members and have no entry of their own.

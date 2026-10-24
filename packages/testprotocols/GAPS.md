@@ -1399,7 +1399,8 @@ same sentinel pattern).
 member `RadiusClient.test_server_reachable` onto an on-demand server test; a sixth
 publishes the test on its CLI only and raises unsupported on its graded plane; four
 publish a periodic server-status probe instead and raise unsupported on the member; the
-remaining four publish neither.
+remaining four publish no test, and on one of them whether the product has one is not
+settled by the published material (its classification is unverified).
 
 **Trigger to act:** a test that needs a server's reachability on a family without an
 on-demand test.
