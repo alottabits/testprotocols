@@ -893,6 +893,13 @@ when it lands.
 `SPLITS.md` (2026-06-15 `RadiusClient`/`PortSecurity` shared-backing-object
 entry).
 
+
+**Update (2026-10-24, the L2 switch verification record):** one reviewed L2 column (and its
+L3 counterpart) binds a port's 802.1X to a network-scope access policy that carries the
+RADIUS servers; the reference driver applies the network's first custom policy, which
+`AccessPolicy` cannot name. The trigger has not fired: no test points different ports at
+different server sets (`docs/architecture/l2-switch-protocol-design.md`, "Verification
+record (2026-10-24)", findings).
 ---
 
 ## Implemented
@@ -1356,3 +1363,55 @@ design does for members below its majority threshold.
 `models/sdwan_appliance.py`; `docs/architecture/sdwan-appliance-protocol-design.md`
 ("Verification record (2026-10-23)", unsupported cells, column 1 and column 2 corrections);
 `docs/architecture/cpe-gateway-protocol-design.md` (§6, the tier threshold).
+
+---
+
+## 2026-10-24 — `PortStatusEntry` error and discard counters: `0` where a family publishes none [priority: low]
+
+**Signal:** the L2 switch verification found, of the seven reviewed L2 columns (each with
+its L3 counterpart), one whose published port read carries no error or discard counter,
+one with no input-discard counter, and one that publishes error counts only per kind over
+a time window, with no discard kind. Their reference drivers fill the defaulted `int`
+fields with `0`, a sentinel the precise-types rule would type as `int | None` (absence
+stated), the twin of the 2026-10-23 `LinkHealthReport.loss_percent` entry above.
+
+**Trigger to act:** the harmonisation review of the shared switch, appliance and gateway
+models, or the next change to `PortStatusEntry`.
+
+**Out of scope right now because:** the verification took the shipped shape as fixed, and
+the retype is a `Breaking for driver authors` change that belongs beside the announced
+0.13.0 migration so a consumer migrates once.
+
+**Design notes (when picked up):** the error and discard counters as `int | None`, `None`
+where the plane publishes no counter of that kind; a driver that today writes `0` from an
+absent counter writes `None`, and a published count keeps its number.
+
+**Cross-references:** `models/switch.py` (`PortStatusEntry`), `port_status.py`
+(`PortStatus`); `docs/architecture/l2-switch-protocol-design.md` ("Verification record
+(2026-10-24)", findings); the 2026-10-23 `LinkHealthReport.loss_percent` entry above (the
+same sentinel pattern).
+
+---
+
+## 2026-10-24 — a RADIUS server-status read where a family publishes periodic probes, not an on-demand test [priority: low]
+
+**Signal:** of the fourteen reviewed switch columns (seven L2, seven L3), six carry an
+on-demand server test behind `RadiusClient.test_server_reachable` (one of them reached
+only by the product's CLI), and four publish a periodic server-status probe instead and
+raise unsupported on the member. The remaining columns publish neither.
+
+**Trigger to act:** a test that needs a server's reachability on a family without an
+on-demand test.
+
+**Out of scope right now because:** the verification took the shipped shape as fixed; the
+on-demand test serves the families that publish one, and no test has needed the probe
+result on the others.
+
+**Design notes (when picked up):** a status read beside the lever (the last probe result
+and its time), per-method unsupported where no probe is published; whether it is a member
+of `RadiusClient` or a sibling read is for the harmonisation review.
+
+**Cross-references:** `radius_client.py` (`RadiusClient.test_server_reachable`),
+`models/radius.py`; `docs/architecture/l2-switch-protocol-design.md` ("Verification record
+(2026-10-24)", unsupported cells and findings); the 2026-06-15 per-port RADIUS-server
+selection entry above.

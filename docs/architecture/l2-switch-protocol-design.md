@@ -2,7 +2,7 @@
 
 | Field    | Value                                                                                                          |
 | -------- | ------------------------------------------------------------------------------------------------------------- |
-| Status   | Implemented (L2 layer)                                                                                        |
+| Status   | Implemented (L2 layer); verified 2026-10-24 against the reference corpus                                      |
 | Author   | rjvisser                                                                                                       |
 | Date     | 2026-06-14 (updated 2026-06-14: Arista EOS verification — CCS-720D Series cross-vendor check; AAA/RADIUS + FirstHopSecurity (concept-check 6/6) + NtpConfig added; Arista CDP cell corrected; updated 2026-06-15: StormControl found API-reachable on MS225 via a live hardware check — 5/6 → 6/6, no MS225 shortfall) |
 | Related  | `packages/testprotocols/GAPS.md` (2026-05-02 `L2Bridge` HIGH — to be cross-referenced; new `IgmpSnooping` / `PortMirror` / `MulticastRouting` deferrals), `SPLITS.md` (`Router` RIB carve-out; `ApplianceVlans` SVI/DHCP reuse; unified `SwitchAcl`), `LEVELS.md` (`MacTableWhiteBox` candidate), `devices/switch.py` (new), `models/switch.py` (new), `models/l2_common.py` (new — STP/FDB vocab shared with the future CPE-side `L2Bridge`), `models/switch_routing.py` (new, L3 sibling), `docs/architecture/l3-switch-protocol-design.md` (sibling — composes this layer), `docs/architecture/sdwan-appliance-protocol-design.md` (precedent), `models/sdwan_appliance.py` (`RuleAction` / `RuleProtocol` / `DhcpMode` reuse), `syslog_config.py`, `ntp_config.py` (new — small NTP-server-config capability), `radius_client.py` (+ `models/radius.py` — 802.1X/MAB RADIUS backend reuse), `static_routes.py`, `router.py`, `bgp.py` |
@@ -733,3 +733,156 @@ name or vendor id appears anywhere in the `testprotocols` **package source** (th
 contract surface). Product names appear only in design docs like this one, where
 they document the cross-vendor concept check — never in a model, enum, or
 protocol.
+
+## Verification record (2026-10-24)
+
+The L2 layer was verified against one reference driver per column of the neutrality table
+in the maintainers' private reference corpus, at corpus `main` commit
+`d4cf5c46ffc431e0a53535f5500b3bf204a48144`. Each driver maps every member of the 18 capabilities `L2Switch`
+composes as shipped — the 16 the archetype block lists, plus `placement: PlacementPorts`
+and `info: DeviceInfo`; 55 members — onto the family's published machine-readable or
+scripted management plane, citing the document and section it follows, or raises
+unsupported-capability citing where the absence is documented. A cell is graded by that
+published plane, never by a web UI. The shape was taken as fixed: nothing in the package
+changed, and the findings below are held for the harmonisation review.
+
+**Families and version lines.**
+
+| Column | Family | Management plane and version line |
+| --- | --- | --- |
+| 1 | Meraki MS225 | Dashboard API v1 (reference v1.75.1); MS firmware line, not contradicted |
+| 2 | Aruba Instant On 1960 | no published machine-readable or scripted plane: web GUI only (Management and Configuration Guide, Edition 3.1.0; firmware 3.x line). The table grades this column in web-UI terms ("FDB GUI", "GUI/SNMP", "MSTP local-web only"), and no published plane reaches them; the guide lists an SNMP agent, but the vendor publishes no MIB reference, so SNMP is not a graded plane |
+| 3 | UniFi Pro 48 | UniFi Network application Integration API, 9.4 line (reference 9.4.19: fifteen operations, none of them a configuration endpoint); the PoE variant, as the column's `PortPoe` cell (PoE++) names it |
+| 4 | Catalyst 9200L | IOS-XE 17.12 CLI over SSH |
+| 5 | Juniper EX2300 | Junos OS 23.4 CLI (ELS) over SSH, `configure private` and `commit` |
+| 6 | TP-Link Omada SG3452P | Omada Controller Open API reference 6.2.0, the earliest the vendor publishes; which cited endpoints a 5.x controller serves is not established |
+| 7 | Arista CCS-720D | EOS 4.33 eAPI (JSON-RPC over HTTPS); the EOS manual read at its current release, 4.36.2F, where the two absences below are read |
+
+**Counts over the 55 members.** Mapped; mapped with a stated gap (a `partial:` line on the
+member, or on the capability's implementation as a whole, which counts for each of its
+members); unsupported (the product lacks the member, or its classification is unverified:
+in parentheses); unsupported, plane reach (the product has the feature — its UI
+shows it — and the published plane does not reach it).
+
+| Family | Mapped | Mapped with a stated gap | Unsupported | Unsupported, plane reach | Total |
+| --- | --- | --- | --- | --- | --- |
+| Meraki MS225 | 35 | 9 | 11 | 0 | 55 |
+| Aruba Instant On 1960 | 1 | 0 | 5 (4) | 49 | 55 |
+| UniFi Pro 48 | 7 | 1 | 15 (10) | 32 | 55 |
+| Catalyst 9200L | 54 | 0 | 1 | 0 | 55 |
+| Juniper EX2300 | 53 | 1 | 1 | 0 | 55 |
+| TP-Link Omada SG3452P | 48 | 3 | 4 (2) | 0 | 55 |
+| Arista CCS-720D | 51 | 2 | 2 | 0 | 55 |
+| **All seven** | **249** | **16** | **39 (16)** | **81** | **385** |
+
+Across the seven drivers: 162 `lossy:` lines (a rendering that loses information), 16
+`partial:` lines (a gap in a supported member) and 86 `unverified:` lines (a field, reply
+shape or classification the cited page does not print), counting a line whose first
+token, after an optional comment marker, is the annotation.
+
+**Unsupported cells.**
+
+| Member | Families | Where the absence is documented |
+| --- | --- | --- |
+| `DeviceInfo.manufacturer` | Meraki MS225, Aruba Instant On 1960, UniFi Pro 48, Catalyst 9200L, Juniper EX2300, TP-Link Omada SG3452P | each plane's device read publishes no manufacturer field; the 1960 guide's device information shows none |
+| `SwitchVlans.create_vlan`, `delete_vlan` | Meraki MS225 | VLANs are implicit: no VLAN object is published |
+| `PortPoe.set_priority` | Meraki MS225, UniFi Pro 48; TP-Link Omada SG3452P (classification unverified) | no per-port PoE priority field (Dashboard API; datasheet); the Open API carries PoE on and off only, and no published user guide settles the UI |
+| `RadiusClient.test_server_reachable` | Meraki MS225, UniFi Pro 48, TP-Link Omada SG3452P, Arista CCS-720D; Aruba Instant On 1960 (classification unverified) | Meraki and Arista publish periodic server testing, not an on-demand test (the access-policy settings; EOS "User Security", `monitor server radius`); no test is published on UniFi and Omada; the 1960 guide shows none and no datasheet was reached |
+| `FirstHopSecurity.set_dhcp_snooping_trust` | Meraki MS225, Arista CCS-720D; UniFi Pro 48 (classification unverified) | no per-port snooping trust (Dashboard API: the DHCP server policy); EOS snooping is option-82 insertion with no trust command (EOS "IPv4") |
+| `FirstHopSecurity.get_dhcp_bindings` | Meraki MS225; UniFi Pro 48 (classification unverified) | no binding-table read is published |
+| `FirstHopSecurity.set_dai`, `set_arp_trust` | UniFi Pro 48 | no ARP inspection (datasheets: "DHCP Snooping & Guarding" only) |
+| `SwitchQos.set_trust_mode` | Meraki MS225; UniFi Pro 48 (classification unverified) | no per-port trust field: DSCP trust is a QoS rule's, and a rule selects by VLAN, protocol and port |
+| `SwitchQos.set_dscp_cos_map` | UniFi Pro 48 (classification unverified) | no endpoint; the QoS article names no switch-wide map |
+| `SwitchQos.get_rules`, `set_rules` | Aruba Instant On 1960 (classification unverified) | the guide's QoS rules assign queues through ACL bindings and mark no DSCP or CoS |
+| `NtpConfig.set_ntp_servers`, `get_ntp_servers`, `get_sync_state` | Meraki MS225; UniFi Pro 48 (classification unverified) | cloud time: no NTP call or field (Dashboard API); no time endpoint and no article naming a device NTP setting (UniFi) |
+| `NtpConfig.get_sync_state` | TP-Link Omada SG3452P (classification unverified) | no NTP status read (the status operation answers an untyped object) |
+| `Discovery.get_neighbors`, `MacTable.get_mac_table` | UniFi Pro 48 (classification unverified) | no neighbour or forwarding-table endpoint; the clients read prints no port or VLAN |
+| `DeviceInfo.serial_number` | UniFi Pro 48 (classification unverified) | the device reads print no serial number |
+| `DeviceInfo.hardware_version` | Aruba Instant On 1960 (classification unverified) | the guide's device information carries no hardware version |
+
+**Unsupported, plane reach.** Aruba Instant On 1960: every member except
+`placement.ports` and the five cells above (49), each sourced to the guide's section and
+page that shows the feature in the web GUI. UniFi Pro 48: `SwitchPorts` (3), `SwitchVlans`
+(3), `SpanningTree` (6), `LinkAggregation` (3), `PortPoe.set_enabled`, `PortSecurity` (2),
+the `RadiusClient` registry (5), `FirstHopSecurity.set_dhcp_snooping`, `StormControl` (2),
+`SwitchAcl` (2), `SwitchQos.get_rules` and `set_rules`, `SyslogConfig` (2) — 32, each
+sourced to the Integration API reference (no endpoint) and the vendor's help article that
+shows the feature in the application.
+
+`QosRule.match`, deprecated in 0.13.0, is filled beside `classifier` on every rule read,
+and every rule write reads `classifier` first.
+
+**Corrections to the neutrality table.** One rule for every column: a capability cell that
+changes, and a member graded ✗ where the design's cell does not already say ✗, is listed;
+a member graded ◐ is counted above under "mapped with a stated gap" and listed only where
+it lowers a design cell that reads plain ✓ (a cell already ◐ keeps its ◐ members to the
+count). A plane-reach ✗ records the published plane's coverage, not the product's: the
+family has the member. A classification-unverified ✗ is counted as unsupported with its
+classification open: the published material settles neither a product absence nor a UI
+feature (16 cells: four in column 2, ten in column 3, two in column 6). The archetype block
+above lists 16 capabilities; `L2Switch` composes 18 as shipped (`placement:
+PlacementPorts`, `info: DeviceInfo`). All columns but 7: `DeviceInfo.manufacturer` ✗ (no
+row). Column 1: `SwitchVlans.create_vlan` and `delete_vlan` ✗ (as the exception paragraph
+says); `PortPoe.set_priority` ✗ and `get_status` ◐; `RadiusClient.test_server_reachable`
+✗; `FirstHopSecurity.set_dhcp_snooping_trust` and `get_dhcp_bindings` ✗ (as the exception
+paragraph says) and `set_dhcp_snooping` ◐ (the DHCP server policy); storm control ◐ → ✓
+(the network's thresholds, written with the sharing stated); MAC table ✗ → ✓ with a stated
+gap (a job read once, refused until complete); `SwitchQos.set_trust_mode` ✗; syslog ✓ with
+a stated gap (the network-scope call is marked deprecated by the family). Column 2: no
+published plane reaches the cells the table grades in web-UI terms (above); every cell
+becomes ✗, plane reach, except
+`DeviceInfo.manufacturer` ✗ and the four classification-unverified cells; the MSTP
+per-value refusal does not arise (the whole member is plane reach). Column 3: switch ports,
+VLANs, spanning tree, link aggregation, port security, the RADIUS registry, DHCP guarding,
+storm control, ACL, QoS rules and syslog ✗, plane reach; PoE ✓ → ◐ (the status read; the
+enable plane reach; the priority ✗); the RADIUS test, DAI and ARP trust ✗ (DAI as the cell
+says); snooping trust and bindings, discovery, MAC table, QoS trust and map, NTP and the
+serial number ✗, classification unverified; port status ✓ stands. Column 4: the capability
+cells stand; `PoePriority.CRITICAL` is refused per value (two levels). Column 5: the
+capability cells stand; `SwitchQos.set_rules` ◐ (the rules are held unbound: a port's one
+input filter belongs to the ACL); `PoePriority.CRITICAL` refused per value. Column 6: graded on
+the Open API reference 6.2.0 (above); `SpanningTree.get_mode` and `get_port_state` ◐;
+`PortPoe.set_priority` ✗ (classification unverified); `RadiusClient.test_server_reachable`
+✗; MAC table ✓ → ◐ (the controller's wired clients, not the forwarding database);
+`NtpConfig.get_sync_state` ✗ (classification unverified). Column 7:
+`RadiusClient.test_server_reachable` ✗; `FirstHopSecurity.set_dhcp_snooping_trust` ✗
+(against the cell's "snoop full").
+
+**Findings for the harmonisation review.** Each changes no shape here.
+
+- `DeviceInfo.manufacturer` is published on one column (Arista CCS-720D), and on two of the seven columns of the L3 table.
+- The archetype block lists 16 capabilities; `placement` and `info` were composed after it was written (18 shipped).
+- `DeviceInfo`: `hardware_version` is not published (Meraki MS225, UniFi Pro 48), `oui` is derived from the base MAC wherever it is read, and the serial number is not published (UniFi Pro 48, classification unverified).
+- `MacTable.get_mac_table` over an asynchronous plane has no pending outcome: the table is a job the driver reads once (Meraki MS225); the controller's wired clients stand in for the forwarding database (TP-Link Omada SG3452P).
+- `RadiusClient.test_server_reachable`: periodic server probes, not an on-demand test (Meraki MS225, Arista CCS-720D); the `timeout` parameter has no counterpart in the published test (Catalyst 9200L, Juniper EX2300).
+- `RadiusClient` names servers where the plane keys them by access policy (Meraki MS225) or by address (Juniper EX2300, Arista CCS-720D); accounting off on one server (`acct_port=None`) has no per-server form and is refused (Arista CCS-720D); `AccessPolicy` cannot name the policy a port uses (Meraki MS225).
+- `PoePriority`: two levels (Catalyst 9200L, Juniper EX2300), four (Arista CCS-720D), no knob (Meraki MS225, UniFi Pro 48; TP-Link Omada SG3452P classification unverified).
+- `LinkAggregationGroup.name` is a numbered interface (Catalyst 9200L, Juniper EX2300, Arista CCS-720D) or an id (Meraki MS225, TP-Link Omada SG3452P).
+- `SwitchQos` has no attachment: rules, trust and map take effect through interface policies (Catalyst 9200L, Juniper EX2300, Arista CCS-720D), switch-scoped rules (TP-Link Omada SG3452P) or network rules (Meraki MS225).
+- `QosRule`: no name field and no CoS mark (Meraki MS225), no CoS mark (Juniper EX2300); `QosClassifier` is all-of where the class map is any-of (Arista CCS-720D).
+- `SwitchQos.set_trust_mode`: no per-port trust where DSCP trust is a rule's (Meraki MS225).
+- `StormControlConfig`: one level over the types (Juniper EX2300), network-wide thresholds (Meraki MS225); a unit the plane cannot honour is the model's `ValueError`.
+- `FirstHopSecurity`: the `DYNAMIC_SNOOPING` default is refused where inspection validates static bindings (Arista CCS-720D); no per-port snooping trust (Meraki MS225, Arista CCS-720D); `PER_VLAN` refused on switch-wide planes (Meraki MS225, TP-Link Omada SG3452P); the docstring does not say what a per-VLAN call without its VLAN is (the drivers raise `ValueError`).
+- `SwitchAcl`: the binding is free text, and a VLAN binding with a direction means different things — one network list (Meraki MS225), a VLAN map without direction (Catalyst 9200L), the SVI's list for routed traffic (Arista CCS-720D), no direction field (TP-Link Omada SG3452P).
+- `SwitchAclRule`: no comment (Juniper EX2300); MAC and IP matches live in separate lists (Catalyst 9200L, Arista CCS-720D); port lists refused (TP-Link Omada SG3452P).
+- `SwitchPort.isolated` is a private-VLAN membership, not a port flag (Juniper EX2300, Arista CCS-720D); port mode follows the allowed VLANs (TP-Link Omada SG3452P); `PortMode.ROUTED` is refused on this layer by the model's docstring though three of these platforms take it.
+- `PortSecurity`: no sticky form (Arista CCS-720D); no MAC list, sticky or limit field (TP-Link Omada SG3452P).
+- `PortStatusEntry` error and discard counters are `0` where the plane publishes none: no counter on the port read (UniFi Pro 48), no input-discard counter (Catalyst 9200L), error counts only per kind over a time window and no discard kind (Meraki MS225); candidate `int | None`, the twin of the appliance's `loss_percent`.
+- `StpMode` has no "off" (Meraki MS225 reads `UNKNOWN`); per-VLAN modes map lossily (Catalyst 9200L, Arista CCS-720D); RSTP only (Meraki MS225), no 802.1D (Arista CCS-720D).
+- `NtpConfig.get_sync_state` is published on the on-box planes; Meraki MS225 has no NTP; TP-Link Omada SG3452P and UniFi Pro 48 publish no state (classification unverified); a preferred server is refused (TP-Link Omada SG3452P).
+- `SyslogServer` roles are not carried (Catalyst 9200L, Juniper EX2300, Arista CCS-720D); one server only (TP-Link Omada SG3452P); the network call is family-deprecated (Meraki MS225).
+- Write scope: network objects (Meraki MS225: 15 members), site objects (TP-Link Omada SG3452P: seven capabilities), and on-box named objects shared between ports (Catalyst 9200L, Juniper EX2300, Arista CCS-720D); each written with the sharing stated, none graded unsupported.
+
+**Migration already announced (0.13.0, removal 2027-04-15).** A consumer pinned below
+0.13.0 already faces `QosRule.match` → `classifier` (at removal `match` goes and
+`classifier` becomes required). The findings propose that a harmonisation change land
+beside this migration, so a consumer migrates once; its deprecation period is set by that
+change.
+
+**`GAPS.md` entries.** `PortStatusEntry` error and discard counters: `0` where a family
+publishes none (new, low: no counter, no input-discard counter, or windowed counts only, on
+one column each); a RADIUS server-status read where a family publishes periodic
+probes, not an on-demand test (new, low); the 2026-06-15 per-port RADIUS-server selection
+entry gains an update (a port's 802.1X bound to a network access policy on one column).
+`DeviceInfo.manufacturer` and the other findings are harmonisation candidates on existing
+members and have no entry of their own.
