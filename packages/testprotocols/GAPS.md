@@ -893,13 +893,13 @@ when it lands.
 `SPLITS.md` (2026-06-15 `RadiusClient`/`PortSecurity` shared-backing-object
 entry).
 
-
 **Update (2026-10-24, the L2 switch verification record):** one reviewed L2 column (and its
 L3 counterpart) binds a port's 802.1X to a network-scope access policy that carries the
 RADIUS servers; the reference driver applies the network's first custom policy, which
 `AccessPolicy` cannot name. The trigger has not fired: no test points different ports at
 different server sets (`docs/architecture/l2-switch-protocol-design.md`, "Verification
 record (2026-10-24)", findings).
+
 ---
 
 ## Implemented
@@ -1393,12 +1393,13 @@ same sentinel pattern).
 
 ---
 
-## 2026-10-24 — a RADIUS server-status read where a family publishes periodic probes, not an on-demand test [priority: low]
+## 2026-10-24 — `RadiusClient.test_server_reachable`: a server-status read where a family publishes periodic probes, not an on-demand test [priority: low]
 
-**Signal:** of the fourteen reviewed switch columns (seven L2, seven L3), six carry an
-on-demand server test behind `RadiusClient.test_server_reachable` (one of them reached
-only by the product's CLI), and four publish a periodic server-status probe instead and
-raise unsupported on the member. The remaining columns publish neither.
+**Signal:** of the fourteen reviewed switch columns (seven L2, seven L3), five map the
+member `RadiusClient.test_server_reachable` onto an on-demand server test; a sixth
+publishes the test on its CLI only and raises unsupported on its graded plane; four
+publish a periodic server-status probe instead and raise unsupported on the member; the
+remaining four publish neither.
 
 **Trigger to act:** a test that needs a server's reachability on a family without an
 on-demand test.
