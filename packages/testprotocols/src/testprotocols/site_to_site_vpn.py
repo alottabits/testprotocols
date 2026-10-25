@@ -58,6 +58,11 @@ class SiteToSiteVpn(Protocol):
 
         The config is complete — role, hubs (spoke only, priority order),
         and subnet advertisement — and replaces the previous state whole.
+
+        A write rejected at any step raises naming the step; the driver puts
+        nothing back. The state is then the as-found overlay participation
+        where the family commits atomically, otherwise the steps applied
+        before the rejection.
         """
         ...
 

@@ -51,6 +51,10 @@ class SdwanPolicyManager(Protocol):
         ``set_uplink_selection``, ``set_default_uplink``, ``set_active_active_vpn``)
         cover what a policy expresses.
 
+        A write rejected at any step raises naming the step; the driver puts nothing back. The
+        state is then the as-found policy where the family commits atomically, otherwise the
+        steps applied before the rejection.
+
         Deprecated, with no successor. Removal not before the first release 6 months after the
         release that deprecates it.
         """
