@@ -266,6 +266,14 @@ The review answers these questions, in this order, for every item:
     documented mechanism avoids (a second generation and a binding swap;
     one commit of a candidate configuration) is a condition; one the
     family cannot avoid is a `lossy:` line with its source.
+    Atomicity is decided at three levels, in this order: the shape (the
+    Atomic and Orthogonal checks on the member set; only a split or a
+    merge changes it), the driver (a documented mechanism that closes a
+    window is a condition on the driver), and the family (a window no
+    documented mechanism avoids is a `lossy:` line with its source). An
+    in-flight window is not a shape defect until the driver level is
+    exhausted: the review looks for the family's mechanism, and a
+    comparable driver's, before it asks for a split.
     **Orthogonal.** No member writes a concern another member of the
     archetypes composing the capability writes. A member whose transition
     includes a concern another member writes is split there, one member
