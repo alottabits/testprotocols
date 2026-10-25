@@ -44,22 +44,40 @@ def capture_shared_window(
 
     All starts precede the wait and all stops follow it — no capture stops
     before another starts, so every file describes the same observation
-    window. The stops run in a ``finally`` so an interrupted wait still
-    releases every started capture.
+    window. Every capture that started is stopped on every exit: a start
+    that fails after others have started stops those (the window is not
+    waited), an interrupted wait still releases every started capture, and
+    a stop that raises does not skip the stops after it. The error of a
+    failing start or wait propagates once every stop ran; a failing stop
+    raises its own error (an ``ExceptionGroup`` when more than one stop
+    failed).
     """
     started: list[tuple[PcapCapture, str]] = []
-    for spec in captures:
-        started.append(
-            (
-                spec.pcap,
-                spec.pcap.start_tcpdump(spec.interface, None, output_file=spec.capture_file),
-            )
-        )
     try:
+        for spec in captures:
+            started.append(
+                (
+                    spec.pcap,
+                    spec.pcap.start_tcpdump(spec.interface, None, output_file=spec.capture_file),
+                )
+            )
         time.sleep(window_s)
     finally:
-        for pcap, process_id in started:
+        _stop_every(started)
+
+
+def _stop_every(started: Sequence[tuple[PcapCapture, str]]) -> None:
+    """Stop every started capture, continuing past a stop that raises."""
+    failures: list[Exception] = []
+    for pcap, process_id in started:
+        try:
             pcap.stop_tcpdump(process_id)
+        except Exception as exc:  # every later stop still runs
+            failures.append(exc)
+    if len(failures) == 1:
+        raise failures[0]
+    if failures:
+        raise ExceptionGroup("stopping the shared capture window", failures)
 
 
 def read_fields(
