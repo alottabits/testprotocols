@@ -2,7 +2,7 @@
 
 | Field    | Value                                                                                                                                                                                                                                                                                                                       |
 | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Status   | Implemented                                                                                                                                                                                                                                                                                                                 |
+| Status   | Implemented; verified 2026-10-29 against the reference corpus                                                                                                                                                                                                                                                               |
 | Author   | rjvisser                                                                                                                                                                                                                                                                                                                    |
 | Date     | 2026-06-14 (updated 2026-06-14: Arista EOS verification — CCS-720XP Series added as a cross-vendor verification column; see *Cross-vendor neutrality v2*; default-VRF scope made explicit + VRF deferral; composed L2 layer gains AAA/RADIUS + FirstHopSecurity + NtpConfig)                                                                                                                                                                       |
 | Related  | `docs/architecture/l2-switch-protocol-design.md` (the composed L2 capability layer — read it first), `docs/architecture/sdwan-appliance-protocol-design.md` (the API-managed-device exclusion precedent), `packages/testprotocols/GAPS.md` (L2Bridge HIGH entry; IgmpSnooping / PortMirror / MulticastRouting deferrals), `packages/testprotocols/SPLITS.md` (Router RIB carve-out; ApplianceVlans SVI/DHCP reuse; unified SwitchAcl), `packages/testprotocols/LEVELS.md` (`MacTableWhiteBox`), `devices/switch.py` and `models/switch.py` (authored in the L2Switch doc; this doc adds to / composes them), `models/switch_routing.py` (proposed/new — authored by this doc), `radius_client.py` (composed L2-layer AAA reuse), `ntp_config.py` (composed L2-layer NTP, new) |
@@ -728,3 +728,152 @@ and a vendor-isolation grep ensuring no product name or vendor id appears
 anywhere in the `testprotocols` **package source** (the contract surface).
 Product names appear only in design docs like this one, where they document the
 cross-vendor concept check — never in a model, enum, or protocol.
+
+## Verification record (2026-10-29)
+
+The archetype was verified against one reference driver per column of the neutrality table
+in the maintainers' private reference corpus, at corpus `main` commit
+`d4cf5c46ffc431e0a53535f5500b3bf204a48144`. Each driver maps every member of the 24 capabilities `L3Switch`
+composes as shipped — the composed L2 layer with `placement: PlacementPorts` and
+`info: DeviceInfo`, which the archetype block above predates, and the L3 layer; 70
+members — and, on the five columns carrying the routed variant, the four `Bgp` members of
+`L3SwitchRouted` (25 capabilities, 74 members), onto the family's published
+machine-readable or scripted management plane, citing the document and section it follows,
+or raises unsupported-capability citing where the absence is documented. The inherited L2
+layer is counted as each L3 driver itself grades it; on the five columns that share a
+management plane with a column of the L2 document's table, it equals that column's cells
+in the L2 document's verification record. A cell is graded by the published plane, never
+by a web UI. The shape was taken as fixed: nothing in the package changed, and the
+findings below are held for the harmonisation review.
+
+**Families and version lines.**
+
+| Column | Family | Management plane and version line |
+| --- | --- | --- |
+| 1 | Meraki MS355 | Dashboard API v1 (reference v1.75.1) with the switch routing calls; MS firmware line, not contradicted |
+| 2 | Aruba CX 6300 | AOS-CX 10.15 REST API, login session |
+| 3 | Juniper EX4400 | Junos OS 23.4 CLI (ELS) over SSH, `configure private` and `commit` |
+| 4 | Catalyst 9300 | IOS-XE 17.12 CLI over SSH |
+| 5 | UniFi Pro Max | UniFi Network application Integration API, 9.4 line (reference 9.4.19), which publishes no L3 operation; the PoE variant, as for the L2 column sharing the plane |
+| 6 | FortiSwitch 400 | FortiSwitchOS 7.6 REST API, standalone (no FortiLink), administrator session login (the 7.6 documentation publishes no API-token user) |
+| 7 | Arista CCS-720XP | EOS 4.33 eAPI (JSON-RPC over HTTPS); the EOS manual read at 4.36.2F |
+
+**Counts over the 70 members.** Mapped; mapped with a stated gap (a `partial:` line on the
+member, or on the capability's implementation as a whole, which counts for each of its
+members); unsupported (the product lacks the member, or its classification is unverified:
+in parentheses); unsupported, plane reach (the product has the feature — its UI
+or its CLI reaches it — and the published plane does not).
+
+| Family | Mapped | Mapped with a stated gap | Unsupported | Unsupported, plane reach | Total |
+| --- | --- | --- | --- | --- | --- |
+| Meraki MS355 | 45 | 14 | 11 | 0 | 70 |
+| Aruba CX 6300 | 68 | 0 | 0 | 2 | 70 |
+| Juniper EX4400 | 68 | 1 | 1 | 0 | 70 |
+| Catalyst 9300 | 69 | 0 | 1 | 0 | 70 |
+| UniFi Pro Max | 7 | 1 | 22 (12) | 40 | 70 |
+| FortiSwitch 400 | 66 | 2 | 1 | 1 | 70 |
+| Arista CCS-720XP | 66 | 2 | 2 | 0 | 70 |
+| **All seven** | **389** | **20** | **38 (12)** | **43** | **490** |
+
+**Counts over the 4 `Bgp` members (the routed variant).**
+
+| Family | Mapped | Mapped with a stated gap | Unsupported | Unsupported, plane reach | Total |
+| --- | --- | --- | --- | --- | --- |
+| Aruba CX 6300 | 4 | 0 | 0 | 0 | 4 |
+| Juniper EX4400 | 4 | 0 | 0 | 0 | 4 |
+| Catalyst 9300 | 4 | 0 | 0 | 0 | 4 |
+| FortiSwitch 400 | 3 | 0 | 0 | 1 | 4 |
+| Arista CCS-720XP | 4 | 0 | 0 | 0 | 4 |
+| **All five** | **19** | **0** | **0** | **1** | **20** |
+
+Across the seven drivers' own modules: 173 `lossy:` lines (a rendering that loses
+information), 8 `partial:` lines (a gap in a supported member) and 74 `unverified:` lines
+(a field, reply shape or classification the cited page does not print); with the L2
+modules the five shared-plane drivers run, 293, 21 and 131; counting a line whose first
+token, after an optional comment marker (`#` or `#:`), is the annotation.
+
+**Unsupported cells.**
+
+| Member | Families | Where the absence is documented |
+| --- | --- | --- |
+| `DeviceInfo.manufacturer` | Meraki MS355, Juniper EX4400, Catalyst 9300, UniFi Pro Max, FortiSwitch 400 | each plane's device read publishes no manufacturer field |
+| the other inherited L2 cells of a shared plane | Meraki MS355 (10), UniFi Pro Max (14, of which 10 classification unverified), Arista CCS-720XP (2) | as the L2 document's verification record lists them for the column sharing the plane |
+| `Ospf.set_ospf_config`, `get_ospf_config`; `GatewayRedundancy.list_groups`, `get_group`, `set_group` | UniFi Pro Max | the datasheet's layer 3 features name no OSPF and no first-hop redundancy; the application's OSPF requires a gateway |
+| `RoutingRead.get_routing_table` | UniFi Pro Max (classification unverified) | no routing endpoint; the vendor's article shows the routing inputs, not a route-table view |
+| `InterfaceDhcp.get_dhcp_leases` | UniFi Pro Max (classification unverified) | no endpoint; the clients read prints an address but no lease, network or VLAN |
+
+**Unsupported, plane reach.** Aruba CX 6300: `FirstHopSecurity.set_dai`, `set_arp_trust`
+(the CLI configures Dynamic ARP Inspection; the 10.15 REST reference carries no attribute
+for it). FortiSwitch 400: `RadiusClient.test_server_reachable` and, on the routed variant,
+`Bgp.get_bgp_neighbors` (both published as CLI commands only; the REST monitor reads carry
+neither). UniFi Pro Max: the L2 column's 32, plus `RoutedInterfaces` (3), `StaticRoutes`
+(3), `InterfaceDhcp.set_interface_dhcp` and `get_interface_dhcp` (2) — 8 L3 cells — each sourced to the Integration API reference (no endpoint) and
+the vendor's article that shows the feature in the application.
+
+`QosRule.match`, deprecated in 0.13.0, is filled beside `classifier` on every rule read,
+and every rule write reads `classifier` first.
+
+**Corrections to the neutrality table.** One rule for every column: a capability cell that
+changes, and a member graded ✗ where the design's cell does not already say ✗, is listed;
+a member graded ◐ is counted above under "mapped with a stated gap" and listed only where
+it lowers a design cell that reads plain ✓ (a cell already ◐ keeps its ◐ members to the
+count). A plane-reach ✗ records the published plane's coverage, not the product's: the
+family has the member. A classification-unverified ✗ is counted as unsupported with its
+classification open: the published material settles neither a product absence nor a UI
+feature (12 cells, all in column 5). The archetype block above lists the composed L2 layer
+without `placement` and `info`: `L3Switch` composes 24 capabilities as shipped,
+`L3SwitchRouted` 25. The table grades the L3 layer; the inherited L2 layer has no row
+here, and on the five shared-plane columns it is corrected in the L2 document's record.
+Column 1: `InterfaceDhcp.get_dhcp_leases` ◐ (the network's client table, filtered to the
+interface's VLAN); gateway redundancy ◐ stands (warm spare: one group, no virtual IP or
+interface; a virtual IP is refused per value); the routing read ◐ stands (configuration
+view). Column 2: the L3 cells stand; on the inherited layer, Dynamic ARP Inspection ✗,
+plane reach, and `DeviceInfo.manufacturer` ✓. Columns 3 and 4: the L3 cells stand. Column
+5: routed interfaces, static routes, interface DHCP and the L3 ACL fields ◐ → ✗, plane
+reach (the application's UI routes networks on the switch, holds static routes and serves
+DHCP); the routing read ◐ → ✗ and `InterfaceDhcp.get_dhcp_leases` ✗ (classification
+unverified); OSPF and
+gateway redundancy ✗ stand (absent from the product). Column 6: the seven cells graded ◐
+"standalone only" are ✓ on the standalone plane — routed interfaces, static routes, the
+routing read with the learned routing table, OSPF, interface DHCP, gateway redundancy
+(whose two reads are ◐: the role is read from the configured priority, the elected state
+being CLI-only) and BGP, whose `get_bgp_neighbors` is ✗, plane reach; on the inherited
+layer, the RADIUS test ✗, plane reach, and `DeviceInfo.manufacturer` ✗. Column 7: the L3
+cells stand; gateway redundancy on Virtual ARP reads both nodes `PRIMARY`, as the v2 note
+says.
+
+**Findings for the harmonisation review.** Each changes no shape here. The findings on the
+inherited L2 layer are those of the L2 document's record, which hold for the five
+shared-plane columns; those below add the L3 layer and the two columns with an L2 layer of
+their own.
+
+- `DeviceInfo.manufacturer` is published on two of the seven columns (Aruba CX 6300, Arista CCS-720XP).
+- The archetype block lists the composed L2 layer without `placement` and `info` (24 capabilities shipped; 25 on the routed variant).
+- No member or model carries a VRF: the on-box planes (Aruba CX 6300, Juniper EX4400, Catalyst 9300, FortiSwitch 400, Arista CCS-720XP) address the default VRF or routing instance, and a non-default VRF has no input to refuse.
+- `RouteEntry.gateway`, `interface` and `metric` are `""` and 0 where the plane prints none, on every column that reads a routing table (Meraki MS355, Aruba CX 6300, Juniper EX4400, Catalyst 9300, FortiSwitch 400, Arista CCS-720XP), and in the learned BGP routes (Aruba CX 6300, Juniper EX4400, Catalyst 9300, FortiSwitch 400, Arista CCS-720XP); candidate `str | None`, `int | None`, as the SD-WAN appliance's record proposes.
+- `RouteOrigin` seeds five protocols: IS-IS, RIP and other printed protocols read `UNKNOWN` on every column with a learned routing table (Aruba CX 6300, Juniper EX4400, Catalyst 9300, FortiSwitch 400, Arista CCS-720XP).
+- `RedundancyGroup.virtual_ip` and `interface` have no counterpart on a warm spare (Meraki MS355); a group that prints no address reads `""` (Juniper EX4400, Aruba CX 6300, Catalyst 9300).
+- `RedundancyRole` is elected, not configured: the non-forwarding states of HSRP and VRRP read `SPARE` and a write sets a priority (Catalyst 9300, Juniper EX4400, Aruba CX 6300); the role is read from the configured priority where the elected state is not published (FortiSwitch 400); Virtual ARP is numberless and active-active (Arista CCS-720XP), as the vocabulary's `ACTIVE_ACTIVE` candidate notes.
+- `OspfConfig.router_id` is required text the plane does not publish, and OSPFv3 has no interface settings (Meraki MS355).
+- `RoutedInterface` names no default gateway, which the plane requires on the first IPv4 interface (Meraki MS355).
+- `RoutingRead`: the learned routing table is published on five of the seven columns, the configuration view only on Meraki MS355 (UniFi Pro Max publishes neither, classification unverified); the design's best-effort framing holds.
+- `RadiusClient`: the registry is keyed by address (Aruba CX 6300); accounting off on one server (`acct_port=None`) has no per-server form there (accounting is global) and is refused.
+- `StormControlConfig`: one rate per port over the enabled types (FortiSwitch 400).
+- `SwitchQos`: `set_dscp_cos_map` maps DSCP to a queue, not an 802.1p value (FortiSwitch 400); the QoS policy applies switch-wide (Aruba CX 6300) or on every interface (FortiSwitch 400).
+- `FirstHopSecurity`: `GLOBAL` is refused where snooping and inspection are per VLAN only (FortiSwitch 400); the docstring does not say what a per-VLAN call without its VLAN is (the drivers raise `ValueError`).
+- `SwitchAcl`: VLAN lists bind ingress only (Aruba CX 6300); bindings are ports only (FortiSwitch 400); a rule holds one port range (Aruba CX 6300, FortiSwitch 400).
+- `SwitchPort.isolated` has no port column (Aruba CX 6300) or is a private-VLAN port type (FortiSwitch 400); the voice VLAN is a VLAN flag (Aruba CX 6300) or an LLDP-MED policy (FortiSwitch 400); port mode follows the allowed VLANs (FortiSwitch 400).
+- Write scope: the network's OSPF settings (Meraki MS355), and on-box named objects shared between ports and methods (Aruba CX 6300, FortiSwitch 400); each written with the sharing stated, none graded unsupported.
+
+**Migration already announced (0.13.0; earliest removal: the first release on or after 2027-04-15, six months after 0.13.0).** A consumer pinned below
+0.13.0 already faces `QosRule.match` → `classifier` (at removal `match` goes and
+`classifier` becomes required). The findings propose that a harmonisation change land
+beside this migration, so a consumer migrates once; its deprecation period is set by that
+change.
+
+**`GAPS.md` entries.** The 2026-10-23 `LinkHealthReport.loss_percent` entry gains an
+update (the companion `RouteEntry` sentinels on every column that reads a routing table,
+and `RedundancyGroup.virtual_ip` `""` on three); the 2026-06-14 `Vrf` / multi-VRF entry gains
+an update (no switch member carries a VRF; the on-box planes address the default one).
+`DeviceInfo.manufacturer`, `RouteOrigin` and `RedundancyRole` are harmonisation candidates
+on existing members and vocabularies and have no entry of their own.
