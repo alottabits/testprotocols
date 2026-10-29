@@ -755,7 +755,7 @@ findings below are held for the harmonisation review.
 | 3 | Juniper EX4400 | Junos OS 23.4 CLI (ELS) over SSH, `configure private` and `commit` |
 | 4 | Catalyst 9300 | IOS-XE 17.12 CLI over SSH |
 | 5 | UniFi Pro Max | UniFi Network application Integration API, 9.4 line (reference 9.4.19), which publishes no L3 operation; the PoE variant, as for the L2 column sharing the plane |
-| 6 | FortiSwitch 400 | FortiSwitchOS 7.6 REST API, standalone (no FortiLink), administrator session login (the 7.6 documentation publishes no API-token user) |
+| 6 | FortiSwitch 400 | FortiSwitchOS 7.6 REST API, standalone (no FortiLink), administrator session login (the 7.6 documentation publishes no API-token user); the documents read are the FortiSwitchOS 7.6.7 CLI Reference and Administration Guide |
 | 7 | Arista CCS-720XP | EOS 4.33 eAPI (JSON-RPC over HTTPS); the EOS manual read at 4.36.2F |
 
 **Counts over the 70 members.** Mapped; mapped with a stated gap (a `partial:` line on the
@@ -833,12 +833,16 @@ plane reach, and `DeviceInfo.manufacturer` ✓. Columns 3 and 4: the L3 cells st
 reach (the application's UI routes networks on the switch, holds static routes and serves
 DHCP); the routing read ◐ → ✗ and `InterfaceDhcp.get_dhcp_leases` ✗ (classification
 unverified); OSPF and
-gateway redundancy ✗ stand (absent from the product). Column 6: the seven cells graded ◐
-"standalone only" are ✓ on the standalone plane — routed interfaces, static routes, the
+gateway redundancy ✗ stand (absent from the product). Column 6: the seven archetype rows graded ◐
+standalone (six "standalone only", gateway redundancy "VRRP standalone"; the deferred
+multicast row aside) are ✓ on the standalone plane — routed interfaces, static routes, the
 routing read with the learned routing table, OSPF, interface DHCP, gateway redundancy
 (whose two reads are ◐: the role is read from the configured priority, the elected state
 being CLI-only) and BGP, whose `get_bgp_neighbors` is ✗, plane reach; on the inherited
-layer, the RADIUS test ✗, plane reach, and `DeviceInfo.manufacturer` ✗. Column 7: the L3
+layer, the RADIUS test ✗, plane reach, and `DeviceInfo.manufacturer` ✗. With the
+learned routing table published here, the design's dynamic-RIB facet count of 3/6 reads
+4/6 on the original review set and 5/7 with Arista: still below the 5/6 bar, so the
+best-effort framing holds. Column 7: the L3
 cells stand; gateway redundancy on Virtual ARP reads both nodes `PRIMARY`, as the v2 note
 says.
 
