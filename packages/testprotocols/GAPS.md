@@ -796,6 +796,13 @@ keep the future change clean.
 *Scope — default VRF only*; Arista v2 VRF note), `models/switch_routing.py`,
 `static_routes.py`, `models/wan_edge.py` (`RouteEntry`).
 
+**Update (2026-10-29, the L3 switch verification record):** the five on-box L3 columns'
+planes address VRFs or routing instances, and no switch member or model carries one at
+the verified pin, so the drivers address the default VRF and a non-default VRF has no
+input to refuse. The entry's trigger and design notes stand
+(`docs/architecture/l3-switch-protocol-design.md`, "Verification record (2026-10-29)",
+findings).
+
 ---
 
 ## 2026-06-14 — `Vxlan` / EVPN fabric [priority: low–medium]
@@ -1336,6 +1343,13 @@ published sample keeps its number.
 `docs/architecture/sdwan-appliance-protocol-design.md` ("Verification record (2026-10-23)",
 findings); the 2026-10-05 precise-types entry and the 2026-10-22 `EventLogEntry.hostname`
 entry above (the same sentinel pattern).
+
+**Update (2026-10-29, the L3 switch verification record):** the switch verification found
+the companion `RouteEntry` sentinels (`gateway` and `interface` `""`, `metric` `0` where
+the plane prints none) on all six L3 columns whose plane reads a routing table, and
+`RedundancyGroup.virtual_ip` `""` on three columns where a group prints no address
+(`docs/architecture/l3-switch-protocol-design.md`, "Verification record (2026-10-29)",
+findings).
 
 ---
 
