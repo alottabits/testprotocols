@@ -779,7 +779,7 @@ shows it — and the published plane does not reach it).
 Across the seven drivers: 162 `lossy:` lines (a rendering that loses information), 16
 `partial:` lines (a gap in a supported member) and 86 `unverified:` lines (a field, reply
 shape or classification the cited page does not print), counting a line whose first
-token, after an optional comment marker, is the annotation.
+token, after an optional comment marker (`#` or `#:`), is the annotation.
 
 **Unsupported cells.**
 
